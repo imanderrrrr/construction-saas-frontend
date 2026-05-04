@@ -3,7 +3,9 @@ import { RouterProvider } from 'react-router';
 import { router } from './routes';
 import { AuthService } from './services/auth';
 import { IntroOverlay } from './components/IntroOverlay';
+import { ErrorFallback } from './components/ErrorFallback';
 import { getBaseUrl, isAuthenticated } from './lib/api';
+import { SentryErrorBoundary } from './lib/sentry';
 
 export default function App() {
   const [ready, setReady] = useState(false);
@@ -58,7 +60,18 @@ export default function App() {
   return (
     <>
       <IntroOverlay />
-      <RouterProvider router={router} />
+      {/* SentryErrorBoundary catches uncaught render-time errors anywhere
+          in the route tree. The fallback never throws and is render-only,
+          so it cannot trigger a second-level error loop. When Sentry is
+          not initialised (no DSN) the boundary still works as a plain
+          React error boundary — only the network capture is skipped. */}
+      <SentryErrorBoundary
+        fallback={({ error, resetError }) => (
+          <ErrorFallback error={error} resetError={resetError} />
+        )}
+      >
+        <RouterProvider router={router} />
+      </SentryErrorBoundary>
     </>
   );
 }
