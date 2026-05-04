@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { RouterProvider } from 'react-router';
 import { router } from './routes';
 import { AuthService } from './services/auth';
+import { IntroOverlay } from './components/IntroOverlay';
 import { getBaseUrl, isAuthenticated } from './lib/api';
 
 export default function App() {
@@ -42,14 +43,22 @@ export default function App() {
 
   if (!ready) {
     return (
-      <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-3 border-[#F97316] border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-[#71717A]">Loading…</p>
+      <>
+        <IntroOverlay />
+        <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-10 h-10 border-3 border-[#F97316] border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm text-[#71717A]">Loading…</p>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
-  return <RouterProvider router={router} />;
+  return (
+    <>
+      <IntroOverlay />
+      <RouterProvider router={router} />
+    </>
+  );
 }
