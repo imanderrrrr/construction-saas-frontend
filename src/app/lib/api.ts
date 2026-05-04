@@ -17,7 +17,9 @@ export function getBaseUrl(): string {
 // These were used before the HttpOnly cookie migration. Remove them so
 // sensitive tokens are no longer sitting in localStorage.
 const LEGACY_KEYS = ['ofjr_access_token', 'ofjr_refresh_token', 'ofjr_user_role', 'ofjr_username'];
-LEGACY_KEYS.forEach(k => localStorage.removeItem(k));
+if (typeof localStorage !== 'undefined') {
+  LEGACY_KEYS.forEach(k => { try { localStorage.removeItem(k); } catch { /* ignore */ } });
+}
 
 // ── Cookie-based session helpers ────────────────────────────────────────────
 
