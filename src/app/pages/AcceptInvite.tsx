@@ -41,12 +41,18 @@ function AlertDestructive({ title, message }: { title: string; message: string }
   );
 }
 
-type AcceptError = 'usernameTaken' | 'expired' | 'validation' | 'server';
+type AcceptError = 'usernameTaken' | 'expired' | 'validation' | 'rateLimited' | 'server';
 
 function classify(err: unknown): AcceptError {
   if (err instanceof ApiError) {
     if (err.status === 410) return 'expired';
     if (err.status === 409) return 'usernameTaken';
+    // UX1 fix: 429 used to fall through to 'server' ("Can't reach the
+    // server"), which misleads the user into thinking it's a network
+    // issue when in fact the request DID arrive — they're just
+    // throttled. The new 'rateLimited' branch surfaces an honest,
+    // actionable message ("Espera unos minutos").
+    if (err.status === 429) return 'rateLimited';
     if (err.status === 400) return 'validation';
   }
   return 'server';

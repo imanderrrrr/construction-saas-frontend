@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation, Trans } from 'react-i18next';
 import {
   CheckCircle, AlertTriangle, XCircle, Clock,
   Filter as FilterIcon, ChevronDown, ChevronRight,
@@ -896,7 +896,16 @@ export function ExpenseReviews() {
         <AlertDialogContent className="sm:max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-[#0A0A0A]">{t('review.dialog.rejectTitle')}</AlertDialogTitle>
-            <AlertDialogDescription dangerouslySetInnerHTML={{ __html: t('review.dialog.rejectDesc') }} />
+            <AlertDialogDescription>
+              {/* Bug-Fix A.2: <Trans> parses ONLY the components we list,
+                  never arbitrary HTML. Translation strings keep <strong>
+                  for translator readability but cannot inject anything else. */}
+              <Trans
+                i18nKey="review.dialog.rejectDesc"
+                t={t}
+                components={{ strong: <strong /> }}
+              />
+            </AlertDialogDescription>
           </AlertDialogHeader>
           {rejectTarget && (
             <div className="space-y-4 py-1">
@@ -946,9 +955,15 @@ export function ExpenseReviews() {
         <AlertDialogContent className="sm:max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-[#0A0A0A]">{t('review.dialog.batchTitle')}</AlertDialogTitle>
-            <AlertDialogDescription dangerouslySetInnerHTML={{
-              __html: t('review.dialog.batchDesc', { count: pendingExpenses.length, amount: fmtAmount(pendingTotal) })
-            }} />
+            <AlertDialogDescription>
+              {/* Bug-Fix A.2: same Trans-based pattern as rejectDesc above. */}
+              <Trans
+                i18nKey="review.dialog.batchDesc"
+                t={t}
+                values={{ count: pendingExpenses.length, amount: fmtAmount(pendingTotal) }}
+                components={{ strong: <strong /> }}
+              />
+            </AlertDialogDescription>
           </AlertDialogHeader>
           {Object.keys(pendingByWorker).length > 0 && (
             <div className="space-y-2 py-1">

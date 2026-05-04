@@ -138,7 +138,7 @@ export function NewExpense({ onSubmitSuccess }: NewExpenseProps) {
   const ALLOWED_TYPES = [
     'image/jpeg', 'image/png', 'image/webp', 'image/gif',
     'image/bmp', 'image/tiff', 'image/heic', 'image/heif',
-    'image/svg+xml', 'application/pdf',
+    'application/pdf',
   ];
 
   function handleFileSelect(file: File) {
