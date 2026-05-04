@@ -23,6 +23,16 @@ import { SubcontractorWebInfo } from './pages/SubcontractorWebInfo';
 import { AuthService }         from './services/auth';
 import { CanonicalRole, ROLE_DASHBOARD_ROUTES } from './types';
 
+// Platform (super-admin) console — separate auth model (Bearer + MFA),
+// separate context, separate shell. Lives at /platform/<...>.
+import { PlatformAuthProvider } from '../platform/context/PlatformAuthContext';
+import { ProtectedPlatformRoute } from '../platform/components/ProtectedPlatformRoute';
+import { PlatformLogin } from '../platform/pages/PlatformLogin';
+import { PlatformOverview } from '../platform/pages/PlatformOverview';
+import { PlatformTenants } from '../platform/pages/PlatformTenants';
+import { PlatformTenantDetailPage } from '../platform/pages/PlatformTenantDetail';
+import { PlatformAudit } from '../platform/pages/PlatformAudit';
+
 // Protected Route
 
 function ProtectedRoute({
@@ -168,6 +178,67 @@ export const router = createBrowserRouter([
       <ProtectedRoute allowedRoles={['SUBCONTRACTOR']}>
         <SubcontractorWebInfo />
       </ProtectedRoute>
+    ),
+  },
+
+  // ── Platform (super-admin) console ──────────────────────────
+  // Separate auth (Bearer + TOTP MFA) from the tenant cookie flow.
+  // Wrapped in PlatformAuthProvider so all sub-routes share one
+  // session context.
+  {
+    path: '/platform/login',
+    element: (
+      <PlatformAuthProvider>
+        <PlatformLogin />
+      </PlatformAuthProvider>
+    ),
+  },
+  {
+    path: '/platform',
+    element: (
+      <PlatformAuthProvider>
+        <Navigate to="/platform/overview" replace />
+      </PlatformAuthProvider>
+    ),
+  },
+  {
+    path: '/platform/overview',
+    element: (
+      <PlatformAuthProvider>
+        <ProtectedPlatformRoute>
+          <PlatformOverview />
+        </ProtectedPlatformRoute>
+      </PlatformAuthProvider>
+    ),
+  },
+  {
+    path: '/platform/tenants',
+    element: (
+      <PlatformAuthProvider>
+        <ProtectedPlatformRoute>
+          <PlatformTenants />
+        </ProtectedPlatformRoute>
+      </PlatformAuthProvider>
+    ),
+  },
+  {
+    path: '/platform/tenants/:id',
+    element: (
+      <PlatformAuthProvider>
+        <ProtectedPlatformRoute>
+          <PlatformTenantDetailPage />
+        </ProtectedPlatformRoute>
+      </PlatformAuthProvider>
+    ),
+  },
+  {
+    path: '/platform/audit',
+    element: (
+      <PlatformAuthProvider>
+        <ProtectedPlatformRoute>
+          <PlatformAudit />
+        </ProtectedPlatformRoute>
+      </PlatformAuthProvider>
     ),
   },
 
