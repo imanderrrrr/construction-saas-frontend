@@ -20,6 +20,9 @@ import { AuthHandoff }         from './pages/AuthHandoff';
 import { FinanceDashboard }    from './pages/FinanceDashboard';
 import { WarehouseDashboard }  from './pages/WarehouseDashboard';
 import { SubcontractorWebInfo } from './pages/SubcontractorWebInfo';
+import { BillingPage }         from './pages/admin/BillingPage';
+import { CheckoutSuccess }     from './pages/CheckoutSuccess';
+import { CheckoutCancel }      from './pages/CheckoutCancel';
 import { AuthService }         from './services/auth';
 import { CanonicalRole, ROLE_DASHBOARD_ROUTES } from './types';
 
@@ -99,6 +102,12 @@ export const router = createBrowserRouter([
   { path: '/support',       element: <Support /> },
   { path: '/dashboard',    element: <ProtectedRoute><RoleRedirect /></ProtectedRoute> },
 
+  // Paddle return pages — public on purpose. Activation lives on the
+  // backend webhook, NOT on these pages, so they need no auth and never
+  // mutate state.
+  { path: '/checkout/success', element: <CheckoutSuccess /> },
+  { path: '/checkout/cancel',  element: <CheckoutCancel /> },
+
   // ADMIN
   {
     path: '/admin/dashboard',
@@ -109,6 +118,14 @@ export const router = createBrowserRouter([
     ),
   },
   // Admin time-approvals is a section inside AdminDashboard (no separate route needed)
+  {
+    path: '/admin/billing',
+    element: (
+      <ProtectedRoute allowedRoles={['ADMIN']}>
+        <BillingPage />
+      </ProtectedRoute>
+    ),
+  },
 
   // SUPERVISOR
   {

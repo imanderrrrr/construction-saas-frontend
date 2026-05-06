@@ -1,0 +1,29 @@
+{
+  "page.title": "Subscription & billing",
+  "page.subtitle": "Pick the plan that fits your operation. Billing is handled securely by Paddle — we never store your card details.",
+  "page.backToDashboard": "Back to dashboard",
+
+  "toggle.monthly": "Monthly",
+  "toggle.annual": "Annual",
+  "toggle.annualBadge": "Save 17%",
+
+  "card.cta.checkout": "Subscribe to {{plan}}",
+  "card.cta.processing": "Opening checkout…",
+  "card.cta.hint": "Secure payments by Paddle · Cancel any time",
+  "card.everythingInPro": "Everything in Pro, plus:",
+
+  "error.title": "We couldn't open checkout",
+  "error.generic": "Something went wrong starting the payment. Please try again in a moment.",
+  "error.missingToken": "The payments integration isn't configured. Please contact support.",
+  "error.network": "We can't reach the server right now. Check your connection and try again.",
+
+  "success.title": "We're processing your subscription",
+  "success.body": "We're processing your subscription. Activation will be confirmed automatically once Paddle notifies us of the payment.",
+  "success.note": "You can close this tab — we'll email you when it's ready.",
+  "success.cta.dashboard": "Back to dashboard",
+
+  "cancel.title": "Checkout canceled",
+  "cancel.body": "No charge was made. You can come back to the plans any time, or keep using your current account.",
+  "cancel.cta.plans": "See plans",
+  "cancel.cta.dashboard": "Go to dashboard"
+}

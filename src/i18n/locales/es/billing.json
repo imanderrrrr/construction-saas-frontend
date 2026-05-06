@@ -1,0 +1,29 @@
+{
+  "page.title": "Suscripción y facturación",
+  "page.subtitle": "Elegí el plan que mejor se ajusta a tu operación. La facturación se maneja con Paddle de forma segura — no almacenamos tus datos de tarjeta.",
+  "page.backToDashboard": "Volver al panel",
+
+  "toggle.monthly": "Mensual",
+  "toggle.annual": "Anual",
+  "toggle.annualBadge": "Ahorrá 17%",
+
+  "card.cta.checkout": "Suscribirme a {{plan}}",
+  "card.cta.processing": "Abriendo checkout…",
+  "card.cta.hint": "Pagos seguros con Paddle · Cancelás cuando quieras",
+  "card.everythingInPro": "Todo lo del Plan Pro, más:",
+
+  "error.title": "No pudimos abrir el checkout",
+  "error.generic": "Ocurrió un error al iniciar el pago. Volvé a intentar en un momento.",
+  "error.missingToken": "La integración de pagos no está configurada. Contactá a soporte.",
+  "error.network": "No hay conexión con el servidor. Revisá tu red e intentá otra vez.",
+
+  "success.title": "Estamos procesando tu suscripción",
+  "success.body": "Estamos procesando tu suscripción. La activación se confirmará automáticamente cuando Paddle notifique el pago.",
+  "success.note": "Podés cerrar esta pestaña — te avisaremos por email cuando esté lista.",
+  "success.cta.dashboard": "Volver al panel",
+
+  "cancel.title": "Checkout cancelado",
+  "cancel.body": "No se realizó ningún cargo. Podés volver a los planes cuando quieras o continuar usando tu cuenta actual.",
+  "cancel.cta.plans": "Ver planes",
+  "cancel.cta.dashboard": "Ir al panel"
+}
