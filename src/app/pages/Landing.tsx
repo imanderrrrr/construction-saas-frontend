@@ -12,6 +12,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { Pricing } from './landing/Pricing';
+import { LandingVideoCarousel } from '../components/LandingVideoCarousel';
 
 // Brand-coloured wordmark used across the public site.
 function BuildTrackLogo({ className = '' }: { className?: string }) {
@@ -143,6 +144,9 @@ export function Landing() {
           <p className="mt-5 text-xs text-[#71717A]">{t('hero.note')}</p>
         </div>
       </section>
+
+      {/* Demo videos */}
+      <LandingVideoCarousel />
 
       {/* Features */}
       <section id="features" className="py-20 bg-[#FAFAFA] border-y border-[#F4F4F5]">

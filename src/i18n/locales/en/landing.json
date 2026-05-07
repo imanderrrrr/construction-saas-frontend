@@ -14,6 +14,12 @@
   "hero.ctaSecondary": "Sign in",
   "hero.note": "No credit card required · Set up in minutes",
 
+  "videos.title": "BuildTrack in action",
+  "videos.subtitle": "See how the platform works. We'll keep adding walkthroughs of every module.",
+  "videos.placeholder.label": "Coming soon",
+  "videos.placeholder.title": "New walkthrough on the way",
+  "videos.goToSlide": "Go to video {{n}}",
+
   "features.title": "Everything your job site needs",
   "features.subtitle": "One system for the critical day-to-day flows. No complicated integrations, no duplicate data entry.",
   "features.projects.title": "Projects & contracts",
