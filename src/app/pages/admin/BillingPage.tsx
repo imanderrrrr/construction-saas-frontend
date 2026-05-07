@@ -17,7 +17,7 @@
 // Paddle.Checkout.open().
 
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft,
@@ -80,6 +80,7 @@ interface PlanCardProps {
   planKey: 'pro' | 'business';
   billing: BillingInterval;
   featured?: boolean;
+  selected?: boolean;
   disabled?: boolean;
   loading?: boolean;
   onCheckout: (planCode: PlanCode) => void;
@@ -89,6 +90,7 @@ function PlanCard({
   planKey,
   billing,
   featured = false,
+  selected = false,
   disabled = false,
   loading = false,
   onCheckout,
@@ -120,9 +122,10 @@ function PlanCard({
       aria-label={`${name} plan`}
       className={[
         'relative flex flex-col p-0 overflow-hidden',
-        featured
+        selected || featured
           ? 'border-2 border-[#F97316] shadow-xl shadow-[#F97316]/10'
           : 'border border-[#D4D4D8]',
+        selected ? 'ring-2 ring-[#F97316]/25 ring-offset-2' : '',
       ].join(' ')}
     >
       {featured && (
@@ -139,6 +142,12 @@ function PlanCard({
         <CardDescription className="text-sm text-[#71717A] mt-1">
           {tagline}
         </CardDescription>
+
+        {selected && (
+          <Badge className="mt-3 w-fit bg-[#F97316]/10 text-[#C2410C] border-0 text-[11px] font-semibold">
+            {tBilling('selectedFromSignup.badge')}
+          </Badge>
+        )}
 
         <div className="mt-6">
           <div className="flex items-baseline gap-1">
@@ -243,13 +252,50 @@ function ErrorBanner({ title, message }: { title: string; message: string }) {
   );
 }
 
+function SelectedPlanBanner() {
+  const { t } = useTranslation('billing');
+
+  return (
+    <div className="mt-8 max-w-3xl mx-auto p-4 rounded-xl border border-[#F97316]/25 bg-[#FFF7ED] flex items-start gap-3">
+      <div className="w-8 h-8 bg-[#F97316]/10 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+        <Sparkles className="w-4 h-4 text-[#F97316]" aria-hidden="true" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-[#0A0A0A]">
+          {t('selectedFromSignup.title')}
+        </p>
+        <p className="text-sm text-[#71717A] mt-0.5 leading-relaxed">
+          {t('selectedFromSignup.body')}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+interface BillingPlanIntent {
+  plan: PlanCode;
+  interval: BillingInterval;
+}
+
+function parseBillingPlanIntent(searchParams: URLSearchParams): BillingPlanIntent | null {
+  const plan = searchParams.get('plan');
+  const interval = searchParams.get('interval');
+  if (plan !== 'PRO' && plan !== 'BUSINESS') return null;
+  if (interval !== 'MONTHLY' && interval !== 'ANNUAL') return null;
+  return { plan, interval };
+}
+
 // Page
 
 export function BillingPage() {
   const { t } = useTranslation('billing');
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const selectedPlan = parseBillingPlanIntent(searchParams);
 
-  const [billing, setBilling] = useState<BillingInterval>('MONTHLY');
+  const [billing, setBilling] = useState<BillingInterval>(
+    () => selectedPlan?.interval ?? 'MONTHLY',
+  );
   // Track which plan is currently being processed so we can show a spinner
   // on the right card and disable both CTAs to prevent double-submits.
   const [busyPlan, setBusyPlan] = useState<PlanCode | null>(null);
@@ -353,6 +399,8 @@ export function BillingPage() {
             </p>
           </div>
 
+          {selectedPlan && <SelectedPlanBanner />}
+
           {/* Billing toggle */}
           <div className="flex items-center justify-center gap-3 mt-10 mb-10">
             <span
@@ -397,6 +445,7 @@ export function BillingPage() {
             <PlanCard
               planKey="pro"
               billing={billing}
+              selected={selectedPlan?.plan === 'PRO'}
               loading={busyPlan === 'PRO'}
               disabled={busyPlan !== null && busyPlan !== 'PRO'}
               onCheckout={handleCheckout}
@@ -405,6 +454,7 @@ export function BillingPage() {
               planKey="business"
               billing={billing}
               featured
+              selected={selectedPlan?.plan === 'BUSINESS'}
               loading={busyPlan === 'BUSINESS'}
               disabled={busyPlan !== null && busyPlan !== 'BUSINESS'}
               onCheckout={handleCheckout}

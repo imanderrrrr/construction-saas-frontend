@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   createCheckout: vi.fn(),
   navigate: vi.fn(),
   openCheckout: vi.fn(),
+  searchParams: new URLSearchParams(),
 }));
 
 vi.mock('react-i18next', () => ({
@@ -41,6 +42,15 @@ vi.mock('react-i18next', () => ({
       if (namespace === 'billing' && key === 'card.cta.processing') {
         return 'Processing';
       }
+      if (namespace === 'billing' && key === 'selectedFromSignup.title') {
+        return 'Selected from signup';
+      }
+      if (namespace === 'billing' && key === 'selectedFromSignup.body') {
+        return 'You can change it before checkout.';
+      }
+      if (namespace === 'billing' && key === 'selectedFromSignup.badge') {
+        return 'Selected plan';
+      }
       if (namespace === 'pricing' && key.endsWith('.name')) {
         return key.includes('.pro.') ? 'Pro' : 'Business';
       }
@@ -55,6 +65,7 @@ vi.mock('react-router', () => ({
     <a href={to}>{children}</a>
   ),
   useNavigate: () => mocks.navigate,
+  useSearchParams: () => [mocks.searchParams],
 }));
 
 vi.mock('../../components/LanguageSwitcher', () => ({
@@ -113,6 +124,7 @@ describe('BillingPage checkout errors', () => {
     mocks.createCheckout.mockReset();
     mocks.navigate.mockReset();
     mocks.openCheckout.mockReset();
+    mocks.searchParams = new URLSearchParams();
 
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -148,5 +160,35 @@ describe('BillingPage checkout errors', () => {
 
     expect(alert?.textContent).toContain('Missing Paddle client token.');
     expect(alert?.textContent).not.toContain('Generic billing error.');
+  });
+
+  it('uses signup query params to preselect annual billing and show selected plan copy', async () => {
+    mocks.searchParams = new URLSearchParams(
+      'plan=BUSINESS&interval=ANNUAL&from=signup',
+    );
+    mocks.createCheckout.mockResolvedValueOnce({ transactionId: 'txn_123' });
+    mocks.openCheckout.mockResolvedValueOnce(undefined);
+
+    await act(async () => {
+      root.render(<BillingPage />);
+    });
+
+    expect(container.textContent).toContain('Selected from signup');
+    expect(container.textContent).toContain('You can change it before checkout.');
+    expect(container.textContent).toContain('Selected plan');
+
+    const [, businessCheckout] = checkoutButtons(container);
+    expect(businessCheckout).toBeDefined();
+
+    await act(async () => {
+      businessCheckout.click();
+      await flushReactWork();
+    });
+
+    expect(mocks.createCheckout).toHaveBeenCalledWith({
+      planCode: 'BUSINESS',
+      billingInterval: 'ANNUAL',
+    });
+    expect(mocks.openCheckout).toHaveBeenCalledTimes(1);
   });
 });

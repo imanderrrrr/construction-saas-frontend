@@ -12,6 +12,10 @@
   "card.cta.hint": "Secure payments by Paddle · Cancel any time",
   "card.everythingInPro": "Everything in Pro, plus:",
 
+  "selectedFromSignup.title": "Plan selected during signup",
+  "selectedFromSignup.body": "This is the plan you chose when registering. You can change it before continuing to Paddle's secure checkout.",
+  "selectedFromSignup.badge": "Selected plan",
+
   "error.title": "We couldn't open checkout",
   "error.generic": "Something went wrong starting the payment. Please try again in a moment.",
   "error.missingToken": "The payments integration isn't configured. Please contact support.",

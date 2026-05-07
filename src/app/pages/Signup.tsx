@@ -4,7 +4,7 @@
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 
 import { AuthService, ApiError, SignupPayload } from '../services/auth';
@@ -43,6 +43,25 @@ function AlertDestructive({ title, message }: { title: string; message: string }
 
 interface SignupFormFields extends SignupPayload {}
 
+type SignupPlanCode = 'PRO' | 'BUSINESS';
+type SignupBillingInterval = 'MONTHLY' | 'ANNUAL';
+
+interface SignupPlanIntent {
+  plan: SignupPlanCode;
+  interval: SignupBillingInterval;
+}
+
+function parseSignupPlanIntent(searchParams: URLSearchParams): SignupPlanIntent | null {
+  const plan = searchParams.get('plan');
+  if (plan !== 'PRO' && plan !== 'BUSINESS') return null;
+
+  const interval = searchParams.get('interval');
+  return {
+    plan,
+    interval: interval === 'ANNUAL' ? 'ANNUAL' : 'MONTHLY',
+  };
+}
+
 // Backend error code → i18n key prefix
 type SignupErrorKey =
   | 'slugTaken'
@@ -66,6 +85,8 @@ function classifyError(err: unknown): SignupErrorKey {
 export function Signup() {
   const { t } = useTranslation('auth');
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const selectedPlan = parseSignupPlanIntent(searchParams);
 
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -117,6 +138,15 @@ export function Signup() {
         ...data,
         tenantSlug: data.tenantSlug.trim().toLowerCase(),
       });
+      if (selectedPlan && response.role === 'ADMIN') {
+        const params = new URLSearchParams({
+          plan: selectedPlan.plan,
+          interval: selectedPlan.interval,
+          from: 'signup',
+        });
+        navigate(`/admin/billing?${params.toString()}`);
+        return;
+      }
       navigate(AuthService.getDashboardRoute(response.role));
     } catch (err) {
       setError(classifyError(err));
@@ -158,6 +188,31 @@ export function Signup() {
           )}
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
+            {selectedPlan && (
+              <div className="rounded-xl border border-[#F97316]/25 bg-[#FFF7ED] p-4">
+                <p className="text-xs font-semibold tracking-widest text-[#F97316] uppercase">
+                  {t('signup.selectedPlan.title')}
+                </p>
+                <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                  <span className="inline-flex items-center rounded-lg bg-white border border-[#FED7AA] px-3 py-2 text-sm font-medium text-[#0A0A0A]">
+                    {t('signup.selectedPlan.plan', {
+                      plan: t(`signup.selectedPlan.plan.${selectedPlan.plan}`),
+                    })}
+                  </span>
+                  <span className="inline-flex items-center rounded-lg bg-white border border-[#FED7AA] px-3 py-2 text-sm font-medium text-[#0A0A0A]">
+                    {t('signup.selectedPlan.interval', {
+                      interval: t(
+                        `signup.selectedPlan.interval.${selectedPlan.interval}`,
+                      ),
+                    })}
+                  </span>
+                </div>
+                <p className="mt-3 text-xs text-[#71717A] leading-relaxed">
+                  {t('signup.selectedPlan.note')}
+                </p>
+              </div>
+            )}
+
             {/* Company section */}
             <div className="space-y-4">
               <h2 className="text-xs font-semibold tracking-widest text-[#F97316] uppercase">

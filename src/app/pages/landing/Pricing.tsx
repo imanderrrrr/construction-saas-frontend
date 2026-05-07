@@ -56,12 +56,26 @@ interface PlanCardProps {
   featured?: boolean;
 }
 
+const PLAN_CODE_BY_KEY = {
+  pro: 'PRO',
+  business: 'BUSINESS',
+} as const;
+
+const BILLING_INTERVAL_BY_KEY = {
+  monthly: 'MONTHLY',
+  annual: 'ANNUAL',
+} as const;
+
 function PlanCard({ planKey, billing, featured = false }: PlanCardProps) {
   const { t } = useTranslation('pricing');
   const navigate = useNavigate();
   // Phase-3: trial CTA goes straight into the public signup flow.
-  // The plan choice rides the URL so the form (and analytics) can use it.
-  const goToSignup = () => navigate(`/signup?plan=${planKey}`);
+  // The plan choice rides the URL as backend-compatible intent enums.
+  const goToSignup = () => {
+    const planCode = PLAN_CODE_BY_KEY[planKey];
+    const billingInterval = BILLING_INTERVAL_BY_KEY[billing];
+    navigate(`/signup?plan=${planCode}&interval=${billingInterval}`);
+  };
 
   const name = t(`plans.${planKey}.name`);
   const tagline = t(`plans.${planKey}.tagline`);
