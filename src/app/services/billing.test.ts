@@ -62,3 +62,26 @@ describe('BillingService.createCheckout', () => {
     expect(body).not.toHaveProperty('cardNumber');
   });
 });
+
+describe('BillingService.getStatus', () => {
+  beforeEach(() => {
+    apiMock.mockReset();
+  });
+
+  it('reads billing status without sending tenantId or checkout fields', async () => {
+    apiMock.mockResolvedValueOnce({
+      billingStatus: 'ACTIVE',
+      planCode: 'PRO',
+      billingInterval: 'MONTHLY',
+      paddleEnv: 'sandbox',
+      currentPeriodEndsAt: '2026-06-01T00:00:00Z',
+      lastEventId: 'evt_123',
+      lastEventOccurredAt: '2026-05-01T12:30:00Z',
+    });
+
+    await BillingService.getStatus();
+
+    expect(apiMock).toHaveBeenCalledWith('/api/v1/billing/status');
+    expect(apiMock).toHaveBeenCalledTimes(1);
+  });
+});

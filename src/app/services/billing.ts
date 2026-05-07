@@ -1,17 +1,23 @@
 // BuildTrack — Billing service (admin tenant-side).
 //
-// Thin client over `POST /api/v1/billing/checkout`. The endpoint is
-// ADMIN-only and the backend resolves tenant from the session cookie /
-// JWT, so the frontend MUST NOT send tenantId, tenantSlug, priceId,
-// productId, amount, currency, trialDays or any other billing knob —
-// only `planCode` and `billingInterval`. The backend mints a Paddle
-// transaction and returns a transactionId that the UI hands to
-// Paddle.Checkout.open().
+// Thin client over tenant-admin billing endpoints. The backend resolves
+// tenant from the session cookie / JWT, so the frontend MUST NOT send
+// tenantId, tenantSlug, priceId, productId, amount, currency, trialDays
+// or any other billing knob. Checkout sends only `planCode` and
+// `billingInterval`; status sends no payload at all.
 
 import { api } from '../lib/api';
 
 export type PlanCode = 'PRO' | 'BUSINESS';
 export type BillingInterval = 'MONTHLY' | 'ANNUAL';
+export type BillingStatusValue =
+  | 'CHECKOUT_PENDING'
+  | 'TRIALING'
+  | 'ACTIVE'
+  | 'PAST_DUE'
+  | 'CANCELED'
+  | 'PAYMENT_REQUIRED'
+  | (string & {});
 
 export interface CreateCheckoutRequest {
   planCode: PlanCode;
@@ -22,7 +28,26 @@ export interface CreateCheckoutResponse {
   transactionId: string;
 }
 
+export interface BillingStatusResponse {
+  billingStatus: BillingStatusValue | null;
+  planCode: PlanCode | null;
+  billingInterval: BillingInterval | null;
+  paddleEnv: 'sandbox' | 'live' | (string & {}) | null;
+  currentPeriodEndsAt: string | null;
+  lastEventId: string | null;
+  lastEventOccurredAt: string | null;
+}
+
 export const BillingService = {
+  /**
+   * Read the local billing snapshot for the authenticated tenant.
+   * No tenant or checkout fields are sent; the backend resolves scope from
+   * the admin session and returns null fields when billing is not configured.
+   */
+  getStatus(): Promise<BillingStatusResponse> {
+    return api<BillingStatusResponse>('/api/v1/billing/status');
+  },
+
   /**
    * Ask the backend to mint a Paddle transaction for the given plan +
    * interval. Returns the transactionId to feed into Paddle Checkout.

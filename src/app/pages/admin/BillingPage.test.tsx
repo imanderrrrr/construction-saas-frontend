@@ -12,6 +12,7 @@ import {
 const mocks = vi.hoisted(() => ({
   changeLanguage: vi.fn(),
   createCheckout: vi.fn(),
+  getStatus: vi.fn(),
   navigate: vi.fn(),
   openCheckout: vi.fn(),
   searchParams: new URLSearchParams(),
@@ -50,6 +51,39 @@ vi.mock('react-i18next', () => ({
       }
       if (namespace === 'billing' && key === 'selectedFromSignup.badge') {
         return 'Selected plan';
+      }
+      if (namespace === 'billing' && key === 'status.title') {
+        return 'Current subscription';
+      }
+      if (namespace === 'billing' && key === 'status.refresh') {
+        return 'Refresh status';
+      }
+      if (namespace === 'billing' && key === 'status.refreshing') {
+        return 'Refreshing status';
+      }
+      if (namespace === 'billing' && key === 'status.empty.title') {
+        return 'No subscription yet';
+      }
+      if (namespace === 'billing' && key === 'status.empty.body') {
+        return 'Start checkout to configure billing.';
+      }
+      if (namespace === 'billing' && key === 'status.field.status') {
+        return 'Status';
+      }
+      if (namespace === 'billing' && key === 'status.field.plan') {
+        return 'Plan';
+      }
+      if (namespace === 'billing' && key === 'status.field.interval') {
+        return 'Interval';
+      }
+      if (namespace === 'billing' && key === 'status.field.paddleEnv') {
+        return 'Paddle environment';
+      }
+      if (namespace === 'billing' && key === 'status.field.lastEvent') {
+        return 'Last event';
+      }
+      if (namespace === 'billing' && key === 'status.field.periodEnds') {
+        return 'Current period ends';
       }
       if (namespace === 'pricing' && key.endsWith('.name')) {
         return key.includes('.pro.') ? 'Pro' : 'Business';
@@ -95,6 +129,7 @@ vi.mock('../../services/billing', async () => {
     ...actual,
     BillingService: {
       createCheckout: mocks.createCheckout,
+      getStatus: mocks.getStatus,
     },
   };
 });
@@ -115,13 +150,27 @@ async function flushReactWork(): Promise<void> {
   await Promise.resolve();
 }
 
-describe('BillingPage checkout errors', () => {
+function emptyStatus() {
+  return {
+    billingStatus: null,
+    planCode: null,
+    billingInterval: null,
+    paddleEnv: null,
+    currentPeriodEndsAt: null,
+    lastEventId: null,
+    lastEventOccurredAt: null,
+  };
+}
+
+describe('BillingPage status and checkout', () => {
   let container: HTMLDivElement;
   let root: Root;
 
   beforeEach(() => {
     mocks.changeLanguage.mockReset();
     mocks.createCheckout.mockReset();
+    mocks.getStatus.mockReset();
+    mocks.getStatus.mockResolvedValue(emptyStatus());
     mocks.navigate.mockReset();
     mocks.openCheckout.mockReset();
     mocks.searchParams = new URLSearchParams();
@@ -136,6 +185,85 @@ describe('BillingPage checkout errors', () => {
       root.unmount();
     });
     container.remove();
+  });
+
+  it('requests billing status when the page mounts without sending tenant fields', async () => {
+    await act(async () => {
+      root.render(<BillingPage />);
+      await flushReactWork();
+    });
+
+    expect(mocks.getStatus).toHaveBeenCalledTimes(1);
+    expect(mocks.getStatus).toHaveBeenCalledWith();
+  });
+
+  it('shows the current billing status when one exists', async () => {
+    mocks.getStatus.mockResolvedValueOnce({
+      billingStatus: 'ACTIVE',
+      planCode: 'PRO',
+      billingInterval: 'ANNUAL',
+      paddleEnv: 'sandbox',
+      currentPeriodEndsAt: '2026-06-01T00:00:00Z',
+      lastEventId: 'evt_status_123',
+      lastEventOccurredAt: '2026-05-01T12:30:00Z',
+    });
+
+    await act(async () => {
+      root.render(<BillingPage />);
+      await flushReactWork();
+    });
+
+    expect(container.textContent).toContain('Current subscription');
+    expect(container.textContent).toContain('ACTIVE');
+    expect(container.textContent).toContain('PRO');
+    expect(container.textContent).toContain('ANNUAL');
+    expect(container.textContent).toContain('sandbox');
+    expect(container.textContent).toContain('evt_status_123');
+  });
+
+  it('shows a safe empty state when billing status has no local account', async () => {
+    await act(async () => {
+      root.render(<BillingPage />);
+      await flushReactWork();
+    });
+
+    expect(container.textContent).toContain('Current subscription');
+    expect(container.textContent).toContain('No subscription yet');
+    expect(container.textContent).toContain('Start checkout to configure billing.');
+  });
+
+  it('refresh button asks for billing status again', async () => {
+    mocks.getStatus
+      .mockResolvedValueOnce(emptyStatus())
+      .mockResolvedValueOnce({
+        billingStatus: 'CHECKOUT_PENDING',
+        planCode: 'BUSINESS',
+        billingInterval: 'MONTHLY',
+        paddleEnv: 'sandbox',
+        currentPeriodEndsAt: null,
+        lastEventId: 'evt_pending_456',
+        lastEventOccurredAt: '2026-05-02T10:00:00Z',
+      });
+
+    await act(async () => {
+      root.render(<BillingPage />);
+      await flushReactWork();
+    });
+
+    const refreshButton = Array.from(container.querySelectorAll('button')).find(
+      (button) => button.textContent?.includes('Refresh status'),
+    );
+    expect(refreshButton).toBeDefined();
+
+    await act(async () => {
+      refreshButton?.click();
+      await flushReactWork();
+    });
+
+    expect(mocks.getStatus).toHaveBeenCalledTimes(2);
+    expect(mocks.getStatus).toHaveBeenLastCalledWith();
+    expect(container.textContent).toContain('CHECKOUT_PENDING');
+    expect(container.textContent).toContain('evt_pending_456');
   });
 
   it('keeps the missing Paddle token message instead of replacing it with generic copy', async () => {

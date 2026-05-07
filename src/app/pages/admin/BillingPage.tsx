@@ -16,7 +16,7 @@
 // which mints a Paddle transactionId. We then hand that id to
 // Paddle.Checkout.open().
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import {
@@ -25,8 +25,10 @@ import {
   Check,
   HardHat,
   Loader2,
+  RefreshCw,
   Sparkles,
   AlertCircle,
+  CreditCard,
 } from 'lucide-react';
 
 import { Badge } from '../../components/ui/badge';
@@ -46,6 +48,7 @@ import { openCheckout } from '../../lib/paddle';
 import {
   BillingService,
   type BillingInterval,
+  type BillingStatusResponse,
   type PlanCode,
 } from '../../services/billing';
 
@@ -285,6 +288,137 @@ function parseBillingPlanIntent(searchParams: URLSearchParams): BillingPlanInten
   return { plan, interval };
 }
 
+function formatStatusValue(value: string | null | undefined): string {
+  return value ?? '—';
+}
+
+function formatBillingDate(value: string | null | undefined): string {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+  }).format(date);
+}
+
+function StatusField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-xs font-semibold uppercase tracking-wide text-[#71717A]">
+        {label}
+      </dt>
+      <dd className="mt-1 text-sm font-semibold text-[#0A0A0A] break-words">
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+function SubscriptionStatusPanel({
+  status,
+  loading,
+  hasError,
+  onRefresh,
+}: {
+  status: BillingStatusResponse | null;
+  loading: boolean;
+  hasError: boolean;
+  onRefresh: () => void;
+}) {
+  const { t } = useTranslation('billing');
+  const hasBillingAccount = Boolean(status?.billingStatus);
+  const statusLabel = loading && status === null
+    ? t('status.loading')
+    : formatStatusValue(status?.billingStatus);
+
+  return (
+    <Card className="max-w-4xl mx-auto mt-8 border border-[#D4D4D8] shadow-sm overflow-hidden">
+      <CardHeader className="pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div className="flex items-start gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-[#F97316]/10 text-[#F97316] flex items-center justify-center flex-shrink-0">
+              <CreditCard className="w-5 h-5" aria-hidden="true" />
+            </div>
+            <div className="min-w-0">
+              <CardTitle className="text-xl font-semibold text-[#0A0A0A]">
+                {t('status.title')}
+              </CardTitle>
+              <CardDescription className="text-sm text-[#71717A] mt-1">
+                {hasBillingAccount
+                  ? t('status.configured')
+                  : t('status.empty.body')}
+              </CardDescription>
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onRefresh}
+            disabled={loading}
+            className="h-10 border-[#D4D4D8] text-[#0A0A0A] hover:bg-[#FFF7ED] hover:text-[#C2410C] hover:border-[#F97316]/40"
+          >
+            <RefreshCw
+              className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`}
+              aria-hidden="true"
+            />
+            {loading ? t('status.refreshing') : t('status.refresh')}
+          </Button>
+        </div>
+      </CardHeader>
+
+      <CardContent className="pt-0">
+        <div className="flex flex-wrap items-center gap-3 border-t border-[#F4F4F5] pt-5">
+          <span className="inline-flex items-center rounded-full bg-[#0A0A0A] px-3 py-1 text-xs font-semibold text-white">
+            {statusLabel}
+          </span>
+          {hasError && (
+            <span className="text-xs font-medium text-[#C2410C]">
+              {t('status.error')}
+            </span>
+          )}
+          {!hasBillingAccount && !loading && (
+            <span className="text-xs font-semibold text-[#71717A]">
+              {t('status.empty.title')}
+            </span>
+          )}
+        </div>
+
+        {hasBillingAccount ? (
+          <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-5 mt-6">
+            <StatusField
+              label={t('status.field.status')}
+              value={formatStatusValue(status?.billingStatus)}
+            />
+            <StatusField
+              label={t('status.field.plan')}
+              value={formatStatusValue(status?.planCode)}
+            />
+            <StatusField
+              label={t('status.field.interval')}
+              value={formatStatusValue(status?.billingInterval)}
+            />
+            <StatusField
+              label={t('status.field.paddleEnv')}
+              value={formatStatusValue(status?.paddleEnv)}
+            />
+            <StatusField
+              label={t('status.field.periodEnds')}
+              value={formatBillingDate(status?.currentPeriodEndsAt)}
+            />
+            <StatusField
+              label={t('status.field.lastEvent')}
+              value={formatStatusValue(status?.lastEventId)}
+            />
+          </dl>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
 // Page
 
 export function BillingPage() {
@@ -296,10 +430,32 @@ export function BillingPage() {
   const [billing, setBilling] = useState<BillingInterval>(
     () => selectedPlan?.interval ?? 'MONTHLY',
   );
+  const [billingStatus, setBillingStatus] =
+    useState<BillingStatusResponse | null>(null);
+  const [statusLoading, setStatusLoading] = useState(true);
+  const [statusError, setStatusError] = useState(false);
   // Track which plan is currently being processed so we can show a spinner
   // on the right card and disable both CTAs to prevent double-submits.
   const [busyPlan, setBusyPlan] = useState<PlanCode | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const loadBillingStatus = useCallback(async () => {
+    setStatusLoading(true);
+    setStatusError(false);
+    try {
+      const status = await BillingService.getStatus();
+      setBillingStatus(status);
+    } catch {
+      setBillingStatus(null);
+      setStatusError(true);
+    } finally {
+      setStatusLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadBillingStatus();
+  }, [loadBillingStatus]);
 
   const handleCheckout = async (planCode: PlanCode) => {
     if (busyPlan !== null) return; // Hard guard against re-entry.
@@ -400,6 +556,13 @@ export function BillingPage() {
           </div>
 
           {selectedPlan && <SelectedPlanBanner />}
+
+          <SubscriptionStatusPanel
+            status={billingStatus}
+            loading={statusLoading}
+            hasError={statusError}
+            onRefresh={loadBillingStatus}
+          />
 
           {/* Billing toggle */}
           <div className="flex items-center justify-center gap-3 mt-10 mb-10">
