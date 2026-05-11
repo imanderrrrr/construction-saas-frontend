@@ -47,6 +47,9 @@ vi.mock('react-router', () => ({
   Link: ({ children, to }: { children: React.ReactNode; to: string }) => (
     <a href={to}>{children}</a>
   ),
+  Navigate: ({ to }: { to: string }) => (
+    <div data-testid="navigate" data-to={to} />
+  ),
   useNavigate: () => mocks.navigate,
   useSearchParams: () => [mocks.searchParams],
 }));
@@ -205,18 +208,27 @@ describe('Signup selected plan intent', () => {
 
   it.each([
     ['without query params', ''],
-    ['with invalid query params', 'plan=garbage&interval=garbage'],
+    ['with invalid plan', 'plan=garbage&interval=MONTHLY'],
+    ['with invalid interval', 'plan=PRO&interval=garbage'],
+    ['with both query params invalid', 'plan=garbage&interval=garbage'],
+    ['missing interval', 'plan=PRO'],
+    ['missing plan', 'interval=MONTHLY'],
   ])(
-    'keeps the legacy admin dashboard redirect %s',
+    'redirects to /choose-plan when /signup is reached %s',
     async (_label, queryString) => {
       mocks.searchParams = new URLSearchParams(queryString);
 
       await renderSignup(root);
-      await fillValidSignupForm(container);
-      await submit(container);
 
-      expect(mocks.navigate).toHaveBeenCalledWith('/admin/dashboard');
-      expect(navigatedToAdminBilling()).toBe(false);
+      const navigateNode = container.querySelector<HTMLElement>(
+        '[data-testid="navigate"]',
+      );
+      expect(navigateNode).not.toBeNull();
+      expect(navigateNode!.getAttribute('data-to')).toBe('/choose-plan');
+
+      // The form should not render at all, so signup must not be invoked.
+      expect(mocks.signup).not.toHaveBeenCalled();
+      expect(container.querySelector('form')).toBeNull();
     },
   );
 });

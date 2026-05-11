@@ -4,7 +4,7 @@
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Link, useNavigate, useSearchParams } from 'react-router';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 
 import { AuthService, ApiError, SignupPayload } from '../services/auth';
@@ -56,10 +56,9 @@ function parseSignupPlanIntent(searchParams: URLSearchParams): SignupPlanIntent 
   if (plan !== 'PRO' && plan !== 'BUSINESS') return null;
 
   const interval = searchParams.get('interval');
-  return {
-    plan,
-    interval: interval === 'ANNUAL' ? 'ANNUAL' : 'MONTHLY',
-  };
+  if (interval !== 'MONTHLY' && interval !== 'ANNUAL') return null;
+
+  return { plan, interval };
 }
 
 // Backend error code → i18n key prefix
@@ -109,6 +108,15 @@ export function Signup() {
     },
   });
 
+  // /signup is only reachable with a chosen plan + interval. Anyone landing
+  // here without that intent (e.g. a deep-link from search results, an old
+  // bookmark, or manual URL entry) is bounced to /choose-plan so we never
+  // create a company without a plan attached. Hooks above stay above the
+  // early return to keep their order stable across renders.
+  if (!selectedPlan) {
+    return <Navigate to="/choose-plan" replace />;
+  }
+
   const isFormDisabled = isLoading;
 
   // Auto-suggest a slug from the company name as the user types.
@@ -138,7 +146,7 @@ export function Signup() {
         ...data,
         tenantSlug: data.tenantSlug.trim().toLowerCase(),
       });
-      if (selectedPlan && response.role === 'ADMIN') {
+      if (response.role === 'ADMIN') {
         const params = new URLSearchParams({
           plan: selectedPlan.plan,
           interval: selectedPlan.interval,
