@@ -92,7 +92,7 @@ export function Landing() {
                 {t('nav.signIn')}
               </Button>
             </Link>
-            <Link to="/signup">
+            <Link to="/choose-plan">
               <Button className="text-sm bg-[#F97316] hover:bg-[#C2410C] text-white">
                 {t('nav.start')}
               </Button>
@@ -125,7 +125,7 @@ export function Landing() {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link to="/signup">
+            <Link to="/choose-plan">
               <Button className="h-12 px-7 text-base bg-[#F97316] hover:bg-[#C2410C] text-white">
                 {t('hero.ctaPrimary')}
                 <ArrowRight className="w-4 h-4 ml-1" />
@@ -235,7 +235,7 @@ export function Landing() {
           </h2>
           <p className="text-white/70 mb-8 max-w-xl mx-auto">{t('cta.subtitle')}</p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link to="/signup">
+            <Link to="/choose-plan">
               <Button className="h-12 px-7 text-base bg-[#F97316] hover:bg-[#C2410C] text-white">
                 {t('cta.primary')}
                 <ArrowRight className="w-4 h-4 ml-1" />

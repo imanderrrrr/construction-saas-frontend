@@ -4,6 +4,7 @@
 import React from 'react';
 import { createBrowserRouter, Navigate } from 'react-router';
 import { Landing }             from './pages/Landing';
+import { ChoosePlan }          from './pages/landing/ChoosePlan';
 import { Login }               from './pages/Login';
 import { Signup }              from './pages/Signup';
 import { AcceptInvite }        from './pages/AcceptInvite';
@@ -91,6 +92,7 @@ export const router = createBrowserRouter([
   // Public
   { path: '/',                       element: <Landing /> },
   { path: '/login',                  element: <Login /> },
+  { path: '/choose-plan',            element: <ChoosePlan /> },
   { path: '/signup',                 element: <Signup /> },
   { path: '/accept-invite/:token',   element: <AcceptInvite /> },
   { path: '/forgot-password',        element: <ForgotPassword /> },
