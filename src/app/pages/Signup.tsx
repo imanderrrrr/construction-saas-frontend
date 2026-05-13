@@ -1,13 +1,28 @@
-// Public BuildTrack tenant signup. Drives backend POST /api/v1/auth/signup.
-// On success the server has already set the auth cookies, so we just route
-// the brand-new admin to their dashboard.
+// Public BuildTrack tenant signup. Drives the pre-payment surface:
+//
+//   1. `/api/v1/signup/checkout` — persists a temporary intent and mints
+//      a Paddle checkout transaction. NO tenant exists yet.
+//   2. `Paddle.Checkout.open(transactionId, successUrl=/checkout/success)` —
+//      the customer pays. If they cancel, nothing has been created and
+//      the workspace identifier is released once the intent expires.
+//   3. `/checkout/success` reads the saved intent id and calls
+//      `/api/v1/signup/complete` to materialise the tenant + admin.
+//
+// The legacy `/auth/signup` path is intentionally NOT used here. It still
+// exists for tests and any internal flow that doesn't go through Paddle.
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 
-import { AuthService, ApiError, SignupPayload } from '../services/auth';
+import { ApiError } from '../lib/api';
+import {
+  SignupService,
+  rememberSignupIntent,
+  type SignupCheckoutPayload,
+} from '../services/signup';
+import { openCheckout } from '../lib/paddle';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -40,8 +55,22 @@ function AlertDestructive({ title, message }: { title: string; message: string }
 }
 
 // Form
+//
+// The form fields the customer types are the same as before, but the
+// payload we POST goes to `/signup/checkout` (not `/auth/signup`) and
+// also carries the plan + interval the customer picked on the pricing
+// page. A plan IS required for this flow — without it we cannot open
+// Paddle, so a customer who lands on /signup directly is bounced to
+// /pricing rather than allowed to create a no-plan tenant.
 
-interface SignupFormFields extends SignupPayload {}
+interface SignupFormFields {
+  companyName: string;
+  tenantSlug: string;
+  adminFullName: string;
+  adminEmail: string;
+  adminUsername: string;
+  adminPassword: string;
+}
 
 type SignupPlanCode = 'PRO' | 'BUSINESS';
 type SignupBillingInterval = 'MONTHLY' | 'ANNUAL';
@@ -56,27 +85,48 @@ function parseSignupPlanIntent(searchParams: URLSearchParams): SignupPlanIntent 
   if (plan !== 'PRO' && plan !== 'BUSINESS') return null;
 
   const interval = searchParams.get('interval');
-  if (interval !== 'MONTHLY' && interval !== 'ANNUAL') return null;
-
-  return { plan, interval };
+  return {
+    plan,
+    interval: interval === 'ANNUAL' ? 'ANNUAL' : 'MONTHLY',
+  };
 }
 
-// Backend error code → i18n key prefix
+// Backend error code → i18n key prefix.
+//
+// `slugInFlight` is new in the pre-payment flow: it surfaces when another
+// browser tab / session is currently mid-checkout for the same slug. We
+// keep the i18n suffix in sync with the legacy `slugTaken` family so the
+// auth.json bundle can house all signup error copy together.
 type SignupErrorKey =
   | 'slugTaken'
   | 'slugReserved'
+  | 'slugInFlight'
+  | 'paddleUnavailable'
   | 'rateLimited'
   | 'validation'
   | 'server';
 
 function classifyError(err: unknown): SignupErrorKey {
   if (err instanceof ApiError) {
-    // Backend codes — keep in sync with SignupServiceImpl.
     const code = err.code ?? '';
+    // New pre-payment codes — keep in sync with SignupCheckoutErrorCodes.kt
+    if (code === 'WORKSPACE_TAKEN') return 'slugTaken';
+    if (code === 'WORKSPACE_RESERVED') return 'slugReserved';
+    if (code === 'WORKSPACE_IN_FLIGHT') return 'slugInFlight';
+    // Legacy /auth/signup codes — retained so this classifier still
+    // works if a caller goes through the old endpoint.
     if (err.status === 409 || code === 'TENANT_SLUG_TAKEN') return 'slugTaken';
     if (code === 'TENANT_SLUG_RESERVED') return 'slugReserved';
     if (err.status === 429 || code === 'RATE_LIMITED') return 'rateLimited';
     if (err.status === 400) return 'validation';
+    if (code === 'BILLING_PADDLE_NOT_CONFIGURED' ||
+        code === 'BILLING_PRICE_NOT_CONFIGURED' ||
+        code === 'BILLING_CHECKOUT_FAILED') {
+      return 'paddleUnavailable';
+    }
+  }
+  if (err instanceof Error && err.message.includes('VITE_PADDLE_CLIENT_TOKEN')) {
+    return 'paddleUnavailable';
   }
   return 'server';
 }
@@ -108,15 +158,6 @@ export function Signup() {
     },
   });
 
-  // /signup is only reachable with a chosen plan + interval. Anyone landing
-  // here without that intent (e.g. a deep-link from search results, an old
-  // bookmark, or manual URL entry) is bounced to /choose-plan so we never
-  // create a company without a plan attached. Hooks above stay above the
-  // early return to keep their order stable across renders.
-  if (!selectedPlan) {
-    return <Navigate to="/choose-plan" replace />;
-  }
-
   const isFormDisabled = isLoading;
 
   // Auto-suggest a slug from the company name as the user types.
@@ -141,21 +182,60 @@ export function Signup() {
   const onSubmit = async (data: SignupFormFields) => {
     setIsLoading(true);
     setError(null);
+
+    // Hard requirement of the pre-payment flow: a plan must be selected.
+    // The Pricing page is the only entry that supplies this; a customer
+    // who arrived directly is bounced there rather than allowed to create
+    // a no-plan workspace (and therefore a no-tenant intent).
+    if (!selectedPlan) {
+      setIsLoading(false);
+      navigate('/#pricing');
+      return;
+    }
+
+    const checkoutPayload: SignupCheckoutPayload = {
+      companyName: data.companyName,
+      workspaceIdentifier: data.tenantSlug.trim().toLowerCase(),
+      adminUsername: data.adminUsername,
+      adminPassword: data.adminPassword,
+      adminFullName: data.adminFullName,
+      adminEmail: data.adminEmail,
+      planCode: selectedPlan.plan,
+      billingInterval: selectedPlan.interval,
+    };
+
     try {
-      const response = await AuthService.signup({
-        ...data,
-        tenantSlug: data.tenantSlug.trim().toLowerCase(),
+      const intent = await SignupService.createCheckoutIntent(checkoutPayload);
+
+      // Persist the intent id so /checkout/success can complete signup
+      // after Paddle redirects the user back. Stored in sessionStorage
+      // — survives the popup round-trip, dies with the tab.
+      rememberSignupIntent({
+        signupIntentId: intent.signupIntentId,
+        planCode: intent.planCode,
+        billingInterval: intent.billingInterval,
       });
-      if (response.role === 'ADMIN') {
-        const params = new URLSearchParams({
-          plan: selectedPlan.plan,
-          interval: selectedPlan.interval,
-          from: 'signup',
+
+      try {
+        await openCheckout({
+          transactionId: intent.transactionId,
+          settings: {
+            // Paddle redirects here on success. The success page will
+            // call /signup/complete with the stored intent id; if the
+            // popup is dismissed we land on /checkout/cancel and the
+            // workspace identifier stays soft-reserved only until
+            // the intent expires.
+            successUrl: `${window.location.origin}/checkout/success`,
+          },
         });
-        navigate(`/admin/billing?${params.toString()}`);
+      } catch (paddleError) {
+        // Paddle.js failed to load (blocked by extension, missing
+        // client token, network). The intent row stays in the DB; the
+        // customer can refresh and try again. We surface a precise
+        // error so support knows what to look at.
+        setError(classifyError(paddleError));
         return;
       }
-      navigate(AuthService.getDashboardRoute(response.role));
     } catch (err) {
       setError(classifyError(err));
     } finally {
@@ -402,11 +482,13 @@ export function Signup() {
               {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {t('signup.submitting')}
+                  {t('signup.submit.openingPaddle')}
                 </>
               ) : (
                 <>
-                  {t('signup.submit')}
+                  {selectedPlan
+                    ? t('signup.submit.continueToPayment')
+                    : t('signup.submit')}
                   <ArrowRight className="w-4 h-4 ml-1" />
                 </>
               )}

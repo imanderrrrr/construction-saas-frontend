@@ -25,6 +25,7 @@ import { BillingPage }         from './pages/admin/BillingPage';
 import { CheckoutSuccess }     from './pages/CheckoutSuccess';
 import { CheckoutCancel }      from './pages/CheckoutCancel';
 import { AuthService }         from './services/auth';
+import { BillingGuard }        from './components/BillingGuard';
 import { CanonicalRole, ROLE_DASHBOARD_ROUTES } from './types';
 
 // Platform (super-admin) console — separate auth model (Bearer + MFA),
@@ -102,11 +103,12 @@ export const router = createBrowserRouter([
   { path: '/privacy',       element: <PrivacyPolicy /> },
   { path: '/terms',         element: <TermsOfService /> },
   { path: '/support',       element: <Support /> },
-  { path: '/dashboard',    element: <ProtectedRoute><RoleRedirect /></ProtectedRoute> },
+  { path: '/dashboard',    element: <ProtectedRoute><BillingGuard><RoleRedirect /></BillingGuard></ProtectedRoute> },
 
   // Paddle return pages — public on purpose. Activation lives on the
   // backend webhook, NOT on these pages, so they need no auth and never
-  // mutate state.
+  // mutate state. They MUST stay outside BillingGuard so the user can
+  // land here right after checkout while billingStatus is still pending.
   { path: '/checkout/success', element: <CheckoutSuccess /> },
   { path: '/checkout/cancel',  element: <CheckoutCancel /> },
 
@@ -115,11 +117,15 @@ export const router = createBrowserRouter([
     path: '/admin/dashboard',
     element: (
       <ProtectedRoute allowedRoles={['ADMIN']}>
-        <AdminDashboard />
+        <BillingGuard>
+          <AdminDashboard />
+        </BillingGuard>
       </ProtectedRoute>
     ),
   },
   // Admin time-approvals is a section inside AdminDashboard (no separate route needed)
+  // Billing page is deliberately OUTSIDE BillingGuard — it's the activation
+  // surface that admins are sent to when their tenant is locked.
   {
     path: '/admin/billing',
     element: (
@@ -134,7 +140,9 @@ export const router = createBrowserRouter([
     path: '/supervisor/dashboard',
     element: (
       <ProtectedRoute allowedRoles={['SUPERVISOR']}>
-        <SupervisorDashboard />
+        <BillingGuard>
+          <SupervisorDashboard />
+        </BillingGuard>
       </ProtectedRoute>
     ),
   },
@@ -142,7 +150,9 @@ export const router = createBrowserRouter([
     path: '/supervisor/time-approvals',
     element: (
       <ProtectedRoute allowedRoles={['SUPERVISOR']}>
-        <SupervisorDashboard />
+        <BillingGuard>
+          <SupervisorDashboard />
+        </BillingGuard>
       </ProtectedRoute>
     ),
   },
@@ -152,7 +162,9 @@ export const router = createBrowserRouter([
     path: '/worker/dashboard',
     element: (
       <ProtectedRoute allowedRoles={['WORKER']}>
-        <WorkerDashboard />
+        <BillingGuard>
+          <WorkerDashboard />
+        </BillingGuard>
       </ProtectedRoute>
     ),
   },
@@ -160,7 +172,9 @@ export const router = createBrowserRouter([
     path: '/worker/time',
     element: (
       <ProtectedRoute allowedRoles={['WORKER']}>
-        <WorkerDashboard />
+        <BillingGuard>
+          <WorkerDashboard />
+        </BillingGuard>
       </ProtectedRoute>
     ),
   },
@@ -170,23 +184,27 @@ export const router = createBrowserRouter([
     path: '/finance/dashboard',
     element: (
       <ProtectedRoute allowedRoles={['FINANCE']}>
-        <FinanceDashboard />
+        <BillingGuard>
+          <FinanceDashboard />
+        </BillingGuard>
       </ProtectedRoute>
     ),
   },
-  { path: '/finance/expenses', element: <ProtectedRoute allowedRoles={['FINANCE']}><ComingSoon role="FINANCE" /></ProtectedRoute> },
-  { path: '/finance/budgets',  element: <ProtectedRoute allowedRoles={['FINANCE']}><ComingSoon role="FINANCE" /></ProtectedRoute> },
+  { path: '/finance/expenses', element: <ProtectedRoute allowedRoles={['FINANCE']}><BillingGuard><ComingSoon role="FINANCE" /></BillingGuard></ProtectedRoute> },
+  { path: '/finance/budgets',  element: <ProtectedRoute allowedRoles={['FINANCE']}><BillingGuard><ComingSoon role="FINANCE" /></BillingGuard></ProtectedRoute> },
 
   // WAREHOUSE
   {
     path: '/warehouse/dashboard',
     element: (
       <ProtectedRoute allowedRoles={['WAREHOUSE']}>
-        <WarehouseDashboard />
+        <BillingGuard>
+          <WarehouseDashboard />
+        </BillingGuard>
       </ProtectedRoute>
     ),
   },
-  { path: '/warehouse/inventory', element: <ProtectedRoute allowedRoles={['WAREHOUSE']}><ComingSoon role="WAREHOUSE" /></ProtectedRoute> },
+  { path: '/warehouse/inventory', element: <ProtectedRoute allowedRoles={['WAREHOUSE']}><BillingGuard><ComingSoon role="WAREHOUSE" /></BillingGuard></ProtectedRoute> },
 
   // SUBCONTRACTOR — no web workspace, redirected here so they get a friendly
   // message pointing them to the mobile app instead of an infinite redirect
@@ -195,7 +213,9 @@ export const router = createBrowserRouter([
     path: '/subcontractor/info',
     element: (
       <ProtectedRoute allowedRoles={['SUBCONTRACTOR']}>
-        <SubcontractorWebInfo />
+        <BillingGuard>
+          <SubcontractorWebInfo />
+        </BillingGuard>
       </ProtectedRoute>
     ),
   },
