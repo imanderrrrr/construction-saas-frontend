@@ -122,8 +122,27 @@
   "success.note": "Podés cerrar esta pestaña — te avisaremos por email cuando esté lista.",
   "success.cta.dashboard": "Volver al panel",
 
+  "success.completing.title": "Configurando tu workspace…",
+  "success.completing.body": "Recibimos tu pago. Estamos creando tu empresa y cuenta de administrador — toma solo un momento.",
+  "success.waiting.title": "Todavía estamos confirmando tu pago",
+  "success.waiting.body": "Espera un momento o refresca esta página. No crearemos tu workspace hasta que Paddle confirme el checkout desde el servidor.",
+  "success.waiting.cta.refresh": "Refrescar estado",
+  "success.failed.expired.title": "Tu sesión de registro expiró",
+  "success.failed.expired.body": "El registro temporal se venció antes de poder crear tu workspace. Por favor inicia un nuevo registro — no se retuvo ningún cargo.",
+  "success.failed.failed.title": "El pago no fue aceptado",
+  "success.failed.failed.body": "Paddle informó que el pago no se completó. No se creó ningún workspace. Puedes intentarlo de nuevo desde la página de precios.",
+  "success.failed.generic.title": "No pudimos terminar tu registro",
+  "success.failed.generic.body": "Algo nos interrumpió al crear tu workspace. Refresca esta página para reintentar; si el problema persiste, contacta a soporte.",
+  "success.failed.cta.restart": "Iniciar un nuevo registro",
+  "success.failed.cta.home": "Volver al inicio",
+
   "cancel.title": "Checkout cancelado",
   "cancel.body": "No se realizó ningún cargo. Podés volver a los planes cuando quieras o continuar usando tu cuenta actual.",
   "cancel.cta.plans": "Ver planes",
-  "cancel.cta.dashboard": "Ir al panel"
+  "cancel.cta.dashboard": "Ir al panel",
+
+  "cancel.signup.title": "Registro no completado",
+  "cancel.signup.body": "No se creó ningún workspace y no se realizó ningún cargo. Puedes elegir tu plan otra vez para reintentar — el identificador de workspace que elegiste sigue disponible hasta que tu registro temporal expire.",
+  "cancel.signup.cta.retry": "Elegir un plan otra vez",
+  "cancel.signup.cta.home": "Volver al inicio"
 }

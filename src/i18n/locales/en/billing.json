@@ -122,8 +122,27 @@
   "success.note": "You can close this tab — we'll email you when it's ready.",
   "success.cta.dashboard": "Back to dashboard",
 
+  "success.completing.title": "Finishing your workspace setup…",
+  "success.completing.body": "Your payment was accepted. We're creating your company and admin account — this only takes a moment.",
+  "success.waiting.title": "We're still confirming your payment",
+  "success.waiting.body": "Please wait a moment or refresh this page. We won't create your workspace until Paddle confirms the checkout server-side.",
+  "success.waiting.cta.refresh": "Refresh status",
+  "success.failed.expired.title": "Your signup session expired",
+  "success.failed.expired.body": "The temporary signup session timed out before we could create your workspace. Please start a new signup — no charge was retained.",
+  "success.failed.failed.title": "Payment was not accepted",
+  "success.failed.failed.body": "Paddle reported the payment did not go through. No workspace was created. You can try again from the pricing page.",
+  "success.failed.generic.title": "We couldn't finish your signup",
+  "success.failed.generic.body": "Something interrupted us while creating your workspace. Refresh this page to retry; if the problem persists, contact support.",
+  "success.failed.cta.restart": "Start a new signup",
+  "success.failed.cta.home": "Back to home",
+
   "cancel.title": "Checkout canceled",
   "cancel.body": "No charge was made. You can come back to the plans any time, or keep using your current account.",
   "cancel.cta.plans": "See plans",
-  "cancel.cta.dashboard": "Go to dashboard"
+  "cancel.cta.dashboard": "Go to dashboard",
+
+  "cancel.signup.title": "Signup not completed",
+  "cancel.signup.body": "No workspace was created and no charge was made. You can pick your plan again to retry — the workspace identifier you chose stays available until your temporary signup expires.",
+  "cancel.signup.cta.retry": "Pick a plan again",
+  "cancel.signup.cta.home": "Back to home"
 }
