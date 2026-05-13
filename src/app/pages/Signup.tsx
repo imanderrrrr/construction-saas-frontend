@@ -237,6 +237,13 @@ export function Signup() {
         return;
       }
     } catch (err) {
+      if (
+        err instanceof ApiError &&
+        err.code === 'SIGNUP_PAYMENT_ALREADY_RETURNED'
+      ) {
+        navigate('/checkout/success');
+        return;
+      }
       setError(classifyError(err));
     } finally {
       setIsLoading(false);

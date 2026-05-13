@@ -121,6 +121,9 @@ describe('signup intent sessionStorage helpers', () => {
     expect(raw).not.toBeNull();
     expect(raw).not.toContain('password');
     expect(raw).not.toContain('workspaceIdentifier');
+    expect(raw).not.toContain('tenantSlug');
+    expect(raw).not.toContain('adminEmail');
+    expect(raw).not.toContain('u@co.test');
     expect(JSON.parse(raw ?? '{}')).toEqual({
       signupIntentId: 'uuid-1',
       planCode: 'PRO',

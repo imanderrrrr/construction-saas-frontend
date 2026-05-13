@@ -42,6 +42,9 @@ vi.mock('react-i18next', () => ({
       if (key === 'signup.error.slugTaken.title') return 'Identifier unavailable';
       if (key === 'signup.error.slugTaken.message')
         return 'That identifier is already in use.';
+      if (key === 'signup.error.slugInFlight.title') return 'Pending signup';
+      if (key === 'signup.error.slugInFlight.message')
+        return 'A signup is already pending for that identifier.';
       if (key === 'signup.error.paddleUnavailable.title')
         return 'Checkout unavailable';
       if (key === 'signup.error.paddleUnavailable.message')
@@ -210,6 +213,32 @@ describe('Signup pre-payment flow', () => {
     expect(openCall.settings?.successUrl).toMatch(/\/checkout\/success$/);
   });
 
+  it('treats a retry checkout response as success instead of identifier unavailable', async () => {
+    mocks.createCheckoutIntent.mockResolvedValueOnce({
+      signupIntentId: 'retry-intent-456',
+      paddleTransactionId: 'txn_retry',
+      transactionId: 'txn_retry',
+      checkoutUrl: 'https://pay.paddle.com/retry',
+      planCode: 'PRO',
+      billingInterval: 'ANNUAL',
+      expiresAt: '2026-05-13T17:00:00Z',
+    });
+
+    await renderSignup(root);
+    await fillValidSignupForm(container);
+    await submit(container);
+
+    expect(container.textContent).not.toContain('Identifier unavailable');
+    expect(mocks.rememberSignupIntent).toHaveBeenCalledWith({
+      signupIntentId: 'retry-intent-456',
+      planCode: 'PRO',
+      billingInterval: 'ANNUAL',
+    });
+    expect(mocks.openCheckout).toHaveBeenCalledWith(
+      expect.objectContaining({ transactionId: 'txn_retry' }),
+    );
+  });
+
   it('does NOT navigate after success — Paddle controls the redirect', async () => {
     await renderSignup(root);
     await fillValidSignupForm(container);
@@ -233,6 +262,40 @@ describe('Signup pre-payment flow', () => {
     expect(mocks.rememberSignupIntent).not.toHaveBeenCalled();
     expect(mocks.openCheckout).not.toHaveBeenCalled();
     expect(container.textContent).toContain('Identifier unavailable');
+  });
+
+  it('shows pending-signup copy when another email has an in-flight intent', async () => {
+    mocks.createCheckoutIntent.mockRejectedValueOnce(
+      new ApiError(409, 'pending', undefined, 'WORKSPACE_IN_FLIGHT'),
+    );
+
+    await renderSignup(root);
+    await fillValidSignupForm(container);
+    await submit(container);
+
+    expect(mocks.rememberSignupIntent).not.toHaveBeenCalled();
+    expect(mocks.openCheckout).not.toHaveBeenCalled();
+    expect(container.textContent).toContain('Pending signup');
+    expect(container.textContent).not.toContain('Identifier unavailable');
+  });
+
+  it('continues activation when checkout reports the payment already returned', async () => {
+    mocks.createCheckoutIntent.mockRejectedValueOnce(
+      new ApiError(
+        409,
+        'already returned',
+        undefined,
+        'SIGNUP_PAYMENT_ALREADY_RETURNED',
+      ),
+    );
+
+    await renderSignup(root);
+    await fillValidSignupForm(container);
+    await submit(container);
+
+    expect(mocks.rememberSignupIntent).not.toHaveBeenCalled();
+    expect(mocks.openCheckout).not.toHaveBeenCalled();
+    expect(mocks.navigate).toHaveBeenCalledWith('/checkout/success');
   });
 
   it('shows a paddleUnavailable error if Paddle.js fails to open', async () => {
