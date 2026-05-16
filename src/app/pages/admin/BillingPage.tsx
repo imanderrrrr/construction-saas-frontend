@@ -1,10 +1,25 @@
 // BuildTrack — Admin tenant billing & subscription management page.
 //
-// Acts as the single home for tenant subscription concerns: it shows the
-// current local billing snapshot (status, plan, interval, period, last
-// webhook), surfaces honest "coming soon" placeholders for cancel /
-// change-plan / invoices (none of which have backend endpoints today),
-// and keeps the existing Paddle Checkout flow for the two public plans.
+// Acts as the single home for tenant subscription concerns. The page
+// renders the current local billing snapshot (status, plan, interval,
+// period, trial window, last webhook) and a grid of the four available
+// plan + interval combinations so the admin can switch plan in-app.
+//
+// Two flows live on this page:
+//
+//   1. ACTIVATION (no subscription yet, checkout pending, lapsed) — the
+//      page still acts as the activation surface that the BillingGuard
+//      redirects locked tenants to. PlanCards show a "Subscribe" CTA
+//      that calls POST /billing/checkout and hands the returned
+//      transactionId to Paddle.Checkout.open().
+//
+//   2. CHANGE PLAN (active or trialing subscription) — when the local
+//      snapshot reports a Paddle subscription that is allowed to change
+//      (`changePlanAllowed === true`), PlanCards show a "Change to this
+//      plan" CTA that calls POST /billing/subscription/change-plan with
+//      just `{ planCode, billingInterval }`. The backend owns the
+//      Paddle swap; the local snapshot is refreshed via the manual
+//      "Refresh status" button after Paddle confirms via webhook.
 //
 // Visual language mirrors the public Pricing section
 // (`src/app/pages/landing/Pricing.tsx`) — same orange #F97316, ink
@@ -20,17 +35,7 @@
 // is the activation surface that admins are sent to whenever their
 // tenant is locked. The frontend never sends tenantId, priceId, amount,
 // currency or trial info — it only forwards `planCode + billingInterval`
-// to the backend, which mints a Paddle transactionId. We then hand that
-// id to Paddle.Checkout.open().
-//
-// Backend follow-ups (none implemented here, all kept as honest
-// placeholders so we don't ship a broken promise):
-//   - cancel subscription endpoint
-//   - change plan / subscription update endpoint
-//   - customer portal / Paddle hosted-management session endpoint
-//   - billing enforcement on the server (we still default-deny on the
-//     client via BillingGuard, but the SaaS contract has to be enforced
-//     on the API too).
+// to the backend for both /checkout and /change-plan.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
@@ -38,21 +43,19 @@ import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft,
   ArrowRight,
-  ArrowUpRight,
+  Calendar,
   Check,
   CheckCircle2,
+  Clock,
   HardHat,
-  Info,
   Loader2,
   Lock,
   LogOut,
-  Receipt,
   RefreshCw,
   Sparkles,
   AlertCircle,
   AlertTriangle,
   CreditCard,
-  XCircle,
 } from 'lucide-react';
 
 import { Badge } from '../../components/ui/badge';
@@ -61,11 +64,9 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '../../components/ui/card';
-import { Switch } from '../../components/ui/switch';
 import { LanguageSwitcher } from '../../components/LanguageSwitcher';
 import { ApiError } from '../../lib/api';
 import { openCheckout } from '../../lib/paddle';
@@ -75,6 +76,7 @@ import {
   BillingService,
   type BillingInterval,
   type BillingStatusResponse,
+  type ChangePlanBlockedReason,
   type PlanCode,
 } from '../../services/billing';
 
@@ -85,6 +87,23 @@ const FEATURES_PER_PLAN = 13;
 // Anchor for the in-page "See plans" / "Choose a plan" links so the
 // status panel can scroll to the plan cards without a router round-trip.
 const PLANS_SECTION_ID = 'billing-plans-section';
+
+// The four (planCode, billingInterval) combinations rendered as a grid.
+// Order matters: PRO first, then BUSINESS — within each, monthly then
+// annual — so the visual progression matches the landing page.
+type PlanKey = 'pro' | 'business';
+
+const PLAN_GRID: ReadonlyArray<{
+  planKey: PlanKey;
+  planCode: PlanCode;
+  billingInterval: BillingInterval;
+  featured: boolean;
+}> = [
+  { planKey: 'pro',      planCode: 'PRO',      billingInterval: 'MONTHLY', featured: false },
+  { planKey: 'pro',      planCode: 'PRO',      billingInterval: 'ANNUAL',  featured: false },
+  { planKey: 'business', planCode: 'BUSINESS', billingInterval: 'MONTHLY', featured: true  },
+  { planKey: 'business', planCode: 'BUSINESS', billingInterval: 'ANNUAL',  featured: true  },
+];
 
 // Brand wordmark — kept inline (matches the inline copy in Landing.tsx)
 // so this page doesn't introduce a shared component just to repaint the
@@ -197,46 +216,55 @@ const KIND_META: Record<
   },
 };
 
-// Plan card — visually a copy of Pricing.tsx PlanCard, but the CTA wires
-// into Paddle instead of /signup. The card adapts when the tenant
-// already has a subscription:
-//   - the plan that matches the current backend planCode renders as
-//     "Current plan" with a disabled CTA and a hint that explains why,
-//   - the other plan keeps the checkout CTA but with hint copy that
-//     warns the new checkout does NOT swap the existing subscription
-//     (no real change-plan endpoint exists yet).
+// Plan card — visually a copy of Pricing.tsx PlanCard, hard-pinned to a
+// specific (planCode, billingInterval) pair so the four-card grid can
+// render all combinations at once. The CTA wires into either Paddle
+// Checkout (no subscription yet) or the change-plan endpoint (active /
+// trialing subscription); the parent decides which by passing
+// `mode`.
+type PlanCardMode = 'checkout' | 'changePlan' | 'locked';
+
 interface PlanCardProps {
-  planKey: 'pro' | 'business';
-  billing: BillingInterval;
+  planKey: PlanKey;
+  planCode: PlanCode;
+  billingInterval: BillingInterval;
   featured?: boolean;
   selected?: boolean;
-  isCurrentPlan?: boolean;
-  hasActiveSubscription?: boolean;
+  isCurrentPlan: boolean;
+  mode: PlanCardMode;
   retry?: boolean;
+  // CTAs are disabled both when this card itself is busy and when
+  // another card is busy; the parent passes both as booleans so the
+  // card doesn't have to know about siblings.
   disabled?: boolean;
   loading?: boolean;
-  onCheckout: (planCode: PlanCode) => void;
+  // When `mode === 'locked'`, this contains the reason the backend
+  // refused change-plan so the card can surface a friendly message.
+  blockedReason?: ChangePlanBlockedReason | null;
+  onCheckout: (planCode: PlanCode, interval: BillingInterval) => void;
+  onChangePlan: (planCode: PlanCode, interval: BillingInterval) => void;
 }
 
 function PlanCard({
   planKey,
-  billing,
+  planCode,
+  billingInterval,
   featured = false,
   selected = false,
-  isCurrentPlan = false,
-  hasActiveSubscription = false,
+  isCurrentPlan,
+  mode,
   retry = false,
   disabled = false,
   loading = false,
+  blockedReason,
   onCheckout,
+  onChangePlan,
 }: PlanCardProps) {
   // Plan content (names, taglines, features, prices) lives in `pricing`;
   // chrome (CTA copy, hint, error labels) lives in `billing`. Single
   // source of truth for prices.
   const { t: tPricing } = useTranslation('pricing');
   const { t: tBilling } = useTranslation('billing');
-
-  const planCode: PlanCode = planKey === 'pro' ? 'PRO' : 'BUSINESS';
 
   const name = tPricing(`plans.${planKey}.name`);
   const tagline = tPricing(`plans.${planKey}.tagline`);
@@ -249,17 +277,14 @@ function PlanCard({
     tPricing(`plans.${planKey}.feature.${i}`),
   );
 
-  const showAnnual = billing === 'ANNUAL';
+  const showAnnual = billingInterval === 'ANNUAL';
   const displayPrice = showAnnual ? annualPerMonth : monthlyPrice;
+  // Distinct test id per (plan, interval) pair so tests can target a
+  // single card unambiguously and assert per-card state.
+  const testId = `plan-card-${planKey}-${billingInterval.toLowerCase()}`;
 
-  // Visual upgrade hint: Business is the upgrade target when the tenant
-  // is on Pro; we never present Pro as a "downgrade" because we don't
-  // support real downgrades on the backend.
-  const isUpgradeTarget =
-    hasActiveSubscription && !isCurrentPlan && planKey === 'business';
-
-  // Choose CTA copy by state. Order matters — current-plan wins over
-  // retry, retry wins over alt-plan, alt-plan wins over the default.
+  // Choose CTA copy by state. Current-plan wins over everything else,
+  // then retry (pending checkout), then mode-driven labels.
   let ctaLabel: string;
   let hintLabel: string;
   if (isCurrentPlan) {
@@ -268,21 +293,39 @@ function PlanCard({
   } else if (retry) {
     ctaLabel = tBilling('card.cta.retryCheckout', { plan: name });
     hintLabel = tBilling('card.cta.hint');
-  } else if (hasActiveSubscription) {
-    ctaLabel = tBilling('card.cta.startCheckout', { plan: name });
-    hintLabel = tBilling('card.cta.hintAlternative');
+  } else if (mode === 'changePlan') {
+    ctaLabel = tBilling('card.cta.changePlan');
+    hintLabel = tBilling('card.cta.hintChange');
+  } else if (mode === 'locked') {
+    ctaLabel = tBilling('card.cta.changePlan');
+    hintLabel = blockedReason
+      ? tBilling(`changePlan.blocked.${blockedReason}`, {
+          defaultValue: tBilling('changePlan.blocked.default'),
+        })
+      : tBilling('changePlan.blocked.default');
   } else {
     ctaLabel = tBilling('card.cta.checkout', { plan: name });
     hintLabel = tBilling('card.cta.hint');
   }
 
-  const ctaDisabled = disabled || loading || isCurrentPlan;
+  const ctaDisabled = disabled || loading || isCurrentPlan || mode === 'locked';
+
+  const handleClick = () => {
+    if (mode === 'changePlan') {
+      onChangePlan(planCode, billingInterval);
+    } else if (mode === 'checkout') {
+      onCheckout(planCode, billingInterval);
+    }
+  };
 
   return (
     <Card
-      aria-label={`${name} plan`}
-      data-testid={`plan-card-${planKey}`}
+      aria-label={`${name} ${billingInterval.toLowerCase()} plan`}
+      data-testid={testId}
+      data-plan={planCode}
+      data-interval={billingInterval}
       data-current={isCurrentPlan ? 'true' : 'false'}
+      data-mode={mode}
       className={[
         'relative flex flex-col p-0 overflow-hidden',
         isCurrentPlan
@@ -300,29 +343,42 @@ function PlanCard({
         </div>
       )}
       {isCurrentPlan && (
-        <div className="absolute top-0 inset-x-0 bg-emerald-500 text-white text-xs font-semibold tracking-wide py-1.5 px-4 flex items-center justify-center gap-1.5">
+        <div
+          data-testid={`${testId}-current-badge`}
+          className="absolute top-0 inset-x-0 bg-emerald-500 text-white text-xs font-semibold tracking-wide py-1.5 px-4 flex items-center justify-center gap-1.5"
+        >
           <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />
           <span>{tBilling('card.badge.current')}</span>
         </div>
       )}
 
       <CardHeader className={featured || isCurrentPlan ? 'pt-12' : 'pt-8'}>
-        <CardTitle className="text-2xl font-semibold text-[#0A0A0A]">
-          {name}
-        </CardTitle>
-        <CardDescription className="text-sm text-[#71717A] mt-1">
-          {tagline}
-        </CardDescription>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <CardTitle className="text-2xl font-semibold text-[#0A0A0A]">
+              {name}
+            </CardTitle>
+            <CardDescription className="text-sm text-[#71717A] mt-1">
+              {tagline}
+            </CardDescription>
+          </div>
+          <Badge
+            variant="secondary"
+            className={[
+              'text-[10px] font-semibold uppercase tracking-wide border',
+              showAnnual
+                ? 'bg-[#F97316]/10 text-[#C2410C] border-[#F97316]/30'
+                : 'bg-[#F4F4F5] text-[#0A0A0A] border-[#D4D4D8]',
+            ].join(' ')}
+          >
+            {showAnnual ? tBilling('toggle.annual') : tBilling('toggle.monthly')}
+          </Badge>
+        </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {selected && !isCurrentPlan && (
             <Badge className="w-fit bg-[#F97316]/10 text-[#C2410C] border-0 text-[11px] font-semibold">
               {tBilling('selectedFromSignup.badge')}
-            </Badge>
-          )}
-          {isUpgradeTarget && (
-            <Badge className="w-fit bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-semibold">
-              {tBilling('card.badge.upgrade')}
             </Badge>
           )}
         </div>
@@ -377,11 +433,12 @@ function PlanCard({
         </ul>
       </CardContent>
 
-      <CardFooter className="flex flex-col gap-2 pb-8">
+      <div className="flex flex-col gap-2 pb-8 px-6">
         <Button
-          onClick={() => onCheckout(planCode)}
+          onClick={handleClick}
           disabled={ctaDisabled}
           aria-busy={loading}
+          data-testid={`${testId}-cta`}
           data-current-plan={isCurrentPlan ? 'true' : 'false'}
           className={[
             'w-full h-11 text-base',
@@ -398,7 +455,9 @@ function PlanCard({
                 className="w-4 h-4 mr-2 animate-spin"
                 aria-hidden="true"
               />
-              {tBilling('card.cta.processing')}
+              {mode === 'changePlan'
+                ? tBilling('card.cta.changingPlan')
+                : tBilling('card.cta.processing')}
             </>
           ) : isCurrentPlan ? (
             <>
@@ -412,8 +471,10 @@ function PlanCard({
             </>
           )}
         </Button>
-        <p className="text-xs text-[#71717A] text-center">{hintLabel}</p>
-      </CardFooter>
+        <p className="text-xs text-[#71717A] text-center leading-snug">
+          {hintLabel}
+        </p>
+      </div>
     </Card>
   );
 }
@@ -423,7 +484,8 @@ function ErrorBanner({ title, message }: { title: string; message: string }) {
   return (
     <div
       role="alert"
-      className="mb-8 max-w-3xl mx-auto p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 animate-in fade-in-0 slide-in-from-top-1 duration-200"
+      data-testid="billing-error-banner"
+      className="mb-8 max-w-4xl mx-auto p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 animate-in fade-in-0 slide-in-from-top-1 duration-200"
     >
       <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
         <AlertCircle className="w-4 h-4 text-red-600" aria-hidden="true" />
@@ -431,6 +493,29 @@ function ErrorBanner({ title, message }: { title: string; message: string }) {
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-red-900">{title}</p>
         <p className="text-sm text-red-700 mt-0.5 leading-relaxed">{message}</p>
+      </div>
+    </div>
+  );
+}
+
+// Inline success banner used after a change-plan request is accepted by
+// the backend. The actual swap is async (Paddle webhooks land later) so
+// the copy keeps the user honest about that.
+function SuccessBanner({ title, message }: { title: string; message: string }) {
+  return (
+    <div
+      role="status"
+      data-testid="change-plan-success-banner"
+      className="mb-8 max-w-4xl mx-auto p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-3 animate-in fade-in-0 slide-in-from-top-1 duration-200"
+    >
+      <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+        <CheckCircle2 className="w-4 h-4 text-emerald-600" aria-hidden="true" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-emerald-900">{title}</p>
+        <p className="text-sm text-emerald-700 mt-0.5 leading-relaxed">
+          {message}
+        </p>
       </div>
     </div>
   );
@@ -592,9 +677,17 @@ function formatBillingDate(value: string | null | undefined): string {
   }).format(date);
 }
 
-function StatusField({ label, value }: { label: string; value: string }) {
+function StatusField({
+  label,
+  value,
+  testId,
+}: {
+  label: string;
+  value: string;
+  testId?: string;
+}) {
   return (
-    <div className="min-w-0">
+    <div className="min-w-0" data-testid={testId}>
       <dt className="text-xs font-semibold uppercase tracking-wide text-[#71717A]">
         {label}
       </dt>
@@ -643,6 +736,14 @@ function SubscriptionStatusPanel({
   const headline = t(`status.headline.${meta.key}`);
   const body = t(`status.body.${meta.key}`);
 
+  // Trial flag: prefer the dedicated boolean, fall back to the legacy
+  // TRIALING billingStatus. Both convey the same semantic; checking
+  // both keeps the UI accurate even if the backend hasn't sent the new
+  // field yet (e.g. older deployments).
+  const isTrialing = Boolean(status?.isTrialing) || kind === 'trialing';
+  const cancelAtPeriodEnd = Boolean(status?.cancelAtPeriodEnd);
+  const paddleEnv = status?.paddleEnv ?? null;
+
   // Per-kind action chips. We always offer a soft "see plans" affordance
   // so the user can reach the plan cards from this panel.
   const showRetry =
@@ -667,6 +768,7 @@ function SubscriptionStatusPanel({
     <Card
       data-testid="subscription-status-panel"
       data-kind={kind}
+      data-cancel-at-period-end={cancelAtPeriodEnd ? 'true' : 'false'}
       className="max-w-4xl mx-auto mt-8 border border-[#D4D4D8] shadow-sm overflow-hidden"
     >
       <CardHeader className="pb-4">
@@ -716,6 +818,29 @@ function SubscriptionStatusPanel({
             >
               {badgeLabel}
             </span>
+            {isTrialing && hasBillingAccount && kind !== 'trialing' && (
+              <span
+                data-testid="status-trial-flag"
+                className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold border bg-[#F97316]/10 text-[#C2410C] border-[#F97316]/30"
+              >
+                {t('status.trialFlag')}
+              </span>
+            )}
+            {paddleEnv && hasBillingAccount && (
+              <span
+                data-testid="status-paddle-env-badge"
+                className={[
+                  'inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide border',
+                  paddleEnv === 'sandbox'
+                    ? 'bg-amber-100 text-amber-800 border-amber-200'
+                    : 'bg-[#F4F4F5] text-[#0A0A0A] border-[#D4D4D8]',
+                ].join(' ')}
+              >
+                {t(`status.paddleEnv.${paddleEnv}`, {
+                  defaultValue: paddleEnv,
+                })}
+              </span>
+            )}
             {hasError && (
               <span className="text-xs font-medium text-[#C2410C]">
                 {t('status.error')}
@@ -732,6 +857,29 @@ function SubscriptionStatusPanel({
             {headline}
           </h3>
           <p className="text-sm text-[#71717A] mt-1 leading-relaxed">{body}</p>
+
+          {cancelAtPeriodEnd && hasBillingAccount && (
+            <div
+              role="status"
+              data-testid="status-cancel-notice"
+              className="mt-4 p-3 rounded-lg border border-amber-200 bg-amber-50 flex items-start gap-2"
+            >
+              <Clock
+                className="w-4 h-4 mt-0.5 text-amber-700 flex-shrink-0"
+                aria-hidden="true"
+              />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-amber-900">
+                  {t('status.cancelAtPeriodEnd.title')}
+                </p>
+                <p className="text-xs text-amber-800 mt-0.5 leading-relaxed">
+                  {t('status.cancelAtPeriodEnd.body', {
+                    date: formatBillingDate(status?.currentPeriodEndsAt),
+                  })}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {hasBillingAccount ? (
@@ -746,20 +894,59 @@ function SubscriptionStatusPanel({
             />
             <StatusField
               label={t('status.field.interval')}
-              value={formatStatusValue(status?.billingInterval)}
+              value={
+                status?.billingInterval
+                  ? t(`toggle.${status.billingInterval.toLowerCase()}`, {
+                      defaultValue: status.billingInterval,
+                    })
+                  : '—'
+              }
             />
-            <StatusField
-              label={t('status.field.paddleEnv')}
-              value={formatStatusValue(status?.paddleEnv)}
-            />
-            <StatusField
-              label={t('status.field.periodEnds')}
-              value={formatBillingDate(status?.currentPeriodEndsAt)}
-            />
+            {isTrialing ? (
+              <>
+                <StatusField
+                  label={t('status.field.trialStarts')}
+                  value={formatBillingDate(status?.trialStartsAt)}
+                  testId="status-field-trial-starts"
+                />
+                <StatusField
+                  label={t('status.field.trialEnds')}
+                  value={formatBillingDate(status?.trialEndsAt)}
+                  testId="status-field-trial-ends"
+                />
+              </>
+            ) : (
+              <>
+                <StatusField
+                  label={t('status.field.periodStarts')}
+                  value={formatBillingDate(status?.currentPeriodStartsAt)}
+                  testId="status-field-period-starts"
+                />
+                <StatusField
+                  label={t('status.field.periodEnds')}
+                  value={formatBillingDate(status?.currentPeriodEndsAt)}
+                  testId="status-field-period-ends"
+                />
+              </>
+            )}
             <StatusField
               label={t('status.field.lastEvent')}
               value={formatStatusValue(status?.lastEventId)}
             />
+            {status?.lastEventOccurredAt && (
+              <StatusField
+                label={t('status.field.lastEventAt')}
+                value={formatBillingDate(status?.lastEventOccurredAt)}
+                testId="status-field-last-event-at"
+              />
+            )}
+            {status?.updatedAt && (
+              <StatusField
+                label={t('status.field.updatedAt')}
+                value={formatBillingDate(status?.updatedAt)}
+                testId="status-field-updated-at"
+              />
+            )}
           </dl>
         ) : null}
 
@@ -802,144 +989,37 @@ function SubscriptionStatusPanel({
   );
 }
 
-// Manage subscription section — shown for any kind that means the
-// tenant already has a Paddle subscription on file (active or trialing).
-// The actions intentionally do NOT call any endpoints because the
-// backend does not expose them yet. Each button opens an inline notice
-// that explains the missing capability honestly. Keeping the UI here
-// avoids leaving the user on /admin/billing with nothing to do when
-// their subscription is healthy.
-type ManageNotice = 'changePlan' | 'cancel' | 'invoices';
-
-function ManageActionCard({
-  icon,
-  title,
-  body,
-  cta,
-  onClick,
-  testId,
+// Blocked-change-plan banner — surfaced above the plans grid when the
+// backend says change-plan isn't allowed for the current snapshot
+// (cancel-at-period-end, no Paddle subscription, etc.). Each reason
+// maps to its own copy via i18n.
+function ChangePlanBlockedBanner({
+  reason,
 }: {
-  icon: React.ReactNode;
-  title: string;
-  body: string;
-  cta: string;
-  onClick: () => void;
-  testId: string;
+  reason: ChangePlanBlockedReason;
 }) {
-  return (
-    <div className="flex flex-col h-full p-5 rounded-xl border border-[#D4D4D8] bg-white hover:border-[#F97316]/40 hover:shadow-sm transition">
-      <div className="w-10 h-10 rounded-lg bg-[#F97316]/10 text-[#F97316] flex items-center justify-center mb-4">
-        {icon}
-      </div>
-      <h4 className="text-base font-semibold text-[#0A0A0A] tracking-tight">
-        {title}
-      </h4>
-      <p className="text-sm text-[#71717A] mt-1 leading-relaxed flex-1">
-        {body}
-      </p>
-      <Button
-        type="button"
-        variant="outline"
-        onClick={onClick}
-        data-testid={testId}
-        className="mt-4 h-9 border-[#D4D4D8] text-[#0A0A0A] hover:bg-[#FFF7ED] hover:text-[#C2410C] hover:border-[#F97316]/40 justify-between"
-      >
-        <span>{cta}</span>
-        <Info className="w-4 h-4 ml-2" aria-hidden="true" />
-      </Button>
-    </div>
-  );
-}
-
-function ManageSubscriptionSection() {
   const { t } = useTranslation('billing');
-  const [notice, setNotice] = useState<ManageNotice | null>(null);
-
   return (
-    <Card
-      data-testid="manage-subscription-section"
-      className="max-w-4xl mx-auto mt-6 border border-[#D4D4D8] shadow-sm overflow-hidden"
+    <div
+      role="status"
+      data-testid="change-plan-blocked-banner"
+      data-reason={reason}
+      className="mb-6 max-w-4xl mx-auto p-4 rounded-xl border border-amber-200 bg-amber-50 flex items-start gap-3"
     >
-      <CardHeader className="pb-4">
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#0A0A0A] text-white flex items-center justify-center flex-shrink-0">
-            <CreditCard className="w-5 h-5" aria-hidden="true" />
-          </div>
-          <div className="min-w-0">
-            <CardTitle className="text-xl font-semibold text-[#0A0A0A]">
-              {t('manage.title')}
-            </CardTitle>
-            <CardDescription className="text-sm text-[#71717A] mt-1">
-              {t('manage.subtitle')}
-            </CardDescription>
-          </div>
-        </div>
-      </CardHeader>
-
-      <CardContent className="pt-0">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <ManageActionCard
-            icon={<ArrowUpRight className="w-5 h-5" aria-hidden="true" />}
-            title={t('manage.changePlan.title')}
-            body={t('manage.changePlan.body')}
-            cta={t('manage.changePlan.cta')}
-            onClick={() => setNotice('changePlan')}
-            testId="manage-action-change-plan"
-          />
-          <ManageActionCard
-            icon={<XCircle className="w-5 h-5" aria-hidden="true" />}
-            title={t('manage.cancel.title')}
-            body={t('manage.cancel.body')}
-            cta={t('manage.cancel.cta')}
-            onClick={() => setNotice('cancel')}
-            testId="manage-action-cancel"
-          />
-          <ManageActionCard
-            icon={<Receipt className="w-5 h-5" aria-hidden="true" />}
-            title={t('manage.invoices.title')}
-            body={t('manage.invoices.body')}
-            cta={t('manage.invoices.cta')}
-            onClick={() => setNotice('invoices')}
-            testId="manage-action-invoices"
-          />
-        </div>
-
-        {notice && (
-          <div
-            role="status"
-            data-testid="manage-notice"
-            data-action={notice}
-            className="mt-5 p-4 rounded-xl border border-[#F97316]/25 bg-[#FFF7ED] flex flex-col sm:flex-row sm:items-start gap-3"
-          >
-            <div className="w-9 h-9 rounded-lg bg-[#F97316]/15 text-[#F97316] flex items-center justify-center flex-shrink-0">
-              <Info className="w-4 h-4" aria-hidden="true" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="text-sm font-semibold text-[#0A0A0A]">
-                  {t(`manage.notice.${notice}Title`)}
-                </p>
-                <Badge className="bg-[#0A0A0A] text-white border-0 text-[10px] font-semibold uppercase tracking-wide">
-                  {t('manage.notice.badge')}
-                </Badge>
-              </div>
-              <p className="text-sm text-[#0A0A0A]/80 mt-1 leading-relaxed">
-                {t(`manage.notice.${notice}Body`)}
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setNotice(null)}
-              data-testid="manage-notice-close"
-              className="h-9 border-[#D4D4D8] text-[#0A0A0A] hover:bg-white hover:text-[#0A0A0A] sm:self-start"
-            >
-              {t('manage.notice.close')}
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+        <Calendar className="w-4 h-4 text-amber-700" aria-hidden="true" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-amber-900">
+          {t('changePlan.blockedTitle')}
+        </p>
+        <p className="text-sm text-amber-800 mt-0.5 leading-relaxed">
+          {t(`changePlan.blocked.${reason}`, {
+            defaultValue: t('changePlan.blocked.default'),
+          })}
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -955,18 +1035,20 @@ export function BillingPage() {
   // recompute it from the live status once the fetch lands.
   const guardReason = searchParams.get('reason');
 
-  const [billing, setBilling] = useState<BillingInterval>(
-    () => selectedPlan?.interval ?? 'MONTHLY',
-  );
   const [billingStatus, setBillingStatus] =
     useState<BillingStatusResponse | null>(null);
   const [statusLoading, setStatusLoading] = useState(true);
   const [statusError, setStatusError] = useState(false);
-  // Track which plan is currently being processed so we can show a spinner
-  // on the right card and disable both CTAs to prevent double-submits.
-  const [busyPlan, setBusyPlan] = useState<PlanCode | null>(null);
-  const busyPlanRef = useRef<PlanCode | null>(null);
+  // Track which (planCode, interval) is currently being processed so we
+  // can show a spinner on the right card and disable the others to
+  // prevent double-submits. The combined key is "PRO:MONTHLY" etc.
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+  const busyKeyRef = useRef<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // After a successful change-plan request, we show a banner explaining
+  // the swap is pending Paddle confirmation. Cleared on refresh / new
+  // attempt.
+  const [changePlanRequested, setChangePlanRequested] = useState(false);
 
   const loadBillingStatus = useCallback(async () => {
     setStatusLoading(true);
@@ -992,9 +1074,6 @@ export function BillingPage() {
   );
 
   const activationVariant = useMemo<ActivationVariant | null>(() => {
-    // While we're still loading the live status, fall back to the
-    // reason carried by BillingGuard so the panel renders immediately
-    // for users coming in from a blocked route.
     const fromStatus = activationVariantFromStatus(
       billingStatus,
       statusError,
@@ -1017,66 +1096,91 @@ export function BillingPage() {
     });
   }, []);
 
-  const handleCheckout = useCallback(async (
-    planCode: PlanCode,
-    intervalOverride?: BillingInterval,
-  ) => {
-    if (busyPlanRef.current !== null) return; // Hard guard against re-entry.
-    busyPlanRef.current = planCode;
-    setBusyPlan(planCode);
-    setErrorMessage(null);
-
-    try {
-      const { transactionId } = await BillingService.createCheckout({
-        planCode,
-        billingInterval: intervalOverride ?? billing,
-      });
+  // Checkout flow — used when the tenant has no live subscription yet.
+  const handleCheckout = useCallback(
+    async (planCode: PlanCode, billingInterval: BillingInterval) => {
+      const key = `${planCode}:${billingInterval}`;
+      if (busyKeyRef.current !== null) return; // Hard guard against re-entry.
+      busyKeyRef.current = key;
+      setBusyKey(key);
+      setErrorMessage(null);
+      setChangePlanRequested(false);
 
       try {
-        await openCheckout({
-          transactionId,
-          settings: {
-            // Paddle redirects here on success. We catch the return on the
-            // public /checkout/success route which never activates the
-            // tenant — activation comes from the signed Paddle webhook
-            // landing on the backend, not from this redirect.
-            successUrl: `${window.location.origin}/checkout/success`,
-          },
+        const { transactionId } = await BillingService.createCheckout({
+          planCode,
+          billingInterval,
         });
-      } catch (paddleError) {
-        // The most common failure here is the client token being missing
-        // or the Paddle.js script being blocked — surface a precise message
-        // when we recognise it, otherwise generic.
-        const msg =
-          paddleError instanceof Error ? paddleError.message : '';
+
+        try {
+          await openCheckout({
+            transactionId,
+            settings: {
+              successUrl: `${window.location.origin}/checkout/success`,
+            },
+          });
+        } catch (paddleError) {
+          const msg =
+            paddleError instanceof Error ? paddleError.message : '';
+          if (msg.includes('VITE_PADDLE_CLIENT_TOKEN')) {
+            setErrorMessage(t('error.missingToken'));
+          } else {
+            setErrorMessage(t('error.generic'));
+          }
+          throw paddleError;
+        }
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : '';
         if (msg.includes('VITE_PADDLE_CLIENT_TOKEN')) {
           setErrorMessage(t('error.missingToken'));
+        } else if (error instanceof ApiError) {
+          setErrorMessage(error.message || t('error.generic'));
+        } else if (error instanceof TypeError) {
+          setErrorMessage(t('error.network'));
         } else {
           setErrorMessage(t('error.generic'));
         }
-        // Re-throw to log to console so devs can inspect during sandbox
-        // testing. The caller's outer catch will release `busyPlan`.
-        throw paddleError;
+      } finally {
+        busyKeyRef.current = null;
+        setBusyKey(null);
       }
-    } catch (error) {
-      // Backend errors (network, 401/403, validation) — distinguish a
-      // network-style failure from anything else for clearer copy.
-      const msg = error instanceof Error ? error.message : '';
-      if (msg.includes('VITE_PADDLE_CLIENT_TOKEN')) {
-        setErrorMessage(t('error.missingToken'));
-      } else if (error instanceof ApiError) {
-        setErrorMessage(error.message || t('error.generic'));
-      } else if (error instanceof TypeError) {
-        // `fetch` throws TypeError when the network is offline.
-        setErrorMessage(t('error.network'));
-      } else {
-        setErrorMessage(t('error.generic'));
+    },
+    [t],
+  );
+
+  // Change-plan flow — used when the tenant has an active/trialing
+  // subscription and the backend says change-plan is allowed.
+  const handleChangePlan = useCallback(
+    async (planCode: PlanCode, billingInterval: BillingInterval) => {
+      const key = `${planCode}:${billingInterval}`;
+      if (busyKeyRef.current !== null) return;
+      busyKeyRef.current = key;
+      setBusyKey(key);
+      setErrorMessage(null);
+      setChangePlanRequested(false);
+
+      try {
+        await BillingService.changePlan({ planCode, billingInterval });
+        // Success is "request accepted, waiting for webhook" — we never
+        // mark the local snapshot as already on the new plan; the user
+        // sees the change after a manual refresh that picks up the
+        // Paddle webhook.
+        setChangePlanRequested(true);
+      } catch (error) {
+        if (error instanceof ApiError) {
+          setErrorMessage(error.message || t('changePlan.error.generic'));
+        } else if (error instanceof TypeError) {
+          setErrorMessage(t('error.network'));
+        } else {
+          setErrorMessage(t('changePlan.error.generic'));
+        }
+      } finally {
+        busyKeyRef.current = null;
+        setBusyKey(null);
       }
-    } finally {
-      busyPlanRef.current = null;
-      setBusyPlan(null);
-    }
-  }, [billing, t]);
+    },
+    [t],
+  );
 
   // Retry checkout from the status panel: reuse the plan + interval the
   // backend remembers about the current/pending subscription. Falls back
@@ -1091,16 +1195,71 @@ export function BillingPage() {
     }
   }, [billingStatus?.planCode, billingStatus?.billingInterval, handleCheckout]);
 
+  // Refresh wraps loadBillingStatus and also clears the success banner
+  // so the next render reflects the freshly-fetched snapshot.
+  const handleRefreshStatus = useCallback(() => {
+    setChangePlanRequested(false);
+    void loadBillingStatus();
+  }, [loadBillingStatus]);
+
   const canRetry = Boolean(
     billingStatus?.planCode && billingStatus?.billingInterval,
   );
 
-  const currentPlan = billingStatus?.planCode ?? null;
   const hasActiveSubscription = kind === 'active' || kind === 'trialing';
-  const showManageSection = hasActiveSubscription;
+
+  // Authoritative for the change-plan UI:
+  //   • hasPaddleSubscription comes straight from the backend when the
+  //     new contract is in place,
+  //   • we fall back to (active || trialing) so this also works against
+  //     the older backend that hasn't shipped the field yet.
+  const hasPaddleSubscription =
+    billingStatus?.hasPaddleSubscription ?? hasActiveSubscription;
+
+  // changePlanAllowed: prefer the backend flag, default to "true when
+  // we have a Paddle subscription" so the UI doesn't break against
+  // older backends.
+  const changePlanAllowed =
+    typeof billingStatus?.changePlanAllowed === 'boolean'
+      ? billingStatus.changePlanAllowed
+      : hasPaddleSubscription;
+
+  const changePlanBlockedReason =
+    billingStatus?.changePlanBlockedReason ?? null;
+
+  // Pair-based current plan detection — a plan is "current" only when
+  // BOTH planCode and billingInterval match exactly. PRO MONTHLY does
+  // not mark PRO ANNUAL as current; this is the whole point of showing
+  // four cards instead of two with a toggle.
+  const currentPlanCode = billingStatus?.planCode ?? null;
+  const currentInterval = billingStatus?.billingInterval ?? null;
+  const isCurrentPlanPair = useCallback(
+    (planCode: PlanCode, interval: BillingInterval) =>
+      hasActiveSubscription &&
+      currentPlanCode === planCode &&
+      currentInterval === interval,
+    [hasActiveSubscription, currentPlanCode, currentInterval],
+  );
 
   // For "pending" we mark the pending plan card so its CTA reads "Retry".
-  const pendingPlan = kind === 'pending' ? billingStatus?.planCode ?? null : null;
+  const pendingPlanCode = kind === 'pending' ? billingStatus?.planCode ?? null : null;
+  const pendingInterval =
+    kind === 'pending' ? billingStatus?.billingInterval ?? null : null;
+
+  // Decide which CTA flow each card should use:
+  //   • hasPaddleSubscription + changePlanAllowed → "Change plan"
+  //   • hasPaddleSubscription + NOT allowed       → "Locked" (disabled, with reason)
+  //   • otherwise                                  → "Checkout" (Paddle)
+  const cardMode: PlanCardMode = !hasPaddleSubscription
+    ? 'checkout'
+    : changePlanAllowed
+      ? 'changePlan'
+      : 'locked';
+
+  // When a change-plan request was just accepted, prefer that message
+  // over a stale error from a previous attempt. The error banner only
+  // shows on a fresh failure.
+  const showSuccessBanner = changePlanRequested && !errorMessage;
 
   return (
     <div className="min-h-screen bg-white text-[#0A0A0A]">
@@ -1120,8 +1279,6 @@ export function BillingPage() {
                 {t('page.backToDashboard')}
               </Button>
             </Link>
-            {/* Always available so a tenant locked at activation can sign
-                out without getting stuck in a billing redirect bounce. */}
             <Button
               type="button"
               variant="ghost"
@@ -1135,8 +1292,7 @@ export function BillingPage() {
         </div>
       </header>
 
-      {/* Hero band — soft orange/black blurs as in the Landing hero, kept
-          subtle since this isn't a marketing page. */}
+      {/* Hero band — soft orange/black blurs as in the Landing hero. */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 -z-10">
           <div className="absolute -top-40 -right-32 w-[28rem] h-[28rem] rounded-full bg-[#F97316]/10 blur-3xl" />
@@ -1151,6 +1307,24 @@ export function BillingPage() {
             <p className="text-[#71717A] leading-relaxed">
               {t('page.subtitle')}
             </p>
+            <div className="mt-6 flex items-center justify-center">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleRefreshStatus}
+                disabled={statusLoading}
+                data-testid="status-refresh-button-top"
+                className="h-10 border-[#D4D4D8] text-[#0A0A0A] hover:bg-[#FFF7ED] hover:text-[#C2410C] hover:border-[#F97316]/40"
+              >
+                <RefreshCw
+                  className={`w-4 h-4 mr-2 ${statusLoading ? 'animate-spin' : ''}`}
+                  aria-hidden="true"
+                />
+                {statusLoading
+                  ? t('status.refreshing')
+                  : t('status.refresh')}
+              </Button>
+            </div>
           </div>
 
           {selectedPlan && <SelectedPlanBanner />}
@@ -1167,13 +1341,11 @@ export function BillingPage() {
             loading={statusLoading}
             hasError={statusError}
             kind={kind}
-            onRefresh={loadBillingStatus}
+            onRefresh={handleRefreshStatus}
             onRetry={handleRetryCheckout}
             canRetry={canRetry}
-            retryBusy={busyPlan !== null}
+            retryBusy={busyKey !== null}
           />
-
-          {showManageSection && <ManageSubscriptionSection />}
 
           {/* Plans section header */}
           <div
@@ -1191,70 +1363,62 @@ export function BillingPage() {
             </p>
           </div>
 
-          {/* Billing toggle */}
-          <div className="flex items-center justify-center gap-3 mb-10">
-            <span
-              className={`text-sm font-medium transition ${
-                billing === 'MONTHLY' ? 'text-[#0A0A0A]' : 'text-[#71717A]'
-              }`}
-            >
-              {t('toggle.monthly')}
-            </span>
-            <Switch
-              checked={billing === 'ANNUAL'}
-              onCheckedChange={(checked) =>
-                setBilling(checked ? 'ANNUAL' : 'MONTHLY')
-              }
-              aria-label={`${t('toggle.monthly')} / ${t('toggle.annual')}`}
-              disabled={busyPlan !== null}
-            />
-            <span
-              className={`text-sm font-medium transition ${
-                billing === 'ANNUAL' ? 'text-[#0A0A0A]' : 'text-[#71717A]'
-              }`}
-            >
-              {t('toggle.annual')}
-            </span>
-            {billing === 'ANNUAL' && (
-              <Badge className="bg-[#F97316]/10 text-[#F97316] border-0 text-[11px] font-semibold ml-1">
-                {t('toggle.annualBadge')}
-              </Badge>
-            )}
-          </div>
+          {cardMode === 'locked' && changePlanBlockedReason && (
+            <ChangePlanBlockedBanner reason={changePlanBlockedReason} />
+          )}
 
-          {/* Inline error */}
+          {showSuccessBanner && (
+            <SuccessBanner
+              title={t('changePlan.success.title')}
+              message={t('changePlan.success.body')}
+            />
+          )}
+
           {errorMessage && (
             <ErrorBanner
-              title={t('error.title')}
+              title={
+                cardMode === 'changePlan'
+                  ? t('changePlan.error.title')
+                  : t('error.title')
+              }
               message={errorMessage}
             />
           )}
 
-          {/* Plan cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto pb-20">
-            <PlanCard
-              planKey="pro"
-              billing={billing}
-              selected={selectedPlan?.plan === 'PRO'}
-              isCurrentPlan={hasActiveSubscription && currentPlan === 'PRO'}
-              hasActiveSubscription={hasActiveSubscription}
-              retry={pendingPlan === 'PRO'}
-              loading={busyPlan === 'PRO'}
-              disabled={busyPlan !== null && busyPlan !== 'PRO'}
-              onCheckout={handleCheckout}
-            />
-            <PlanCard
-              planKey="business"
-              billing={billing}
-              featured
-              selected={selectedPlan?.plan === 'BUSINESS'}
-              isCurrentPlan={hasActiveSubscription && currentPlan === 'BUSINESS'}
-              hasActiveSubscription={hasActiveSubscription}
-              retry={pendingPlan === 'BUSINESS'}
-              loading={busyPlan === 'BUSINESS'}
-              disabled={busyPlan !== null && busyPlan !== 'BUSINESS'}
-              onCheckout={handleCheckout}
-            />
+          {/* Plan cards — four pinned (plan, interval) pairs. */}
+          <div
+            data-testid="plans-grid"
+            className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 max-w-6xl mx-auto pb-20"
+          >
+            {PLAN_GRID.map((entry) => {
+              const key = `${entry.planCode}:${entry.billingInterval}`;
+              const isCurrent = isCurrentPlanPair(entry.planCode, entry.billingInterval);
+              const isPendingThis =
+                pendingPlanCode === entry.planCode &&
+                pendingInterval === entry.billingInterval;
+              const isSelectedFromSignup =
+                selectedPlan?.plan === entry.planCode &&
+                selectedPlan?.interval === entry.billingInterval;
+
+              return (
+                <PlanCard
+                  key={key}
+                  planKey={entry.planKey}
+                  planCode={entry.planCode}
+                  billingInterval={entry.billingInterval}
+                  featured={entry.featured && !isCurrent}
+                  selected={isSelectedFromSignup}
+                  isCurrentPlan={isCurrent}
+                  mode={cardMode}
+                  retry={isPendingThis}
+                  loading={busyKey === key}
+                  disabled={busyKey !== null && busyKey !== key}
+                  blockedReason={changePlanBlockedReason}
+                  onCheckout={handleCheckout}
+                  onChangePlan={handleChangePlan}
+                />
+              );
+            })}
           </div>
         </div>
       </section>

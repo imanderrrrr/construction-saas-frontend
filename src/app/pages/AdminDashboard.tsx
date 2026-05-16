@@ -10,6 +10,7 @@ import {
   Clock, CalendarClock, ClipboardList, Receipt, FileBarChart,
   Wallet, PieChart, Wrench, Banknote, HardHat,
   ArrowDownToLine, ArrowUpFromLine, UserRound, FileText, Briefcase,
+  CreditCard,
 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -160,11 +161,22 @@ type ActiveSection =
   | 'office-expenses'
   | 'subcontractors';
 
-type NavItem = { key: ActiveSection; labelKey: string; icon: React.ElementType; badgeKey?: string };
+// Nav items are either internal sections (clicking sets `activeSection`) or
+// route links (clicking calls `navigate(to)`). Route-link items use a string
+// key that may sit outside the ActiveSection union — the billing entry is one,
+// since /admin/billing is a separate route, not a section of this dashboard.
+type NavItem = {
+  key: ActiveSection | string;
+  labelKey: string;
+  icon: React.ElementType;
+  badgeKey?: string;
+  to?: string;
+};
 
 const NAV_GENERAL: NavItem[] = [
   { key: 'dashboard', labelKey: 'admin:nav.dashboard', icon: LayoutDashboard },
   { key: 'audit',     labelKey: 'admin:nav.auditLogs', icon: Shield          },
+  { key: 'billing',   labelKey: 'admin:nav.billing',   icon: CreditCard, to: '/admin/billing' },
 ];
 
 const NAV_PERSONNEL: NavItem[] = [
@@ -255,10 +267,20 @@ export function AdminDashboard() {
 
   // Sidebar nav item
   function NavItem({ item }: { item: typeof NAV_ITEMS[number] }) {
-    const isActive = activeSection === item.key;
+    // Route-link items (item.to set) are never "active" within the dashboard —
+    // clicking them leaves AdminDashboard for a different route.
+    const isActive = !item.to && activeSection === item.key;
+    const handleClick = () => {
+      if (item.to) {
+        setSidebarOpen(false);
+        navigate(item.to);
+      } else {
+        handleNavigate(item.key);
+      }
+    };
     return (
       <button
-        onClick={() => handleNavigate(item.key)}
+        onClick={handleClick}
         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-left group ${
           isActive
             ? 'bg-[#F97316]/10 text-[#F97316]'
@@ -437,6 +459,12 @@ export function AdminDashboard() {
               <DropdownMenuSeparator />
               <DropdownMenuItem className="gap-2 text-sm cursor-pointer">
                 <User className="w-4 h-4" />{t('common:profile')}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => navigate('/admin/billing')}
+                className="gap-2 text-sm cursor-pointer"
+              >
+                <CreditCard className="w-4 h-4" />{t('admin:nav.billing')}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout} className="gap-2 text-sm text-red-600 focus:text-red-600 cursor-pointer">
