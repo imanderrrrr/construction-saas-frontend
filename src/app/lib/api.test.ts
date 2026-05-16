@@ -232,6 +232,112 @@ describe('api() — 401 auto-refresh', () => {
   });
 });
 
+// ── api() — 401 on anonymous / public endpoints ─────────────────
+// A residual `ofjr_at` cookie from a previous session can make the
+// backend answer 401 to a public endpoint before security rules
+// fully apply. Public flows must NOT treat that as a global session
+// expiration: redirecting to /?session=expired in the middle of the
+// signup → Paddle handoff reloads the landing page and loses the form.
+describe('api() — 401 on anonymous endpoints', () => {
+  it('on 401 for /signup/checkout, does NOT redirect, does NOT refresh, throws ApiError', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(401, { message: 'unauthorized', code: 'SESSION_REVOKED' }),
+    );
+
+    await expect(
+      api('/api/v1/signup/checkout', { method: 'POST', body: '{}' }),
+    ).rejects.toMatchObject({ status: 401 });
+
+    expect(refreshMock).not.toHaveBeenCalled();
+    expect(window.location.href).toBe('');
+  });
+
+  it('on 401 for /signup/complete, does NOT redirect, does NOT refresh', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(401, {}));
+
+    await expect(
+      api('/api/v1/signup/complete', { method: 'POST', body: '{}' }),
+    ).rejects.toThrow(ApiError);
+
+    expect(refreshMock).not.toHaveBeenCalled();
+    expect(window.location.href).toBe('');
+  });
+
+  it('on 401 for legacy /auth/signup, does NOT redirect, does NOT refresh', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(401, {}));
+
+    await expect(
+      api('/api/v1/auth/signup', { method: 'POST', body: '{}' }),
+    ).rejects.toThrow(ApiError);
+
+    expect(refreshMock).not.toHaveBeenCalled();
+    expect(window.location.href).toBe('');
+  });
+
+  it('on 401 for /auth/password-reset/request, does NOT redirect, does NOT refresh', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(401, {}));
+
+    await expect(
+      api('/api/v1/auth/password-reset/request', {
+        method: 'POST',
+        body: '{}',
+      }),
+    ).rejects.toThrow(ApiError);
+
+    expect(refreshMock).not.toHaveBeenCalled();
+    expect(window.location.href).toBe('');
+  });
+
+  it('on 401 for /auth/password-reset/confirm, does NOT redirect, does NOT refresh', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(401, {}));
+
+    await expect(
+      api('/api/v1/auth/password-reset/confirm', {
+        method: 'POST',
+        body: '{}',
+      }),
+    ).rejects.toThrow(ApiError);
+
+    expect(refreshMock).not.toHaveBeenCalled();
+    expect(window.location.href).toBe('');
+  });
+
+  it('on 401 for /auth/invitations/<token>, does NOT redirect, does NOT refresh', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(401, {}));
+
+    await expect(
+      api('/api/v1/auth/invitations/abc-token'),
+    ).rejects.toThrow(ApiError);
+
+    expect(refreshMock).not.toHaveBeenCalled();
+    expect(window.location.href).toBe('');
+  });
+
+  it('preserves backend code on 401 for anonymous endpoints (e.g. WORKSPACE_TAKEN)', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(401, { message: 'taken', code: 'WORKSPACE_TAKEN' }),
+    );
+
+    await expect(
+      api('/api/v1/signup/checkout', { method: 'POST', body: '{}' }),
+    ).rejects.toMatchObject({ status: 401, code: 'WORKSPACE_TAKEN' });
+
+    expect(window.location.href).toBe('');
+  });
+
+  it('protected endpoints still redirect on 401 + failed refresh (regression guard)', async () => {
+    // Anonymous-endpoint carve-out must not weaken protected behaviour.
+    setSessionCookie('WORKER', 'user');
+    fetchMock.mockResolvedValueOnce(jsonResponse(401, {}));
+    refreshMock.mockResolvedValueOnce(false);
+
+    await expect(api('/api/v1/admin/projects')).rejects.toThrow(ApiError);
+
+    expect(isAuthenticated()).toBe(false);
+    expect(window.location.href).toBe('/?session=expired');
+  });
+});
+
 // ── api() — other errors ─────────────────────────────────────────
 describe('api() — error handling', () => {
   it('throws ApiError(403) for forbidden', async () => {
