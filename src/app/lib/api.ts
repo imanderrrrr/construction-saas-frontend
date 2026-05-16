@@ -89,35 +89,62 @@ export class ApiError extends Error {
 
 // ── Auto-refresh on 401 ────────────────────────────────────────────────────
 
-// Auth endpoints that must never trigger auto-refresh (prevents infinite loops)
+// Auth endpoints that must never trigger auto-refresh (prevents infinite loops).
+// A 401 here is still a credentials / token failure for an authenticated flow,
+// so we let it surface as an ApiError but skip the refresh attempt.
 const AUTH_ENDPOINTS = ['/auth/refresh', '/auth/login'];
+
+// Public / anonymous endpoints used by pre-auth flows (signup, password reset,
+// invitation preview/accept). A 401 here MUST NOT trigger auto-refresh or the
+// global `/?session=expired` redirect: the user is not signed in, so the only
+// session that could "expire" is a stale residual cookie from a prior login.
+// Treating that as a global expiration breaks the signup → Paddle handoff by
+// reloading the landing page mid-flow. Instead, propagate the 401 as an
+// ApiError so the page can render an inline error and let the user retry.
+const ANONYMOUS_ENDPOINTS = [
+  '/signup/checkout',
+  '/signup/complete',
+  '/auth/signup',
+  '/auth/password-reset/request',
+  '/auth/password-reset/confirm',
+  '/auth/invitations/',
+];
 
 function isAuthEndpoint(endpoint: string): boolean {
   return AUTH_ENDPOINTS.some(p => endpoint.includes(p));
 }
 
+function isAnonymousEndpoint(endpoint: string): boolean {
+  return ANONYMOUS_ENDPOINTS.some(p => endpoint.includes(p));
+}
+
 /**
  * Wraps a fetch call with 401 auto-refresh logic.
- * On 401 for non-auth endpoints: attempts token refresh, then retries once.
+ *
+ * - Auth endpoints (`/auth/login`, `/auth/refresh`): no refresh, no redirect —
+ *   the 401 surfaces as an ApiError (bad credentials / refresh failed).
+ * - Anonymous endpoints (signup, password reset, invitation accept): no refresh,
+ *   no redirect — the 401 surfaces as an ApiError so the page renders it inline.
+ * - Everything else (protected endpoints): attempt token refresh once; on
+ *   success retry, on failure clear the session cookie and redirect to the
+ *   landing page with `?session=expired`.
  */
 async function withAutoRefresh(
   endpoint: string,
   doFetch: () => Promise<Response>,
 ): Promise<Response> {
-  let res = await doFetch();
+  const res = await doFetch();
 
-  if (res.status === 401 && !isAuthEndpoint(endpoint)) {
-    const refreshed = await refreshIfNeeded();
-    if (refreshed) {
-      res = await doFetch();
-    } else {
-      clearSessionCookie();
-      window.location.href = '/?session=expired';
-      throw new ApiError(401, i18n.t('common:error.sessionExpired'));
-    }
+  if (res.status !== 401) return res;
+  if (isAuthEndpoint(endpoint) || isAnonymousEndpoint(endpoint)) return res;
+
+  const refreshed = await refreshIfNeeded();
+  if (refreshed) {
+    return doFetch();
   }
-
-  return res;
+  clearSessionCookie();
+  window.location.href = '/?session=expired';
+  throw new ApiError(401, i18n.t('common:error.sessionExpired'));
 }
 
 /**

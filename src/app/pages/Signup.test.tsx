@@ -49,6 +49,9 @@ vi.mock('react-i18next', () => ({
         return 'Checkout unavailable';
       if (key === 'signup.error.paddleUnavailable.message')
         return 'We could not open the payment screen.';
+      if (key === 'signup.error.server.title') return 'Something went wrong';
+      if (key === 'signup.error.server.message')
+        return 'Please try again in a moment.';
       return key;
     },
   }),
@@ -320,5 +323,29 @@ describe('Signup pre-payment flow', () => {
 
     expect(mocks.createCheckoutIntent).not.toHaveBeenCalled();
     expect(mocks.navigate).toHaveBeenCalledWith('/#pricing');
+  });
+
+  it('renders an inline error when /signup/checkout responds 401 (residual cookie)', async () => {
+    // Simulates the bug we are fixing: a residual `ofjr_at` cookie causes
+    // the backend to return 401 on a public endpoint. The api() wrapper
+    // must propagate the ApiError so the page renders it inline — it must
+    // NOT navigate away or reload, which would lose the signup form.
+    const origHref = window.location.href;
+    mocks.createCheckoutIntent.mockRejectedValueOnce(
+      new ApiError(401, 'unauthorized', undefined, 'SESSION_REVOKED'),
+    );
+
+    await renderSignup(root);
+    await fillValidSignupForm(container);
+    await submit(container);
+
+    expect(mocks.rememberSignupIntent).not.toHaveBeenCalled();
+    expect(mocks.openCheckout).not.toHaveBeenCalled();
+    expect(mocks.navigate).not.toHaveBeenCalled();
+    expect(window.location.href).toBe(origHref);
+
+    const alert = container.querySelector('[role="alert"]');
+    expect(alert).not.toBeNull();
+    expect(container.textContent).toContain('Something went wrong');
   });
 });
