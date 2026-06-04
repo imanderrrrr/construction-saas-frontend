@@ -18,6 +18,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from './ui/select';
 import { InvitationsService, AdminInvitation } from '../services/invitations';
+import { ApiError } from '../lib/api';
 import type { CanonicalRole } from '../types';
 
 interface InviteUserModalProps {
@@ -95,8 +96,15 @@ export function InviteUserModal({
       const inv = await InvitationsService.create(role, trimmedEmail || undefined);
       setGenerated(inv);
       onGenerated?.(inv);
-    } catch {
-      setError(t('invite.modal.error'));
+    } catch (err) {
+      // The backend rate-limits invitation emails per tenant (HTTP 429).
+      // Surface that case specifically so the admin knows to wait rather than
+      // retry into the same wall and see a generic failure.
+      setError(
+        err instanceof ApiError && err.status === 429
+          ? t('invite.modal.rateLimited')
+          : t('invite.modal.error'),
+      );
     } finally {
       setSubmitting(false);
     }
