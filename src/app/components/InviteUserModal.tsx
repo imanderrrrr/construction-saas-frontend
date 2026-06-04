@@ -12,6 +12,7 @@ import QRCode from 'qrcode';
 import { AlertCircle, Copy, Check, X, Loader2 } from 'lucide-react';
 
 import { Button } from './ui/button';
+import { Input } from './ui/input';
 import { Label } from './ui/label';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -34,6 +35,9 @@ const INVITABLE_ROLES: CanonicalRole[] = [
   'ADMIN', 'SUPERVISOR', 'WORKER', 'FINANCE', 'WAREHOUSE',
 ];
 
+// Light client-side check for UX only; the backend's @Email is the real guard.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export function InviteUserModal({
   open,
   onClose,
@@ -43,6 +47,8 @@ export function InviteUserModal({
   const { t } = useTranslation('auth');
 
   const [role, setRole] = useState<CanonicalRole>('WORKER');
+  const [email, setEmail] = useState('');
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [generated, setGenerated] = useState<AdminInvitation | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +62,8 @@ export function InviteUserModal({
       setError(null);
       setCopied(false);
       setRole('WORKER');
+      setEmail('');
+      setEmailError(null);
     }
   }, [open]);
 
@@ -75,10 +83,16 @@ export function InviteUserModal({
       onClose();
       return;
     }
+    const trimmedEmail = email.trim();
+    if (trimmedEmail && !EMAIL_RE.test(trimmedEmail)) {
+      setEmailError(t('invite.modal.email.invalid'));
+      return;
+    }
+    setEmailError(null);
     setSubmitting(true);
     setError(null);
     try {
-      const inv = await InvitationsService.create(role);
+      const inv = await InvitationsService.create(role, trimmedEmail || undefined);
       setGenerated(inv);
       onGenerated?.(inv);
     } catch {
@@ -164,6 +178,28 @@ export function InviteUserModal({
                 )}
               </div>
 
+              {role !== 'SUBCONTRACTOR' && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="invite-email" className="text-sm font-medium text-[#0A0A0A]">
+                    {t('invite.modal.email.label')}
+                  </Label>
+                  <Input
+                    id="invite-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => { setEmail(e.target.value); setEmailError(null); }}
+                    placeholder={t('invite.modal.email.placeholder')}
+                    className="h-11"
+                    aria-invalid={!!emailError}
+                  />
+                  {emailError ? (
+                    <p className="text-xs text-red-600">{emailError}</p>
+                  ) : (
+                    <p className="text-xs text-[#71717A]">{t('invite.modal.email.hint')}</p>
+                  )}
+                </div>
+              )}
+
               <Button
                 type="button"
                 onClick={handleGenerate}
@@ -199,6 +235,12 @@ export function InviteUserModal({
                   date: new Date(generated.expiresAt).toLocaleString(),
                 })}
               </p>
+
+              {email.trim() && (
+                <p className="text-xs text-center text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-2 py-1.5">
+                  {t('invite.modal.emailedTo', { email: email.trim() })}
+                </p>
+              )}
 
               <div className="flex gap-2">
                 <Button
