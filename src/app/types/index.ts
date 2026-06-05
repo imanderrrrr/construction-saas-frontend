@@ -195,11 +195,11 @@ export const ROLE_NAV_MAP: Record<CanonicalRole, NavItemSpec[]> = {
   ],
   FINANCE: [
     { key: 'dashboard', label: 'Dashboard',  route: '/finance/dashboard', phase: 1, comingSoon: true },
-    { key: 'expenses',  label: 'Expenses',   route: '/finance/expenses',  phase: 2, comingSoon: true },
-    { key: 'budgets',   label: 'Budgets',    route: '/finance/budgets',   phase: 2, comingSoon: true },
+    { key: 'expenses',  label: 'Expenses',   route: '/finance/expenses',  phase: 2 },
+    { key: 'budgets',   label: 'Budgets',    route: '/finance/budgets',   phase: 2 },
   ],
   WAREHOUSE: [
     { key: 'dashboard',  label: 'Dashboard',  route: '/warehouse/dashboard',  phase: 1, comingSoon: true },
-    { key: 'inventory',  label: 'Inventory',  route: '/warehouse/inventory',  phase: 2, comingSoon: true },
+    { key: 'inventory',  label: 'Inventory',  route: '/warehouse/inventory',  phase: 2 },
   ],
 };

@@ -67,28 +67,11 @@ function RoleRedirect() {
   return <Navigate to={ROLE_DASHBOARD_ROUTES[role as CanonicalRole] ?? '/'} replace />;
 }
 
-// Placeholder for unbuilt role dashboards
-function ComingSoon({ role }: { role: CanonicalRole }) {
-  return (
-    <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-16 h-16 bg-[#F97316]/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
-          <span className="text-2xl">🚧</span>
-        </div>
-        <h1 className="text-xl font-bold text-[#0A0A0A] mb-2">{role} Dashboard</h1>
-        <p className="text-sm text-[#71717A]">Coming in a future phase.</p>
-        <button onClick={() => { AuthService.logout().then(() => { window.location.href = '/'; }); }}
-          className="mt-6 text-xs text-[#F97316] hover:text-[#C2410C] underline">
-          Sign out
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // Router
+// `routes` is exported separately from `router` so tests can mount any path
+// with createMemoryRouter without spinning up a real browser history.
 
-export const router = createBrowserRouter([
+export const routes = [
 
   // Public
   { path: '/',                       element: <Landing /> },
@@ -190,8 +173,28 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
   },
-  { path: '/finance/expenses', element: <ProtectedRoute allowedRoles={['FINANCE']}><BillingGuard><ComingSoon role="FINANCE" /></BillingGuard></ProtectedRoute> },
-  { path: '/finance/budgets',  element: <ProtectedRoute allowedRoles={['FINANCE']}><BillingGuard><ComingSoon role="FINANCE" /></BillingGuard></ProtectedRoute> },
+  // Deep-link routes into the finance dashboard — they open the real module
+  // section while keeping the dashboard shell (sidebar, topbar, logout).
+  {
+    path: '/finance/expenses',
+    element: (
+      <ProtectedRoute allowedRoles={['FINANCE']}>
+        <BillingGuard>
+          <FinanceDashboard initialSection="approved-expenses" />
+        </BillingGuard>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/finance/budgets',
+    element: (
+      <ProtectedRoute allowedRoles={['FINANCE']}>
+        <BillingGuard>
+          <FinanceDashboard initialSection="budgets" />
+        </BillingGuard>
+      </ProtectedRoute>
+    ),
+  },
 
   // WAREHOUSE
   {
@@ -204,7 +207,18 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
   },
-  { path: '/warehouse/inventory', element: <ProtectedRoute allowedRoles={['WAREHOUSE']}><BillingGuard><ComingSoon role="WAREHOUSE" /></BillingGuard></ProtectedRoute> },
+  // Deep-link into the warehouse dashboard's tool-inventory section. The
+  // sidebar still exposes consumables + the other inventory sections.
+  {
+    path: '/warehouse/inventory',
+    element: (
+      <ProtectedRoute allowedRoles={['WAREHOUSE']}>
+        <BillingGuard>
+          <WarehouseDashboard initialSection="tool-inventory" />
+        </BillingGuard>
+      </ProtectedRoute>
+    ),
+  },
 
   // SUBCONTRACTOR — no web workspace, redirected here so they get a friendly
   // message pointing them to the mobile app instead of an infinite redirect
@@ -283,4 +297,6 @@ export const router = createBrowserRouter([
 
   // Catch-all
   { path: '*', element: <Navigate to="/" replace /> },
-]);
+];
+
+export const router = createBrowserRouter(routes);

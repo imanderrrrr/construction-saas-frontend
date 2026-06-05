@@ -331,8 +331,8 @@ function ChecklistTab() {
     { done: false, text: '[Phase 2 backend] Connect WorkerTime punch buttons to POST /time-events' },
     { done: false, text: '[Phase 2 backend] Connect SupervisorApprovals to GET /time-records + POST /approve|correct|reject' },
     { done: false, text: '[Phase 2 backend] Implement real GPS geofencing in LocationIndicator' },
-    { done: false, text: '[Future] FINANCE dashboard + expenses/budgets screens' },
-    { done: false, text: '[Future] WAREHOUSE dashboard + inventory screens' },
+    { done: true,  text: 'FINANCE dashboard + expenses/budgets screens (deep-linked routes)' },
+    { done: true,  text: 'WAREHOUSE dashboard + inventory screens (deep-linked routes)' },
     { done: false, text: '[Future] SUPERVISOR projects screen' },
   ];
 
