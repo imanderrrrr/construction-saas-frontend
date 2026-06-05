@@ -34,11 +34,15 @@ export interface AcceptInvitationPayload {
 }
 
 export const InvitationsService = {
-  /** ADMIN: create a new invitation; returns the token to render the QR. */
-  create: (role: CanonicalRole) =>
+  /**
+   * ADMIN: create a new invitation; returns the token to render the QR.
+   * When `email` is provided, the backend also emails the accept link to it
+   * (best-effort) — the QR / share-link remains the primary channel.
+   */
+  create: (role: CanonicalRole, email?: string) =>
     api<AdminInvitation>('/api/v1/admin/invitations', {
       method: 'POST',
-      body: JSON.stringify({ role }),
+      body: JSON.stringify(email ? { role, email } : { role }),
     }),
 
   /** ADMIN: list invitations in current tenant. */

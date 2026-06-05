@@ -235,11 +235,13 @@ function DashboardView({ username, onNavigate }: { username: string; onNavigate:
 
 // Main component
 
-export function FinanceDashboard() {
+export function FinanceDashboard({ initialSection }: { initialSection?: ActiveSection } = {}) {
   const navigate    = useNavigate();
   const { t }       = useTranslation(['finance', 'common']);
   const username    = AuthService.getUsername() ?? 'finance';
-  const [activeSection, setActiveSection] = useState<ActiveSection>('dashboard');
+  // `initialSection` lets a deep-link route (e.g. /finance/expenses) open the
+  // dashboard straight on a section while keeping the full shell + sidebar.
+  const [activeSection, setActiveSection] = useState<ActiveSection>(initialSection ?? 'dashboard');
 
   const handleLogout   = () => { document.cookie = 'ofjr_session=; Path=/; Max-Age=0'; navigate('/'); AuthService.logout(); };
   const handleNavigate = (section: string) => setActiveSection(section as ActiveSection);
