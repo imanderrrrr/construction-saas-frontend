@@ -254,12 +254,14 @@ function DashboardView({ username, onNavigate }: { username: string; onNavigate:
 
 // Main component
 
-export function WarehouseDashboard() {
+export function WarehouseDashboard({ initialSection }: { initialSection?: ActiveSection } = {}) {
   const { t }      = useTranslation('inventory');
   const navigate   = useNavigate();
   const username   = AuthService.getUsername() ?? 'warehouse';
   const initials   = username.slice(0, 2).toUpperCase();
-  const [activeSection, setActiveSection] = useState<ActiveSection>('dashboard');
+  // `initialSection` lets a deep-link route (e.g. /warehouse/inventory) open the
+  // dashboard straight on a section while keeping the full shell + sidebar.
+  const [activeSection, setActiveSection] = useState<ActiveSection>(initialSection ?? 'dashboard');
   const [sidebarOpen,   setSidebarOpen]   = useState(false);
   const navScrollPos = useRef(0);
 

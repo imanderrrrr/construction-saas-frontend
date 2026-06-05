@@ -11,7 +11,7 @@ import {
 
 // Role badge config
 
-type Role = 'SUPERVISOR' | 'WORKER' | 'FINANCE' | 'WAREHOUSE' | 'MANAGER';
+type Role = 'SUPERVISOR' | 'WORKER' | 'FINANCE' | 'WAREHOUSE';
 
 const ROLE_CONFIG: Record<Role, { bg: string; text: string; border: string }> = {
   SUPERVISOR: {
@@ -33,11 +33,6 @@ const ROLE_CONFIG: Record<Role, { bg: string; text: string; border: string }> = 
     bg: 'bg-amber-50',
     text: 'text-amber-700',
     border: 'border-amber-200',
-  },
-  MANAGER: {
-    bg: 'bg-orange-50',
-    text: 'text-orange-700',
-    border: 'border-orange-200',
   },
 };
 
