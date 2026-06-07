@@ -2,8 +2,13 @@
 // + email; the server (in dev) logs the reset link to console, (in prod)
 // emails it via the configured EmailSender.
 //
-// We always show the same success state regardless of whether the email is
-// real to mirror the backend's anti-enumeration response.
+// Anti-enumeration: the backend returns 204 for BOTH a matching and a
+// non-matching (slug, email) pair, so a *successful* request reveals nothing
+// about whether the account exists — we therefore show one generic success
+// state for every 204. The only signal we act on is transport success vs
+// failure: if the request REJECTS (timeout / network / 5xx / 429) we keep the
+// form and show an inline error instead of a false "check your email", which
+// is independent of account existence and so does not leak it.
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -11,18 +16,19 @@ import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 
 import { PasswordResetService, PasswordResetRequestPayload } from '../services/passwordReset';
-import { getStoredTenantSlug } from '../lib/api';
+import { getStoredTenantSlug, ApiError } from '../lib/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
-import { HardHat, Loader2, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { HardHat, Loader2, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export function ForgotPassword() {
   const { t } = useTranslation('auth');
 
   const [submitted, setSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const remembered = getStoredTenantSlug() ?? '';
 
   const {
@@ -35,18 +41,30 @@ export function ForgotPassword() {
 
   const onSubmit = async (data: PasswordResetRequestPayload) => {
     setIsLoading(true);
+    setError(null);
     try {
       await PasswordResetService.request({
         tenantSlug: data.tenantSlug.trim().toLowerCase(),
         email: data.email.trim(),
       });
-    } catch {
-      // Backend swallows "not found" — any error here is genuine network /
-      // server pain. We still show the success state to keep the UX flow
-      // (a real user should retry from the email).
+      // Success (HTTP 204). The backend returns 204 for BOTH a matching and a
+      // non-matching (slug, email) — deliberate anti-enumeration — so a resolve
+      // here reveals nothing about whether the account exists. We only show the
+      // generic "check your email" state when the request actually went through.
+      setSubmitted(true);
+    } catch (err) {
+      // A rejection means the request never reached its 204: a timeout (the
+      // backend free tier cold-starts slowly), the network being down, or a
+      // 5xx / 429. Keep the form up so the user can retry and explain why.
+      // This branches ONLY on transport success vs failure — never on anything
+      // that would hint whether the email/company exists.
+      setError(
+        err instanceof ApiError && err.status === 429
+          ? t('forgotPassword.rateLimited')
+          : t('forgotPassword.error'),
+      );
     } finally {
       setIsLoading(false);
-      setSubmitted(true);
     }
   };
 
@@ -128,10 +146,22 @@ export function ForgotPassword() {
                   aria-invalid={errors.email ? 'true' : 'false'}
                   className={inputCls(!!errors.email, isLoading)}
                 />
-                {errors.email && (
+                {errors.email ? (
                   <p className="text-xs text-red-600">{errors.email.message}</p>
+                ) : (
+                  <p className="text-xs text-[#71717A]">{t('forgotPassword.email.hint')}</p>
                 )}
               </div>
+
+              {error && (
+                <div
+                  role="alert"
+                  className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2"
+                >
+                  <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-700">{error}</p>
+                </div>
+              )}
 
               <Button
                 type="submit"
