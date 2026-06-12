@@ -1,47 +1,47 @@
-﻿PROPRIETARY SOFTWARE LICENSE
+PROPRIETARY LICENSE — SOURCE AVAILABLE FOR PORTFOLIO REVIEW ONLY
 
-Copyright (c) 2026 Anthony Anderson Herrera Aguirre, Founder of Archlogic Systems.
-All rights reserved.
+Copyright (c) 2026 Anthony Anderson Herrera Aguirre. All rights reserved.
 
 1. OWNERSHIP
 
-This software, including all source code, documentation, assets, and associated
-materials (collectively, the "Software"), is the exclusive property of
-Anthony Anderson Herrera Aguirre, operating under Archlogic Systems. All
-intellectual property rights, including but not limited to copyrights, patents,
-trade secrets, and trademarks, are retained solely by the owner.
+This software, including all source code, documentation, assets, and
+associated materials (collectively, the "Software"), is the exclusive
+property of Anthony Anderson Herrera Aguirre. All intellectual property
+rights, including but not limited to copyrights, patents, trade secrets,
+and trademarks, are retained solely by the owner.
 
-2. GRANT OF USE
+2. LIMITED VIEWING PERMISSION
 
-Only Anthony Anderson Herrera Aguirre and individuals or entities explicitly
-authorized in writing by him are permitted to use, access, modify, deploy,
-or interact with the Software in any capacity.
+This repository is published solely so that recruiters, hiring teams, and
+other interested parties can READ the code and evaluate the author's work.
+You may view and read the Software on GitHub for that evaluation purpose
+only.
 
-3. RESTRICTIONS
+3. ALL OTHER RIGHTS RESERVED
 
-No person, company, or entity may, without prior written authorization from
-the owner:
+Without prior written authorization from the owner, no person, company, or
+entity may:
 
-  a) Use the Software, in whole or in part, for commercial or personal gain.
-  b) Copy, reproduce, distribute, sublicense, sell, lease, or transfer the
+  a) Use the Software, in whole or in part, in any application, product,
+     or service, whether commercial or non-commercial.
+  b) Copy, reproduce, modify, adapt, translate, or create derivative works
+     of the Software.
+  c) Publish, distribute, sublicense, sell, rent, lease, or transfer the
      Software or any derivative works.
-  c) Reverse engineer, decompile, disassemble, or attempt to derive the
-     source code of the Software.
-  d) Remove, alter, or obscure any proprietary notices, labels, or markings.
-  e) Deploy the Software in any production, staging, or testing environment
-     for the benefit of a third party.
+  d) Deploy the Software in any production, staging, or testing
+     environment.
+  e) Use the Software, in whole or in part, to train machine-learning
+     models or generative AI systems.
+  f) Remove, alter, or obscure any proprietary notices, labels, or
+     markings.
 
 4. LEGAL CONSEQUENCES
 
-Any unauthorized use of this Software for commercial purposes or personal
-financial gain constitutes a violation of this license and applicable
-intellectual property laws. Violators will be subject to:
-
-  a) Immediate cease-and-desist action.
-  b) Civil litigation seeking compensatory and punitive damages.
-  c) Recovery of all profits derived from unauthorized use.
-  d) Criminal prosecution where applicable under local, national, and
-     international intellectual property and computer fraud statutes.
+Any unauthorized use of this Software constitutes a violation of this
+license and applicable intellectual property laws, and may result in
+cease-and-desist action, civil litigation seeking compensatory and
+punitive damages, recovery of profits derived from unauthorized use, and
+criminal prosecution where applicable.
 
 5. NO WARRANTY
 
@@ -51,12 +51,15 @@ LIABILITY ARISING FROM THE USE OR INABILITY TO USE THE SOFTWARE.
 
 6. GOVERNING LAW
 
-This license shall be governed by and construed in accordance with the laws
-of the Republic of Guatemala, without regard to conflict of law principles.
-Any disputes arising under this license shall be resolved in the courts of
-Guatemala City, Guatemala.
+This license shall be governed by and construed in accordance with the
+laws of the Republic of Guatemala, without regard to conflict of law
+principles. Any disputes arising under this license shall be resolved in
+the courts of Guatemala City, Guatemala.
+
+NOTE: GitHub's Terms of Service necessarily allow public repositories to
+be viewed and forked within GitHub. That platform permission does not
+grant any right to use the Software beyond Section 2 above.
 
 ---
-Anthony Anderson Herrera Aguirre
-Founder, Archlogic Systems
-2026
+Licensing requests: andersonaguirre794@gmail.com
+Anthony Anderson Herrera Aguirre — 2026

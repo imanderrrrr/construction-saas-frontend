@@ -1,166 +1,88 @@
+# BuildTrack — Construction Management SaaS · Web App
 
-# OFJR Construction — Frontend
+> Multi-tenant SaaS that helps construction companies run projects, crews and money in one place: time-tracking with approvals, expenses, tool inventory, payroll and subscription billing.
 
-React + TypeScript frontend for the OFJR Construction management platform.
+**[🔗 Live demo](https://construction-saas-frontend-kappa.vercel.app)**
 
-## Tech Stack
+This is the web client of a three-app product suite — this React SPA, a Kotlin/Spring Boot API and a Flutter field app. The companion repositories are private; access can be shared with recruiters on request.
+
+<!--
+📸 SCREENSHOTS — drop images into docs/screenshots/ and uncomment this block:
+
+![Dashboard](docs/screenshots/dashboard.png)
+
+| Time-tracking | Expenses | Billing |
+|---|---|---|
+| ![](docs/screenshots/time-tracking.png) | ![](docs/screenshots/expenses.png) | ![](docs/screenshots/billing.png) |
+-->
+
+## What it does
+
+- **Role-based workspaces** — Admin, Supervisor, Finance, Warehouse and Worker each get their own views and permissions
+- **Projects & time-tracking** — crew hours with approval flows
+- **Expenses & reporting** — capture, review and export to Excel / PDF
+- **Tool & warehouse inventory** — track tools across job sites
+- **Payroll & billing** — subscription billing integrated with Paddle
+- **Audit log** — sensitive actions are traceable end to end
+- **Platform console** — separate super-admin surface for tenant management, fully isolated from the tenant app
+- **i18n** — English / Spanish, switchable from the top bar
+
+## Tech stack
 
 | Layer | Technology |
 |---|---|
-| Framework | React 18 + TypeScript |
-| Build tool | Vite |
-| Styling | Tailwind CSS |
-| UI components | Radix UI / shadcn/ui |
-| Icons | Lucide React |
-| Routing | React Router v6 |
-| Notifications | Sonner |
+| Core | React 18 · TypeScript (`strict: true`) · Vite 6 |
+| UI | Tailwind CSS 4 · Radix UI (120+ components) |
+| Routing | React Router 7, lazy-loaded route trees |
+| Forms | React Hook Form |
+| Charts | Recharts |
+| i18n | i18next · react-i18next |
+| Observability | Sentry with PII scrubbing |
+| Exports | ExcelJS · jsPDF |
+| Testing | Vitest · Playwright (E2E) |
 
-## Prerequisites
+## Architecture highlights
 
-- Node.js 18+
-- npm 9+ (or pnpm / yarn)
-- Backend API running (see [backend-construction-ofjr](https://github.com/imanderrrrr/backend-construction-ofjr))
+- **Hardened auth** — HttpOnly cookies + CSRF protection; automatic refresh-token rotation deduplicated by a coordinator with timeout and abort handling (`src/app/lib/refresh-coordinator.ts`)
+- **Single API gateway** — every request flows through one typed fetch wrapper that handles 401s, CSRF and auth-endpoint edge cases (`src/app/lib/api.ts`)
+- **19 typed service modules** — one per business domain, each with explicit DTOs (`src/app/services/`)
+- **Two isolated surfaces** — tenant app (`src/app/`) and super-admin platform console (`src/platform/`) share the design system and nothing else
+- **Privacy-aware error tracking** — Sentry error boundaries around the route tree; passwords, tokens and MFA fields are scrubbed before any event leaves the browser (`src/app/lib/sentry.ts`)
 
-## Getting Started
+## Quality
+
+- ✅ 20 test files — unit/component (Vitest) plus hermetic E2E (Playwright with the API mocked)
+- ✅ CI on every push — GitHub Actions: `test.yml` (tests + build) and `e2e.yml` (Playwright)
+- ✅ TypeScript strict mode across the codebase
+
+## Getting started
 
 ```bash
-# 1. Install dependencies
 npm install
-
-# 2. Set up environment
-cp .env.example .env
-# Edit .env to point to your running backend
-
-# 3. Start dev server
-npm run dev
+cp .env.example .env   # point VITE_API_URL to your backend API
+npm run dev            # → http://localhost:5173
 ```
 
-The app will be available at `http://localhost:5173`.
-
-## Environment Variables
-
-| Variable | Description | Default |
-|---|---|---|
-| `VITE_API_URL` | Backend API base URL (no trailing slash) | `http://localhost:58080` |
-
-Copy `.env.example` to `.env` and adjust as needed. **Never commit `.env` files.**
-
-## Available Scripts
-
-```bash
-npm run dev       # Start Vite dev server with HMR
-npm run build     # Production build → dist/
-npm run preview   # Preview the production build locally
-npm run lint      # Run ESLint
-```
-
-## Project Structure
-
-```
-src/
-  app/
-    components/   # Feature components (views, dialogs, cards)
-    lib/          # API client
-    helpers/      # Shared utilities
-  styles/         # Global CSS and theme
-  main.tsx        # App entry point
-```
-
-## User Roles
-
-| Role | Access |
+| Script | Purpose |
 |---|---|
-| Admin | Full access — project management, finance, audit log |
-| Supervisor | Approve expenses/hours, manage team |
-| Worker | My hours, my expenses, my tools |
+| `npm run dev` | Development server with HMR |
+| `npm test` | Unit / component tests (Vitest) |
+| `npm run e2e` | End-to-end tests (Playwright) |
+| `npm run build` | Production build → `dist/` |
 
-## QA Setup Guide
+## Roadmap
 
-Follow these steps to get the full stack running locally for testing.
+- QuickBooks integration and public API
+- SSO for enterprise tenants
 
-### 1. Backend (Spring Boot + PostgreSQL)
+## License & usage
 
-```bash
-# Clone the backend
-git clone https://github.com/imanderrrrr/backend-construction-ofjr.git
-cd backend-construction-ofjr
-git checkout develop
+**© 2026 Anthony Anderson Herrera Aguirre. All rights reserved.**
 
-# Make sure you have:
-#   - Java 17+ (JDK)
-#   - PostgreSQL 15+ running locally
-#   - A database created (e.g. "construction_ofjr")
+This source code is published **for portfolio review only** — you are welcome to read it, but it may not be used, copied, modified or redistributed. See [LICENSE](LICENSE).
 
-# Configure your database connection in src/main/resources/application.properties
-# or set env vars:
-#   SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/construction_ofjr
-#   SPRING_DATASOURCE_USERNAME=postgres
-#   SPRING_DATASOURCE_PASSWORD=<your_password>
+## Author
 
-# Run the backend
-./gradlew bootRun
-# API will be available at http://localhost:58080
-# Health check: http://localhost:58080/actuator/health
-```
+**Anderson Aguirre** — Front-End Developer (React · TypeScript)
 
-### 2. Frontend (this repo)
-
-```bash
-git clone https://github.com/imanderrrrr/frontend-construction-ofjr.git
-cd frontend-construction-ofjr
-git checkout develop
-
-# Install dependencies
-npm install
-
-# Set up environment
-cp .env.example .env
-# Verify VITE_API_URL points to your running backend (default: http://localhost:58080)
-
-# Start dev server
-npm run dev
-# App available at http://localhost:5173
-```
-
-### 3. Mobile App (Flutter)
-
-```bash
-git clone https://github.com/imanderrrrr/mobile-construction-ofjr.git
-cd mobile-construction-ofjr
-git checkout develop
-
-# Make sure you have:
-#   - Flutter SDK 3.x installed (https://docs.flutter.dev/get-started/install)
-#   - Android Studio or Xcode for emulators
-
-# Install dependencies
-flutter pub get
-
-# Run on connected device or emulator
-flutter run
-```
-
-### Test Accounts
-
-Ask the project lead for test credentials. The system has three roles:
-- **Admin** — full access to all modules
-- **Supervisor** — time/expense approvals, team management
-- **Worker** — personal time tracking, expenses, tools
-
-### Supported Languages
-
-The app supports English and Spanish. Toggle via the language switcher in the top bar.
-
-## Branch Strategy
-
-| Branch | Purpose |
-|---|---|
-| `main` | Production-ready code |
-| `develop` | Integration branch — **always start QA from this branch** |
-| `feature/*` | Individual feature branches |
-| `release/*` | Release candidates |
-| `hotfix/*` | Urgent fixes |
-
-## License
-
-Proprietary — see [LICENSE](LICENSE). Copyright © 2026 Anthony Anderson Herrera Aguirre, Founder of Archlogic Systems. All rights reserved. Unauthorized commercial use will result in legal action.
+📫 andersonaguirre794@gmail.com · [LinkedIn](https://www.linkedin.com/in/anthony-aguirre-44585a376/) · [GitHub](https://github.com/imanderrrrr)
