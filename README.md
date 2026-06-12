@@ -6,15 +6,51 @@
 
 This is the web client of a three-app product suite — this React SPA, a Kotlin/Spring Boot API and a Flutter field app. The companion repositories are private; access can be shared with recruiters on request.
 
-<!--
-📸 SCREENSHOTS — drop images into docs/screenshots/ and uncomment this block:
+## Screenshots
 
-![Dashboard](docs/screenshots/dashboard.png)
+**Public site & onboarding**
 
-| Time-tracking | Expenses | Billing |
-|---|---|---|
-| ![](docs/screenshots/time-tracking.png) | ![](docs/screenshots/expenses.png) | ![](docs/screenshots/billing.png) |
--->
+<p>
+  <img src="docs/screenshots/landing.png" width="49%" alt="Landing page">
+  <img src="docs/screenshots/login.png" width="49%" alt="Tenant login">
+</p>
+
+<p>
+  <img src="docs/screenshots/signup.png" width="49%" alt="Company signup">
+</p>
+
+**Admin panel**
+
+<p>
+  <img src="docs/screenshots/admin-dashboard.png" width="49%" alt="Admin dashboard with live audit activity">
+  <img src="docs/screenshots/admin-projects.png" width="49%" alt="Projects with crew assignments">
+</p>
+
+<p>
+  <img src="docs/screenshots/admin-users.png" width="49%" alt="User management with QR invitations">
+  <img src="docs/screenshots/admin-hours.png" width="49%" alt="Hours report">
+</p>
+
+<p>
+  <img src="docs/screenshots/admin-expenses.png" width="49%" alt="Expense management with approval flow">
+  <img src="docs/screenshots/admin-audit.png" width="49%" alt="Audit log with CSV export">
+</p>
+
+<p>
+  <img src="docs/screenshots/admin-billing.png" width="49%" alt="Subscription status (Paddle)">
+</p>
+
+**Supervisor & Worker**
+
+<p>
+  <img src="docs/screenshots/supervisor-dashboard.png" width="49%" alt="Supervisor operational overview">
+  <img src="docs/screenshots/supervisor-approvals.png" width="49%" alt="Time approvals queue">
+</p>
+
+<p>
+  <img src="docs/screenshots/worker-time.png" width="49%" alt="Worker time punch with geofence awareness">
+  <img src="docs/screenshots/worker-expenses.png" width="49%" alt="Worker expense history">
+</p>
 
 ## What it does
 
