@@ -27,6 +27,7 @@ import { exportPayrollExcel } from '../helpers/exportPayrollExcel';
 import { exportPayrollPdf } from '../helpers/exportPayrollPdf';
 import { toast } from 'sonner';
 import { businessToday } from '../helpers/dateTime';
+import { workerRowPay, unpaidApprovedHours } from '../helpers/payroll';
 
 // Helpers
 
@@ -144,7 +145,10 @@ export function LaborCostReport({ project }: LaborCostReportProps) {
     return report.workers.map(w => {
       const pendingEntries = w.dailyEntries.filter(e => e.approvalStatus === 'PENDING');
       const pendingHours = pendingEntries.reduce((s, e) => s + (e.totalHours ?? 0), 0);
-      const cost = w.projectedCost ?? (w.hourlyRate != null ? w.totalApprovedHours * w.hourlyRate : null);
+      // Cost the row from UNPAID approved hours (shared with the PDF/Excel
+      // exports), never from totalApprovedHours — that would re-bill hours
+      // already settled in a prior payroll run. See helpers/payroll.ts (H4).
+      const cost = workerRowPay(w);
 
       // Filter entries by status for display
       const displayEntries = filterStatus === 'all'
@@ -158,7 +162,7 @@ export function LaborCostReport({ project }: LaborCostReportProps) {
   const totalApprovedHours = report?.kpis.totalApprovedHours ?? 0;
   const totalCost = report?.kpis.totalLaborCost ?? 0;
   const totalPendingHours = report?.kpis.totalPendingHours ?? 0;
-  const workersWithoutRate = computed.filter(w => w.hourlyRate == null && w.totalApprovedHours > 0);
+  const workersWithoutRate = computed.filter(w => w.hourlyRate == null && unpaidApprovedHours(w) > 0);
 
   function clearFilters() {
     setSelectedProject('all');
@@ -407,7 +411,7 @@ export function LaborCostReport({ project }: LaborCostReportProps) {
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 font-mono text-sm text-[#0A0A0A]">{w.totalApprovedHours.toFixed(2)} hrs</td>
+                      <td className="px-4 py-3 font-mono text-sm text-[#0A0A0A]">{unpaidApprovedHours(w).toFixed(2)} hrs</td>
                       <td className="px-4 py-3 font-mono text-sm text-blue-600">
                         {transitHrs > 0 ? `${transitHrs.toFixed(1)} hrs` : <span className="text-[#D4D4D8]">—</span>}
                       </td>
