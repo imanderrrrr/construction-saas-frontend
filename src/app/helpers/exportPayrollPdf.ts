@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { WorkerHoursSummary, HoursReportKpis } from '../services/time';
 import { fmtDateTime, fmtDate as fmtDateTz } from './dateTime';
+import { unpaidApprovedHours, workerRowPay } from './payroll';
 
 /* ───────────────────────── Brand colours (RGB) ───────────────────────── */
 const BRAND_DARK: [number, number, number]   = [8, 59, 109];
@@ -259,14 +260,18 @@ export function exportPayrollPdf(params: PayrollPdfParams) {
   addPageHeader(doc, pageW, reportTitle + ' — Payroll Detail', companyName);
 
   const tableData = workers.map((w, i) => {
-    const pay = w.hourlyRate != null ? fmtMoney(w.totalApprovedHours * w.hourlyRate) : 'N/A';
+    // Pay only the UNPAID approved hours — totalApprovedHours includes hours
+    // already settled in previous runs and would double-pay. Mirrors the screen
+    // and makes the rows reconcile with the TOTAL footer (kpis.totalLaborCost).
+    const rowPay = workerRowPay(w);
+    const pay = rowPay != null ? fmtMoney(rowPay) : 'N/A';
     const projects = [...new Set(w.dailyEntries.map(e => e.projectName))].join(', ');
     return [
       String(i + 1),
       w.workerName ?? w.workerUsername,
       w.workerRole,
       w.hourlyRate != null ? `$${w.hourlyRate.toFixed(2)}` : 'N/A',
-      `${w.totalApprovedHours.toFixed(2)} hrs`,
+      `${unpaidApprovedHours(w).toFixed(2)} hrs`,
       pay,
       projects,
     ];

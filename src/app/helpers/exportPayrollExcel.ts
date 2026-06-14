@@ -2,6 +2,7 @@ import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import type { WorkerHoursSummary, HoursReportKpis } from '../services/time';
 import { fmtDate as fmtDateTz } from './dateTime';
+import { unpaidApprovedHours, workerRowPay } from './payroll';
 
 /* ───────────────────────── Brand colours ───────────────────────── */
 const BRAND_DARK   = '083B6D';
@@ -136,7 +137,11 @@ export async function exportPayrollExcel(params: PayrollExcelParams) {
   // ── Data rows ──
   workers.forEach((w, idx) => {
     const r = ws.getRow(tableStartRow + 1 + idx);
-    const pay = w.hourlyRate != null ? fmtMoney(w.totalApprovedHours * w.hourlyRate) : null;
+    // Pay only the UNPAID approved hours — totalApprovedHours includes hours
+    // already settled in previous runs and would double-pay. Mirrors the screen
+    // and makes the rows reconcile with the TOTAL row (kpis.totalLaborCost).
+    const rowPay = workerRowPay(w);
+    const pay = rowPay != null ? fmtMoney(rowPay) : null;
     const projectNames = [...new Set(w.dailyEntries.map(e => e.projectName))].join(', ');
     const obs = w.hourlyRate == null ? 'Rate not defined' : '';
     const isEven = idx % 2 === 0;
@@ -147,7 +152,7 @@ export async function exportPayrollExcel(params: PayrollExcelParams) {
       w.workerName ?? w.workerUsername,
       w.workerRole,
       w.hourlyRate != null ? w.hourlyRate : 'N/A',
-      w.totalApprovedHours,
+      unpaidApprovedHours(w),
       pay != null ? pay : 'N/A',
       projectNames,
       obs,
@@ -294,10 +299,13 @@ export async function exportPayrollExcel(params: PayrollExcelParams) {
 
   workers.forEach((w, i) => {
     const r = wsCharts.getRow(5 + i);
+    const rowPay = workerRowPay(w);
     r.getCell(1).value = w.workerName ?? w.workerUsername;
-    r.getCell(2).value = w.totalApprovedHours;
+    // Unpaid hours + pay, consistent with the Payroll Summary sheet so the
+    // chart never implies a worker is owed for already-paid hours.
+    r.getCell(2).value = unpaidApprovedHours(w);
     r.getCell(2).numFmt = '#,##0.0';
-    r.getCell(3).value = w.hourlyRate != null ? fmtMoney(w.totalApprovedHours * w.hourlyRate) : 0;
+    r.getCell(3).value = rowPay != null ? fmtMoney(rowPay) : 0;
     r.getCell(3).numFmt = '$#,##0.00';
     [1, 2, 3].forEach(c => {
       r.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: i % 2 === 0 ? WHITE : GRAY_BG } };
