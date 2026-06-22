@@ -155,5 +155,41 @@
   "list.noFullName": "Sin nombre completo",
 
   "preview.default": "Predeterminado",
-  "preview.loading": "Cargando"
+  "preview.loading": "Cargando",
+
+  "qr.access": "Acceso QR",
+  "qr.title": "Acceso QR del trabajador",
+  "qr.subtitle": "Genera el código QR y el PIN para que {{username}} inicie sesión en la app móvil.",
+  "qr.loading": "Generando código QR…",
+  "qr.loadErrorTitle": "No se pudo cargar el acceso QR",
+  "qr.loadError": "El servidor devolvió un error. Inténtalo de nuevo.",
+  "qr.qrLabel": "Código QR de {{username}}",
+  "qr.tenantLabel": "Empresa",
+  "qr.scanHint": "El trabajador escanea este código con la app móvil de BuildTrack para iniciar sesión.",
+  "qr.print": "Imprimir",
+  "qr.download": "Descargar PNG",
+  "qr.printTitle": "Acceso QR — {{username}}",
+
+  "qr.pin.section": "PIN de acceso",
+  "qr.pin.set": "PIN configurado",
+  "qr.pin.unset": "Sin PIN",
+  "qr.pin.label": "PIN de 6 dígitos",
+  "qr.pin.generate": "Generar",
+  "qr.pin.invalid": "El PIN debe tener exactamente 6 dígitos.",
+  "qr.pin.hint": "Exactamente 6 dígitos. Anótalo y entrégaselo al trabajador ahora: no se puede volver a ver, solo restablecer.",
+  "qr.pin.saving": "Guardando…",
+  "qr.pin.setButton": "Establecer PIN",
+  "qr.pin.resetButton": "Restablecer PIN",
+  "qr.pin.updated": "PIN actualizado",
+  "qr.pin.updatedDesc": "El PIN de {{username}} ha sido establecido. Entrégaselo al trabajador ahora.",
+  "qr.pin.failed": "Error al establecer el PIN",
+
+  "qr.regenerate": "Regenerar QR",
+  "qr.regenerating": "Regenerando…",
+  "qr.regenerateConfirmTitle": "¿Regenerar el código QR?",
+  "qr.regenerateConfirmDesc": "El código QR anterior dejará de funcionar de inmediato. El trabajador necesitará el nuevo código para iniciar sesión.",
+  "qr.regenerateConfirm": "Sí, regenerar",
+  "qr.regenerated": "Código QR regenerado",
+  "qr.regeneratedDesc": "El código QR anterior de {{username}} ya no funciona.",
+  "qr.regenerateFailed": "Error al regenerar el código QR"
 }

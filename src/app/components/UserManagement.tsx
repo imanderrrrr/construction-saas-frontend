@@ -47,6 +47,7 @@ import { toast } from 'sonner';
 import * as UsersApi from '../services/users';
 import type { UserDTO, SessionDTO, AuditEntryDTO } from '../services/users';
 import { InviteUserModal } from './InviteUserModal';
+import { WorkerQrModal } from './WorkerQrModal';
 import { ApiError } from '../lib/api';
 
 // TYPES
@@ -90,6 +91,14 @@ const ROLES: { key: Role; labelKey: string }[] = [
   { key: 'WAREHOUSE', labelKey: 'common:roles.WAREHOUSE' },
   { key: 'SUBCONTRACTOR', labelKey: 'common:roles.SUBCONTRACTOR' },
 ];
+
+// Field roles authenticate on mobile via QR + PIN. Office roles (ADMIN /
+// FINANCE / WAREHOUSE) don't, so the "Acceso QR" actions are hidden for them —
+// the backend also rejects them with 400 USER_NOT_FIELD_ROLE.
+const FIELD_ROLES: Role[] = ['WORKER', 'SUPERVISOR', 'SUBCONTRACTOR'];
+function isFieldRole(role: Role): boolean {
+  return FIELD_ROLES.includes(role);
+}
 
 const ROLE_STYLES: Record<Role, { bg: string; text: string; border: string }> = {
   ADMIN: { bg: 'bg-[#C2410C]/10', text: 'text-[#C2410C]', border: 'border-[#C2410C]/20' },
@@ -703,9 +712,10 @@ interface UserDetailsViewProps {
   onEdit: () => void;
   onResetPassword: () => void;
   onDisable: () => void;
+  onQrAccess: () => void;
 }
 
-function UserDetailsView({ user, onBack, onEdit, onResetPassword, onDisable }: UserDetailsViewProps) {
+function UserDetailsView({ user, onBack, onEdit, onResetPassword, onDisable, onQrAccess }: UserDetailsViewProps) {
   const { t, i18n } = useTranslation(['users', 'common']);
   const [sessionsState, setSessionsState] = useState<'data' | 'loading' | 'empty'>('loading');
   const [sessions, setSessions] = useState<SessionDTO[]>([]);
@@ -786,6 +796,12 @@ function UserDetailsView({ user, onBack, onEdit, onResetPassword, onDisable }: U
             className="border-[#D4D4D8] text-[#0A0A0A] hover:border-[#F97316] hover:text-[#F97316] gap-2">
             <KeyRound className="w-3.5 h-3.5" />{t('users:resetPassword')}
           </Button>
+          {isFieldRole(user.role) && (
+            <Button variant="outline" size="sm" onClick={onQrAccess}
+              className="border-[#D4D4D8] text-[#0A0A0A] hover:border-[#F97316] hover:text-[#F97316] gap-2">
+              <QrCode className="w-3.5 h-3.5" />{t('users:qr.access')}
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={onDisable}
             className={`gap-2 ${user.status === 'ACTIVE' ? 'border-red-200 text-red-600 hover:bg-red-50' : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50'}`}>
             {user.status === 'ACTIVE' ? <><PowerOff className="w-3.5 h-3.5" />{t('users:disable')}</> : <><Power className="w-3.5 h-3.5" />{t('users:enable')}</>}
@@ -965,6 +981,7 @@ export function UserManagement() {
   const [editOpen, setEditOpen] = useState(false);
   const [resetPwOpen, setResetPwOpen] = useState(false);
   const [disableOpen, setDisableOpen] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
 
   // Derived
   const isLastAdmin = users.filter(u => u.role === 'ADMIN' && u.status === 'ACTIVE').length === 1;
@@ -995,10 +1012,11 @@ export function UserManagement() {
   // Use backend pagination — show fetched list directly
   const paginated = users;
 
-  const openModal = useCallback((type: 'edit' | 'reset' | 'disable', user: User) => {
+  const openModal = useCallback((type: 'edit' | 'reset' | 'disable' | 'qr', user: User) => {
     setSelectedUser(user);
     if (type === 'edit') setEditOpen(true);
     else if (type === 'reset') setResetPwOpen(true);
+    else if (type === 'qr') setQrOpen(true);
     else setDisableOpen(true);
   }, []);
 
@@ -1025,10 +1043,12 @@ export function UserManagement() {
           onEdit={() => setEditOpen(true)}
           onResetPassword={() => setResetPwOpen(true)}
           onDisable={() => setDisableOpen(true)}
+          onQrAccess={() => setQrOpen(true)}
         />
         <EditUserModal user={selectedUser} open={editOpen} onClose={() => setEditOpen(false)} onSaved={handleSaved} isLastAdmin={isLastAdmin} />
         <ResetPasswordModal user={selectedUser} open={resetPwOpen} onClose={() => setResetPwOpen(false)} />
         <DisableEnableModal user={selectedUser} open={disableOpen} onClose={() => setDisableOpen(false)} onConfirmed={handleDisableToggled} />
+        <WorkerQrModal user={selectedUser} open={qrOpen} onClose={() => setQrOpen(false)} />
       </>
     );
   }
@@ -1191,6 +1211,11 @@ export function UserManagement() {
                             <DropdownMenuItem onClick={() => openModal('reset', user)} className="gap-2 cursor-pointer">
                               <KeyRound className="w-4 h-4" />{t('users:resetPassword')}
                             </DropdownMenuItem>
+                            {isFieldRole(user.role) && (
+                              <DropdownMenuItem onClick={() => openModal('qr', user)} className="gap-2 cursor-pointer">
+                                <QrCode className="w-4 h-4" />{t('users:qr.access')}
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem className="gap-2 cursor-pointer text-[#71717A]">
                               <Activity className="w-4 h-4" />{t('users:list.viewSessions')}
@@ -1263,6 +1288,9 @@ export function UserManagement() {
                             <DropdownMenuItem onClick={() => handleViewDetails(user)} className="gap-2 cursor-pointer"><Eye className="w-4 h-4" />{t('users:viewDetails')}</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => openModal('edit', user)} className="gap-2 cursor-pointer"><Edit2 className="w-4 h-4" />{t('common:buttons.edit')}</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => openModal('reset', user)} className="gap-2 cursor-pointer"><KeyRound className="w-4 h-4" />{t('users:resetPassword')}</DropdownMenuItem>
+                            {isFieldRole(user.role) && (
+                              <DropdownMenuItem onClick={() => openModal('qr', user)} className="gap-2 cursor-pointer"><QrCode className="w-4 h-4" />{t('users:qr.access')}</DropdownMenuItem>
+                            )}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => openModal('disable', user)}
                               className={`gap-2 cursor-pointer ${user.status === 'ACTIVE' ? 'text-red-600' : 'text-emerald-600'}`}>
@@ -1311,6 +1339,7 @@ export function UserManagement() {
       <EditUserModal user={selectedUser} open={editOpen} onClose={() => setEditOpen(false)} onSaved={handleSaved} isLastAdmin={isLastAdmin} />
       <ResetPasswordModal user={selectedUser} open={resetPwOpen} onClose={() => setResetPwOpen(false)} />
       <DisableEnableModal user={selectedUser} open={disableOpen} onClose={() => setDisableOpen(false)} onConfirmed={handleDisableToggled} />
+      <WorkerQrModal user={selectedUser} open={qrOpen} onClose={() => setQrOpen(false)} />
     </>
   );
 }
