@@ -202,7 +202,7 @@ export function LaborPayrollReport() {
         reportTitle: 'Labor Payroll',
       });
     } catch {
-      toast.error('Export failed');
+      toast.error(t('admin:payroll.exportFailed', 'Export failed'));
     }
   }
 
@@ -218,7 +218,7 @@ export function LaborPayrollReport() {
         reportTitle: 'Labor Payroll',
       });
     } catch {
-      toast.error('Export failed');
+      toast.error(t('admin:payroll.exportFailed', 'Export failed'));
     }
   }
 

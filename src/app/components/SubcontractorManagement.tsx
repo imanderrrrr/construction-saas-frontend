@@ -224,11 +224,16 @@ export function SubcontractorManagement() {
   useEffect(() => { loadJobs(); }, [loadJobs]);
   useEffect(() => { if (activeTab === 'invoices') loadInvoices(); }, [activeTab, loadInvoices]);
 
-  // Load dropdown data once
-  useEffect(() => {
-    listUsers({ role: 'SUBCONTRACTOR', size: 200 }).then(r => setSubcontractors(r.content)).catch(() => {});
-    api<PageResponse<SimpleProject>>('/api/v1/admin/projects?size=200').then(r => setProjects(r.content)).catch(() => {});
+  // Load dropdown data once (subcontractors + projects for the create-job form)
+  const [refDataError, setRefDataError] = useState(false);
+  const loadRefData = useCallback(() => {
+    setRefDataError(false);
+    Promise.all([
+      listUsers({ role: 'SUBCONTRACTOR', size: 200 }).then(r => setSubcontractors(r.content)),
+      api<PageResponse<SimpleProject>>('/api/v1/admin/projects?size=200').then(r => setProjects(r.content)),
+    ]).catch(() => setRefDataError(true));
   }, []);
+  useEffect(() => { loadRefData(); }, [loadRefData]);
 
   // ── KPIs ────────────────────────────────────────
 
@@ -566,6 +571,8 @@ export function SubcontractorManagement() {
         onClose={() => setShowCreateJob(false)}
         subcontractors={subcontractors}
         projects={projects}
+        refDataError={refDataError}
+        onRetryRefData={loadRefData}
         t={t}
         onCreated={() => { setShowCreateJob(false); loadJobs(); toast.success(t('subcontractors:toast.jobCreated')); }}
       />
@@ -963,9 +970,9 @@ function JobDetailView({ job, t, onBack, onChangeStatus, onStatusUpdated, showCh
 
 // ── Create Job Modal ───────────────────────────────
 
-function CreateJobModal({ open, onClose, subcontractors, projects, t, onCreated }: {
+function CreateJobModal({ open, onClose, subcontractors, projects, t, onCreated, refDataError, onRetryRefData }: {
   open: boolean; onClose: () => void; subcontractors: UserDTO[]; projects: SimpleProject[];
-  t: (k: string) => string; onCreated: () => void;
+  t: (k: string) => string; onCreated: () => void; refDataError: boolean; onRetryRefData: () => void;
 }) {
   const [form, setForm] = useState({ subcontractorId: '', projectId: '', title: '', description: '', dueDate: '' });
   const [saving, setSaving] = useState(false);
@@ -998,6 +1005,14 @@ function CreateJobModal({ open, onClose, subcontractors, projects, t, onCreated 
         {error && (
           <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
             <AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}
+          </div>
+        )}
+        {refDataError && (
+          <div className="flex items-center justify-between gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+            <span className="flex items-center gap-2"><AlertCircle className="w-4 h-4 flex-shrink-0" />{t('subcontractors:modal.createJob.refDataError')}</span>
+            <button type="button" onClick={onRetryRefData} className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-800 hover:text-amber-900 shrink-0">
+              <RotateCcw className="w-3.5 h-3.5" />{t('common:buttons.retry')}
+            </button>
           </div>
         )}
         <div>
@@ -1152,7 +1167,7 @@ function ReviewInvoiceModal({ open, invoice, onClose, t, onReviewed }: {
                 src={fileUrl}
                 className="w-full h-full rounded-lg"
                 style={{ minHeight: '60vh' }}
-                title="Invoice PDF"
+                title={t('subcontractors:modal.reviewInvoice.pdfTitle')}
               />
             ) : isImage ? (
               <img

@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import {
   Package, CheckCircle, AlertTriangle, CircleX, Boxes,
   Plus, Search, MoreHorizontal, X, RotateCcw, ChevronLeft, ChevronRight,
-  Loader2,
+  Loader2, RefreshCw,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -117,7 +117,7 @@ export function ConsumableInventory({ onNavigate }: { onNavigate?: (section: str
     setLoading(true);
     listConsumables()
       .then(res => setItems(res.map(mapConsumableResponse)))
-      .catch(() => toast.error('Failed to load consumables'))
+      .catch(() => toast.error(t('inventory:toast.loadConsumablesError', 'Failed to load consumables')))
       .finally(() => setLoading(false));
   }, []);
 
@@ -156,10 +156,10 @@ export function ConsumableInventory({ onNavigate }: { onNavigate?: (section: str
     })
       .then(res => {
         setAddOpen(false);
-        toast.success(`Added ${res.code} — ${res.name}`);
+        toast.success(t('inventory:toast.consumableAdded', 'Added {{code}} — {{name}}', { code: res.code, name: res.name }));
         loadItems();
       })
-      .catch(() => toast.error('Failed to add supply'));
+      .catch(() => toast.error(t('inventory:toast.addSupplyError', 'Failed to add supply')));
   };
 
   const handleEditConsumable = (updated: ConsumableItem) => {
@@ -172,10 +172,10 @@ export function ConsumableInventory({ onNavigate }: { onNavigate?: (section: str
     })
       .then(res => {
         setEditItem(null);
-        toast.success(`Updated ${res.code} — ${res.name}`);
+        toast.success(t('inventory:toast.consumableUpdated', 'Updated {{code}} — {{name}}', { code: res.code, name: res.name }));
         loadItems();
       })
-      .catch(() => toast.error('Failed to update supply'));
+      .catch(() => toast.error(t('inventory:toast.updateSupplyError', 'Failed to update supply')));
   };
 
   const handleRestock = (itemId: string, quantity: number) => {
@@ -184,10 +184,10 @@ export function ConsumableInventory({ onNavigate }: { onNavigate?: (section: str
     updateConsumable(Number(itemId), { currentStock: item.currentStock + quantity })
       .then(res => {
         setRestockItem(null);
-        toast.success(`Restocked ${res.code} — +${quantity} units (new stock: ${res.currentStock})`);
+        toast.success(t('inventory:toast.consumableRestocked', 'Restocked {{code}} — +{{quantity}} units (new stock: {{stock}})', { code: res.code, quantity, stock: res.currentStock }));
         loadItems();
       })
-      .catch(() => toast.error('Failed to restock'));
+      .catch(() => toast.error(t('inventory:toast.restockError', 'Failed to restock')));
   };
 
   const resetFilters = () => { setSearch(''); setCategoryFilter('all'); setStatusFilter('all'); setPage(1); };
@@ -217,7 +217,7 @@ export function ConsumableInventory({ onNavigate }: { onNavigate?: (section: str
           </div>
           <Select value={categoryFilter} onValueChange={v => { setCategoryFilter(v); setPage(1); }}>
             <SelectTrigger className="h-9 w-full sm:w-[160px] border-[#D4D4D8] text-sm">
-              <SelectValue placeholder="Category" />
+              <SelectValue placeholder={t('consumables.filter.category')} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('labels.allCategories', { ns: 'common' })}</SelectItem>
@@ -226,7 +226,7 @@ export function ConsumableInventory({ onNavigate }: { onNavigate?: (section: str
           </Select>
           <Select value={statusFilter} onValueChange={v => { setStatusFilter(v); setPage(1); }}>
             <SelectTrigger className="h-9 w-full sm:w-[140px] border-[#D4D4D8] text-sm">
-              <SelectValue placeholder="Status" />
+              <SelectValue placeholder={t('consumables.filter.status')} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('labels.allStatuses', { ns: 'common' })}</SelectItem>
@@ -612,13 +612,18 @@ function DispatchHistoryModal({ item, onClose }: {
   const { t } = useTranslation('inventory');
   const [records, setRecords] = useState<DispatchResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(false);
     getConsumableDispatches(Number(item.id))
       .then(setRecords)
-      .catch(() => setRecords([]))
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, [item.id]);
+
+  useEffect(() => { load(); }, [load]);
 
   return (
     <Dialog open onOpenChange={v => { if (!v) onClose(); }}>
@@ -631,6 +636,18 @@ function DispatchHistoryModal({ item, onClose }: {
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-5 h-5 text-amber-500 animate-spin" />
+            </div>
+          ) : error ? (
+            <div className="text-center py-8">
+              <AlertTriangle className="w-10 h-10 text-red-300 mx-auto mb-2" />
+              <p className="text-sm text-red-600">{t('consumables.dialog.dispatchHistoryError', "We couldn't load the dispatch history.")}</p>
+              <button
+                type="button"
+                onClick={load}
+                className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-red-700 hover:text-red-900 transition-colors"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />{t('buttons.retry', { ns: 'common' })}
+              </button>
             </div>
           ) : records.length === 0 ? (
             <div className="text-center py-8">

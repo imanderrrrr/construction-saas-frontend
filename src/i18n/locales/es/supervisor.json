@@ -63,6 +63,13 @@
 
   "dash.notificationInbox": "Bandeja de Notificaciones",
   "dash.markAllRead": "Marcar todo como leído",
+  "dash.errorTitle": "No se pudieron cargar los datos del panel",
+  "dash.errorDesc": "Algunas secciones no se pudieron cargar. Un «—» significa que el valor no está disponible, no que sea cero.",
+  "dash.panelError": "Algo salió mal",
+  "dash.alertsError": "No pudimos cargar las alertas de ubicación. Podrían estar desactualizadas.",
+  "dash.notificationsError": "No pudimos cargar tus notificaciones.",
+  "dash.activityError": "No pudimos cargar la actividad reciente del equipo.",
+  "dash.markReadError": "No se pudo actualizar la notificación. Inténtalo de nuevo.",
   "dash.noNotifications": "Sin notificaciones",
   "dash.notificationsWillAppear": "Las notificaciones de tránsito, disputas y aprobaciones aparecerán aquí.",
 

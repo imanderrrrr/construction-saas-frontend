@@ -87,7 +87,7 @@ export function ConsumableDispatch() {
         setProjects(projectsPage.content);
         setWorkers(userList);
       })
-      .catch(() => toast.error('Failed to load dispatch data'))
+      .catch(() => toast.error(t('inventory:toast.loadDispatchError', 'Failed to load dispatch data')))
       .finally(() => setLoading(false));
   }, []);
 
@@ -126,10 +126,10 @@ export function ConsumableDispatch() {
     })
       .then(res => {
         setModalOpen(false);
-        toast.success(`Dispatched ${res.quantity} ${res.unit} of ${res.consumableName} → ${res.project}`);
+        toast.success(t('inventory:toast.dispatched', 'Dispatched {{quantity}} {{unit}} of {{name}} → {{project}}', { quantity: res.quantity, unit: res.unit, name: res.consumableName, project: res.project }));
         loadData();
       })
-      .catch(() => toast.error('Failed to dispatch supply. Check stock and try again.'));
+      .catch(() => toast.error(t('inventory:toast.dispatchError', 'Failed to dispatch supply. Check stock and try again.')));
   };
 
   return (

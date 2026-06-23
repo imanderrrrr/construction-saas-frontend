@@ -182,7 +182,7 @@ export function LaborCostReport({ project }: LaborCostReportProps) {
         reportTitle: 'Labor Cost',
       });
     } catch {
-      toast.error('Export failed');
+      toast.error(t('admin:payroll.exportFailed', 'Export failed'));
     }
   }
 
@@ -198,7 +198,7 @@ export function LaborCostReport({ project }: LaborCostReportProps) {
         reportTitle: 'Labor Cost',
       });
     } catch {
-      toast.error('Export failed');
+      toast.error(t('admin:payroll.exportFailed', 'Export failed'));
     }
   }
 

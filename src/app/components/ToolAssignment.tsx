@@ -371,10 +371,10 @@ export function ToolAssignment() {
       notes: notes || undefined,
     }).then(() => {
       setShowAssign(false);
-      toast.success(`Assigned ${toolCode} ${toolName} to ${workerName} — ${projectName}`);
+      toast.success(t('inventory:toast.toolAssigned', 'Assigned {{code}} {{name}} to {{worker}} — {{project}}', { code: toolCode, name: toolName, worker: workerName, project: projectName }));
       loadAllData();
     }).catch(() => {
-      toast.error('Failed to assign tool. Please try again.');
+      toast.error(t('inventory:toast.assignError', 'Failed to assign tool. Please try again.'));
     });
   }
 
@@ -387,10 +387,10 @@ export function ToolAssignment() {
       notes: notes || undefined,
     }).then(() => {
       setShowReturn(false);
-      toast.success(`Returned ${assignment.toolCode} ${assignment.toolName} — condition: ${condition}`);
+      toast.success(t('inventory:toast.toolReturned', 'Returned {{code}} {{name}} — condition: {{condition}}', { code: assignment.toolCode, name: assignment.toolName, condition }));
       loadAllData();
     }).catch(() => {
-      toast.error('Failed to return tool. Please try again.');
+      toast.error(t('inventory:toast.returnError', 'Failed to return tool. Please try again.'));
     });
   }
 

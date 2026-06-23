@@ -115,6 +115,7 @@
   "toast.approveFailed": "Failed to approve",
   "toast.rejectFailed": "Failed to reject",
   "toast.observeFailed": "Failed to observe",
+  "toast.openReceiptFailed": "Failed to open receipt",
 
   "types.fuel": "Fuel",
   "types.materials": "Materials",

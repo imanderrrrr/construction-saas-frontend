@@ -359,7 +359,7 @@ export function MyHours() {
       const data = await getMyRecords({ dateFrom: appliedFrom, dateTo: appliedTo });
       setRecords(data.map(toTimeEntry).sort((a, b) => b.date.localeCompare(a.date)));
     } catch (err) {
-      setRecordsError(err instanceof Error ? err.message : 'Failed to load records');
+      setRecordsError(err instanceof Error ? err.message : t('time:toast.loadRecordsError', 'Failed to load records'));
     } finally {
       setRecordsLoading(false);
     }

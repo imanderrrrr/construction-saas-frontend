@@ -40,6 +40,7 @@
   "buttons.close": "Cerrar",
   "buttons.submit": "Enviar",
   "buttons.approve": "Aprobar",
+  "buttons.approving": "Aprobando…",
   "buttons.reject": "Rechazar",
   "buttons.observe": "Observar",
   "buttons.filter": "Filtrar",
@@ -59,6 +60,7 @@
   "buttons.clearFilters": "Limpiar filtros",
   "buttons.resetFilters": "Restablecer filtros",
   "buttons.refresh": "Actualizar",
+  "stat.unableToLoad": "No se pudo cargar",
 
   "labels.from": "Desde",
   "labels.to": "Hasta",
@@ -88,6 +90,7 @@
   "labels.worker": "Trabajador",
   "labels.allWorkers": "Todos los trabajadores",
   "labels.code": "Código",
+  "labels.issued": "Emitida",
 
   "alerts.onTrack": "En orden",
   "alerts.warning": "Advertencia",
