@@ -241,5 +241,29 @@
   "dispute.resolving": "Resolviendo…",
   "dispute.resolved": "Resuelta",
   "dispute.resolvedBy": "Resuelta por {{reviewer}}",
-  "dispute.awardedTime": "Tiempo otorgado"
+  "dispute.awardedTime": "Tiempo otorgado",
+
+  "toast.loadProjectsError": "No se pudieron cargar los proyectos",
+  "toast.loadRecordsError": "No se pudieron cargar los registros",
+
+  "modalCorrect.correct.title": "Agregar nota de corrección",
+  "modalCorrect.correct.submitLabel": "Enviar corrección",
+  "modalCorrect.correct.placeholder": "Describe el problema o la corrección necesaria. Mínimo 10 caracteres.",
+  "modalCorrect.reject.title": "Rechazar registro de tiempo",
+  "modalCorrect.reject.submitLabel": "Rechazar registro",
+  "modalCorrect.reject.placeholder": "Indica el motivo del rechazo. Obligatorio, mínimo 10 caracteres.",
+  "modalCorrect.event.CHECK_IN": "Entrada",
+  "modalCorrect.event.LUNCH_START": "Inicio de almuerzo",
+  "modalCorrect.event.LUNCH_END": "Fin de almuerzo",
+  "modalCorrect.event.CHECK_OUT": "Salida",
+  "modalCorrect.correctedTime": "Hora corregida",
+  "modalCorrect.optional": "(opcional)",
+  "modalCorrect.originalTimeUpdated": "Hora original: {{time}} — se actualizará.",
+  "modalCorrect.keepOriginal": "Déjalo sin cambios para mantener la hora original.",
+  "modalCorrect.commentLabel": "Comentario",
+  "modalCorrect.commentHint": "Comentario del supervisor — visible para el trabajador y el administrador.",
+  "modalCorrect.charsMore": "{{count}} más",
+  "modalCorrect.submitting": "Enviando…",
+  "modalCorrect.minCharsError": "El comentario debe tener al menos {{count}} caracteres.",
+  "modalCorrect.submitFailed": "No se pudo enviar. Inténtalo de nuevo."
 }

@@ -1,6 +1,6 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2, CheckCircle2, Clock, Info } from 'lucide-react';
+import { Plus, Trash2, CheckCircle2, Clock, Info, AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from './ui/button';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -36,15 +36,19 @@ export function InvoiceManager() {
   // Reference data
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
   const [clients, setClients] = useState<ClientResponse[]>([]);
+  const [refError, setRefError] = useState(false);
 
-  useEffect(() => {
-    listProjects({ page: 0, size: 200 })
-      .then(r => setProjects(r.content.map((p: any) => ({ id: p.id, name: p.name }))))
-      .catch(() => {});
-    listClients()
-      .then(r => setClients(r.content))
-      .catch(() => {});
+  const loadRefData = useCallback(() => {
+    setRefError(false);
+    Promise.all([
+      listProjects({ page: 0, size: 200 })
+        .then(r => setProjects(r.content.map((p: any) => ({ id: p.id, name: p.name })))),
+      listClients()
+        .then(r => setClients(r.content)),
+    ]).catch(() => setRefError(true));
   }, []);
+
+  useEffect(() => { loadRefData(); }, [loadRefData]);
 
   // Form state
   const [docType, setDocType] = useState<DocumentType>('INVOICE');
@@ -284,6 +288,19 @@ export function InvoiceManager() {
               <input type="date" className="w-full h-10 rounded-lg border border-[#D4D4D8] px-3 text-sm focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 transition-all" value={dueDate} onChange={e => setDueDate(e.target.value)} />
             </div>
           </div>
+
+          {/* Reference-data load failure — explains why the dropdowns below are empty */}
+          {refError && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                <p className="text-xs text-red-700">{t('invoice.refDataError', "We couldn't load clients and projects. The dropdowns below may be empty.")}</p>
+              </div>
+              <button type="button" onClick={loadRefData} className="inline-flex items-center gap-1.5 text-xs font-medium text-red-700 hover:text-red-900 transition-colors shrink-0">
+                <RefreshCw className="w-3.5 h-3.5" />{t('common:buttons.retry')}
+              </button>
+            </div>
+          )}
 
           {/* Row: Client + Project */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

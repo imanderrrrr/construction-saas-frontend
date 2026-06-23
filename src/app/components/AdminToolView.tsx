@@ -194,7 +194,7 @@ export function AdminToolView() {
         setTools(toolsPage.content);
         setSummary(sum);
       })
-      .catch(() => toast.error('Failed to load tools'))
+      .catch(() => toast.error(t('admin:adminTools.loadToolsError', 'Failed to load tools')))
       .finally(() => setLoading(false));
   }, []);
 
@@ -202,7 +202,7 @@ export function AdminToolView() {
     setConsumableLoading(true);
     listConsumables()
       .then(setConsumables)
-      .catch(() => toast.error('Failed to load consumables'))
+      .catch(() => toast.error(t('admin:adminTools.loadConsumablesError', 'Failed to load consumables')))
       .finally(() => setConsumableLoading(false));
   }, []);
 

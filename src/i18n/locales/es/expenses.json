@@ -115,6 +115,7 @@
   "toast.approveFailed": "Error al aprobar",
   "toast.rejectFailed": "Error al rechazar",
   "toast.observeFailed": "Error al observar",
+  "toast.openReceiptFailed": "No se pudo abrir el recibo",
 
   "types.fuel": "Combustible",
   "types.materials": "Materiales",

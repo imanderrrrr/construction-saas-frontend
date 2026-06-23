@@ -63,6 +63,13 @@
 
   "dash.notificationInbox": "Notification Inbox",
   "dash.markAllRead": "Mark all as read",
+  "dash.errorTitle": "Could not load dashboard data",
+  "dash.errorDesc": "Some sections failed to load. A “—” means the value is unavailable, not zero.",
+  "dash.panelError": "Something went wrong",
+  "dash.alertsError": "We couldn't load location alerts. They may be out of date.",
+  "dash.notificationsError": "We couldn't load your notifications.",
+  "dash.activityError": "We couldn't load recent team activity.",
+  "dash.markReadError": "Could not update the notification. Please try again.",
   "dash.noNotifications": "No notifications",
   "dash.notificationsWillAppear": "Transit, dispute, and approval notifications will appear here.",
 

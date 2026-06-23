@@ -197,7 +197,7 @@ export function AccountsReceivable() {
     try {
       await approveChangeOrder(inv.id);
       toast.success(
-        t('finance:receivable.toast.coApproved', 'Change order approved'),
+        t('finance:receivable.toast.coApproved'),
         { description: `${inv.invoiceNumber} — ${inv.client}` },
       );
       // CO moves out of pending_approval and into the regular AR list
@@ -206,7 +206,7 @@ export function AccountsReceivable() {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : undefined;
       toast.error(
-        t('finance:receivable.toast.coApproveFailed', 'Failed to approve change order'),
+        t('finance:receivable.toast.coApproveFailed'),
         { description: message },
       );
     } finally {
@@ -324,7 +324,7 @@ export function AccountsReceivable() {
         reference: payRef || undefined,
       });
       setInvoices(prev => prev.map(inv => inv.id === payInvoice.id ? toInvoice(updated) : inv));
-      toast.success(`Payment of ${fmtAmount(amt)} registered for ${payInvoice.invoiceNumber}`);
+      toast.success(t('finance:receivable.toast.paymentRegistered', 'Payment of {{amount}} registered for {{invoice}}', { amount: fmtAmount(amt), invoice: payInvoice.invoiceNumber }));
       setPayInvoice(null);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : undefined;
@@ -381,7 +381,7 @@ export function AccountsReceivable() {
         notes: newNotes.trim() || undefined,
       });
       setInvoices(prev => [toInvoice(created), ...prev]);
-      toast.success(`Invoice ${created.invoiceNumber} created successfully`);
+      toast.success(t('finance:receivable.toast.invoiceCreated', 'Invoice {{invoice}} created successfully', { invoice: created.invoiceNumber }));
 
       // Generate PDF for the new invoice
       try {
@@ -437,7 +437,7 @@ export function AccountsReceivable() {
           <div className="flex items-center gap-2 px-5 py-3 border-b border-amber-200 bg-amber-100/50">
             <AlertTriangle className="w-4 h-4 text-amber-700" />
             <span className="text-sm font-semibold text-amber-900">
-              {t('finance:receivable.pendingApproval.title', 'Change orders pending approval')}
+              {t('finance:receivable.pendingApproval.title')}
             </span>
             <span className="ml-auto text-xs font-medium text-amber-800">
               {pendingApprovals.length} {pendingApprovals.length === 1 ? 'request' : 'requests'}
@@ -451,7 +451,7 @@ export function AccountsReceivable() {
                     {inv.invoiceNumber} — {inv.client}
                   </div>
                   <div className="text-xs text-[#5A6473] mt-0.5">
-                    {inv.project} · {fmtAmount(inv.amount)} · {t('common:labels.issued', 'Issued')} {fmtDate(inv.issuedDate, dateLocale)}
+                    {inv.project} · {fmtAmount(inv.amount)} · {t('common:labels.issued')} {fmtDate(inv.issuedDate, dateLocale)}
                   </div>
                 </div>
                 <Button
@@ -460,8 +460,8 @@ export function AccountsReceivable() {
                   className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8 px-3"
                 >
                   {approving === inv.id
-                    ? t('common:buttons.approving', 'Approving…')
-                    : t('finance:receivable.pendingApproval.approve', 'Approve')}
+                    ? t('common:buttons.approving')
+                    : t('finance:receivable.pendingApproval.approve')}
                 </Button>
               </div>
             ))}
@@ -593,7 +593,7 @@ export function AccountsReceivable() {
                           <button
                             onClick={() => downloadInvoicePdf(invoiceToPdfData(inv))}
                             className="h-7 w-7 flex items-center justify-center rounded-md border border-red-200 text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors"
-                            title="Download PDF"
+                            title={t('finance:receivable.downloadPdf')}
                           >
                             <Download className="w-3.5 h-3.5" />
                           </button>

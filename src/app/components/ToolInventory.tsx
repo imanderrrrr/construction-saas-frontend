@@ -452,21 +452,21 @@ export function ToolInventory({ onNavigate }: ToolInventoryProps) {
     createTool({ code, name, category, notes: notes || undefined })
       .then(res => {
         setShowAdd(false);
-        toast.success(`Tool registered — ${res.code} ${res.name}`);
+        toast.success(t('inventory:toast.toolRegistered', 'Tool registered — {{code}} {{name}}', { code: res.code, name: res.name }));
         loadTools();
         loadSummary();
       })
-      .catch(() => toast.error('Failed to register tool'));
+      .catch(() => toast.error(t('inventory:toast.registerError', 'Failed to register tool')));
   }
 
   function handleEditTool(id: string, name: string, category: string, notes: string) {
     updateTool(Number(id), { name, category, notes: notes || undefined })
       .then(res => {
         setEditingTool(null);
-        toast.success(`Tool updated — ${res.code}`);
+        toast.success(t('inventory:toast.toolUpdated', 'Tool updated — {{code}}', { code: res.code }));
         loadTools();
       })
-      .catch(() => toast.error('Failed to update tool'));
+      .catch(() => toast.error(t('inventory:toast.updateError', 'Failed to update tool')));
   }
 
   function handleChangeStatus(id: string, newStatus: ToolStatus, reason: string) {
@@ -474,11 +474,11 @@ export function ToolInventory({ onNavigate }: ToolInventoryProps) {
     changeToolStatus(Number(id), { newStatus, reason })
       .then(() => {
         setStatusTool(null);
-        toast.info(`Status changed — ${tool?.code}: ${tool?.status} → ${newStatus}`);
+        toast.info(t('inventory:toast.statusChanged', 'Status changed — {{code}}: {{from}} → {{to}}', { code: tool?.code, from: tool?.status, to: newStatus }));
         loadTools();
         loadSummary();
       })
-      .catch(() => toast.error('Failed to change status'));
+      .catch(() => toast.error(t('inventory:toast.statusError', 'Failed to change status')));
   }
 
   // Render

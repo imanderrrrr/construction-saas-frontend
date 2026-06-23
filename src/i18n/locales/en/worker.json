@@ -78,5 +78,6 @@
   "tools.status.IN_REVIEW": "In Review",
   "tools.status.DAMAGED": "Damaged",
   "tools.status.AVAILABLE": "Available",
-  "tools.status.LOST": "Lost"
+  "tools.status.LOST": "Lost",
+  "toast.loadToolsError": "Failed to load tools"
 }

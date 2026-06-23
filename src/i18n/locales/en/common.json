@@ -40,6 +40,7 @@
   "buttons.close": "Close",
   "buttons.submit": "Submit",
   "buttons.approve": "Approve",
+  "buttons.approving": "Approving…",
   "buttons.reject": "Reject",
   "buttons.observe": "Observe",
   "buttons.filter": "Filter",
@@ -59,6 +60,7 @@
   "buttons.clearFilters": "Clear all filters",
   "buttons.resetFilters": "Reset filters",
   "buttons.refresh": "Refresh",
+  "stat.unableToLoad": "Unable to load",
 
   "labels.from": "From",
   "labels.to": "To",
@@ -88,6 +90,7 @@
   "labels.worker": "Worker",
   "labels.allWorkers": "All Workers",
   "labels.code": "Code",
+  "labels.issued": "Issued",
 
   "alerts.onTrack": "On track",
   "alerts.warning": "Warning",

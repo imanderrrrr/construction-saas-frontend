@@ -1,4 +1,5 @@
 import { LucideIcon } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Skeleton } from './ui/skeleton';
 
 interface StatCardProps {
@@ -24,6 +25,7 @@ export function StatCard({
   isError = false,
   trend,
 }: StatCardProps) {
+  const { t } = useTranslation('common');
   if (isLoading) {
     return (
       <div className="bg-white rounded-xl p-4 sm:p-6 border border-[#D4D4D8]">
@@ -47,7 +49,7 @@ export function StatCard({
         </div>
         <p className="text-[10px] sm:text-xs font-medium text-[#71717A] mb-1">{title}</p>
         <p className="text-xl sm:text-2xl font-bold text-[#D4D4D8] mb-1">—</p>
-        <p className="text-[10px] sm:text-xs text-red-500">Unable to load</p>
+        <p className="text-[10px] sm:text-xs text-red-500">{t('stat.unableToLoad', 'Unable to load')}</p>
       </div>
     );
   }

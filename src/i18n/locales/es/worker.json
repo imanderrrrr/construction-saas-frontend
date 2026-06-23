@@ -78,5 +78,6 @@
   "tools.status.IN_REVIEW": "En Revisión",
   "tools.status.DAMAGED": "Dañada",
   "tools.status.AVAILABLE": "Disponible",
-  "tools.status.LOST": "Perdida"
+  "tools.status.LOST": "Perdida",
+  "toast.loadToolsError": "No se pudieron cargar las herramientas"
 }

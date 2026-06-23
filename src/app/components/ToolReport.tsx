@@ -213,7 +213,7 @@ export function ToolReport() {
         setAssignments(assigns);
         setConsumables(cons);
       })
-      .catch(() => toast.error('Failed to load report data'))
+      .catch(() => toast.error(t('admin:toolReport.loadError', 'Failed to load report data')))
       .finally(() => setLoading(false));
   }, []);
 
@@ -236,9 +236,9 @@ export function ToolReport() {
       } else {
         exportToolPdf(params);
       }
-      toast.success(t('admin:toolReport.exportSuccess', 'Export started'));
+      toast.success(t('admin:toolReport.exportSuccess'));
     } catch {
-      toast.error(t('admin:toolReport.exportError', 'Export failed'));
+      toast.error(t('admin:toolReport.exportError'));
     }
   }
 

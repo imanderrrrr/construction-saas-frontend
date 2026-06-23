@@ -1,6 +1,6 @@
 // SupervisorDashboard.tsx — Supervisor panel (budget access removed per policy)
 
-import { useState, useMemo, lazy, Suspense, useEffect } from 'react';
+import { useState, useMemo, lazy, Suspense, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import {
@@ -8,7 +8,7 @@ import {
   ReceiptText, Wrench, CalendarClock,
   Clock, Receipt, Users, Bell, Activity,
   Building2, Loader2, Inbox, CheckCheck, Mail, MailOpen,
-  MapPin, ChevronRight,
+  MapPin, ChevronRight, AlertCircle, RefreshCw,
 } from 'lucide-react';
 import { AppShell, AppShellNavItem } from '../components/AppShell';
 import { AuthService } from '../services/auth';
@@ -129,46 +129,62 @@ export function SupervisorDashboard() {
 // ——— SupervisorDashboardContent ———————————————————————————————————————
 
 function SupervisorDashboardContent({ username, onNavigate }: { username: string; onNavigate: (s: string) => void }) {
-  const { t } = useTranslation('supervisor');
+  const { t } = useTranslation(['supervisor', 'common']);
 
   // Out-of-range alerts (live data)
   const [oorAlerts, setOorAlerts] = useState<OutOfRangeAlertResponse[]>([]);
   const [dashboard, setDashboard] = useState<SupervisorDashboardResponse | null>(null);
   const [expenseSummary, setExpenseSummary] = useState<ExpenseSummaryResponse | null>(null);
   const [dashLoading, setDashLoading] = useState(true);
+  // Per-source error flags — surfaced so a failed load is never shown as a real "0"
+  const [dashError, setDashError] = useState(false);
+  const [expenseError, setExpenseError] = useState(false);
+  const [alertsError, setAlertsError] = useState(false);
 
   // Notifications
   const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifLoading, setNotifLoading] = useState(true);
+  const [notifError, setNotifError] = useState(false);
 
-  useEffect(() => {
+  const loadCards = useCallback(() => {
+    setDashLoading(true);
+    setDashError(false);
+    setAlertsError(false);
+    setExpenseError(false);
     getSupervisorOutOfRangeAlerts()
       .then(setOorAlerts)
-      .catch(() => { /* fail silently — alerts panel degrades to static */ });
+      .catch(() => setAlertsError(true));
     getSupervisorSummary()
       .then(setExpenseSummary)
-      .catch(() => { /* fail silently */ });
+      .catch(() => setExpenseError(true));
     getSupervisorDashboard()
       .then(setDashboard)
-      .catch(() => { /* fail silently — cards degrade to zero */ })
+      .catch(() => setDashError(true))
       .finally(() => setDashLoading(false));
-    // Fetch notifications
+  }, []);
+
+  const loadNotifications = useCallback(() => {
+    setNotifLoading(true);
+    setNotifError(false);
     getSupervisorNotifications(0, 20)
       .then(page => setNotifications(page.content))
-      .catch(() => {})
+      .catch(() => setNotifError(true))
       .finally(() => setNotifLoading(false));
     getSupervisorUnreadCount()
       .then(({ count }) => setUnreadCount(count))
-      .catch(() => {});
+      .catch(() => { /* unread badge is non-critical; the inbox shows its own error */ });
   }, []);
+
+  useEffect(() => { loadCards(); }, [loadCards]);
+  useEffect(() => { loadNotifications(); }, [loadNotifications]);
 
   async function handleMarkRead(id: number) {
     try {
       await markNotificationRead(id);
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
       setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch { /* ignore */ }
+    } catch { toast.error(t('supervisor:dash.markReadError', 'Could not update the notification. Please try again.')); }
   }
 
   async function handleMarkAllRead() {
@@ -176,22 +192,23 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
       await markAllNotificationsRead();
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
       setUnreadCount(0);
-    } catch { /* ignore */ }
+    } catch { toast.error(t('supervisor:dash.markReadError', 'Could not update the notification. Please try again.')); }
   }
 
   // Recent team activity (combined time events + expenses)
   interface ActivityItem { ini: string; name: string; action: string; project: string; time: string; sortKey: string; }
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
   const [activityLoading, setActivityLoading] = useState(true);
+  const [activityError, setActivityError] = useState(false);
 
   const eventLabels: Record<string, string> = useMemo(() => ({
     CHECK_IN: t('dash.clockedIn'), LUNCH_START: t('dash.lunchStart'),
     LUNCH_END: t('dash.lunchEnd'), CHECK_OUT: t('dash.clockedOut'),
   }), [t]);
 
-  useEffect(() => {
-    async function loadActivity() {
+  const loadActivity = useCallback(async () => {
       setActivityLoading(true);
+      setActivityError(false);
       try {
         const today = businessToday();
         const fromStr = nDaysAgo(2);
@@ -241,11 +258,11 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
         // Sort by time desc, take top 10
         items.sort((a, b) => b.sortKey.localeCompare(a.sortKey));
         setRecentActivity(items.slice(0, 10));
-      } catch { /* degrade gracefully */ }
+      } catch { setActivityError(true); }
       finally { setActivityLoading(false); }
-    }
-    loadActivity();
-  }, []);
+  }, [t]);
+
+  useEffect(() => { loadActivity(); }, [loadActivity]);
 
   function StatusBadge({ status }: { status: string }) {
     if (status === 'ACTIVE') return <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-emerald-50 text-emerald-700">{t('dash.statusActive')}</span>;
@@ -263,6 +280,22 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
     return mins > 0 ? t('dash.hrsMinAgo', { hrs, mins }) : t('dash.hrsAgo', { hrs });
   }
 
+  /** Inline error state for a panel (alerts / inbox / activity) with a retry action */
+  function PanelError({ message, onRetry }: { message: string; onRetry: () => void }) {
+    return (
+      <div className="flex flex-col items-center justify-center py-8 text-center">
+        <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center mb-3">
+          <AlertCircle className="w-5 h-5 text-red-500" />
+        </div>
+        <p className="text-sm font-medium text-red-900">{t('supervisor:dash.panelError', 'Something went wrong')}</p>
+        <p className="text-[11px] text-[#71717A] mt-0.5">{message}</p>
+        <button onClick={onRetry} className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-[#F97316] hover:text-[#C2410C] transition-colors">
+          <RefreshCw className="w-3.5 h-3.5" />{t('common:buttons.retry')}
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 max-w-6xl">
       {/* Welcome */}
@@ -270,6 +303,24 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
         <h2 className="text-xl sm:text-2xl font-bold text-[#0A0A0A]">{t('dash.welcome', { username })}</h2>
         <p className="text-sm text-[#71717A] mt-1">{t('dash.overview')}</p>
       </div>
+
+      {/* Error banner — a "—" in a card means the value is unavailable, not a real zero */}
+      {(dashError || expenseError || alertsError) && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <AlertCircle className="w-5 h-5 text-red-600" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-red-900">{t('supervisor:dash.errorTitle', 'Could not load dashboard data')}</p>
+              <p className="text-xs text-red-600 mt-0.5">{t('supervisor:dash.errorDesc', 'Some sections failed to load. A “—” means the value is unavailable, not zero.')}</p>
+            </div>
+          </div>
+          <button onClick={loadCards} className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-red-200 text-red-700 hover:bg-red-100/50 transition-colors shrink-0">
+            <RefreshCw className="w-3.5 h-3.5" />{t('common:buttons.retry')}
+          </button>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -280,7 +331,7 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
           {dashLoading ? (
             <div className="h-7 w-12 bg-slate-100 rounded animate-pulse" />
           ) : (
-            <p className="text-xl sm:text-2xl font-bold text-[#0A0A0A]">{dashboard?.assignedProjects ?? 0}</p>
+            <p className="text-xl sm:text-2xl font-bold text-[#0A0A0A]">{dashError ? '—' : (dashboard?.assignedProjects ?? 0)}</p>
           )}
           <p className="text-xs sm:text-sm text-[#71717A] truncate">{t('dash.assignedProjects')}</p>
           <p className="text-[10px] sm:text-xs text-[#71717A] mt-1 truncate">
@@ -297,7 +348,7 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
           {dashLoading ? (
             <div className="h-7 w-12 bg-slate-100 rounded animate-pulse" />
           ) : (
-            <p className="text-xl sm:text-2xl font-bold text-[#0A0A0A]">{dashboard?.pendingApprovals ?? 0}</p>
+            <p className="text-xl sm:text-2xl font-bold text-[#0A0A0A]">{dashError ? '—' : (dashboard?.pendingApprovals ?? 0)}</p>
           )}
           <p className="text-xs sm:text-sm text-[#71717A] truncate">{t('dash.pendingApprovals')}</p>
           <p className="text-[10px] sm:text-xs text-[#71717A] mt-1 truncate">
@@ -317,7 +368,7 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
           {dashLoading ? (
             <div className="h-7 w-12 bg-slate-100 rounded animate-pulse" />
           ) : (
-            <p className="text-xl sm:text-2xl font-bold text-[#0A0A0A]">{expenseSummary?.pendingCount ?? 0}</p>
+            <p className="text-xl sm:text-2xl font-bold text-[#0A0A0A]">{expenseError ? '—' : (expenseSummary?.pendingCount ?? 0)}</p>
           )}
           <p className="text-xs sm:text-sm text-[#71717A] truncate">{t('dash.expenseReviews')}</p>
           <p className="text-[10px] sm:text-xs text-[#71717A] mt-1 truncate">
@@ -335,7 +386,7 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
             <div className="h-7 w-12 bg-slate-100 rounded animate-pulse" />
           ) : (
             <p className="text-xl sm:text-2xl font-bold text-[#0A0A0A]">
-              {dashboard?.projects.reduce((s, p) => s + p.members, 0) ?? 0}
+              {dashError ? '—' : (dashboard?.projects.reduce((s, p) => s + p.members, 0) ?? 0)}
             </p>
           )}
           <p className="text-xs sm:text-sm text-[#71717A] truncate">{t('dash.teamMembers')}</p>
@@ -437,7 +488,9 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
           </div>
 
           {/* Out-of-range alerts (live) */}
-          {oorAlerts.length === 0 ? (
+          {alertsError ? (
+            <PanelError message={t('supervisor:dash.alertsError', "We couldn't load location alerts. They may be out of date.")} onRetry={loadCards} />
+          ) : oorAlerts.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <div className="w-10 h-10 bg-[#FAFAFA] rounded-full flex items-center justify-center mb-3">
                 <Bell className="w-5 h-5 text-[#D4D4D8]" />
@@ -500,6 +553,8 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
           <div className="flex items-center justify-center py-10">
             <Loader2 className="w-5 h-5 animate-spin text-[#F97316]" />
           </div>
+        ) : notifError ? (
+          <PanelError message={t('supervisor:dash.notificationsError', "We couldn't load your notifications.")} onRetry={loadNotifications} />
         ) : notifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <div className="w-10 h-10 bg-[#FAFAFA] rounded-full flex items-center justify-center mb-3">
@@ -550,6 +605,8 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
           <div className="flex items-center justify-center py-10">
             <Loader2 className="w-5 h-5 animate-spin text-[#F97316]" />
           </div>
+        ) : activityError ? (
+          <PanelError message={t('supervisor:dash.activityError', "We couldn't load recent team activity.")} onRetry={loadActivity} />
         ) : recentActivity.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 text-center">
             <Activity className="w-8 h-8 text-[#D4D4D8] mb-2" />

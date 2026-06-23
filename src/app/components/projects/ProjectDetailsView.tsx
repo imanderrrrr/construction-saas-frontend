@@ -38,8 +38,10 @@ export function ProjectDetailsView({ project, allUsers, usersLoading, onBack, on
 
   const [history, setHistory] = useState<ContractHistoryEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState(false);
   const [changeOrders, setChangeOrders] = useState<ChangeOrderEntry[]>([]);
   const [cosLoading, setCosLoading] = useState(false);
+  const [cosError, setCosError] = useState(false);
 
   // Change order form state
   const [coDesc, setCoDesc] = useState('');
@@ -49,22 +51,28 @@ export function ProjectDetailsView({ project, allUsers, usersLoading, onBack, on
 
   const loadChangeOrders = useCallback(() => {
     setCosLoading(true);
+    setCosError(false);
     listChangeOrders(project.id)
       .then(setChangeOrders)
-      .catch(() => setChangeOrders([]))
+      .catch(() => setCosError(true))
       .finally(() => setCosLoading(false));
+  }, [project.id]);
+
+  const loadHistory = useCallback(() => {
+    setHistoryLoading(true);
+    setHistoryError(false);
+    getContractHistory(project.id)
+      .then(setHistory)
+      .catch(() => setHistoryError(true))
+      .finally(() => setHistoryLoading(false));
   }, [project.id]);
 
   useEffect(() => {
     if (project.originalContractCents != null) {
-      setHistoryLoading(true);
-      getContractHistory(project.id)
-        .then(setHistory)
-        .catch(() => setHistory([]))
-        .finally(() => setHistoryLoading(false));
+      loadHistory();
       loadChangeOrders();
     }
-  }, [project.id, project.originalContractCents, loadChangeOrders]);
+  }, [project.originalContractCents, loadHistory, loadChangeOrders]);
 
   const handleCreateCO = async () => {
     const cents = Math.round(parseFloat(coAmount.replace(/[^0-9.]/g, '')) * 100);
@@ -223,7 +231,13 @@ export function ProjectDetailsView({ project, allUsers, usersLoading, onBack, on
                 ))}
               </div>
             )}
-            {!cosLoading && changeOrders.length === 0 && (
+            {!cosLoading && cosError && (
+              <div className="flex items-center justify-between gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                <span className="flex items-center gap-2"><AlertCircle className="w-4 h-4 flex-shrink-0" />{t('admin:changeOrders.loadError', "Couldn't load change orders.")}</span>
+                <button type="button" onClick={loadChangeOrders} className="text-xs font-medium text-red-700 hover:text-red-900 underline shrink-0">{t('common:buttons.retry')}</button>
+              </div>
+            )}
+            {!cosLoading && !cosError && changeOrders.length === 0 && (
               <div className="flex flex-col items-center justify-center py-6">
                 <div className="w-11 h-11 bg-[#FAFAFA] rounded-full flex items-center justify-center mb-3">
                   <FileText className="w-5 h-5 text-[#D4D4D8]" />
@@ -232,7 +246,7 @@ export function ProjectDetailsView({ project, allUsers, usersLoading, onBack, on
                 <p className="text-xs text-[#71717A] mt-1">{t('admin:changeOrders.noOrdersHint')}</p>
               </div>
             )}
-            {!cosLoading && changeOrders.length > 0 && (
+            {!cosLoading && !cosError && changeOrders.length > 0 && (
               <div className="space-y-2">
                 {changeOrders.map(co => (
                   <div key={co.id} className="flex items-center justify-between px-4 py-3 bg-[#FAFAFA] rounded-lg border border-[#D4D4D8]/50">
@@ -248,7 +262,7 @@ export function ProjectDetailsView({ project, allUsers, usersLoading, onBack, on
                         <button
                           onClick={() => handleDeleteCO(co.id)}
                           className="p-1.5 rounded-md text-[#71717A] hover:text-red-600 hover:bg-red-50 transition-colors"
-                          title="Delete"
+                          title={t('common:buttons.delete')}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -332,7 +346,13 @@ export function ProjectDetailsView({ project, allUsers, usersLoading, onBack, on
                 ))}
               </div>
             )}
-            {!historyLoading && history.length === 0 && (
+            {!historyLoading && historyError && (
+              <div className="flex items-center justify-between gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                <span className="flex items-center gap-2"><AlertCircle className="w-4 h-4 flex-shrink-0" />{t('admin:projectDetails.historyError', "Couldn't load contract history.")}</span>
+                <button type="button" onClick={loadHistory} className="text-xs font-medium text-red-700 hover:text-red-900 underline shrink-0">{t('common:buttons.retry')}</button>
+              </div>
+            )}
+            {!historyLoading && !historyError && history.length === 0 && (
               <div className="flex flex-col items-center justify-center py-8">
                 <div className="w-11 h-11 bg-[#FAFAFA] rounded-full flex items-center justify-center mb-3">
                   <FileText className="w-5 h-5 text-[#D4D4D8]" />
@@ -341,7 +361,7 @@ export function ProjectDetailsView({ project, allUsers, usersLoading, onBack, on
                 <p className="text-xs text-[#71717A] mt-1">{t('admin:projectDetails.noHistoryHint')}</p>
               </div>
             )}
-            {!historyLoading && history.length > 0 && (
+            {!historyLoading && !historyError && history.length > 0 && (
               <div className="overflow-x-auto -mx-6 -mb-6">
                 <Table>
                   <TableHeader>

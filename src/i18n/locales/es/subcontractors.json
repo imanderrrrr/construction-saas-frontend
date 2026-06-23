@@ -85,6 +85,7 @@
   "detail.noObservations": "No hay observaciones aún. Inicia la conversación.",
 
   "modal.createJob.title": "Asignar Nuevo Trabajo",
+  "modal.createJob.refDataError": "No pudimos cargar subcontratistas y proyectos. Las listas desplegables de abajo podrían estar vacías.",
   "modal.createJob.subcontractor": "Subcontratista",
   "modal.createJob.subcontractorPlaceholder": "Seleccionar subcontratista",
   "modal.createJob.project": "Proyecto",
@@ -124,6 +125,7 @@
   "modal.reviewInvoice.createdAt": "Creada",
   "modal.reviewInvoice.noFile": "Esta factura no tiene archivo adjunto.",
   "modal.reviewInvoice.unsupportedPreview": "No se puede previsualizar este tipo de archivo.",
+  "modal.reviewInvoice.pdfTitle": "PDF de la factura",
   "modal.reviewInvoice.previousComment": "Comentario anterior del revisor",
 
   "modal.payment.title": "Registrar Pago",

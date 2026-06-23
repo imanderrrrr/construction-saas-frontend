@@ -343,7 +343,7 @@ function ReceiptViewer({ expenseId, onClose }: { expenseId: number; onClose?: ()
         window.open(url, '_blank');
         setTimeout(() => URL.revokeObjectURL(url), 60_000);
       })
-      .catch(() => toast.error('Failed to open receipt'));
+      .catch(() => toast.error(t('expenses:toast.openReceiptFailed', 'Failed to open receipt')));
   }, [expenseId]);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {

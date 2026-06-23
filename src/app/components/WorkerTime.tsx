@@ -168,7 +168,7 @@ export function WorkerTime({ username }: { username: string }) {
         if (active.length > 0) setSelectedProject(active[0]);
         else if (data.length > 0) setSelectedProject(data[0]);
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Failed to load projects');
+        toast.error(err instanceof Error ? err.message : t('time:toast.loadProjectsError', 'Failed to load projects'));
       } finally {
         if (!cancelled) setLoadingProjects(false);
       }

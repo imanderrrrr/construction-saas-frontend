@@ -92,7 +92,7 @@ export function MyTools() {
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load tools');
+          setError(err instanceof Error ? err.message : t('worker:toast.loadToolsError', 'Failed to load tools'));
         }
       } finally {
         if (!cancelled) setLoading(false);

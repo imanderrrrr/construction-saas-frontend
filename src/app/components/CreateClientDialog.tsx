@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Building2, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -20,6 +21,7 @@ interface CreateClientDialogProps {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function CreateClientDialog({ open, onClose, onCreated }: CreateClientDialogProps) {
+    const { t } = useTranslation('finance');
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
@@ -49,11 +51,11 @@ export function CreateClientDialog({ open, onClose, onCreated }: CreateClientDia
         // Validate
         let hasError = false;
         if (!trimmedName) {
-            setNameError('Client name is required.');
+            setNameError(t('createClient.nameRequired', 'Client name is required.'));
             hasError = true;
         }
         if (trimmedEmail && !EMAIL_RE.test(trimmedEmail)) {
-            setEmailError('Invalid email format.');
+            setEmailError(t('createClient.invalidEmail', 'Invalid email format.'));
             hasError = true;
         }
         if (hasError) return;
@@ -65,14 +67,14 @@ export function CreateClientDialog({ open, onClose, onCreated }: CreateClientDia
                 ...(trimmedEmail && { email: trimmedEmail }),
                 ...(phone.trim() && { phone: phone.trim() }),
             });
-            toast.success('Client created', { description: `"${client.name}" is now available.` });
+            toast.success(t('createClient.successTitle', 'Client created'), { description: t('createClient.successDesc', '"{{name}}" is now available.', { name: client.name }) });
             onCreated(client);
             handleClose();
         } catch (err) {
             if (err instanceof ApiError) {
-                toast.error(`Error ${err.status}`, { description: err.message });
+                toast.error(t('createClient.errorStatus', 'Error {{status}}', { status: err.status }), { description: err.message });
             } else {
-                toast.error('Error creating client');
+                toast.error(t('createClient.errorGeneric', 'Error creating client'));
             }
             setIsLoading(false);
         }
@@ -90,10 +92,10 @@ export function CreateClientDialog({ open, onClose, onCreated }: CreateClientDia
                         <div className="w-7 h-7 rounded-md bg-[#F97316]/10 flex items-center justify-center">
                             <Building2 className="w-3.5 h-3.5 text-[#F97316]" />
                         </div>
-                        Create client
+                        {t('createClient.title', 'Create client')}
                     </DialogTitle>
                     <DialogDescription>
-                        Add a new client to associate with projects.
+                        {t('createClient.description', 'Add a new client to associate with projects.')}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -101,12 +103,12 @@ export function CreateClientDialog({ open, onClose, onCreated }: CreateClientDia
                     {/* Name */}
                     <div className="space-y-1.5">
                         <Label className="text-sm font-medium text-[#0A0A0A]">
-                            Name <span className="text-red-500">*</span>
+                            {t('createClient.nameLabel', 'Name')} <span className="text-red-500">*</span>
                         </Label>
                         <Input
                             value={name}
                             onChange={e => { setName(e.target.value); setNameError(''); }}
-                            placeholder="e.g. Acme Construction Corp"
+                            placeholder={t('createClient.namePlaceholder', 'e.g. Acme Construction Corp')}
                             maxLength={200}
                             className={`h-10 ${nameError ? 'border-red-400' : 'border-[#D4D4D8]'}`}
                             disabled={isLoading}
@@ -121,7 +123,7 @@ export function CreateClientDialog({ open, onClose, onCreated }: CreateClientDia
 
                     {/* Email */}
                     <div className="space-y-1.5">
-                        <Label className="text-sm font-medium text-[#0A0A0A]">Email</Label>
+                        <Label className="text-sm font-medium text-[#0A0A0A]">{t('createClient.emailLabel', 'Email')}</Label>
                         <Input
                             type="email"
                             value={email}
@@ -140,7 +142,7 @@ export function CreateClientDialog({ open, onClose, onCreated }: CreateClientDia
 
                     {/* Phone */}
                     <div className="space-y-1.5">
-                        <Label className="text-sm font-medium text-[#0A0A0A]">Phone</Label>
+                        <Label className="text-sm font-medium text-[#0A0A0A]">{t('createClient.phoneLabel', 'Phone')}</Label>
                         <Input
                             type="tel"
                             value={phone}
@@ -160,7 +162,7 @@ export function CreateClientDialog({ open, onClose, onCreated }: CreateClientDia
                             disabled={isLoading}
                             className="border-[#D4D4D8] text-[#0A0A0A]"
                         >
-                            Cancel
+                            {t('common:buttons.cancel', 'Cancel')}
                         </Button>
                         <Button
                             type="submit"
@@ -168,9 +170,9 @@ export function CreateClientDialog({ open, onClose, onCreated }: CreateClientDia
                             disabled={isLoading}
                         >
                             {isLoading ? (
-                                <><Loader2 className="w-4 h-4 animate-spin" />Creating…</>
+                                <><Loader2 className="w-4 h-4 animate-spin" />{t('createClient.creating', 'Creating…')}</>
                             ) : (
-                                'Create'
+                                t('common:buttons.create', 'Create')
                             )}
                         </Button>
                     </DialogFooter>

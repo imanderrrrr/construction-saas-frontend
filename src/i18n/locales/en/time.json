@@ -241,5 +241,29 @@
   "dispute.resolving": "Resolving…",
   "dispute.resolved": "Resolved",
   "dispute.resolvedBy": "Resolved by {{reviewer}}",
-  "dispute.awardedTime": "Awarded time"
+  "dispute.awardedTime": "Awarded time",
+
+  "toast.loadProjectsError": "Failed to load projects",
+  "toast.loadRecordsError": "Failed to load records",
+
+  "modalCorrect.correct.title": "Add correction note",
+  "modalCorrect.correct.submitLabel": "Submit correction",
+  "modalCorrect.correct.placeholder": "Describe the issue or correction needed. Minimum 10 characters.",
+  "modalCorrect.reject.title": "Reject time record",
+  "modalCorrect.reject.submitLabel": "Reject record",
+  "modalCorrect.reject.placeholder": "State the reason for rejection. Required, minimum 10 characters.",
+  "modalCorrect.event.CHECK_IN": "Check In",
+  "modalCorrect.event.LUNCH_START": "Lunch Start",
+  "modalCorrect.event.LUNCH_END": "Lunch End",
+  "modalCorrect.event.CHECK_OUT": "Check Out",
+  "modalCorrect.correctedTime": "Corrected time",
+  "modalCorrect.optional": "(optional)",
+  "modalCorrect.originalTimeUpdated": "Original time: {{time}} — will be updated.",
+  "modalCorrect.keepOriginal": "Leave unchanged to keep the original time.",
+  "modalCorrect.commentLabel": "Comment",
+  "modalCorrect.commentHint": "Supervisor comment — visible to worker and admin.",
+  "modalCorrect.charsMore": "{{count}} more",
+  "modalCorrect.submitting": "Submitting…",
+  "modalCorrect.minCharsError": "Comment must be at least {{count}} characters.",
+  "modalCorrect.submitFailed": "Failed to submit. Please try again."
 }
