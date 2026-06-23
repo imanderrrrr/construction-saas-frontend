@@ -21,6 +21,7 @@ import {
     type CreateProjectPayload,
     type UpdateProjectPayload,
 } from '../services/projects';
+import type { Project } from './projects/types';
 import { ApiError } from '../lib/api';
 
 // TYPES
@@ -30,7 +31,7 @@ interface ProjectFormDialogProps {
     onClose: () => void;
     onSaved: (project: ProjectResponse) => void;
     /** If provided, the dialog is in "edit" mode */
-    editProject?: ProjectResponse | null;
+    editProject?: Project | null;
 }
 
 interface FormState {
@@ -563,7 +564,7 @@ export function ProjectFormDialog({ open, onClose, onSaved, editProject }: Proje
                 longitude: editProject.longitude != null ? String(editProject.longitude) : '',
                 geofenceRadiusMeters: editProject.geofenceRadiusMeters ?? 200,
             });
-            setClientName(editProject.client?.name ?? '');
+            setClientName(editProject.clientName ?? '');
         } else if (open) {
             setForm(INITIAL_FORM);
             setClientName('');
@@ -614,7 +615,7 @@ export function ProjectFormDialog({ open, onClose, onSaved, editProject }: Proje
                     name: form.name.trim(),
                     ...(form.clientId && { clientId: form.clientId }),
                     ...(form.costCode && { costCode: form.costCode }),
-                    ...(cents != null && { contractAmountCents: cents }),
+                    contractAmountCents: cents ?? 0,   // guaranteed non-null by the create-mode guard above
                     ...(form.address && { address: form.address }),
                     ...(form.latitude && { latitude: parseFloat(form.latitude) }),
                     ...(form.longitude && { longitude: parseFloat(form.longitude) }),

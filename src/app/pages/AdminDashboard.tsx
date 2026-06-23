@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, lazy, Suspense, Component, type ReactNode } from 'react';
+﻿import { useState, useEffect, useRef, lazy, Suspense, Component, type ComponentType, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { AuthService } from '../services/auth';
@@ -81,7 +81,7 @@ async function withChunkRetry<T>(importer: () => Promise<T>, attempts = 3): Prom
   throw lastError;
 }
 
-function lazyWithRetry<T>(importer: () => Promise<T>) {
+function lazyWithRetry<T extends { default: ComponentType<any> }>(importer: () => Promise<T>) {
   return lazy(() => withChunkRetry(importer));
 }
 

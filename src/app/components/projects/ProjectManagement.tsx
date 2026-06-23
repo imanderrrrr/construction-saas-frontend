@@ -184,22 +184,7 @@ export function ProjectManagement() {
           open={editOpen}
           onClose={() => setEditOpen(false)}
           onSaved={handleProjectSaved}
-          editProject={selectedProject ? {
-            id: selectedProject.id,
-            name: selectedProject.name,
-            status: selectedProject.status,
-            clientId: selectedProject.clientId,
-            client: selectedProject.clientName ? { id: selectedProject.clientId!, name: selectedProject.clientName } : null,
-            costCode: selectedProject.costCode,
-            contractAmountCents: selectedProject.contractAmountCents,
-            address: selectedProject.address,
-            latitude: selectedProject.latitude,
-            longitude: selectedProject.longitude,
-            geofenceRadiusMeters: selectedProject.geofenceRadiusMeters,
-            assignedUserIds: selectedProject.assignedUserIds,
-            createdAt: selectedProject.createdAt,
-            updatedAt: selectedProject.updatedAt ?? selectedProject.createdAt,
-          } : null}
+          editProject={selectedProject}
         />
         <AssignUsersModal project={selectedProject} open={assignOpen} onClose={() => setAssignOpen(false)} onAssigned={handleAssigned} />
         <ToggleStatusModal project={selectedProject} open={toggleStatusOpen} onClose={() => setToggleStatusOpen(false)} onConfirmed={handleStatusToggled} />

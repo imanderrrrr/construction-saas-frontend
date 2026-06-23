@@ -33,6 +33,7 @@
   "event.lunchStart": "Inicio Almuerzo",
   "event.lunchEnd": "Fin Almuerzo",
   "event.clockOut": "Salida",
+  "event.inTransit": "En tránsito",
 
   "dashboard.welcome": "¡Bienvenido, {{username}}!",
   "dashboard.summary": "Aquí tienes un resumen de tu actividad reciente.",

@@ -1,4 +1,4 @@
-import { LogIn, LogOut, Utensils, Loader2, Check } from 'lucide-react';
+import { LogIn, LogOut, Utensils, Car, Loader2, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { TimeEventType } from '../../types';
 
@@ -9,6 +9,7 @@ const PUNCH_ICONS: Record<TimeEventType, React.ElementType> = {
   LUNCH_START: Utensils,
   LUNCH_END:   Utensils,
   CHECK_OUT:   LogOut,
+  IN_TRANSIT:  Car,
 };
 
 // Types

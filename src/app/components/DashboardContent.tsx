@@ -105,10 +105,6 @@ export function DashboardContent({ onNavigate }: { onNavigate: (section: string)
   const [systemKpis, setSystemKpis]     = useState<SystemKpis | null>(null);
   const [recentActivity, setRecent]     = useState<AuditLogDTO[]>([]);
   const [lastUpdated, setLastUpdated]   = useState<string | null>(null);
-  const [sysOverview, setSysOverview]   = useState<SystemOverviewData>({
-    activeWorkersToday: null, hoursThisWeek: null, pendingExpenses: null,
-    budgetHealth: null, toolsAssigned: null, auditEventsToday: null,
-  });
 
   const load = useCallback(async () => {
     setViewState('loading');

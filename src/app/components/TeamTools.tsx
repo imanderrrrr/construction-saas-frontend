@@ -120,7 +120,7 @@ export function TeamTools() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard icon={Wrench} title={t('tools.kpi.teamTools')}        value={loading ? '—' : tools.length.toString()}        subtitle={t('tools.kpi.currentlyOut')} iconBgColor="bg-[#F97316]/10" iconColor="text-[#F97316]"   />
         <StatCard icon={Users}  title={t('tools.kpi.membersWithTools')} value={loading ? '—' : uniqueWorkers.toString()}       subtitle={t('tools.kpi.workers')}      iconBgColor="bg-emerald-50"   iconColor="text-emerald-600" />
-        <StatCard icon={Clock}  title={t('tools.kpi.avgDaysOut')}       value={loading ? '—' : t('tools.kpi.days', { count: avgDaysOut })} subtitle={t('tools.kpi.perTool')}     iconBgColor="bg-amber-50"     iconColor="text-amber-600"   />
+        <StatCard icon={Clock}  title={t('tools.kpi.avgDaysOut')}       value={loading ? '—' : t('tools.kpi.days', { count: Number(avgDaysOut) })} subtitle={t('tools.kpi.perTool')}     iconBgColor="bg-amber-50"     iconColor="text-amber-600"   />
       </div>
 
       {/* Filters */}
