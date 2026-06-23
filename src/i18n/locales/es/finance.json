@@ -280,7 +280,11 @@
   "receivable.toast.coApproveFailed": "No se pudo aprobar la orden de cambio",
   "receivable.pendingApproval.title": "Órdenes de cambio pendientes de aprobación",
   "receivable.pendingApproval.approve": "Aprobar",
+  "receivable.pendingApproval.requestCount_one": "{{count}} solicitud",
+  "receivable.pendingApproval.requestCount_other": "{{count}} solicitudes",
   "receivable.downloadPdf": "Descargar PDF",
+  "receivable.downloadFile": "Descargar {{name}}",
+  "receivable.generatedInvoices": "Facturas Generadas",
 
   "budget.title": "Presupuestos de Proyectos",
   "budget.subtitle": "Gestiona y monitorea presupuestos por proyecto",
