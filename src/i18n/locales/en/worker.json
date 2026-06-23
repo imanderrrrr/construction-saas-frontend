@@ -33,6 +33,7 @@
   "event.lunchStart": "Lunch Start",
   "event.lunchEnd": "Lunch End",
   "event.clockOut": "Clock Out",
+  "event.inTransit": "In Transit",
 
   "dashboard.welcome": "Welcome back, {{username}}!",
   "dashboard.summary": "Here's a summary of your recent activity.",

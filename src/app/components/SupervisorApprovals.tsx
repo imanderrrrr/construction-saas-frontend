@@ -20,7 +20,7 @@ import { ApprovalStatusBadge } from './phase2/ApprovalStatusBadge';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { TimelineItem, TimelineItemMissing } from './phase2/TimelineItem';
 import { ModalCorrect } from './phase2/ModalCorrect';
-import { TimeRecord, ApprovalStatus, TIME_EVENT_SEQUENCE, LocationStatus, TimeEventType } from '../types';
+import { TimeRecord, TimeEvent, ApprovalStatus, TIME_EVENT_SEQUENCE, LocationStatus, TimeEventType } from '../types';
 import {
   getTimeRecords, getSupervisorTimeRecords, getTimeRecord,
   approveEvent, correctEvent, rejectEvent, editEventTime,

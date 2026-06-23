@@ -21,12 +21,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Typecheck (tsc --noEmit)
+        run: npm run typecheck
+
       - name: Run tests
         run: npm test
 
       - name: Build production bundle
         run: npm run build
 
-      # Paso 1 (post-Paso 0): introducir typescript como devDependency,
-      # añadir `npx tsc --noEmit` y un eslint config como required checks.
-      # Por ahora se omiten para no instalar dependencias nuevas en este paso.
+      # TODO (follow-up): add a minimal ESLint config + `npm run lint` step as a
+      # required check. Typecheck (tsc --noEmit) is now wired above alongside
+      # test + build.

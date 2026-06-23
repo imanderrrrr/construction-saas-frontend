@@ -146,6 +146,7 @@ function DashboardView({ username, onNavigate }: { username: string; onNavigate:
     LUNCH_START: t('event.lunchStart'),
     LUNCH_END: t('event.lunchEnd'),
     CHECK_OUT: t('event.clockOut'),
+    IN_TRANSIT: t('event.inTransit'),
   };
 
   useEffect(() => {

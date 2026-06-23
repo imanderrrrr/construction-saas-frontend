@@ -960,7 +960,9 @@ export function UserManagement() {
   const [view, setView] = useState<UserView>('list');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [listState, setListState] = useState<ListState>('loading');
-  const viewMode = 'desktop' as const;
+  // Hardcoded to desktop; typed as the full union so the (currently inactive)
+  // mobile card list below still type-checks if/when it's re-enabled.
+  const viewMode = 'desktop' as 'desktop' | 'mobile';
 
   // Filters
   const [search, setSearch] = useState('');

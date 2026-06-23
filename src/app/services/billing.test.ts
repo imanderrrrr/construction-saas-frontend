@@ -46,7 +46,7 @@ describe('BillingService.createCheckout', () => {
     });
 
     const [, options] = apiMock.mock.calls[0];
-    const body = JSON.parse(String(options.body));
+    const body = JSON.parse(String(options!.body));
 
     expect(body).toEqual({
       planCode: 'PRO',
@@ -142,9 +142,9 @@ describe('BillingService.changePlan', () => {
 
     const [endpoint, options] = apiMock.mock.calls[0];
     expect(endpoint).toBe('/api/v1/billing/subscription/change-plan');
-    expect(options.method).toBe('POST');
+    expect(options!.method).toBe('POST');
 
-    const body = JSON.parse(String(options.body));
+    const body = JSON.parse(String(options!.body));
     expect(body).toEqual({
       planCode: 'PRO',
       billingInterval: 'MONTHLY',

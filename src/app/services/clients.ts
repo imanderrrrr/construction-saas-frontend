@@ -25,7 +25,7 @@ export interface ClientsPage {
 
 export interface CreateClientPayload {
     name: string;
-    phone: string;
+    phone?: string;
     email?: string;
 }
 

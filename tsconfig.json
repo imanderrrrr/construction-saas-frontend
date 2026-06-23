@@ -20,5 +20,9 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src"],
+  // src/imports/ is dead generated code (0 importers). CreateProjectModal.tsx is
+  // also dead (0 importers) and its create-payload contract is stale, superseded
+  // by ProjectFormDialog. Both are excluded so `tsc` checks only live code.
+  "exclude": ["node_modules", "src/imports", "src/app/components/projects/CreateProjectModal.tsx"]
 }

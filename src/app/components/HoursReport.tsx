@@ -263,7 +263,7 @@ export function HoursReport() {
 
   // Derived data
   const workersList = report?.workers ?? [];
-  const kpis: HoursReportKpis = report?.kpis ?? { totalApprovedHours: 0, avgHoursPerDay: 0, lateArrivals: 0, absentDays: 0 };
+  const kpis: HoursReportKpis = report?.kpis ?? { totalApprovedHours: 0, avgHoursPerDay: 0, lateArrivals: 0, absentDays: 0, totalLaborCost: 0, totalPendingHours: 0 };
   const totalPages = Math.max(1, Math.ceil(workersList.length / ITEMS_PER_PAGE));
   const paginated = workersList.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,

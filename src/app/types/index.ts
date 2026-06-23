@@ -202,4 +202,6 @@ export const ROLE_NAV_MAP: Record<CanonicalRole, NavItemSpec[]> = {
     { key: 'dashboard',  label: 'Dashboard',  route: '/warehouse/dashboard',  phase: 1, comingSoon: true },
     { key: 'inventory',  label: 'Inventory',  route: '/warehouse/inventory',  phase: 2 },
   ],
+  // No web workspace for SUBCONTRACTOR — they use the mobile app (see ROLE_DASHBOARD_ROUTES).
+  SUBCONTRACTOR: [],
 };

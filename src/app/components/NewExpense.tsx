@@ -10,6 +10,7 @@ import {
 } from './ui/select';
 import { Textarea } from './ui/textarea';
 import { isProjectClosed } from '../helpers/project-utils';
+import type { EntityStatus } from '../types';
 import { getMyProjects } from '../services/time';
 import { createExpense } from '../services/expenses';
 import { businessToday } from '../helpers/dateTime';
@@ -88,7 +89,7 @@ export function NewExpense({ onSubmitSuccess }: NewExpenseProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Projects from API
-  const [projects, setProjects] = useState<{ id: number; name: string; status: string }[]>([]);
+  const [projects, setProjects] = useState<{ id: number; name: string; status: EntityStatus }[]>([]);
   const [projectsError, setProjectsError] = useState(false);
   useEffect(() => {
     getMyProjects()

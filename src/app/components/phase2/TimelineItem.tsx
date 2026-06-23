@@ -25,6 +25,8 @@ const EVENT_STATUS_CONFIG: Record<ApprovalStatus, { label: string; className: st
   APPROVED: { label: 'Approved',  className: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: CheckCircle  },
   OBSERVED: { label: 'Corrected', className: 'bg-[#F97316]/10 text-[#F97316] border-[#F97316]/20', icon: PenLine   },
   REJECTED: { label: 'Rejected',  className: 'bg-red-50 text-red-700 border-red-200',             icon: XCircle     },
+  AUTO_REJECTED: { label: 'Auto-rejected', className: 'bg-red-50 text-red-700 border-red-200',     icon: XCircle     },
+  PARTIAL:  { label: 'Partial',   className: 'bg-amber-50 text-amber-700 border-amber-200',         icon: null         },
 };
 
 // â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
