@@ -280,7 +280,11 @@
   "receivable.toast.coApproveFailed": "Failed to approve change order",
   "receivable.pendingApproval.title": "Change orders pending approval",
   "receivable.pendingApproval.approve": "Approve",
+  "receivable.pendingApproval.requestCount_one": "{{count}} request",
+  "receivable.pendingApproval.requestCount_other": "{{count}} requests",
   "receivable.downloadPdf": "Download PDF",
+  "receivable.downloadFile": "Download {{name}}",
+  "receivable.generatedInvoices": "Generated Invoices",
 
   "budget.title": "Project Budgets",
   "budget.subtitle": "Manage and monitor budgets per project",

@@ -69,8 +69,8 @@ function getStockStatus(item: ConsumableItem): StockStatus {
   return 'In Stock';
 }
 
-function fmtDate(iso: string) {
-  return new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+function fmtDate(iso: string, locale: string = 'en-US') {
+  return new Date(`${iso}T00:00:00`).toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 const STATUS_KEYS: Record<StockStatus, string> = {
@@ -441,7 +441,7 @@ function AddConsumableModal({ open, onClose, onAdd }: {
         <div className="space-y-4 py-2">
           <div>
             <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide">{t('consumables.dialog.name')} *</label>
-            <Input value={name} onChange={e => setName(e.target.value)} className="mt-1 h-9 border-[#D4D4D8] text-sm" placeholder='e.g. Concrete Nails 3"' />
+            <Input value={name} onChange={e => setName(e.target.value)} className="mt-1 h-9 border-[#D4D4D8] text-sm" placeholder={t('consumables.dialog.namePlaceholder')} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -591,7 +591,7 @@ function RestockModal({ item, onClose, onRestock }: {
         <div className="space-y-4 py-2">
           <div>
             <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide">{t('consumables.dialog.quantityToAdd')} *</label>
-            <Input type="number" min={1} value={qty} onChange={e => setQty(e.target.value)} className="mt-1 h-9 border-[#D4D4D8] text-sm" placeholder="e.g. 20" />
+            <Input type="number" min={1} value={qty} onChange={e => setQty(e.target.value)} className="mt-1 h-9 border-[#D4D4D8] text-sm" placeholder={t('consumables.dialog.quantityPlaceholder')} />
           </div>
         </div>
         <DialogFooter>
@@ -609,7 +609,8 @@ function DispatchHistoryModal({ item, onClose }: {
   item: ConsumableItem;
   onClose: () => void;
 }) {
-  const { t } = useTranslation('inventory');
+  const { t, i18n } = useTranslation('inventory');
+  const dateLocale = i18n.language === 'es' ? 'es' : 'en-US';
   const [records, setRecords] = useState<DispatchResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -666,7 +667,7 @@ function DispatchHistoryModal({ item, onClose }: {
                   </div>
                   <div className="ml-2">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-medium text-[#0A0A0A]">{fmtDate(r.date)}</span>
+                      <span className="text-sm font-medium text-[#0A0A0A]">{fmtDate(r.date, dateLocale)}</span>
                       <span className="text-xs text-amber-600 font-semibold">-{r.quantity} {r.unit}</span>
                     </div>
                     <p className="text-xs text-[#71717A] mt-0.5">

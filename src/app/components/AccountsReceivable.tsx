@@ -159,6 +159,9 @@ function StatusBadge({ status }: { status: Invoice['status'] }) {
 export function AccountsReceivable() {
   const { t, i18n } = useTranslation(['finance', 'common']);
   const dateLocale = i18n.language === 'es' ? 'es' : 'en-US';
+  // Current accounting month for the "Collected this month" KPI, formatted locale-aware (e.g. "Jun 2026" / "jun 2026")
+  const collectedMonthLabel = new Date(`${currentMonth()}-01T00:00:00`)
+    .toLocaleDateString(dateLocale, { month: 'short', year: 'numeric' });
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
@@ -440,7 +443,7 @@ export function AccountsReceivable() {
               {t('finance:receivable.pendingApproval.title')}
             </span>
             <span className="ml-auto text-xs font-medium text-amber-800">
-              {pendingApprovals.length} {pendingApprovals.length === 1 ? 'request' : 'requests'}
+              {t('finance:receivable.pendingApproval.requestCount', { count: pendingApprovals.length })}
             </span>
           </div>
           <div className="divide-y divide-amber-200">
@@ -472,9 +475,9 @@ export function AccountsReceivable() {
       {/* KPI cards — computed from state */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={Receipt}        title={t('finance:receivable.kpi.totalReceivable')}     value={fmtAmount(kpis.totalReceivable)}   subtitle={t('finance:receivable.kpi.allInvoices')}                                           iconBgColor="bg-purple-50"  iconColor="text-purple-600" />
-        <StatCard icon={DollarSign}     title={t('finance:receivable.kpi.collectedThisMonth')} value={fmtAmount(kpis.collectedThisMonth)} subtitle="Feb 2026"                                                     iconBgColor="bg-emerald-50" iconColor="text-emerald-600" />
-        <StatCard icon={Clock}          title={t('finance:receivable.kpi.pending')}              value={fmtAmount(kpis.pendingTotal)}       subtitle={`${kpis.pendingCount} invoice${kpis.pendingCount !== 1 ? 's' : ''}`} iconBgColor="bg-amber-50"   iconColor="text-amber-600" />
-        <StatCard icon={AlertTriangle}  title={t('finance:receivable.kpi.overdue')}              value={fmtAmount(kpis.overdueTotal)}       subtitle={`${kpis.overdueCount} invoice${kpis.overdueCount !== 1 ? 's' : ''} · ${t('finance:receivable.kpi.actionRequired')}`} iconBgColor="bg-red-50" iconColor="text-red-600" />
+        <StatCard icon={DollarSign}     title={t('finance:receivable.kpi.collectedThisMonth')} value={fmtAmount(kpis.collectedThisMonth)} subtitle={collectedMonthLabel}                                           iconBgColor="bg-emerald-50" iconColor="text-emerald-600" />
+        <StatCard icon={Clock}          title={t('finance:receivable.kpi.pending')}              value={fmtAmount(kpis.pendingTotal)}       subtitle={t('finance:receivable.invoiceCount', { count: kpis.pendingCount })} iconBgColor="bg-amber-50"   iconColor="text-amber-600" />
+        <StatCard icon={AlertTriangle}  title={t('finance:receivable.kpi.overdue')}              value={fmtAmount(kpis.overdueTotal)}       subtitle={`${t('finance:receivable.invoiceCount', { count: kpis.overdueCount })} · ${t('finance:receivable.kpi.actionRequired')}`} iconBgColor="bg-red-50" iconColor="text-red-600" />
       </div>
 
       {/* Filter bar */}
@@ -532,7 +535,7 @@ export function AccountsReceivable() {
         <div className="flex items-center gap-2 px-6 py-4 border-b border-[#D4D4D8]">
           <Receipt className="w-4 h-4 text-[#71717A]" />
           <span className="text-sm font-semibold text-[#0A0A0A]">{t('finance:receivable.title')}</span>
-          <span className="ml-auto text-xs text-[#71717A]">{filtered.length} invoice{filtered.length !== 1 ? 's' : ''}</span>
+          <span className="ml-auto text-xs text-[#71717A]">{t('finance:receivable.invoiceCount', { count: filtered.length })}</span>
         </div>
 
         {filtered.length === 0 ? (
@@ -944,7 +947,7 @@ export function AccountsReceivable() {
         <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-3 border-b border-[#D4D4D8] bg-[#FAFAFA]">
             <FileText className="w-4 h-4 text-purple-600" />
-            <span className="text-xs font-semibold text-[#0A0A0A]">Generated Invoices</span>
+            <span className="text-xs font-semibold text-[#0A0A0A]">{t('finance:receivable.generatedInvoices')}</span>
             <span className="ml-auto text-[10px] text-[#71717A]">{generatedPdfs.length}</span>
           </div>
           <div className="divide-y divide-[#D4D4D8]/50 max-h-[70vh] overflow-y-auto">
@@ -963,7 +966,7 @@ export function AccountsReceivable() {
                   <button
                     onClick={() => handleDownloadPdf(pdf)}
                     className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-purple-600 hover:bg-purple-50 transition-colors flex-shrink-0"
-                    title={`Download ${pdf.filename}`}
+                    title={t('finance:receivable.downloadFile', { name: pdf.filename })}
                   >
                     <Download className="w-3 h-3" />
                     PDF
