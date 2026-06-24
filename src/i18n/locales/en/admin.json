@@ -1154,7 +1154,7 @@
   "projectDetails.field.client": "Client",
   "projectDetails.field.costCode": "Cost code",
   "projectDetails.field.originalContract": "Original contract",
-  "projectDetails.field.remainingBudget": "Remaining budget",
+  "projectDetails.field.remainingBudget": "Contract balance",
   "projectDetails.field.address": "Address",
   "projectDetails.field.location": "Location",
   "projectDetails.field.geofence": "Geofence",
