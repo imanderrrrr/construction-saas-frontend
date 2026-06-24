@@ -498,13 +498,23 @@ export function confirmPayment(request: ConfirmPaymentRequest): Promise<ConfirmP
 }
 
 /** Get payment history with optional filters. */
-export function getPaymentHistory(params?: {
+export async function getPaymentHistory(params?: {
   workerId?: number;
   projectId?: number;
 }): Promise<LaborPaymentResponse[]> {
   const qs = new URLSearchParams();
   if (params?.workerId) qs.set('workerId', String(params.workerId));
   if (params?.projectId) qs.set('projectId', String(params.projectId));
-  const query = qs.toString();
-  return api<LaborPaymentResponse[]>(`/api/v1/admin/payroll/history${query ? `?${query}` : ''}`);
+  // Backend changed this endpoint from a bare list to a Spring
+  // `Page<LaborPaymentResponse>` ({ content, totalElements, totalPages, … }).
+  // The history modal shows the full (filtered) list with no page controls, so
+  // request a single large page and unwrap `.content` to preserve the previous
+  // "show all" behaviour — otherwise Spring's default page size (20) would
+  // silently truncate the history. Mirrors the size-based "fetch all" idiom
+  // already used elsewhere (e.g. SupervisorApprovals, users service).
+  qs.set('size', '1000');
+  const page = await api<PageResponse<LaborPaymentResponse>>(
+    `/api/v1/admin/payroll/history?${qs.toString()}`,
+  );
+  return page.content;
 }
