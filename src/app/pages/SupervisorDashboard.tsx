@@ -8,10 +8,11 @@ import {
   ReceiptText, Wrench, CalendarClock,
   Clock, Receipt, Users, Bell, Activity,
   Building2, Loader2, Inbox, CheckCheck, Mail, MailOpen,
-  MapPin, ChevronRight, AlertCircle, RefreshCw,
+  MapPin, ChevronRight, AlertCircle, RefreshCw, NotebookPen,
 } from 'lucide-react';
 import { AppShell, AppShellNavItem } from '../components/AppShell';
 import { AuthService } from '../services/auth';
+import { useSiteLogFeature } from '../hooks/useSiteLogFeature';
 import { Toaster } from '../components/ui/sonner';
 import { toast } from 'sonner';
 import { getSupervisorOutOfRangeAlerts, getSupervisorDashboard, getSupervisorTimeRecords, type OutOfRangeAlertResponse, type SupervisorDashboardResponse, type TimeRecordResponse } from '../services/time';
@@ -36,15 +37,19 @@ const SupervisorTaskBoard = lazy(() =>
 const TeamTools = lazy(() =>
   import('../components/TeamTools').then(m => ({ default: m.TeamTools }))
 );
+const SupervisorSiteLog = lazy(() =>
+  import('../components/sitelog/SupervisorSiteLogSection').then(m => ({ default: m.SupervisorSiteLogSection }))
+);
 
 // ——— Types & config ——————————————————————————————————————————————————
 
-type Section = 'dashboard' | 'projects' | 'task-board' | 'time-approvals' | 'expense-reviews' | 'team-tools';
+type Section = 'dashboard' | 'projects' | 'task-board' | 'site-log' | 'time-approvals' | 'expense-reviews' | 'team-tools';
 
 const SECTION_META_KEYS: Record<Section, { titleKey: string; subtitleKey: string }> = {
   'dashboard':       { titleKey: 'supervisor:section.dashboard.title',       subtitleKey: 'supervisor:section.dashboard.subtitle'       },
   'projects':        { titleKey: 'supervisor:section.projects.title',        subtitleKey: 'supervisor:section.projects.subtitle'        },
   'task-board':      { titleKey: 'supervisor:section.taskBoard.title',       subtitleKey: 'supervisor:section.taskBoard.subtitle'       },
+  'site-log':        { titleKey: 'siteLog:section.title',                    subtitleKey: 'siteLog:section.subtitle'                    },
   'time-approvals':  { titleKey: 'supervisor:section.timeApprovals.title',   subtitleKey: 'supervisor:section.timeApprovals.subtitle'   },
   'expense-reviews': { titleKey: 'supervisor:section.expenseReviews.title',  subtitleKey: 'supervisor:section.expenseReviews.subtitle'  },
   'team-tools':      { titleKey: 'supervisor:section.teamTools.title',       subtitleKey: 'supervisor:section.teamTools.subtitle'       },
@@ -73,17 +78,28 @@ export function SupervisorDashboard() {
   const { t } = useTranslation(['supervisor', 'common']);
   const username = AuthService.getUsername() ?? 'supervisor1';
   const [active, setActive] = useState<Section>('dashboard');
+  // Bitácora de obra is gated behind the `bitacora` plan feature — hide its nav
+  // entry (and section) entirely when the tenant's plan does not include it.
+  const { enabled: siteLogEnabled } = useSiteLogFeature();
 
   const handleLogout = () => { document.cookie = 'ofjr_session=; Path=/; Max-Age=0'; navigate('/'); AuthService.logout(); };
 
-  const navItems: AppShellNavItem[] = useMemo(() => [
-    { key: 'dashboard',       label: t('supervisor:nav.dashboard'),       icon: LayoutDashboard, group: 'general'  },
-    { key: 'projects',        label: t('supervisor:nav.projects'),        icon: FolderKanban,    group: 'general'  },
-    { key: 'task-board',      label: t('supervisor:nav.taskBoard'),       icon: CalendarClock,   group: 'general'  },
-    { key: 'time-approvals',  label: t('supervisor:nav.timeApprovals'),   icon: ClipboardCheck,  group: 'time'     },
-    { key: 'expense-reviews', label: t('supervisor:nav.expenseReviews'),  icon: ReceiptText,     group: 'expenses' },
-    { key: 'team-tools',      label: t('supervisor:nav.teamTools'),       icon: Wrench,          group: 'tools'    },
-  ], [t]);
+  const navItems: AppShellNavItem[] = useMemo(() => {
+    const items: AppShellNavItem[] = [
+      { key: 'dashboard',       label: t('supervisor:nav.dashboard'),       icon: LayoutDashboard, group: 'general'  },
+      { key: 'projects',        label: t('supervisor:nav.projects'),        icon: FolderKanban,    group: 'general'  },
+      { key: 'task-board',      label: t('supervisor:nav.taskBoard'),       icon: CalendarClock,   group: 'general'  },
+    ];
+    if (siteLogEnabled) {
+      items.push({ key: 'site-log', label: t('siteLog:nav.bitacora'), icon: NotebookPen, group: 'general' });
+    }
+    items.push(
+      { key: 'time-approvals',  label: t('supervisor:nav.timeApprovals'),   icon: ClipboardCheck,  group: 'time'     },
+      { key: 'expense-reviews', label: t('supervisor:nav.expenseReviews'),  icon: ReceiptText,     group: 'expenses' },
+      { key: 'team-tools',      label: t('supervisor:nav.teamTools'),       icon: Wrench,          group: 'tools'    },
+    );
+    return items;
+  }, [t, siteLogEnabled]);
 
   const navGroups = useMemo(() => [
     { key: 'general',  label: t('supervisor:group.general')  },
@@ -112,6 +128,7 @@ export function SupervisorDashboard() {
           {active === 'dashboard'       && <SupervisorDashboardContent username={username} onNavigate={s => setActive(s as Section)} />}
           {active === 'projects'        && <SupervisorProjects />}
           {active === 'task-board'      && <SupervisorTaskBoard />}
+          {active === 'site-log'        && siteLogEnabled && <SupervisorSiteLog />}
           {active === 'time-approvals'  && <SupervisorApprovals mode="supervisor" />}
           {active === 'expense-reviews' && <ExpenseReviews />}
           {active === 'team-tools'      && <TeamTools />}

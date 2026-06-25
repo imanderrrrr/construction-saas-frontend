@@ -19,6 +19,7 @@ import enSubcontractors from './locales/en/subcontractors.json';
 import enPricing from './locales/en/pricing.json';
 import enLanding from './locales/en/landing.json';
 import enBilling from './locales/en/billing.json';
+import enSiteLog from './locales/en/siteLog.json';
 
 // Spanish
 import esCommon from './locales/es/common.json';
@@ -37,8 +38,9 @@ import esSubcontractors from './locales/es/subcontractors.json';
 import esPricing from './locales/es/pricing.json';
 import esLanding from './locales/es/landing.json';
 import esBilling from './locales/es/billing.json';
+import esSiteLog from './locales/es/siteLog.json';
 
-const ns = ['common', 'auth', 'admin', 'expenses', 'finance', 'projects', 'time', 'inventory', 'users', 'dashboard', 'worker', 'supervisor', 'subcontractors', 'pricing', 'landing', 'billing'] as const;
+const ns = ['common', 'auth', 'admin', 'expenses', 'finance', 'projects', 'time', 'inventory', 'users', 'dashboard', 'worker', 'supervisor', 'subcontractors', 'pricing', 'landing', 'billing', 'siteLog'] as const;
 
 i18n
   .use(LanguageDetector)
@@ -62,6 +64,7 @@ i18n
         pricing: enPricing,
         landing: enLanding,
         billing: enBilling,
+        siteLog: enSiteLog,
       },
       es: {
         common: esCommon,
@@ -80,6 +83,7 @@ i18n
         pricing: esPricing,
         landing: esLanding,
         billing: esBilling,
+        siteLog: esSiteLog,
       },
     },
     fallbackLng: 'es',
