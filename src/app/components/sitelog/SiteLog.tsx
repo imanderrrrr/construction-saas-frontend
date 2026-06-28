@@ -191,6 +191,14 @@ export function SiteLog({ projects, canEdit }: SiteLogProps) {
     return () => { cancelled = true; };
   }, [projectId, date, refreshKey, buildDraft, t]);
 
+  // Async mutations (save/upload/delete) can resolve after the user has switched
+  // project/date; applying their result would clobber the freshly-loaded view.
+  // `selectionRef` always holds the active selection so a handler can skip its
+  // setLog/setDraft when the selection moved on — mirroring loadDay's `cancelled`.
+  const selectionKey = `${projectId}|${date}`;
+  const selectionRef = useRef(selectionKey);
+  useEffect(() => { selectionRef.current = selectionKey; }, [selectionKey]);
+
   // ──────────────────────────── draft mutations ────────────────────────────
 
   function patchDraft(patch: Partial<Draft>) {
@@ -274,12 +282,17 @@ export function SiteLog({ projects, canEdit }: SiteLogProps) {
 
   async function handleSave(status: SiteLogStatus): Promise<SiteLogResponse | null> {
     if (projectId == null) return null;
+    const forSelection = selectionKey;
     setSaving(true);
     try {
       const saved = await saveSiteLog(projectId, buildPayload(status));
-      setLog(saved);
-      setDraft(buildDraft(saved, suggestion));
-      setDirty(false);
+      // If the user switched project/date during the save, skip the state updates
+      // (the save still succeeded server-side) so we don't clobber the new view.
+      if (selectionRef.current === forSelection) {
+        setLog(saved);
+        setDraft(buildDraft(saved, suggestion));
+        setDirty(false);
+      }
       toast.success(status === 'PUBLISHED' ? t('siteLog:toast.published') : t('siteLog:toast.saved'));
       return saved;
     } catch (err) {
@@ -293,16 +306,18 @@ export function SiteLog({ projects, canEdit }: SiteLogProps) {
   async function handlePhotoFiles(files: FileList | null) {
     if (!files || files.length === 0 || !log) return;
     const siteLogId = log.id;
+    const forSelection = selectionKey;
     setUploading(true);
     let uploaded = 0;
     try {
       for (const file of Array.from(files)) {
         if (!file.type.startsWith('image/')) { toast.error(t('siteLog:photos.invalidType')); continue; }
         if (file.size > MAX_PHOTO_BYTES) { toast.error(t('siteLog:photos.tooLarge')); continue; }
-        // Commit each successful upload to state immediately so a later failure
-        // in the batch can't discard photos the backend already persisted.
+        // Commit each successful upload to state immediately so a later failure in
+        // the batch can't discard photos the backend already persisted — but only
+        // while this is still the active selection (don't clobber a project switch).
         const updated = await uploadSiteLogPhoto(siteLogId, file);
-        setLog(updated);
+        if (selectionRef.current === forSelection) setLog(updated);
         uploaded += 1;
       }
       if (uploaded > 0) toast.success(t('siteLog:toast.photoUploaded'));
@@ -316,15 +331,20 @@ export function SiteLog({ projects, canEdit }: SiteLogProps) {
 
   async function handleDeletePhoto(photoId: number) {
     if (!log) return;
+    const forSelection = selectionKey;
+    const target = log;
     try {
-      await deleteSiteLogPhoto(log.id, photoId);
-      const remaining = log.photos.filter((p) => p.id !== photoId);
-      setLog({ ...log, photos: remaining });
-      setLightboxIndex((idx) => {
-        if (idx == null) return null;
-        if (remaining.length === 0) return null;
-        return Math.min(idx, remaining.length - 1);
-      });
+      await deleteSiteLogPhoto(target.id, photoId);
+      const remaining = target.photos.filter((p) => p.id !== photoId);
+      // Don't clobber a fresh selection if the user switched during the delete.
+      if (selectionRef.current === forSelection) {
+        setLog({ ...target, photos: remaining });
+        setLightboxIndex((idx) => {
+          if (idx == null) return null;
+          if (remaining.length === 0) return null;
+          return Math.min(idx, remaining.length - 1);
+        });
+      }
       toast.success(t('siteLog:toast.photoDeleted'));
     } catch (err) {
       toast.error(t('siteLog:toast.photoDeleteError'), { description: err instanceof ApiError ? err.message : undefined });
@@ -371,6 +391,7 @@ export function SiteLog({ projects, canEdit }: SiteLogProps) {
         canEdit={canEdit}
         showActions={view === 'day' && log != null}
         saving={saving}
+        busy={saving || uploading}
         onSaveDraft={() => handleSave('DRAFT')}
         onPublish={() => handleSave('PUBLISHED')}
       />
@@ -686,7 +707,7 @@ function emptyDraft(): Draft {
 
 function Header({
   t, projects, projectId, onProjectChange, date, onDateChange, residentName, status,
-  dirty, canEdit, showActions, saving, onSaveDraft, onPublish,
+  dirty, canEdit, showActions, saving, busy, onSaveDraft, onPublish,
 }: {
   t: TFn;
   projects: { id: number; name: string }[];
@@ -700,6 +721,7 @@ function Header({
   canEdit: boolean;
   showActions: boolean;
   saving: boolean;
+  busy: boolean;
   onSaveDraft: () => void;
   onPublish: () => void;
 }) {
@@ -711,7 +733,7 @@ function Header({
           <select
             className={inputCls}
             value={projectId ?? ''}
-            disabled={projects.length === 0}
+            disabled={projects.length === 0 || busy}
             onChange={(e) => onProjectChange(Number(e.target.value))}
           >
             {projects.length === 0 && <option value="">{t('siteLog:header.noProjects')}</option>}
@@ -728,6 +750,7 @@ function Header({
               type="date"
               className={cn(inputCls, 'pl-9')}
               value={date}
+              disabled={busy}
               onChange={(e) => onDateChange(e.target.value)}
             />
           </div>
