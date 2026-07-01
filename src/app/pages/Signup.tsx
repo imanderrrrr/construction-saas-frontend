@@ -81,6 +81,7 @@ type SignupBillingInterval = 'MONTHLY' | 'ANNUAL';
 interface SignupPlanIntent {
   plan: SignupPlanCode;
   interval: SignupBillingInterval;
+  startTrial: boolean;
 }
 
 function parseSignupPlanIntent(searchParams: URLSearchParams): SignupPlanIntent | null {
@@ -88,9 +89,13 @@ function parseSignupPlanIntent(searchParams: URLSearchParams): SignupPlanIntent 
   if (plan !== 'PRO' && plan !== 'BUSINESS') return null;
 
   const interval = searchParams.get('interval');
+  // Trial is the default; only an explicit `trial=false` ("Pagar ahora")
+  // from the plan chooser opts out of the 14-day free trial.
+  const startTrial = searchParams.get('trial') !== 'false';
   return {
     plan,
     interval: interval === 'ANNUAL' ? 'ANNUAL' : 'MONTHLY',
+    startTrial,
   };
 }
 
@@ -205,6 +210,7 @@ export function Signup() {
       adminEmail: data.adminEmail,
       planCode: selectedPlan.plan,
       billingInterval: selectedPlan.interval,
+      startTrial: selectedPlan.startTrial,
     };
 
     try {

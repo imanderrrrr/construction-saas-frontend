@@ -53,6 +53,7 @@ describe('SignupService', () => {
       adminEmail: 'u@co.test',
       planCode: 'PRO',
       billingInterval: 'MONTHLY',
+      startTrial: false,
     });
 
     expect(apiMock).toHaveBeenCalledTimes(1);
@@ -67,6 +68,8 @@ describe('SignupService', () => {
     expect(body).not.toHaveProperty('tenantId');
     expect(body.planCode).toBe('PRO');
     expect(body.adminPassword).toBe('pw12345678');
+    // The trial choice ("Pagar ahora" => false) must reach the backend.
+    expect(body.startTrial).toBe(false);
   });
 
   it('completeSignup posts only the signupIntentId', async () => {

@@ -192,12 +192,28 @@ describe('Signup pre-payment flow', () => {
       adminPassword: 'password123',
       planCode: 'PRO',
       billingInterval: 'ANNUAL',
+      // No `trial` in the URL defaults to the free trial.
+      startTrial: true,
     });
     // It MUST NOT carry priceId, amount, currency, tenantId, etc.
     expect(payload).not.toHaveProperty('priceId');
     expect(payload).not.toHaveProperty('amount');
     expect(payload).not.toHaveProperty('currency');
     expect(payload).not.toHaveProperty('tenantId');
+  });
+
+  it('forwards the "Pagar ahora" choice (trial=false) to the checkout payload', async () => {
+    // Regression guard: the plan chooser sends trial=false in the URL, and
+    // it MUST reach the backend (previously it was silently dropped here).
+    mocks.searchParams = new URLSearchParams('plan=PRO&interval=ANNUAL&trial=false');
+
+    await renderSignup(root);
+    await fillValidSignupForm(container);
+    await submit(container);
+
+    expect(mocks.createCheckoutIntent).toHaveBeenCalledTimes(1);
+    const payload = mocks.createCheckoutIntent.mock.calls[0][0];
+    expect(payload.startTrial).toBe(false);
   });
 
   it('persists the signupIntentId and opens Paddle on success', async () => {
