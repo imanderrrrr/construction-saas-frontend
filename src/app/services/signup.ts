@@ -30,6 +30,8 @@ export interface SignupCheckoutPayload {
   adminEmail: string;
   planCode: SignupPlanCode;
   billingInterval: SignupBillingInterval;
+  /** true = start the 14-day free trial; false = charge immediately. */
+  startTrial: boolean;
 }
 
 /** Mirrors the backend `SignupCheckoutResponse`. */

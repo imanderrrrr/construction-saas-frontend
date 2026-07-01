@@ -20,14 +20,16 @@
 // the tenant + admin so the customer can sign in. BillingGuard handles
 // the moment the webhook confirms / rejects the subscription.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ComponentType } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowRight,
   CheckCircle2,
+  Circle,
   HardHat,
   Loader2,
+  Mail,
   AlertCircle,
 } from 'lucide-react';
 
@@ -42,16 +44,36 @@ import {
 
 function BuildTrackLogo({ className = '' }: { className?: string }) {
   return (
-    <span
-      className={`inline-flex items-center gap-2 font-semibold tracking-tight ${className}`}
-    >
-      <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-[#F97316] text-white">
-        <HardHat className="w-5 h-5" aria-hidden="true" />
+    <span className={`inline-flex items-center gap-2 font-bold tracking-tight ${className}`}>
+      <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#F97316] text-white">
+        <HardHat className="h-5 w-5" aria-hidden="true" />
       </span>
       <span>
         Build<span className="text-[#F97316]">Track</span>
       </span>
     </span>
+  );
+}
+
+// One row of the activation stepper shown while completing.
+function Step({
+  icon: Icon,
+  iconClass,
+  spin = false,
+  label,
+  labelClass,
+}: {
+  icon: ComponentType<{ className?: string }>;
+  iconClass: string;
+  spin?: boolean;
+  label: string;
+  labelClass: string;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <Icon className={`h-5 w-5 flex-shrink-0 ${iconClass} ${spin ? 'animate-spin' : ''}`} aria-hidden="true" />
+      <span className={`text-[15px] ${labelClass}`}>{label}</span>
+    </div>
   );
 }
 
@@ -107,8 +129,7 @@ export function CheckoutSuccess() {
         }
         if (
           err instanceof ApiError &&
-          (err.code === 'SIGNUP_INTENT_FAILED' ||
-            err.code === 'SIGNUP_PAYMENT_FAILED')
+          (err.code === 'SIGNUP_INTENT_FAILED' || err.code === 'SIGNUP_PAYMENT_FAILED')
         ) {
           clearSignupIntent();
           setState({ status: 'failed', reason: 'failed' });
@@ -116,8 +137,7 @@ export function CheckoutSuccess() {
         }
         if (
           err instanceof ApiError &&
-          (err.code === 'SIGNUP_PAYMENT_NOT_CONFIRMED' ||
-            err.code === 'SIGNUP_INTENT_NOT_PAID')
+          (err.code === 'SIGNUP_PAYMENT_NOT_CONFIRMED' || err.code === 'SIGNUP_INTENT_NOT_PAID')
         ) {
           setState({ status: 'waiting' });
           return;
@@ -130,158 +150,98 @@ export function CheckoutSuccess() {
   }, [navigate]);
 
   return (
-    <div className="min-h-screen bg-white text-[#0A0A0A] flex flex-col">
-      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-[#F4F4F5]">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <BuildTrackLogo className="text-lg" />
-          <nav className="flex items-center gap-3">
-            <LanguageSwitcher />
-          </nav>
-        </div>
-      </header>
+    <div className="relative flex min-h-screen flex-col items-center justify-center bg-[#F4F4F5] px-4 py-12 font-sans text-[#0A0A0A]">
+      <div className="absolute right-5 top-5">
+        <LanguageSwitcher />
+      </div>
 
-      <main className="flex-1 relative overflow-hidden flex items-center">
-        <div className="absolute inset-0 -z-10">
-          <div className="absolute -top-40 -right-32 w-[28rem] h-[28rem] rounded-full bg-[#F97316]/10 blur-3xl" />
-          <div className="absolute -bottom-40 -left-32 w-[28rem] h-[28rem] rounded-full bg-[#0A0A0A]/5 blur-3xl" />
-        </div>
+      <Link to="/" className="mb-7" aria-label="BuildTrack">
+        <BuildTrackLogo className="text-lg" />
+      </Link>
 
-        <div className="max-w-3xl mx-auto px-6 py-20 w-full">
-          {state.status === 'completing' && (
-            <div
-              role="status"
-              data-testid="signup-completing"
-              className="rounded-2xl bg-[#0A0A0A] text-white p-8 sm:p-10"
-            >
-              <div className="flex flex-col items-start gap-6">
-                <span className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#F97316]/15 text-[#F97316]">
-                  <Loader2 className="w-7 h-7 animate-spin" aria-hidden="true" />
-                </span>
-                <div>
-                  <p className="text-xs font-semibold tracking-widest text-[#F97316] uppercase mb-3">
-                    BuildTrack
-                  </p>
-                  <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight leading-tight mb-4">
-                    {t('success.completing.title')}
-                  </h1>
-                  <p className="text-sm sm:text-base text-white/80 leading-relaxed">
-                    {t('success.completing.body')}
-                  </p>
-                </div>
-              </div>
+      <div className="w-full max-w-[520px] rounded-2xl border border-[#D4D4D8] bg-white p-10 shadow-[0_10px_30px_rgba(10,10,10,0.07)]">
+        {/* Completing — "procesando tu pago" */}
+        {state.status === 'completing' && (
+          <div role="status" data-testid="signup-completing" className="flex flex-col items-center text-center">
+            <Loader2 className="h-14 w-14 animate-spin text-[#F97316]" aria-hidden="true" />
+            <h1 className="mt-5 text-[25px] font-bold leading-tight">{t('success.completing.title')}</h1>
+            <p className="mt-2 max-w-[380px] text-[15px] leading-relaxed text-[#71717A]">
+              {t('success.completing.body')}
+            </p>
+            <div className="mt-7 space-y-3.5 text-left">
+              <Step icon={CheckCircle2} iconClass="text-[#16A34A]" label={t('success.steps.paid', 'Pago confirmado')} labelClass="font-medium text-[#0A0A0A]" />
+              <Step icon={Loader2} spin iconClass="text-[#F97316]" label={t('success.steps.activating', 'Activando tu cuenta')} labelClass="font-semibold text-[#0A0A0A]" />
+              <Step icon={Circle} iconClass="text-[#71717A]" label={t('success.steps.ready', 'Listo para entrar')} labelClass="text-[#71717A]" />
             </div>
-          )}
+            <p className="mt-7 flex items-center gap-2 text-[13px] text-[#71717A]">
+              <Mail className="h-4 w-4" aria-hidden="true" />
+              {t('success.emailNote', 'Te enviaremos la confirmación a tu correo.')}
+            </p>
+          </div>
+        )}
 
-          {state.status === 'waiting' && (
-            <div
-              role="status"
-              data-testid="signup-waiting"
-              className="rounded-2xl border border-amber-200 bg-amber-50 p-8 sm:p-10"
+        {/* Waiting — payment not yet confirmed */}
+        {state.status === 'waiting' && (
+          <div role="status" data-testid="signup-waiting" className="flex flex-col items-center text-center">
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+              <Loader2 className="h-7 w-7 animate-spin" aria-hidden="true" />
+            </span>
+            <h1 className="mt-5 text-[25px] font-bold leading-tight">{t('success.waiting.title')}</h1>
+            <p className="mt-2 max-w-[380px] text-[15px] leading-relaxed text-[#71717A]">{t('success.waiting.body')}</p>
+            <Button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="mt-7 h-12 bg-[#F97316] px-7 text-base text-white hover:bg-[#C2410C]"
             >
-              <div className="flex flex-col items-start gap-6">
-                <span className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-amber-100 text-amber-700">
-                  <Loader2 className="w-7 h-7 animate-spin" aria-hidden="true" />
-                </span>
-                <div>
-                  <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight leading-tight text-amber-950 mb-4">
-                    {t('success.waiting.title')}
-                  </h1>
-                  <p className="text-sm sm:text-base text-amber-900 leading-relaxed">
-                    {t('success.waiting.body')}
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  onClick={() => window.location.reload()}
-                  className="h-12 px-7 text-base bg-[#F97316] hover:bg-[#C2410C] text-white"
-                >
-                  {t('success.waiting.cta.refresh')}
+              {t('success.waiting.cta.refresh')}
+            </Button>
+          </div>
+        )}
+
+        {/* Completed / idle — success */}
+        {(state.status === 'idle' || state.status === 'completed') && (
+          <div data-testid="signup-success" className="flex flex-col items-center text-center">
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#E7F6EC] text-[#16A34A]">
+              <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
+            </span>
+            <h1 className="mt-5 text-[25px] font-bold leading-tight">{t('success.title')}</h1>
+            <p className="mt-2 max-w-[400px] text-[15px] leading-relaxed text-[#71717A]">{t('success.body')}</p>
+            <p className="mt-2 max-w-[400px] text-[13px] leading-relaxed text-[#71717A]">{t('success.note')}</p>
+            <Link to="/admin/dashboard" className="mt-7">
+              <Button className="h-12 bg-[#F97316] px-7 text-base text-white hover:bg-[#C2410C]">
+                {t('success.cta.dashboard')}
+                <ArrowRight className="ml-1 h-4 w-4" aria-hidden="true" />
+              </Button>
+            </Link>
+          </div>
+        )}
+
+        {/* Failed */}
+        {state.status === 'failed' && (
+          <div role="alert" data-testid="signup-failed" data-reason={state.reason} className="flex flex-col items-center text-center">
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-red-100 text-red-600">
+              <AlertCircle className="h-7 w-7" aria-hidden="true" />
+            </span>
+            <h1 className="mt-5 text-[25px] font-bold leading-tight">{t(`success.failed.${state.reason}.title`)}</h1>
+            <p className="mt-2 max-w-[400px] text-[15px] leading-relaxed text-[#71717A]">
+              {t(`success.failed.${state.reason}.body`)}
+            </p>
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+              <Link to="/#pricing">
+                <Button className="h-12 bg-[#F97316] px-7 text-base text-white hover:bg-[#C2410C]">
+                  {t('success.failed.cta.restart')}
+                  <ArrowRight className="ml-1 h-4 w-4" aria-hidden="true" />
                 </Button>
-              </div>
+              </Link>
+              <Link to="/">
+                <Button variant="outline" className="h-12 border-[#0A0A0A] px-7 text-base text-[#0A0A0A] hover:bg-[#0A0A0A] hover:text-white">
+                  {t('success.failed.cta.home')}
+                </Button>
+              </Link>
             </div>
-          )}
-
-          {(state.status === 'idle' || state.status === 'completed') && (
-            <div
-              data-testid="signup-success"
-              className="rounded-2xl bg-[#0A0A0A] text-white p-8 sm:p-10"
-            >
-              <div className="flex flex-col items-start gap-6">
-                <span className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#F97316]/15 text-[#F97316]">
-                  <CheckCircle2 className="w-7 h-7" aria-hidden="true" />
-                </span>
-
-                <div>
-                  <p className="text-xs font-semibold tracking-widest text-[#F97316] uppercase mb-3">
-                    BuildTrack
-                  </p>
-                  <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight leading-tight mb-4">
-                    {t('success.title')}
-                  </h1>
-                  <p className="text-sm sm:text-base text-white/80 leading-relaxed">
-                    {t('success.body')}
-                  </p>
-                  <p className="text-xs sm:text-sm text-white/60 mt-3 leading-relaxed">
-                    {t('success.note')}
-                  </p>
-                </div>
-
-                <Link to="/admin/dashboard" className="mt-2">
-                  <Button className="h-12 px-7 text-base bg-[#F97316] hover:bg-[#C2410C] text-white">
-                    {t('success.cta.dashboard')}
-                    <ArrowRight className="w-4 h-4 ml-1" aria-hidden="true" />
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          )}
-
-          {state.status === 'failed' && (
-            <div
-              role="alert"
-              data-testid="signup-failed"
-              data-reason={state.reason}
-              className="rounded-2xl border border-red-200 bg-red-50 p-8 sm:p-10"
-            >
-              <div className="flex flex-col items-start gap-6">
-                <span className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-red-100 text-red-600">
-                  <AlertCircle className="w-7 h-7" aria-hidden="true" />
-                </span>
-                <div>
-                  <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight leading-tight text-red-900 mb-4">
-                    {t(`success.failed.${state.reason}.title`)}
-                  </h1>
-                  <p className="text-sm sm:text-base text-red-800 leading-relaxed">
-                    {t(`success.failed.${state.reason}.body`)}
-                  </p>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <Link to="/#pricing">
-                    <Button className="h-12 px-7 text-base bg-[#F97316] hover:bg-[#C2410C] text-white">
-                      {t('success.failed.cta.restart')}
-                      <ArrowRight className="w-4 h-4 ml-1" aria-hidden="true" />
-                    </Button>
-                  </Link>
-                  <Link to="/">
-                    <Button
-                      variant="outline"
-                      className="h-12 px-7 text-base border-[#0A0A0A] text-[#0A0A0A] hover:bg-[#0A0A0A] hover:text-white"
-                    >
-                      {t('success.failed.cta.home')}
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </main>
-
-      <footer className="py-8 border-t border-[#F4F4F5]">
-        <div className="max-w-6xl mx-auto px-6 flex items-center justify-center">
-          <BuildTrackLogo className="text-base" />
-        </div>
-      </footer>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

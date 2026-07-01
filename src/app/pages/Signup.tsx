@@ -11,7 +11,7 @@
 // The legacy `/auth/signup` path is intentionally NOT used here. It still
 // exists for tests and any internal flow that doesn't go through Paddle.
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
@@ -32,6 +32,9 @@ import {
   HardHat,
   Loader2,
   ArrowRight,
+  ArrowLeft,
+  Check,
+  ChevronRight,
   Eye,
   EyeOff,
 } from 'lucide-react';
@@ -78,6 +81,7 @@ type SignupBillingInterval = 'MONTHLY' | 'ANNUAL';
 interface SignupPlanIntent {
   plan: SignupPlanCode;
   interval: SignupBillingInterval;
+  startTrial: boolean;
 }
 
 function parseSignupPlanIntent(searchParams: URLSearchParams): SignupPlanIntent | null {
@@ -85,9 +89,13 @@ function parseSignupPlanIntent(searchParams: URLSearchParams): SignupPlanIntent 
   if (plan !== 'PRO' && plan !== 'BUSINESS') return null;
 
   const interval = searchParams.get('interval');
+  // Trial is the default; only an explicit `trial=false` ("Pagar ahora")
+  // from the plan chooser opts out of the 14-day free trial.
+  const startTrial = searchParams.get('trial') !== 'false';
   return {
     plan,
     interval: interval === 'ANNUAL' ? 'ANNUAL' : 'MONTHLY',
+    startTrial,
   };
 }
 
@@ -202,6 +210,7 @@ export function Signup() {
       adminEmail: data.adminEmail,
       planCode: selectedPlan.plan,
       billingInterval: selectedPlan.interval,
+      startTrial: selectedPlan.startTrial,
     };
 
     try {
@@ -250,96 +259,133 @@ export function Signup() {
     }
   };
 
+  const planName = selectedPlan ? t(`signup.selectedPlan.plan.${selectedPlan.plan}`) : '';
+  const intervalName = selectedPlan ? t(`signup.selectedPlan.interval.${selectedPlan.interval}`) : '';
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#FAFAFA] to-[#D4D4D8] px-4 py-8">
-      <div className="w-full max-w-xl">
-        {/* Language switcher */}
-        <div className="flex justify-end mb-4">
-          <LanguageSwitcher />
-        </div>
-
-        {/* Brand header */}
-        <div className="text-center mb-8">
+    <div className="flex min-h-screen bg-white font-sans text-[#0A0A0A]">
+      {/* Left brand panel (desktop) */}
+      <aside className="hidden w-[44%] max-w-[560px] flex-col justify-between bg-[#0A0A0A] p-14 lg:flex">
+        <div>
           <Link
-            to="/"
-            className="inline-flex items-center justify-center w-16 h-16 bg-[#F97316] rounded-xl mb-4 shadow-lg shadow-[#F97316]/25 transition-transform hover:scale-105"
-            aria-label="BuildTrack home"
+            to="/choose-plan"
+            className="inline-flex items-center gap-2 text-sm font-medium text-[#A1A1AA] transition hover:text-white"
           >
-            <HardHat className="w-8 h-8 text-white" />
+            <ArrowLeft className="h-[18px] w-[18px]" />
+            {t('signup.back', 'Volver')}
           </Link>
-          <h1 className="text-3xl font-bold text-[#0A0A0A] mb-2">
-            {t('signup.title')}
-          </h1>
-          <p className="text-[#71717A]">{t('signup.subtitle')}</p>
+
+          <Link to="/" className="mt-10 flex w-fit items-center gap-2.5" aria-label="BuildTrack">
+            <span className="flex h-[30px] w-[30px] items-center justify-center rounded-lg bg-[#F97316]">
+              <HardHat className="h-[18px] w-[18px] text-white" />
+            </span>
+            <span className="text-xl font-bold text-white">BuildTrack</span>
+          </Link>
+
+          <p className="mt-10 text-xs font-semibold tracking-widest text-[#F97316]">GESTIÓN DE CONSTRUCCIÓN</p>
+          <h2 className="mt-4 max-w-[400px] text-[38px] font-bold leading-[1.1] text-white">
+            Toda tu obra, en un solo lugar.
+          </h2>
+          <p className="mt-4 max-w-[400px] text-[15px] leading-relaxed text-[#A1A1AA]">
+            Desde la bitácora diaria hasta las finanzas. Menos papeleo, más control de tu operación.
+          </p>
+
+          <ul className="mt-9 space-y-3.5">
+            {['Bitácora de obra diaria', 'Control de tiempo con GPS', 'Almacén, gastos y finanzas', 'Reportes en PDF y Excel'].map((f) => (
+              <li key={f} className="flex items-center gap-2.5 text-[15px] text-white">
+                <Check className="h-[18px] w-[18px] flex-shrink-0 text-[#F97316]" />
+                {f}
+              </li>
+            ))}
+          </ul>
         </div>
 
-        {/* Card */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 border border-[#D4D4D8]/50">
-          {error && (
-            <AlertDestructive
-              title={t(`signup.error.${error}.title`)}
-              message={t(`signup.error.${error}.message`)}
-            />
-          )}
+        {selectedPlan && (
+          <div className="rounded-xl border border-white/15 bg-white/[0.06] p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-semibold tracking-wide text-[#A1A1AA]">
+                {t('signup.selectedPlan.title')}
+              </p>
+              <Link to="/choose-plan" className="inline-flex items-center gap-0.5 text-xs font-semibold text-[#F97316] hover:underline">
+                {t('signup.selectedPlan.change', 'Cambiar')}
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+            <p className="mt-1.5 text-base font-semibold text-white">
+              {planName} · {intervalName}
+            </p>
+            <p className="mt-1.5 text-[13px] text-[#A1A1AA]">{t('signup.selectedPlan.note')}</p>
+          </div>
+        )}
+      </aside>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
+      {/* Right form panel */}
+      <main className="flex flex-1 flex-col px-6 py-8 sm:px-12">
+        <div className="flex items-center justify-between">
+          <Link to="/choose-plan" className="inline-flex items-center gap-1.5 text-sm text-[#71717A] transition hover:text-[#0A0A0A] lg:invisible">
+            <ArrowLeft className="h-4 w-4" />
+            {t('signup.back', 'Volver')}
+          </Link>
+          <div className="flex items-center gap-4">
+            <LanguageSwitcher />
+            <p className="hidden text-sm text-[#71717A] sm:block">
+              {t('signup.alreadyHaveAccount')}{' '}
+              <Link to="/login" className="font-semibold text-[#F97316] hover:text-[#C2410C]">
+                {t('signup.signIn')}
+              </Link>
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-1 items-center justify-center py-8">
+          <div className="w-full max-w-[440px]">
+            <h1 className="text-[28px] font-bold leading-tight text-[#0A0A0A]">{t('signup.title')}</h1>
+            <p className="mt-2 text-[15px] text-[#71717A]">{t('signup.subtitle')}</p>
+
+            {/* Plan summary (mobile — desktop shows it on the left panel) */}
             {selectedPlan && (
-              <div className="rounded-xl border border-[#F97316]/25 bg-[#FFF7ED] p-4">
-                <p className="text-xs font-semibold tracking-widest text-[#F97316] uppercase">
-                  {t('signup.selectedPlan.title')}
-                </p>
-                <div className="mt-3 flex flex-col sm:flex-row gap-2">
-                  <span className="inline-flex items-center rounded-lg bg-white border border-[#FED7AA] px-3 py-2 text-sm font-medium text-[#0A0A0A]">
-                    {t('signup.selectedPlan.plan', {
-                      plan: t(`signup.selectedPlan.plan.${selectedPlan.plan}`),
-                    })}
-                  </span>
-                  <span className="inline-flex items-center rounded-lg bg-white border border-[#FED7AA] px-3 py-2 text-sm font-medium text-[#0A0A0A]">
-                    {t('signup.selectedPlan.interval', {
-                      interval: t(
-                        `signup.selectedPlan.interval.${selectedPlan.interval}`,
-                      ),
-                    })}
-                  </span>
+              <div className="mt-5 flex items-center justify-between rounded-xl border border-[#FED7AA] bg-[#FFF7ED] px-4 py-3 lg:hidden">
+                <div>
+                  <p className="text-[11px] font-semibold tracking-wide text-[#F97316]">
+                    {t('signup.selectedPlan.title')}
+                  </p>
+                  <p className="text-sm font-semibold text-[#0A0A0A]">{planName} · {intervalName}</p>
                 </div>
-                <p className="mt-3 text-xs text-[#71717A] leading-relaxed">
-                  {t('signup.selectedPlan.note')}
-                </p>
+                <Link to="/choose-plan" className="text-xs font-semibold text-[#F97316] hover:underline">
+                  {t('signup.selectedPlan.change', 'Cambiar')}
+                </Link>
               </div>
             )}
 
-            {/* Company section */}
-            <div className="space-y-4">
-              <h2 className="text-xs font-semibold tracking-widest text-[#F97316] uppercase">
-                {t('signup.section.company')}
-              </h2>
+            {error && (
+              <div className="mt-5">
+                <AlertDestructive
+                  title={t(`signup.error.${error}.title`)}
+                  message={t(`signup.error.${error}.message`)}
+                />
+              </div>
+            )}
 
-              <div className="space-y-1.5">
-                <Label htmlFor="companyName" className="text-sm font-medium text-[#0A0A0A]">
-                  {t('signup.companyName.label')}
-                </Label>
+            <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4" noValidate>
+              <Field label={t('signup.companyName.label')} htmlFor="companyName" error={errors.companyName?.message}>
                 <Input
                   id="companyName"
                   type="text"
                   autoComplete="organization"
                   placeholder={t('signup.companyName.placeholder')}
                   disabled={isFormDisabled}
-                  {...register('companyName', {
-                    required: t('signup.companyName.required'),
-                    onBlur: handleCompanyNameBlur,
-                  })}
+                  {...register('companyName', { required: t('signup.companyName.required'), onBlur: handleCompanyNameBlur })}
                   aria-invalid={errors.companyName ? 'true' : 'false'}
                   className={inputCls(!!errors.companyName, isFormDisabled)}
                 />
-                {errors.companyName && (
-                  <p className="text-xs text-red-600">{errors.companyName.message}</p>
-                )}
-              </div>
+              </Field>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="tenantSlug" className="text-sm font-medium text-[#0A0A0A]">
-                  {t('signup.tenantSlug.label')}
-                </Label>
+              <Field
+                label={t('signup.tenantSlug.label')}
+                htmlFor="tenantSlug"
+                error={errors.tenantSlug?.message}
+                help={t('signup.tenantSlug.help')}
+              >
                 <Input
                   id="tenantSlug"
                   type="text"
@@ -348,54 +394,28 @@ export function Signup() {
                   disabled={isFormDisabled}
                   {...register('tenantSlug', {
                     required: t('signup.tenantSlug.required'),
-                    pattern: {
-                      value: /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/,
-                      message: t('signup.tenantSlug.pattern'),
-                    },
+                    pattern: { value: /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/, message: t('signup.tenantSlug.pattern') },
                   })}
                   aria-invalid={errors.tenantSlug ? 'true' : 'false'}
                   className={inputCls(!!errors.tenantSlug, isFormDisabled)}
                 />
-                {errors.tenantSlug ? (
-                  <p className="text-xs text-red-600">{errors.tenantSlug.message}</p>
-                ) : (
-                  <p className="text-xs text-[#71717A]">{t('signup.tenantSlug.help')}</p>
-                )}
-              </div>
-            </div>
+              </Field>
 
-            {/* Admin section */}
-            <div className="space-y-4 pt-2 border-t border-[#F4F4F5]">
-              <h2 className="text-xs font-semibold tracking-widest text-[#F97316] uppercase pt-4">
-                {t('signup.section.admin')}
-              </h2>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="adminFullName" className="text-sm font-medium text-[#0A0A0A]">
-                    {t('signup.adminFullName.label')}
-                  </Label>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label={t('signup.adminFullName.label')} htmlFor="adminFullName" error={errors.adminFullName?.message}>
                   <Input
                     id="adminFullName"
                     type="text"
                     autoComplete="name"
                     placeholder={t('signup.adminFullName.placeholder')}
                     disabled={isFormDisabled}
-                    {...register('adminFullName', {
-                      required: t('signup.adminFullName.required'),
-                    })}
+                    {...register('adminFullName', { required: t('signup.adminFullName.required') })}
                     aria-invalid={errors.adminFullName ? 'true' : 'false'}
                     className={inputCls(!!errors.adminFullName, isFormDisabled)}
                   />
-                  {errors.adminFullName && (
-                    <p className="text-xs text-red-600">{errors.adminFullName.message}</p>
-                  )}
-                </div>
+                </Field>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="adminEmail" className="text-sm font-medium text-[#0A0A0A]">
-                    {t('signup.adminEmail.label')}
-                  </Label>
+                <Field label={t('signup.adminEmail.label')} htmlFor="adminEmail" error={errors.adminEmail?.message}>
                   <Input
                     id="adminEmail"
                     type="email"
@@ -404,24 +424,20 @@ export function Signup() {
                     disabled={isFormDisabled}
                     {...register('adminEmail', {
                       required: t('signup.adminEmail.required'),
-                      pattern: {
-                        value: /^[^@\s]+@[^@\s]+\.[^@\s]+$/,
-                        message: t('signup.adminEmail.invalid'),
-                      },
+                      pattern: { value: /^[^@\s]+@[^@\s]+\.[^@\s]+$/, message: t('signup.adminEmail.invalid') },
                     })}
                     aria-invalid={errors.adminEmail ? 'true' : 'false'}
                     className={inputCls(!!errors.adminEmail, isFormDisabled)}
                   />
-                  {errors.adminEmail && (
-                    <p className="text-xs text-red-600">{errors.adminEmail.message}</p>
-                  )}
-                </div>
+                </Field>
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="adminUsername" className="text-sm font-medium text-[#0A0A0A]">
-                  {t('signup.adminUsername.label')}
-                </Label>
+              <Field
+                label={t('signup.adminUsername.label')}
+                htmlFor="adminUsername"
+                error={errors.adminUsername?.message}
+                help={t('signup.adminUsername.help')}
+              >
                 <Input
                   id="adminUsername"
                   type="text"
@@ -430,25 +446,14 @@ export function Signup() {
                   disabled={isFormDisabled}
                   {...register('adminUsername', {
                     required: t('signup.adminUsername.required'),
-                    pattern: {
-                      value: /^[a-zA-Z0-9._-]+$/,
-                      message: t('signup.adminUsername.pattern'),
-                    },
+                    pattern: { value: /^[a-zA-Z0-9._-]+$/, message: t('signup.adminUsername.pattern') },
                   })}
                   aria-invalid={errors.adminUsername ? 'true' : 'false'}
                   className={inputCls(!!errors.adminUsername, isFormDisabled)}
                 />
-                {errors.adminUsername ? (
-                  <p className="text-xs text-red-600">{errors.adminUsername.message}</p>
-                ) : (
-                  <p className="text-xs text-[#71717A]">{t('signup.adminUsername.help')}</p>
-                )}
-              </div>
+              </Field>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="adminPassword" className="text-sm font-medium text-[#0A0A0A]">
-                  {t('signup.adminPassword.label')}
-                </Label>
+              <Field label={t('signup.adminPassword.label')} htmlFor="adminPassword" error={errors.adminPassword?.message}>
                 <div className="relative">
                   <Input
                     id="adminPassword"
@@ -458,10 +463,7 @@ export function Signup() {
                     disabled={isFormDisabled}
                     {...register('adminPassword', {
                       required: t('signup.adminPassword.required'),
-                      minLength: {
-                        value: 8,
-                        message: t('signup.adminPassword.tooShort'),
-                      },
+                      minLength: { value: 8, message: t('signup.adminPassword.tooShort') },
                     })}
                     aria-invalid={errors.adminPassword ? 'true' : 'false'}
                     className={`${inputCls(!!errors.adminPassword, isFormDisabled)} pr-10`}
@@ -472,44 +474,63 @@ export function Signup() {
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-[#71717A] hover:text-[#0A0A0A]"
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-                {errors.adminPassword && (
-                  <p className="text-xs text-red-600">{errors.adminPassword.message}</p>
+              </Field>
+
+              <Button
+                type="submit"
+                disabled={isFormDisabled}
+                className="h-12 w-full bg-[#F97316] text-base text-white hover:bg-[#C2410C]"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {t('signup.submit.openingPaddle')}
+                  </>
+                ) : (
+                  <>
+                    {selectedPlan ? t('signup.submit.continueToPayment') : t('signup.submit')}
+                    <ArrowRight className="ml-1 h-4 w-4" />
+                  </>
                 )}
-              </div>
-            </div>
+              </Button>
 
-            <Button
-              type="submit"
-              disabled={isFormDisabled}
-              className="w-full h-12 text-base bg-[#F97316] hover:bg-[#C2410C] text-white"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {t('signup.submit.openingPaddle')}
-                </>
-              ) : (
-                <>
-                  {selectedPlan
-                    ? t('signup.submit.continueToPayment')
-                    : t('signup.submit')}
-                  <ArrowRight className="w-4 h-4 ml-1" />
-                </>
-              )}
-            </Button>
-
-            <p className="text-center text-sm text-[#71717A]">
-              {t('signup.alreadyHaveAccount')}{' '}
-              <Link to="/login" className="text-[#F97316] hover:text-[#C2410C] font-medium">
-                {t('signup.signIn')}
-              </Link>
-            </p>
-          </form>
+              <p className="text-center text-xs leading-relaxed text-[#71717A]">{t('signup.legal', 'Al continuar aceptas los Términos y la Política de privacidad.')}</p>
+            </form>
+          </div>
         </div>
-      </div>
+      </main>
+    </div>
+  );
+}
+
+// Field wrapper — label + control + help/error, matches the mockup styling.
+function Field({
+  label,
+  htmlFor,
+  error,
+  help,
+  children,
+}: {
+  label: string;
+  htmlFor: string;
+  error?: string;
+  help?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={htmlFor} className="text-[13px] font-medium text-[#0A0A0A]">
+        {label}
+      </Label>
+      {children}
+      {error ? (
+        <p className="text-xs text-red-600">{error}</p>
+      ) : help ? (
+        <p className="text-xs text-[#71717A]">{help}</p>
+      ) : null}
     </div>
   );
 }
