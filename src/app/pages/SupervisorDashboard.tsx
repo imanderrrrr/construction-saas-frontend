@@ -529,13 +529,40 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-[#0A0A0A] font-medium">
                     {alert.workerName ?? alert.workerUsername}{' '}
-                    <span className="font-normal text-red-600">{t('dash.outsideWorkArea')}</span>
+                    <span className="font-normal text-red-600">
+                      {alert.eventCount > 0 ? t('dash.outsideWorkArea') : t('dash.punchedWithoutGps')}
+                    </span>
                   </p>
                   <p className="text-[11px] text-[#71717A] truncate">{alert.projectName}</p>
                   <p className="text-[11px] text-red-500 font-medium">
                     {t('dash.firstReported', { time: relativeTime(alert.firstOccurredAt) })}
                     {alert.eventCount > 1 && ` ${t('dash.eventCount', { count: alert.eventCount })}`}
+                    {alert.unavailableCount > 0 && ` ${t('dash.unavailableCount', { count: alert.unavailableCount })}`}
                   </p>
+                  {/* Exact punch locations — one Google Maps deep-link per flagged mark */}
+                  {(alert.events ?? []).some(ev => ev.lat != null && ev.lng != null) && (
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {(alert.events ?? [])
+                        .filter(ev => ev.lat != null && ev.lng != null)
+                        .map(ev => (
+                          <a
+                            key={ev.eventId}
+                            href={`https://www.google.com/maps?q=${ev.lat},${ev.lng}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={e => e.stopPropagation()}
+                            title={t('dash.viewInMaps')}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border border-red-200 bg-white text-[10px] font-semibold text-red-600 hover:bg-red-50"
+                          >
+                            <MapPin className="w-3 h-3" />
+                            {new Date(ev.capturedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {ev.distanceMeters != null && (
+                              <span className="font-normal">· {Math.round(ev.distanceMeters).toLocaleString()} m</span>
+                            )}
+                          </a>
+                        ))}
+                    </div>
+                  )}
                 </div>
               </div>
             ))

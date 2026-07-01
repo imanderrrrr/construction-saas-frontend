@@ -465,6 +465,11 @@ export function WorkerTime({ username }: { username: string }) {
         lat: geo.lat,
         lng: geo.lng,
         locationStatus: response.locationStatus,
+        distanceMeters:
+          geo.lat != null && geo.lng != null &&
+          selectedProject?.latitude != null && selectedProject?.longitude != null
+            ? Math.round(haversineMeters(geo.lat, geo.lng, selectedProject.latitude, selectedProject.longitude))
+            : null,
         eventApprovalStatus: 'PENDING' as const,
         eventReviewComment: null,
         eventReviewerUsername: null,
@@ -481,6 +486,9 @@ export function WorkerTime({ username }: { username: string }) {
         workerName: null,
         projectId: selectedProject!.id,
         projectName: selectedProject!.name,
+        projectLatitude: selectedProject!.latitude,
+        projectLongitude: selectedProject!.longitude,
+        geofenceRadiusMeters: selectedProject!.geofenceRadiusMeters,
         workDate: todayYMD(),
         approvalStatus: 'PENDING' as const,
         isLate: false,

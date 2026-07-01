@@ -60,6 +60,9 @@
   "dash.outsideWorkArea": "outside work area",
   "dash.firstReported": "First reported {{time}}",
   "dash.eventCount": "· {{count}} events",
+  "dash.unavailableCount": "· {{count}} without GPS",
+  "dash.punchedWithoutGps": "punched without GPS signal",
+  "dash.viewInMaps": "Open in Google Maps",
 
   "dash.notificationInbox": "Notification Inbox",
   "dash.markAllRead": "Mark all as read",
