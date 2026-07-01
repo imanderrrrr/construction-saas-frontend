@@ -1,7 +1,7 @@
 // OFJR Construction — Kanban Tasks Service
 // Admin CRUD + Supervisor read/move over /api/v1/admin/tasks and /api/v1/supervisor/tasks
 
-import { api } from '../lib/api';
+import { api, apiMultipart, getBaseUrl } from '../lib/api';
 
 // ── Types ────────────────────────────────────────────
 
@@ -68,6 +68,30 @@ export interface TaskComment {
   authorName: string;
   body: string;
   createdAt: string;
+}
+
+export interface TaskAttachment {
+  id: number;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  uploadedById: number;
+  uploadedByName: string;
+  createdAt: string;
+}
+
+/** True for attachments that render as a thumbnail/lightbox image (vs. a document row). */
+export function isImageAttachment(a: TaskAttachment): boolean {
+  return a.contentType.startsWith('image/');
+}
+
+/** Human-readable file size (e.g. "8 KB", "1.4 MB"). */
+export function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const kb = bytes / 1024;
+  if (kb < 1024) return `${kb < 10 ? kb.toFixed(1) : Math.round(kb)} KB`;
+  const mb = kb / 1024;
+  return `${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB`;
 }
 
 // ── Task status metadata ─────────────────────────────
@@ -159,4 +183,30 @@ export async function addTaskComment(taskId: number, body: string): Promise<Task
     method: 'POST',
     body: JSON.stringify({ body }),
   });
+}
+
+// ── Attachments ──────────────────────────────────────
+// Admin routes — the task-detail modal is admin-side (the Kanban board).
+
+export async function getTaskAttachments(taskId: number): Promise<TaskAttachment[]> {
+  return api<TaskAttachment[]>(`/api/v1/admin/tasks/${taskId}/attachments`);
+}
+
+export async function uploadTaskAttachment(taskId: number, file: File): Promise<TaskAttachment> {
+  const formData = new FormData();
+  formData.append('file', file);
+  return apiMultipart<TaskAttachment>(`/api/v1/admin/tasks/${taskId}/attachments`, 'POST', formData);
+}
+
+export async function deleteTaskAttachment(taskId: number, attId: number): Promise<void> {
+  return api<void>(`/api/v1/admin/tasks/${taskId}/attachments/${attId}`, { method: 'DELETE' });
+}
+
+/**
+ * Authenticated download/preview URL for an attachment. Consumed via a blob
+ * fetch (a bare <img src>/<a href> can't reliably carry the session cookie) —
+ * see AuthImage and the modal's download/preview helpers.
+ */
+export function taskAttachmentUrl(taskId: number, attId: number): string {
+  return `${getBaseUrl()}/api/v1/admin/tasks/${taskId}/attachments/${attId}/download`;
 }

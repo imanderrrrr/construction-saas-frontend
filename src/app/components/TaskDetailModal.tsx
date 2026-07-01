@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   Calendar,
   Flag,
@@ -9,7 +9,12 @@ import {
   UploadCloud,
   ArrowRight,
   Clock,
+  FileText,
+  Download,
+  Eye,
+  Trash2,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 import {
   Dialog,
@@ -17,17 +22,26 @@ import {
   DialogTitle,
 } from './ui/dialog';
 import { Button } from './ui/button';
+import { AuthImage } from './sitelog/AuthImage';
+import { Lightbox } from './sitelog/Lightbox';
 import {
   type TaskResponse,
   type TaskStatus,
   type TaskPriority,
   type TaskStatusHistoryEntry,
   type TaskComment,
+  type TaskAttachment,
   TASK_STATUS_LABELS,
   TASK_PRIORITY_LABELS,
   getTaskHistory,
   getTaskComments,
   addTaskComment,
+  getTaskAttachments,
+  uploadTaskAttachment,
+  deleteTaskAttachment,
+  taskAttachmentUrl,
+  isImageAttachment,
+  formatFileSize,
 } from '../services/tasks';
 
 const STATUS_BADGE: Record<TaskStatus, string> = {
@@ -123,6 +137,13 @@ export function TaskDetailModal({
   const [newComment, setNewComment] = useState('');
   const [posting, setPosting] = useState(false);
 
+  const [attachments, setAttachments] = useState<TaskAttachment[]>([]);
+  const [attachmentsLoading, setAttachmentsLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (!open || !task) return;
     setHistoryLoading(true);
@@ -157,13 +178,118 @@ export function TaskDetailModal({
     }
   }
 
+  // ── Attachments ──────────────────────────────────
+  useEffect(() => {
+    if (!open || !task) return;
+    setLightboxIndex(null);
+    setAttachmentsLoading(true);
+    getTaskAttachments(task.id)
+      .then(setAttachments)
+      .catch(() => setAttachments([]))
+      .finally(() => setAttachmentsLoading(false));
+  }, [open, task]);
+
+  async function handleFiles(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0 || !task) return;
+    const files = Array.from(fileList);
+    setUploading(true);
+    try {
+      const results = await Promise.allSettled(files.map((f) => uploadTaskAttachment(task.id, f)));
+      const uploaded: TaskAttachment[] = [];
+      let failures = 0;
+      for (const r of results) {
+        if (r.status === 'fulfilled') uploaded.push(r.value);
+        else failures += 1;
+      }
+      if (uploaded.length) setAttachments((prev) => [...prev, ...uploaded]);
+      if (failures) {
+        toast.error(
+          failures === 1 ? 'No se pudo subir un archivo' : `No se pudieron subir ${failures} archivos`,
+        );
+      }
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function downloadAttachment(a: TaskAttachment) {
+    if (!task) return;
+    try {
+      const res = await fetch(taskAttachmentUrl(task.id, a.id), { credentials: 'include' as RequestCredentials });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = a.fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    } catch (err) {
+      toast.error('No se pudo descargar el archivo', { description: (err as Error)?.message });
+    }
+  }
+
+  async function previewAttachment(a: TaskAttachment) {
+    if (!task) return;
+    // Open the tab synchronously (in the click handler) so the post-fetch
+    // navigation isn't treated as a blocked popup.
+    const win = window.open('', '_blank');
+    try {
+      const res = await fetch(taskAttachmentUrl(task.id, a.id), { credentials: 'include' as RequestCredentials });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      if (win) win.location.href = url;
+      else window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (err) {
+      if (win) win.close();
+      toast.error('No se pudo abrir el archivo', { description: (err as Error)?.message });
+    }
+  }
+
+  async function removeAttachment(attId: number) {
+    if (!task) return;
+    if (!window.confirm('¿Eliminar este archivo adjunto?')) return;
+    try {
+      await deleteTaskAttachment(task.id, attId);
+      setAttachments((prev) => prev.filter((a) => a.id !== attId));
+      // If the lightbox is open on a now-deleted image, clamp or close it.
+      setLightboxIndex((idx) => {
+        if (idx == null) return idx;
+        const remaining = attachments.filter((a) => a.id !== attId && isImageAttachment(a));
+        if (remaining.length === 0) return null;
+        return Math.min(idx, remaining.length - 1);
+      });
+    } catch (err) {
+      toast.error('No se pudo eliminar el archivo', { description: (err as Error)?.message });
+    }
+  }
+
   if (!task) return null;
   const statusLabel = TASK_STATUS_LABELS[task.status];
   const prioLabel = TASK_PRIORITY_LABELS[task.priority];
   const pick = (l: { es: string; en: string }) => (lang === 'es' ? l.es : l.en);
 
+  const imageAttachments = attachments.filter(isImageAttachment);
+  const docAttachments = attachments.filter((a) => !isImageAttachment(a));
+
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (o) return;
+        // While the image lightbox is open, ESC / outside-press closes the
+        // lightbox first — not the whole modal.
+        if (lightboxIndex != null) {
+          setLightboxIndex(null);
+          return;
+        }
+        onClose();
+      }}
+    >
       <DialogContent className="max-h-[88vh] gap-0 overflow-y-auto p-0 sm:max-w-2xl">
         {/* Header */}
         <div className="border-b border-[#F4F4F5] p-6">
@@ -204,12 +330,107 @@ export function TaskDetailModal({
             </div>
           </Section>
 
-          {/* Attachments — shell (wired in next phase) */}
-          <Section icon={Paperclip} title="Adjuntos" badge="Próximamente">
-            <div className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#D4D4D8] bg-[#FAFAFA] px-4 py-8 text-center">
-              <UploadCloud className="h-7 w-7 text-[#A1A1AA]" />
-              <p className="text-sm font-medium text-[#71717A]">Sube imágenes y documentos</p>
-              <p className="text-xs text-[#A1A1AA]">Las imágenes se verán en grande al hacer clic; los documentos con vista previa.</p>
+          {/* Attachments */}
+          <Section icon={Paperclip} title="Adjuntos" badge={attachments.length ? String(attachments.length) : undefined}>
+            <div className="space-y-4">
+              {/* Upload dropzone */}
+              <div
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files); }}
+                onClick={() => fileInputRef.current?.click()}
+                className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-6 text-center transition-colors ${
+                  dragOver ? 'border-[#F97316] bg-[#F97316]/5' : 'border-[#D4D4D8] bg-[#FAFAFA] hover:border-[#F97316]/60'
+                }`}
+              >
+                <UploadCloud className="h-7 w-7 text-[#A1A1AA]" />
+                <p className="text-sm font-medium text-[#71717A]">
+                  {uploading ? 'Subiendo…' : 'Arrastra archivos o haz clic para subir'}
+                </p>
+                <p className="text-xs text-[#A1A1AA]">Imágenes y documentos (PDF, Word, Excel). Máx. 25 MB.</p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                  className="hidden"
+                  onChange={(e) => { handleFiles(e.target.files); e.target.value = ''; }}
+                />
+              </div>
+
+              {attachmentsLoading ? (
+                <p className="text-sm text-[#71717A]">Cargando…</p>
+              ) : attachments.length === 0 ? (
+                <p className="text-sm text-[#71717A]">Aún no hay archivos adjuntos.</p>
+              ) : (
+                <div className="space-y-3">
+                  {/* Image thumbnails → lightbox */}
+                  {imageAttachments.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                      {imageAttachments.map((a, i) => (
+                        <button
+                          key={a.id}
+                          type="button"
+                          onClick={() => setLightboxIndex(i)}
+                          title={a.fileName}
+                          className="group relative aspect-square overflow-hidden rounded-lg border border-[#E4E4E7] bg-[#FAFAFA]"
+                        >
+                          <AuthImage
+                            src={taskAttachmentUrl(task.id, a.id)}
+                            alt={a.fileName}
+                            className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Document rows */}
+                  {docAttachments.length > 0 && (
+                    <ul className="space-y-2">
+                      {docAttachments.map((a) => (
+                        <li key={a.id} className="flex items-center gap-3 rounded-xl border border-[#E4E4E7] bg-white p-3">
+                          <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-[#F97316]/10 text-[#C2410C]">
+                            <FileText className="h-5 w-5" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-[#0A0A0A]">{a.fileName}</p>
+                            <p className="truncate text-xs text-[#A1A1AA]">
+                              {formatFileSize(a.sizeBytes)} · {a.uploadedByName} · {formatDateTime(a.createdAt, lang)}
+                            </p>
+                          </div>
+                          {a.contentType === 'application/pdf' && (
+                            <button
+                              type="button"
+                              onClick={() => previewAttachment(a)}
+                              title="Vista previa"
+                              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-[#71717A] hover:bg-[#F4F4F5] hover:text-[#0A0A0A]"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => downloadAttachment(a)}
+                            title="Descargar"
+                            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-[#71717A] hover:bg-[#F4F4F5] hover:text-[#0A0A0A]"
+                          >
+                            <Download className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeAttachment(a.id)}
+                            title="Eliminar"
+                            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-[#71717A] hover:bg-red-50 hover:text-red-600"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
             </div>
           </Section>
 
@@ -301,6 +522,40 @@ export function TaskDetailModal({
             Editar
           </Button>
         </div>
+
+        {/* Image lightbox — overlays the modal (fixed, above the dialog) */}
+        {lightboxIndex != null && imageAttachments[lightboxIndex] && (
+          <Lightbox
+            images={imageAttachments.map((a) => ({
+              id: a.id,
+              url: taskAttachmentUrl(task.id, a.id),
+              alt: a.fileName,
+              downloadName: a.fileName,
+              caption: a.fileName,
+              meta: (
+                <>
+                  <span>{a.uploadedByName}</span>
+                  <span>·</span>
+                  <span>{formatDateTime(a.createdAt, lang)}</span>
+                </>
+              ),
+            }))}
+            index={lightboxIndex}
+            onIndexChange={setLightboxIndex}
+            onClose={() => setLightboxIndex(null)}
+            onDownloadError={() => toast.error('No se pudo descargar el archivo')}
+            actions={(img) => (
+              <button
+                type="button"
+                onClick={() => removeAttachment(Number(img.id))}
+                title="Eliminar"
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-white/80 transition-colors hover:bg-red-500/20 hover:text-red-300"
+              >
+                <Trash2 className="h-5 w-5" />
+              </button>
+            )}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );
