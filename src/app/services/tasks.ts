@@ -62,6 +62,14 @@ export interface TaskStatusHistoryEntry {
   movedAt: string;
 }
 
+export interface TaskComment {
+  id: number;
+  authorId: number;
+  authorName: string;
+  body: string;
+  createdAt: string;
+}
+
 // ── Task status metadata ─────────────────────────────
 
 export const TASK_STATUSES: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE'];
@@ -138,4 +146,17 @@ export async function getTaskHistory(id: number): Promise<TaskStatusHistoryEntry
 
 export async function supervisorGetTaskHistory(id: number): Promise<TaskStatusHistoryEntry[]> {
   return api<TaskStatusHistoryEntry[]>(`/api/v1/supervisor/tasks/${id}/history`);
+}
+
+// ── Comments ─────────────────────────────────────────
+
+export async function getTaskComments(taskId: number): Promise<TaskComment[]> {
+  return api<TaskComment[]>(`/api/v1/admin/tasks/${taskId}/comments`);
+}
+
+export async function addTaskComment(taskId: number, body: string): Promise<TaskComment> {
+  return api<TaskComment>(`/api/v1/admin/tasks/${taskId}/comments`, {
+    method: 'POST',
+    body: JSON.stringify({ body }),
+  });
 }

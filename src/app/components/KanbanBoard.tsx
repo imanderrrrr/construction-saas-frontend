@@ -23,6 +23,7 @@ import {
 } from '../services/tasks';
 import { listProjects, type ProjectResponse } from '../services/projects';
 import { TaskHistoryPanel } from './TaskHistoryPanel';
+import { TaskDetailModal } from './TaskDetailModal';
 import { businessToday } from '../helpers/dateTime';
 
 // ── Constants ────────────────────────────────────────
@@ -60,13 +61,14 @@ function formatDate(d: string | null): string {
 // ── Task Card ────────────────────────────────────────
 
 function TaskCard({
-  task, lang, onEdit, onDelete, onViewHistory,
+  task, lang, onEdit, onDelete, onViewHistory, onOpenDetail,
 }: {
   task: TaskResponse;
   lang: string;
   onEdit: (t: TaskResponse) => void;
   onDelete: (id: number) => void;
   onViewHistory: (t: TaskResponse) => void;
+  onOpenDetail: (t: TaskResponse) => void;
 }) {
   const [{ isDragging }, drag] = useDrag(() => ({
     type: DRAG_TYPE,
@@ -79,6 +81,7 @@ function TaskCard({
   return (
     <div
       ref={drag as unknown as React.Ref<HTMLDivElement>}
+      onClick={() => onOpenDetail(task)}
       className={`group bg-white rounded-lg border border-[#D4D4D8] p-3 cursor-grab active:cursor-grabbing
         hover:border-[#F97316]/40 hover:shadow-sm transition-all ${isDragging ? 'opacity-40 rotate-2 scale-95' : ''}`}
     >
@@ -92,15 +95,15 @@ function TaskCard({
           )}
         </div>
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button onClick={() => onViewHistory(task)}
+          <button onClick={(e) => { e.stopPropagation(); onViewHistory(task); }}
             className="w-6 h-6 flex items-center justify-center rounded text-[#71717A] hover:bg-[#FAFAFA] hover:text-[#F97316]">
             <Clock className="w-3 h-3" />
           </button>
-          <button onClick={() => onEdit(task)}
+          <button onClick={(e) => { e.stopPropagation(); onEdit(task); }}
             className="w-6 h-6 flex items-center justify-center rounded text-[#F97316] hover:bg-[#F97316]/10">
             <Pencil className="w-3 h-3" />
           </button>
-          <button onClick={() => onDelete(task.id)}
+          <button onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
             className="w-6 h-6 flex items-center justify-center rounded text-[#d4183d] hover:bg-red-50">
             <Trash2 className="w-3 h-3" />
           </button>
@@ -141,7 +144,7 @@ function TaskCard({
 // ── Column ───────────────────────────────────────────
 
 function KanbanColumn({
-  status, tasks, lang, onDrop, onEdit, onDelete, onAddClick, onViewHistory,
+  status, tasks, lang, onDrop, onEdit, onDelete, onAddClick, onViewHistory, onOpenDetail,
 }: {
   status: TaskStatus;
   tasks: TaskResponse[];
@@ -151,6 +154,7 @@ function KanbanColumn({
   onDelete: (id: number) => void;
   onAddClick: () => void;
   onViewHistory: (t: TaskResponse) => void;
+  onOpenDetail: (t: TaskResponse) => void;
 }) {
   const { t } = useTranslation('admin');
   const label = TASK_STATUS_LABELS[status];
@@ -213,6 +217,7 @@ function KanbanColumn({
             onEdit={onEdit}
             onDelete={onDelete}
             onViewHistory={onViewHistory}
+            onOpenDetail={onOpenDetail}
           />
         ))}
       </div>
@@ -262,6 +267,9 @@ export function KanbanBoard() {
 
   // History
   const [historyTask, setHistoryTask] = useState<TaskResponse | null>(null);
+
+  // Detail modal
+  const [detailTask, setDetailTask] = useState<TaskResponse | null>(null);
 
   // Load projects
   useEffect(() => {
@@ -457,6 +465,7 @@ export function KanbanBoard() {
                 onDelete={handleDelete}
                 onAddClick={handleOpenCreate}
                 onViewHistory={setHistoryTask}
+                onOpenDetail={setDetailTask}
               />
             ))}
           </div>
@@ -589,6 +598,15 @@ export function KanbanBoard() {
             fetchHistory={getTaskHistory}
           />
         )}
+
+        {/* Task detail modal */}
+        <TaskDetailModal
+          task={detailTask}
+          open={!!detailTask}
+          lang={lang}
+          onClose={() => setDetailTask(null)}
+          onEdit={(t) => { setDetailTask(null); handleOpenEdit(t); }}
+        />
       </div>
     </DndProvider>
   );
