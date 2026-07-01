@@ -40,16 +40,23 @@ const TeamTools = lazy(() =>
 const SupervisorSiteLog = lazy(() =>
   import('../components/sitelog/SupervisorSiteLogSection').then(m => ({ default: m.SupervisorSiteLogSection }))
 );
+// Supervisors are hourly field staff too: they punch their own time through
+// the same worker component/endpoints (backend already authorizes SUPERVISOR
+// on /api/v1/worker/**). Their records are approvable only by admins.
+const WorkerTime = lazy(() =>
+  import('../components/WorkerTime').then(m => ({ default: m.WorkerTime }))
+);
 
 // ——— Types & config ——————————————————————————————————————————————————
 
-type Section = 'dashboard' | 'projects' | 'task-board' | 'site-log' | 'time-approvals' | 'expense-reviews' | 'team-tools';
+type Section = 'dashboard' | 'projects' | 'task-board' | 'site-log' | 'my-time' | 'time-approvals' | 'expense-reviews' | 'team-tools';
 
 const SECTION_META_KEYS: Record<Section, { titleKey: string; subtitleKey: string }> = {
   'dashboard':       { titleKey: 'supervisor:section.dashboard.title',       subtitleKey: 'supervisor:section.dashboard.subtitle'       },
   'projects':        { titleKey: 'supervisor:section.projects.title',        subtitleKey: 'supervisor:section.projects.subtitle'        },
   'task-board':      { titleKey: 'supervisor:section.taskBoard.title',       subtitleKey: 'supervisor:section.taskBoard.subtitle'       },
   'site-log':        { titleKey: 'siteLog:section.title',                    subtitleKey: 'siteLog:section.subtitle'                    },
+  'my-time':         { titleKey: 'supervisor:section.myTime.title',          subtitleKey: 'supervisor:section.myTime.subtitle'          },
   'time-approvals':  { titleKey: 'supervisor:section.timeApprovals.title',   subtitleKey: 'supervisor:section.timeApprovals.subtitle'   },
   'expense-reviews': { titleKey: 'supervisor:section.expenseReviews.title',  subtitleKey: 'supervisor:section.expenseReviews.subtitle'  },
   'team-tools':      { titleKey: 'supervisor:section.teamTools.title',       subtitleKey: 'supervisor:section.teamTools.subtitle'       },
@@ -94,6 +101,7 @@ export function SupervisorDashboard() {
       items.push({ key: 'site-log', label: t('siteLog:nav.bitacora'), icon: NotebookPen, group: 'general' });
     }
     items.push(
+      { key: 'my-time',         label: t('supervisor:nav.myTime'),          icon: Clock,           group: 'time'     },
       { key: 'time-approvals',  label: t('supervisor:nav.timeApprovals'),   icon: ClipboardCheck,  group: 'time'     },
       { key: 'expense-reviews', label: t('supervisor:nav.expenseReviews'),  icon: ReceiptText,     group: 'expenses' },
       { key: 'team-tools',      label: t('supervisor:nav.teamTools'),       icon: Wrench,          group: 'tools'    },
@@ -129,6 +137,7 @@ export function SupervisorDashboard() {
           {active === 'projects'        && <SupervisorProjects />}
           {active === 'task-board'      && <SupervisorTaskBoard />}
           {active === 'site-log'        && siteLogEnabled && <SupervisorSiteLog />}
+          {active === 'my-time'         && <WorkerTime username={username} />}
           {active === 'time-approvals'  && <SupervisorApprovals mode="supervisor" />}
           {active === 'expense-reviews' && <ExpenseReviews />}
           {active === 'team-tools'      && <TeamTools />}
