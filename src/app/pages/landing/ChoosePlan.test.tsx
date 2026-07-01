@@ -130,7 +130,7 @@ describe('ChoosePlan', () => {
     });
 
     expect(mocks.navigate).toHaveBeenCalledWith(
-      '/signup?plan=PRO&interval=MONTHLY',
+      '/signup?plan=PRO&interval=MONTHLY&trial=true',
     );
   });
 
@@ -143,7 +143,7 @@ describe('ChoosePlan', () => {
     });
 
     expect(mocks.navigate).toHaveBeenCalledWith(
-      '/signup?plan=BUSINESS&interval=MONTHLY',
+      '/signup?plan=BUSINESS&interval=MONTHLY&trial=true',
     );
   });
 
@@ -163,7 +163,7 @@ describe('ChoosePlan', () => {
     });
 
     expect(mocks.navigate).toHaveBeenCalledWith(
-      '/signup?plan=PRO&interval=ANNUAL',
+      '/signup?plan=PRO&interval=ANNUAL&trial=true',
     );
   });
 
@@ -183,7 +183,29 @@ describe('ChoosePlan', () => {
     });
 
     expect(mocks.navigate).toHaveBeenCalledWith(
-      '/signup?plan=BUSINESS&interval=ANNUAL',
+      '/signup?plan=BUSINESS&interval=ANNUAL&trial=true',
+    );
+  });
+
+  it('passes trial=false when "Pagar ahora" is chosen', async () => {
+    await render();
+
+    // The TrialChoice segments are the only buttons carrying aria-pressed.
+    const payButton = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('button[aria-pressed]'),
+    ).find((b) => b.textContent?.includes('choosePlan.pay.title'));
+    expect(payButton).toBeDefined();
+    await act(async () => {
+      payButton!.click();
+    });
+
+    const proButton = getByTestId(container, 'choose-plan-select-pro');
+    await act(async () => {
+      proButton.click();
+    });
+
+    expect(mocks.navigate).toHaveBeenCalledWith(
+      '/signup?plan=PRO&interval=MONTHLY&trial=false',
     );
   });
 
