@@ -41,7 +41,7 @@ export function ProductWindow() {
           <span className="h-2.5 w-2.5 rounded-full bg-[#28C840]" />
         </div>
         <div className="flex flex-1 justify-center">
-          <div className="inline-flex items-center gap-1.5 rounded-md border border-[#D4D4D8] bg-white px-11 py-1">
+          <div className="inline-flex items-center gap-1.5 rounded-md border border-[#D4D4D8] bg-white px-5 py-1 sm:px-11">
             <Lock className="h-3 w-3 text-[#71717A]" />
             <span className="text-xs text-[#71717A]">app.buildtrack.com</span>
           </div>
@@ -50,8 +50,8 @@ export function ProductWindow() {
 
       {/* Body */}
       <div className="flex">
-        {/* Sidebar */}
-        <aside className="w-[212px] shrink-0 space-y-0.5 bg-[#0A0A0A] p-4">
+        {/* Sidebar — hidden on phones, where it would eat the whole window */}
+        <aside className="hidden w-[212px] shrink-0 space-y-0.5 bg-[#0A0A0A] p-4 sm:block">
           <div className="mb-3 flex items-center gap-2 px-1 py-1">
             <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[#F97316]">
               <HardHat className="h-3.5 w-3.5 text-white" />
@@ -78,11 +78,11 @@ export function ProductWindow() {
         </aside>
 
         {/* Main */}
-        <div className="flex-1 space-y-[18px] p-6">
-          <div className="flex items-center justify-between">
+        <div className="min-w-0 flex-1 space-y-[18px] p-4 sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
             <div className="space-y-1">
               <p className="text-[11px] font-semibold tracking-wide text-[#F97316]">BITÁCORA · HOY</p>
-              <p className="text-[22px] font-bold text-[#0A0A0A]">Torre Vista del Mar</p>
+              <p className="text-lg font-bold text-[#0A0A0A] sm:text-[22px]">Torre Vista del Mar</p>
             </div>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F4F4F5] px-3 py-1.5">
               <span className="h-1.5 w-1.5 rounded-full bg-[#F97316]" />
@@ -90,7 +90,7 @@ export function ProductWindow() {
             </span>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {STATS.map((s) => (
               <div key={s.label} className="space-y-2.5 rounded-md bg-[#F4F4F5] p-3.5">
                 <p className="text-xs text-[#71717A]">{s.label}</p>
