@@ -1,13 +1,10 @@
 import { useTranslation } from 'react-i18next';
-import { Apple, Camera, HardHat, Play, Timer, WifiOff } from 'lucide-react';
-
-// TODO: real Google Play URL (owner will provide)
-const PLAY_STORE_URL = '#';
+import { Apple, Camera, HardHat, Smartphone, Timer, WifiOff } from 'lucide-react';
 
 /**
- * "App móvil" band for the public landing: Android is live on Google Play,
- * the iPhone build is coming soon (disabled App Store badge). Custom badges
- * on purpose — the official store PNGs/SVGs carry licensing baggage.
+ * "App móvil" band for the public landing. Informational only: the Android
+ * app is available (private distribution — NO public download link / store
+ * badge), the iPhone build is coming soon. Deliberately not a store CTA.
  */
 export function AppSection() {
   const { t } = useTranslation('landing');
@@ -21,30 +18,27 @@ export function AppSection() {
           <p className="mt-5 leading-relaxed text-[#71717A]">{t('app.body')}</p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-            {/* Android — live on Google Play */}
-            <a
-              href={PLAY_STORE_URL}
-              className="inline-flex h-14 items-center gap-3 rounded-xl bg-[#0A0A0A] px-5 text-white transition-colors hover:bg-[#27272A]"
-            >
-              <Play className="h-6 w-6 fill-[#F97316] text-[#F97316]" />
+            {/* Android — available (private distribution, no public store link) */}
+            <div className="inline-flex h-14 items-center gap-3 rounded-xl border border-[#D4D4D8] bg-white px-5">
+              <Smartphone className="h-6 w-6 text-[#0A0A0A]" />
               <span className="flex flex-col text-left leading-tight">
-                <span className="text-[11px] text-white/60">{t('app.androidCta')}</span>
-                <span className="text-[17px] font-bold">{t('app.playStore')}</span>
+                <span className="text-[11px] text-[#71717A]">{t('app.android')}</span>
+                <span className="inline-flex items-center gap-1.5 text-[17px] font-bold text-[#16A34A]">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#16A34A]" />
+                  {t('app.androidStatus')}
+                </span>
               </span>
-            </a>
+            </div>
 
-            {/* iOS — coming soon, intentionally not a link */}
+            {/* iOS — coming soon */}
             <div
               aria-disabled="true"
-              className="relative inline-flex h-14 cursor-not-allowed select-none items-center gap-3 rounded-xl border border-[#D4D4D8] bg-white px-5 text-[#A1A1AA]"
+              className="inline-flex h-14 select-none items-center gap-3 rounded-xl border border-[#D4D4D8] bg-white px-5 text-[#A1A1AA]"
             >
               <Apple className="h-6 w-6" />
               <span className="flex flex-col text-left leading-tight">
-                <span className="text-[11px]">{t('app.iosCta')}</span>
-                <span className="text-[17px] font-bold">{t('app.appStore')}</span>
-              </span>
-              <span className="absolute -top-2.5 right-4 rounded-full bg-[#F97316] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
-                {t('app.soon')}
+                <span className="text-[11px]">{t('app.ios')}</span>
+                <span className="text-[17px] font-bold">{t('app.soon')}</span>
               </span>
             </div>
           </div>
