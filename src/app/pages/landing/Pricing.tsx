@@ -202,7 +202,7 @@ export function Pricing() {
     <section
       id="pricing"
       aria-labelledby="pricing-headline"
-      className="py-24 bg-white"
+      className="py-16 sm:py-24 bg-white"
     >
       <div className="max-w-6xl mx-auto px-6">
 
