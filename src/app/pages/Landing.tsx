@@ -13,8 +13,6 @@ import {
   Wallet,
   Smartphone,
   Package,
-  Play,
-  Lock,
   Star,
   Menu,
   X,
@@ -300,39 +298,39 @@ export function Landing() {
               Recorridos cortos por cada módulo. Iremos sumando más con cada actualización.
             </p>
           </div>
-          <div className="relative flex aspect-video w-full max-w-[840px] flex-col items-center justify-center gap-5 overflow-hidden rounded-2xl bg-[#0A0A0A] shadow-[0_20px_50px_rgba(10,10,10,0.3)]">
-            <span className="absolute left-5 top-5 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold tracking-wide text-white">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#F97316]" />
-              DEMO
-            </span>
-            <button className="flex h-[78px] w-[78px] items-center justify-center rounded-full bg-[#F97316] shadow-[0_8px_28px_rgba(249,115,22,0.5)] transition-transform hover:scale-105">
-              <Play className="h-8 w-8 fill-white text-white" />
-            </button>
-            <span className="px-5 text-center text-sm font-semibold text-white sm:text-base">
-              Recorrido completo de la plataforma · 2 min
-            </span>
-          </div>
-          <div className="mt-4 grid w-full max-w-[840px] grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid w-full max-w-5xl grid-cols-1 gap-5 sm:grid-cols-2">
             {(
               [
-                ['Bitácora de obra', false],
-                ['Control de tiempo', false],
-                ['Próximamente', true],
-              ] as [string, boolean][]
-            ).map(([label, soon]) => (
-              <div
-                key={label}
-                className={`flex aspect-video flex-col justify-between overflow-hidden rounded-xl p-3.5 ${
-                  soon ? 'border border-[#D4D4D8] bg-white' : 'bg-[#0A0A0A]'
-                }`}
+                ['bitacora', 'Bitácora de obra', 'Asistencia auto-sugerida desde el reloj, clima, tareas del día, notas y fotos con visor.'],
+                ['tiempo', 'Control de tiempo', 'Filtra por rol y aprueba marcajes con ubicación GPS, distancia y enlaces a Google Maps.'],
+                ['kanban', 'Tablero de tareas', 'Kanban por proyecto: arrastra tarjetas entre columnas, con comentarios y adjuntos.'],
+                ['finanzas', 'Finanzas', 'Seguimiento de contrato por proyecto: presupuesto vs. gastado, con desglose de costos.'],
+              ] as [string, string, string][]
+            ).map(([key, title, caption]) => (
+              <figure
+                key={key}
+                className="overflow-hidden rounded-2xl border border-[#D4D4D8] bg-white shadow-[0_12px_34px_rgba(10,10,10,0.06)] transition-colors duration-200 hover:border-[#F97316]"
               >
-                <span
-                  className={`flex h-9 w-9 items-center justify-center rounded-full ${soon ? 'bg-[#F4F4F5]' : 'bg-white/10'}`}
-                >
-                  {soon ? <Lock className="h-4 w-4 text-[#71717A]" /> : <Play className="h-4 w-4 fill-white text-white" />}
-                </span>
-                <span className={`text-sm font-semibold ${soon ? 'text-[#71717A]' : 'text-white'}`}>{label}</span>
-              </div>
+                <div className="aspect-video overflow-hidden bg-[#0A0A0A]">
+                  <video
+                    className="h-full w-full object-cover"
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    preload="metadata"
+                    poster={`/demos/${key}.jpg`}
+                    aria-label={`Demo: ${title}`}
+                  >
+                    <source src={`/demos/${key}.webm`} type="video/webm" />
+                    <source src={`/demos/${key}.mp4`} type="video/mp4" />
+                  </video>
+                </div>
+                <figcaption className="p-5">
+                  <p className="text-[15px] font-bold text-[#0A0A0A]">{title}</p>
+                  <p className="mt-1.5 text-[13px] leading-relaxed text-[#71717A]">{caption}</p>
+                </figcaption>
+              </figure>
             ))}
           </div>
         </div>
