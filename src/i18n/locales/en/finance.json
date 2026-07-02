@@ -11,6 +11,7 @@
   "nav.projectFinancials": "Project Financials",
   "nav.laborCost": "Labor Cost",
   "nav.laborPayroll": "Labor Payroll",
+  "nav.supervisorHours": "Supervisor Hours",
 
   "group.accounting": "Accounting",
   "group.expenses": "Expenses",
@@ -37,6 +38,8 @@
   "section.laborCost.subtitle": "Approved hours × rate per project",
   "section.laborPayroll.title": "Labor Payroll",
   "section.laborPayroll.subtitle": "Payroll summary by period",
+  "section.supervisorHours.title": "Supervisor Hours",
+  "section.supervisorHours.subtitle": "Review and approve supervisors' time records",
 
   "dash.welcome": "Welcome, {{username}}!",
   "dash.financialOverview": "Financial overview of revenue, expenses, and project margins.",

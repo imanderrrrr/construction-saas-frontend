@@ -40,16 +40,23 @@ const TeamTools = lazy(() =>
 const SupervisorSiteLog = lazy(() =>
   import('../components/sitelog/SupervisorSiteLogSection').then(m => ({ default: m.SupervisorSiteLogSection }))
 );
+// Supervisors are hourly field staff too: they punch their own time through
+// the same worker component/endpoints (backend already authorizes SUPERVISOR
+// on /api/v1/worker/**). Their records are approvable only by admins.
+const WorkerTime = lazy(() =>
+  import('../components/WorkerTime').then(m => ({ default: m.WorkerTime }))
+);
 
 // ——— Types & config ——————————————————————————————————————————————————
 
-type Section = 'dashboard' | 'projects' | 'task-board' | 'site-log' | 'time-approvals' | 'expense-reviews' | 'team-tools';
+type Section = 'dashboard' | 'projects' | 'task-board' | 'site-log' | 'my-time' | 'time-approvals' | 'expense-reviews' | 'team-tools';
 
 const SECTION_META_KEYS: Record<Section, { titleKey: string; subtitleKey: string }> = {
   'dashboard':       { titleKey: 'supervisor:section.dashboard.title',       subtitleKey: 'supervisor:section.dashboard.subtitle'       },
   'projects':        { titleKey: 'supervisor:section.projects.title',        subtitleKey: 'supervisor:section.projects.subtitle'        },
   'task-board':      { titleKey: 'supervisor:section.taskBoard.title',       subtitleKey: 'supervisor:section.taskBoard.subtitle'       },
   'site-log':        { titleKey: 'siteLog:section.title',                    subtitleKey: 'siteLog:section.subtitle'                    },
+  'my-time':         { titleKey: 'supervisor:section.myTime.title',          subtitleKey: 'supervisor:section.myTime.subtitle'          },
   'time-approvals':  { titleKey: 'supervisor:section.timeApprovals.title',   subtitleKey: 'supervisor:section.timeApprovals.subtitle'   },
   'expense-reviews': { titleKey: 'supervisor:section.expenseReviews.title',  subtitleKey: 'supervisor:section.expenseReviews.subtitle'  },
   'team-tools':      { titleKey: 'supervisor:section.teamTools.title',       subtitleKey: 'supervisor:section.teamTools.subtitle'       },
@@ -94,6 +101,7 @@ export function SupervisorDashboard() {
       items.push({ key: 'site-log', label: t('siteLog:nav.bitacora'), icon: NotebookPen, group: 'general' });
     }
     items.push(
+      { key: 'my-time',         label: t('supervisor:nav.myTime'),          icon: Clock,           group: 'time'     },
       { key: 'time-approvals',  label: t('supervisor:nav.timeApprovals'),   icon: ClipboardCheck,  group: 'time'     },
       { key: 'expense-reviews', label: t('supervisor:nav.expenseReviews'),  icon: ReceiptText,     group: 'expenses' },
       { key: 'team-tools',      label: t('supervisor:nav.teamTools'),       icon: Wrench,          group: 'tools'    },
@@ -129,6 +137,7 @@ export function SupervisorDashboard() {
           {active === 'projects'        && <SupervisorProjects />}
           {active === 'task-board'      && <SupervisorTaskBoard />}
           {active === 'site-log'        && siteLogEnabled && <SupervisorSiteLog />}
+          {active === 'my-time'         && <WorkerTime username={username} />}
           {active === 'time-approvals'  && <SupervisorApprovals mode="supervisor" />}
           {active === 'expense-reviews' && <ExpenseReviews />}
           {active === 'team-tools'      && <TeamTools />}
@@ -529,13 +538,40 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-[#0A0A0A] font-medium">
                     {alert.workerName ?? alert.workerUsername}{' '}
-                    <span className="font-normal text-red-600">{t('dash.outsideWorkArea')}</span>
+                    <span className="font-normal text-red-600">
+                      {alert.eventCount > 0 ? t('dash.outsideWorkArea') : t('dash.punchedWithoutGps')}
+                    </span>
                   </p>
                   <p className="text-[11px] text-[#71717A] truncate">{alert.projectName}</p>
                   <p className="text-[11px] text-red-500 font-medium">
                     {t('dash.firstReported', { time: relativeTime(alert.firstOccurredAt) })}
                     {alert.eventCount > 1 && ` ${t('dash.eventCount', { count: alert.eventCount })}`}
+                    {alert.unavailableCount > 0 && ` ${t('dash.unavailableCount', { count: alert.unavailableCount })}`}
                   </p>
+                  {/* Exact punch locations — one Google Maps deep-link per flagged mark */}
+                  {(alert.events ?? []).some(ev => ev.lat != null && ev.lng != null) && (
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {(alert.events ?? [])
+                        .filter(ev => ev.lat != null && ev.lng != null)
+                        .map(ev => (
+                          <a
+                            key={ev.eventId}
+                            href={`https://www.google.com/maps?q=${ev.lat},${ev.lng}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={e => e.stopPropagation()}
+                            title={t('dash.viewInMaps')}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border border-red-200 bg-white text-[10px] font-semibold text-red-600 hover:bg-red-50"
+                          >
+                            <MapPin className="w-3 h-3" />
+                            {new Date(ev.capturedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {ev.distanceMeters != null && (
+                              <span className="font-normal">· {Math.round(ev.distanceMeters).toLocaleString()} m</span>
+                            )}
+                          </a>
+                        ))}
+                    </div>
+                  )}
                 </div>
               </div>
             ))

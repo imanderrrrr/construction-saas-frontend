@@ -47,6 +47,12 @@ const LaborCostReport = lazy(() =>
 const LaborPayrollReport = lazy(() =>
   import('../components/LaborPayrollReport').then(m => ({ default: m.LaborPayrollReport }))
 );
+// Product decision 2026-07-01: finance approves SUPERVISOR hours (workers
+// stay with admins/assigned supervisors). Same shared approvals window; the
+// 'finance' mode scopes the list to supervisor-owned records server-side.
+const SupervisorApprovals = lazy(() =>
+  import('../components/SupervisorApprovals').then(m => ({ default: m.SupervisorApprovals }))
+);
 
 // Types & config
 
@@ -61,7 +67,8 @@ type ActiveSection =
   | 'budget-report'
   | 'project-financials'
   | 'labor-cost'
-  | 'labor-payroll';
+  | 'labor-payroll'
+  | 'supervisor-hours';
 
 const SECTION_META_KEYS: Record<ActiveSection, { titleKey: string; subtitleKey: string }> = {
   'dashboard':            { titleKey: 'finance:section.dashboard.title',            subtitleKey: 'finance:section.dashboard.subtitle'            },
@@ -75,6 +82,7 @@ const SECTION_META_KEYS: Record<ActiveSection, { titleKey: string; subtitleKey: 
   'project-financials':   { titleKey: 'finance:section.projectFinancials.title',    subtitleKey: 'finance:section.projectFinancials.subtitle'    },
   'labor-cost':           { titleKey: 'finance:section.laborCost.title',            subtitleKey: 'finance:section.laborCost.subtitle'            },
   'labor-payroll':        { titleKey: 'finance:section.laborPayroll.title',         subtitleKey: 'finance:section.laborPayroll.subtitle'         },
+  'supervisor-hours':     { titleKey: 'finance:section.supervisorHours.title',      subtitleKey: 'finance:section.supervisorHours.subtitle'      },
 };
 
 // Helpers
@@ -258,6 +266,7 @@ export function FinanceDashboard({ initialSection }: { initialSection?: ActiveSe
     { key: 'project-financials',   label: t('finance:nav.projectFinancials'),    icon: BarChart3,       group: 'budgets'    },
     { key: 'labor-cost',           label: t('finance:nav.laborCost'),            icon: HardHat,         group: 'labor'      },
     { key: 'labor-payroll',        label: t('finance:nav.laborPayroll'),         icon: Banknote,        group: 'labor'      },
+    { key: 'supervisor-hours',     label: t('finance:nav.supervisorHours'),      icon: Clock,           group: 'labor'      },
   ], [t]);
 
   const navGroups = useMemo(() => [
@@ -334,6 +343,11 @@ export function FinanceDashboard({ initialSection }: { initialSection?: ActiveSe
         {activeSection === 'labor-payroll' && (
           <Suspense fallback={<LoadingSkeleton />}>
             <LaborPayrollReport />
+          </Suspense>
+        )}
+        {activeSection === 'supervisor-hours' && (
+          <Suspense fallback={<LoadingSkeleton />}>
+            <SupervisorApprovals mode="finance" />
           </Suspense>
         )}
       </AppShell>

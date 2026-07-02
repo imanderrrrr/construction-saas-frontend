@@ -121,6 +121,29 @@ export function TimelineItem({ event, isLast = false, onApprove, onCorrect, onRe
           </p>
         )}
 
+        {/* Exact punch location: distance from the site + Google Maps deep-link */}
+        {(event.distanceMeters != null || (event.lat != null && event.lng != null)) && (
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
+            {event.distanceMeters != null && (
+              <span className={`text-[11px] ${event.locationStatus === 'OUT_OF_RANGE' ? 'text-red-600 font-semibold' : 'text-[#71717A]'}`}>
+                {Math.round(event.distanceMeters).toLocaleString()} m from site
+              </span>
+            )}
+            {event.lat != null && event.lng != null && (
+              <a
+                href={`https://www.google.com/maps?q=${event.lat},${event.lng}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#F97316] hover:underline"
+              >
+                <MapPin className="w-3 h-3" />
+                View in Google Maps
+              </a>
+            )}
+          </div>
+        )}
+
         {/* Review note (corrected / rejected) */}
         {!isPending && event.reviewComment && (
           <div className={`mt-2 text-[11px] px-3 py-2 rounded-lg border ${

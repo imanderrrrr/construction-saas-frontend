@@ -31,6 +31,10 @@ export interface TimeRecordResponse {
   workerName: string | null;
   projectId: number;
   projectName: string;
+  /** Geofence center of the project; null when the project has no coordinates configured. */
+  projectLatitude: number | null;
+  projectLongitude: number | null;
+  geofenceRadiusMeters: number;
   workDate: string; // YYYY-MM-DD
   approvalStatus: 'PENDING' | 'APPROVED' | 'OBSERVED' | 'REJECTED';
   /** True when the CHECK_IN was registered after 08:00. */
@@ -45,6 +49,8 @@ export interface TimeRecordResponse {
     lat: number | null;
     lng: number | null;
     locationStatus: string | null;
+    /** Distance from the project center in meters; null when either side lacks coordinates. */
+    distanceMeters: number | null;
     eventApprovalStatus: 'PENDING' | 'APPROVED' | 'OBSERVED' | 'REJECTED';
     eventReviewComment: string | null;
     eventReviewerUsername: string | null;
@@ -129,10 +135,15 @@ export interface PageResponse<T> {
   totalPages: number;
 }
 
-/** List all time records (admin / supervisor) with optional server-side filters. */
+/**
+ * List all time records (admin / finance) with optional server-side filters.
+ * `role` narrows to WORKER- or SUPERVISOR-owned records (ADMIN only — the
+ * backend forces SUPERVISOR for FINANCE callers regardless of this param).
+ */
 export function getTimeRecords(params?: {
   status?: string;
   projectId?: number;
+  role?: 'WORKER' | 'SUPERVISOR';
   dateFrom?: string;
   dateTo?: string;
   page?: number;
@@ -141,6 +152,7 @@ export function getTimeRecords(params?: {
   const qs = new URLSearchParams();
   if (params?.status)    qs.set('status',    params.status);
   if (params?.projectId) qs.set('projectId', String(params.projectId));
+  if (params?.role)      qs.set('role',      params.role);
   if (params?.dateFrom)  qs.set('dateFrom',  params.dateFrom);
   if (params?.dateTo)    qs.set('dateTo',    params.dateTo);
   if (params?.page != null) qs.set('page', String(params.page));
@@ -221,6 +233,22 @@ export function getSupervisorTimeRecords(params?: {
 
 // Out-of-range alerts (supervisor)
 
+/** One flagged punch (OUT_OF_RANGE or UNAVAILABLE) with the coordinates that power maps deep-links. */
+export interface OutOfRangeFlaggedEvent {
+  eventId: number;
+  /** Record the event belongs to (an alert can span multi-shift records). */
+  recordId: number;
+  type: TimeEventType;
+  /** When the worker punched, per the device clock (ISO 8601). */
+  capturedAt: string;
+  /** OUT_OF_RANGE or UNAVAILABLE. */
+  locationStatus: string;
+  lat: number | null;
+  lng: number | null;
+  /** Distance from the project center in meters; null when either side lacks coordinates. */
+  distanceMeters: number | null;
+}
+
 export interface OutOfRangeAlertResponse {
   workerId: number;
   workerUsername: string;
@@ -228,10 +256,18 @@ export interface OutOfRangeAlertResponse {
   projectId: number;
   projectName: string;
   recordId: number;
-  /** ISO 8601 timestamp of the first OUT_OF_RANGE event today for this worker/project. */
+  /** ISO 8601 timestamp of the first location-flagged event today for this worker/project. */
   firstOccurredAt: string;
   /** Total number of OUT_OF_RANGE events today for this worker/project. */
   eventCount: number;
+  /** Marks that claimed GPS permission but carried no coordinates (possible GPS suppression). */
+  unavailableCount: number;
+  /** Geofence center of the project; null when the project has no coordinates configured. */
+  projectLatitude: number | null;
+  projectLongitude: number | null;
+  geofenceRadiusMeters: number;
+  /** Every flagged mark today for this worker/project, oldest first. */
+  events: OutOfRangeFlaggedEvent[];
 }
 
 /**

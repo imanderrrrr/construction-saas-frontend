@@ -11,6 +11,7 @@
   "nav.projectFinancials": "Finanzas de Proyecto",
   "nav.laborCost": "Costo de Mano de Obra",
   "nav.laborPayroll": "Nómina",
+  "nav.supervisorHours": "Horas de Supervisores",
 
   "group.accounting": "Contabilidad",
   "group.expenses": "Gastos",
@@ -37,6 +38,8 @@
   "section.laborCost.subtitle": "Horas aprobadas × tarifa por proyecto",
   "section.laborPayroll.title": "Nómina",
   "section.laborPayroll.subtitle": "Resumen de nómina por período",
+  "section.supervisorHours.title": "Horas de Supervisores",
+  "section.supervisorHours.subtitle": "Revisar y aprobar los registros de tiempo de los supervisores",
 
   "dash.welcome": "¡Bienvenido, {{username}}!",
   "dash.financialOverview": "Resumen financiero de ingresos, gastos y márgenes de proyecto.",
