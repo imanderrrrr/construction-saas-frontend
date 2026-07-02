@@ -135,10 +135,15 @@ export interface PageResponse<T> {
   totalPages: number;
 }
 
-/** List all time records (admin / supervisor) with optional server-side filters. */
+/**
+ * List all time records (admin / finance) with optional server-side filters.
+ * `role` narrows to WORKER- or SUPERVISOR-owned records (ADMIN only — the
+ * backend forces SUPERVISOR for FINANCE callers regardless of this param).
+ */
 export function getTimeRecords(params?: {
   status?: string;
   projectId?: number;
+  role?: 'WORKER' | 'SUPERVISOR';
   dateFrom?: string;
   dateTo?: string;
   page?: number;
@@ -147,6 +152,7 @@ export function getTimeRecords(params?: {
   const qs = new URLSearchParams();
   if (params?.status)    qs.set('status',    params.status);
   if (params?.projectId) qs.set('projectId', String(params.projectId));
+  if (params?.role)      qs.set('role',      params.role);
   if (params?.dateFrom)  qs.set('dateFrom',  params.dateFrom);
   if (params?.dateTo)    qs.set('dateTo',    params.dateTo);
   if (params?.page != null) qs.set('page', String(params.page));

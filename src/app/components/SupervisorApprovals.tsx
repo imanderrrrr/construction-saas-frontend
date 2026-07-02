@@ -449,7 +449,11 @@ function ApprovalDetail({
 
 // â”€â”€â”€ Main component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-export function SupervisorApprovals({ mode = 'admin' }: { mode?: 'admin' | 'supervisor' } = {}) {
+// mode: 'admin' reviews everyone (with a role filter to narrow the single
+// window to workers or supervisors); 'supervisor' is scoped server-side to
+// WORKER records on assigned projects; 'finance' reviews supervisor hours
+// only (the backend forces the SUPERVISOR scope for finance callers).
+export function SupervisorApprovals({ mode = 'admin' }: { mode?: 'admin' | 'supervisor' | 'finance' } = {}) {
 
   const { t, i18n } = useTranslation(['admin', 'common', 'time']);
 
@@ -467,11 +471,19 @@ export function SupervisorApprovals({ mode = 'admin' }: { mode?: 'admin' | 'supe
 
   // â”€â”€ Server-side filter state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [statusFilter, setStatusFilter]   = useState('all');
+  const [roleFilter, setRoleFilter]       = useState('all'); // admin only: all | WORKER | SUPERVISOR
   const [dateFrom, setDateFrom]           = useState(getMondayOfWeek);
   const [dateTo, setDateTo]               = useState(getToday);
   const [appliedStatus, setAppliedStatus] = useState('all');
+  const [appliedRole, setAppliedRole]     = useState('all');
   const [appliedFrom, setAppliedFrom]     = useState(getMondayOfWeek);
   const [appliedTo, setAppliedTo]         = useState(getToday);
+
+  /** Server-side role scope for the current fetch (undefined = no filter). */
+  const roleParam = (applied: string): 'WORKER' | 'SUPERVISOR' | undefined =>
+    mode === 'finance' ? 'SUPERVISOR'
+    : applied === 'WORKER' || applied === 'SUPERVISOR' ? applied
+    : undefined;
 
   // â”€â”€ Client-side filter state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [search, setSearch]           = useState('');
@@ -495,6 +507,7 @@ export function SupervisorApprovals({ mode = 'admin' }: { mode?: 'admin' | 'supe
         : await getTimeRecords({
             // Same logic: bypass server status filter for PENDING — use pendingEventCount client-side.
             status:   appliedStatus !== 'all' && appliedStatus !== 'PENDING' ? appliedStatus : undefined,
+            role:     roleParam(appliedRole),
             dateFrom: appliedFrom || undefined,
             dateTo:   appliedTo   || undefined,
             size: 100,
@@ -505,7 +518,7 @@ export function SupervisorApprovals({ mode = 'admin' }: { mode?: 'admin' | 'supe
     } finally {
       setLoading(false);
     }
-  }, [mode, appliedStatus, appliedFrom, appliedTo]);
+  }, [mode, appliedStatus, appliedRole, appliedFrom, appliedTo]);
 
   useEffect(() => { fetchRecords(); }, [fetchRecords]);
 
@@ -543,11 +556,11 @@ export function SupervisorApprovals({ mode = 'admin' }: { mode?: 'admin' | 'supe
 
       const page = mode === 'supervisor'
         ? await getSupervisorTimeRecords({ dateFrom: fromStr, dateTo: yesterdayStr, size: 100 })
-        : await getTimeRecords({ dateFrom: fromStr, dateTo: yesterdayStr, size: 100 });
+        : await getTimeRecords({ role: roleParam(appliedRole), dateFrom: fromStr, dateTo: yesterdayStr, size: 100 });
       const mapped = page.content.map(toTimeRecord);
       setOverdueRecords(mapped.filter(r => r.pendingEventCount > 0));
     } catch { /* silent — alert degrades gracefully */ }
-  }, [mode]);
+  }, [mode, appliedRole]);
 
   useEffect(() => { fetchOverdue(); }, [fetchOverdue]);
 
@@ -583,6 +596,7 @@ export function SupervisorApprovals({ mode = 'admin' }: { mode?: 'admin' | 'supe
   // â”€â”€ Apply / Reset â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function handleApply() {
     setAppliedStatus(statusFilter);
+    setAppliedRole(roleFilter);
     setAppliedFrom(dateFrom);
     setAppliedTo(dateTo);
     setSearch('');
@@ -592,6 +606,8 @@ export function SupervisorApprovals({ mode = 'admin' }: { mode?: 'admin' | 'supe
   function handleReset() {
     const mon = getMondayOfWeek(), tod = getToday();
     setStatusFilter('all');
+    setRoleFilter('all');
+    setAppliedRole('all');
     setDateFrom(mon); setDateTo(tod);
     setAppliedStatus('all');
     setAppliedFrom(mon); setAppliedTo(tod);
@@ -810,6 +826,25 @@ export function SupervisorApprovals({ mode = 'admin' }: { mode?: 'admin' | 'supe
               </SelectContent>
             </Select>
           </div>
+
+          {/* Role scope — the same window reviews workers and supervisors; this
+              narrows which population the admin is approving. Hidden for
+              supervisors (workers-only) and finance (supervisors-only). */}
+          {mode === 'admin' && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[11px] font-medium text-[#71717A] uppercase tracking-wide">{t('admin:approvals.roleFilterLabel')}</label>
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger className="h-9 border-[#D4D4D8] w-40" data-testid="role-filter">
+                  <SelectValue placeholder={t('admin:approvals.roleFilterLabel')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('admin:approvals.roleFilterAll')}</SelectItem>
+                  <SelectItem value="WORKER">{t('admin:approvals.roleFilterWorkers')}</SelectItem>
+                  <SelectItem value="SUPERVISOR">{t('admin:approvals.roleFilterSupervisors')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="flex-1" />
 
