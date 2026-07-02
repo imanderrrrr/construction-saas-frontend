@@ -23,10 +23,10 @@
       "key": "tiempo",
       "title": { "es": "Control de tiempo", "en": "Time tracking" },
       "caption": {
-        "es": "Aprobación de marcajes con ubicación GPS, distancia y enlaces a Google Maps.",
-        "en": "Approve time punches with GPS location, distance and Google Maps links."
+        "es": "Filtra por rol y aprueba marcajes con ubicación GPS, distancia y enlaces a Google Maps.",
+        "en": "Filter by role and approve time punches with GPS location, distance and Google Maps links."
       },
-      "durationSec": 20.6,
+      "durationSec": 22.9,
       "poster": "/demos/tiempo.jpg",
       "sources": [
         { "src": "/demos/tiempo.webm", "type": "video/webm" },
