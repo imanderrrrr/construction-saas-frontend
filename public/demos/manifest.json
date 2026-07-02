@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "recordedAt": "2026-07-02",
+  "note": "Auto-recorded raw screen loops of the BuildTrack admin app (Playwright). No narration, no zoom/cursor-highlight editing. Real seeded demo data (tenant 'andes'). 1280x800, silent. Each clip ships as VP9 .webm + H.264 .mp4 (faststart) with a .jpg poster. Wiring into the landing Videos section is a follow-up (kept separate from PR #12).",
+  "video": { "width": 1280, "height": 800 },
+  "playback": { "autoplay": true, "loop": true, "muted": true, "playsInline": true },
+  "clips": [
+    {
+      "key": "bitacora",
+      "title": { "es": "Bitácora de obra", "en": "Daily site log" },
+      "caption": {
+        "es": "Asistencia auto-sugerida desde el reloj, clima, tareas del día, notas y fotos con visor.",
+        "en": "Clock-based attendance suggestions, weather, daily tasks, notes and photos with a lightbox."
+      },
+      "durationSec": 21.5,
+      "poster": "/demos/bitacora.jpg",
+      "sources": [
+        { "src": "/demos/bitacora.webm", "type": "video/webm" },
+        { "src": "/demos/bitacora.mp4", "type": "video/mp4" }
+      ]
+    },
+    {
+      "key": "tiempo",
+      "title": { "es": "Control de tiempo", "en": "Time tracking" },
+      "caption": {
+        "es": "Aprobación de marcajes con ubicación GPS, distancia y enlaces a Google Maps.",
+        "en": "Approve time punches with GPS location, distance and Google Maps links."
+      },
+      "durationSec": 20.6,
+      "poster": "/demos/tiempo.jpg",
+      "sources": [
+        { "src": "/demos/tiempo.webm", "type": "video/webm" },
+        { "src": "/demos/tiempo.mp4", "type": "video/mp4" }
+      ]
+    },
+    {
+      "key": "kanban",
+      "title": { "es": "Tablero de tareas", "en": "Task board" },
+      "caption": {
+        "es": "Kanban por proyecto: arrastra tarjetas entre columnas, con comentarios y adjuntos.",
+        "en": "Per-project Kanban: drag cards across columns, with comments and attachments."
+      },
+      "durationSec": 23.1,
+      "poster": "/demos/kanban.jpg",
+      "sources": [
+        { "src": "/demos/kanban.webm", "type": "video/webm" },
+        { "src": "/demos/kanban.mp4", "type": "video/mp4" }
+      ]
+    },
+    {
+      "key": "finanzas",
+      "title": { "es": "Finanzas", "en": "Finance" },
+      "caption": {
+        "es": "Seguimiento de contrato por proyecto: presupuesto vs. gastado, con desglose de costos.",
+        "en": "Per-project contract tracking: budget vs. spent, with a cost breakdown."
+      },
+      "durationSec": 16.7,
+      "poster": "/demos/finanzas.jpg",
+      "sources": [
+        { "src": "/demos/finanzas.webm", "type": "video/webm" },
+        { "src": "/demos/finanzas.mp4", "type": "video/mp4" }
+      ]
+    }
+  ]
+}
