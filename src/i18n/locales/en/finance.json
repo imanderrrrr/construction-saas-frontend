@@ -545,6 +545,9 @@
   "invoice.create.corSuccessHint": "The request is now in Pending Approval. It will not appear in Accounts Receivable as billable until an admin confirms the client's sign-off.",
   "invoice.create.corNextStep": "Tip: switch to Accounts Receivable to see the pending-approval queue and approve it.",
   "invoice.dialog.corPendingNote": "Change order requests are saved as Pending Approval. They appear in Accounts Receivable only after an admin records the client's approval there.",
+  "invoice.preview.title": "Preview",
+  "invoice.preview.download": "Download PDF",
+  "invoice.preview.empty": "Add a line item with a description or price to see the document preview.",
 
   "createClient.title": "Create client",
   "createClient.description": "Add a new client to associate with projects.",

@@ -545,6 +545,9 @@
   "invoice.create.corSuccessHint": "La solicitud quedó en Pendiente de Aprobación. No aparecerá en Cuentas por Cobrar como facturable hasta que un admin confirme la aprobación del cliente.",
   "invoice.create.corNextStep": "Tip: ve a Cuentas por Cobrar para ver la cola de pendientes y aprobarla.",
   "invoice.dialog.corPendingNote": "Las órdenes de cambio se guardan como Pendiente de Aprobación. Solo aparecen en Cuentas por Cobrar después de que un admin registre la aprobación del cliente.",
+  "invoice.preview.title": "Vista previa",
+  "invoice.preview.download": "Descargar PDF",
+  "invoice.preview.empty": "Agrega un concepto con descripción o precio para ver la vista previa del documento.",
 
   "createClient.title": "Crear cliente",
   "createClient.description": "Agrega un nuevo cliente para asociarlo a proyectos.",

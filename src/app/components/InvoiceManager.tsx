@@ -1,6 +1,6 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2, CheckCircle2, Clock, Info, AlertCircle, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, CheckCircle2, Clock, Info, AlertCircle, RefreshCw, FileText, Download } from 'lucide-react';
 import { Button } from './ui/button';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -12,6 +12,9 @@ import {
 import { listProjects } from '../services/projects';
 import { listClients, type ClientResponse } from '../services/clients';
 import { businessToday } from '../helpers/dateTime';
+import {
+  invoicePdfPreviewUrl, downloadInvoicePdf, type InvoicePdfData,
+} from '../helpers/exportInvoicePdf';
 
 // ── Types ───────────────────────────────────────────
 
@@ -92,6 +95,79 @@ export function InvoiceManager() {
   const taxable = Math.max(0, subtotal - discountVal);
   const taxVal = taxable * taxRateVal / 100;
   const totalAmount = taxable + taxVal;
+
+  // ── Live PDF preview ──────────────────────────────────────────────
+  // Assemble the same InvoicePdfData the download uses, from the current
+  // form state, so the preview is byte-identical to what gets sent to the
+  // client. Line items with neither a description nor a price are dropped
+  // so half-typed rows don't clutter the preview.
+  const previewData = useMemo<InvoicePdfData | null>(() => {
+    const items = lineItems
+      .map(li => {
+        const quantity = parseFloat(li.quantity) || 0;
+        const unitPrice = parseFloat(li.unitPrice) || 0;
+        return {
+          description: li.description.trim(),
+          quantity,
+          unitPrice,
+          subtotal: quantity * unitPrice,
+        };
+      })
+      .filter(li => li.description || li.unitPrice > 0);
+    if (items.length === 0) return null; // nothing meaningful to render yet
+    const finalClient = clientName === '__other__' ? clientCustom.trim() : clientName;
+    const projectName = projects.find(p => String(p.id) === projectId)?.name ?? '';
+    return {
+      documentType: docType as InvoicePdfData['documentType'],
+      invoiceNumber: invoiceNumber.trim() || t('invoice.dialog.autoGenerate'),
+      client: finalClient || '—',
+      project: projectName || '—',
+      description: description.trim() || null,
+      issuedDate,
+      dueDate,
+      lineItems: items,
+      subtotal,
+      discount: discountVal,
+      taxRate: taxRateVal,
+      tax: taxVal,
+      amount: totalAmount,
+      notes: notes.trim() || null,
+    };
+  }, [
+    lineItems, clientName, clientCustom, projects, projectId, docType,
+    invoiceNumber, description, issuedDate, dueDate, subtotal, discountVal,
+    taxRateVal, taxVal, totalAmount, notes, t,
+  ]);
+
+  // Regenerate the blob URL (debounced) whenever the data changes, and
+  // always revoke the previous URL so blobs don't leak.
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const previewUrlRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!previewData) {
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = null;
+      setPreviewUrl(null);
+      return;
+    }
+    const handle = setTimeout(() => {
+      let url: string | null = null;
+      try {
+        url = invoicePdfPreviewUrl(previewData);
+      } catch {
+        url = null; // a transient bad state shouldn't crash the editor
+      }
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = url;
+      setPreviewUrl(url);
+    }, 400);
+    return () => clearTimeout(handle);
+  }, [previewData]);
+
+  // Final cleanup on unmount.
+  useEffect(() => () => {
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+  }, []);
 
   const resetForm = () => {
     setDocType('INVOICE');
@@ -209,7 +285,7 @@ export function InvoiceManager() {
   }
 
   return (
-    <div className="max-w-4xl space-y-6">
+    <div className="max-w-7xl space-y-6">
       {/* Header */}
       <div>
         <h2 className="text-lg font-bold text-[#0A0A0A]">
@@ -218,6 +294,8 @@ export function InvoiceManager() {
         <p className="text-xs text-[#71717A]">{t('invoice.create.subtitle')}</p>
       </div>
 
+      {/* Form (left) + live PDF preview (right, sticky on large screens) */}
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)] gap-6 items-start">
       {/* Main form card */}
       <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden">
 
@@ -478,6 +556,41 @@ export function InvoiceManager() {
             {submitting ? '...' : (isCOR ? t('invoice.dialog.submitCOR') : t('invoice.dialog.submitInvoice'))}
           </Button>
         </div>
+      </div>
+
+      {/* Live PDF preview panel */}
+      <div className="lg:sticky lg:top-6">
+        <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-[#D4D4D8] bg-[#FAFAFA]/50">
+            <FileText className="w-4 h-4 text-[#71717A]" />
+            <span className="text-sm font-semibold text-[#0A0A0A]">{t('invoice.preview.title')}</span>
+            {previewData && (
+              <button
+                type="button"
+                onClick={() => previewData && downloadInvoicePdf(previewData)}
+                className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-purple-600 hover:text-purple-800 transition-colors"
+                title={t('invoice.preview.download')}
+              >
+                <Download className="w-3.5 h-3.5" />
+                {t('invoice.preview.download')}
+              </button>
+            )}
+          </div>
+          {previewUrl ? (
+            <iframe
+              key="invoice-preview"
+              src={`${previewUrl}#toolbar=0&navpanes=0&view=FitH`}
+              title={t('invoice.preview.title')}
+              className="w-full h-[600px] bg-[#525659]"
+            />
+          ) : (
+            <div className="h-[600px] flex flex-col items-center justify-center text-center px-6 gap-3">
+              <FileText className="w-10 h-10 text-[#D4D4D8]" />
+              <p className="text-sm text-[#71717A] max-w-[220px]">{t('invoice.preview.empty')}</p>
+            </div>
+          )}
+        </div>
+      </div>
       </div>
     </div>
   );
