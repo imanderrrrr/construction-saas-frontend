@@ -457,15 +457,32 @@ export function AccountsReceivable() {
                     {inv.project} · {fmtAmount(inv.amount)} · {t('common:labels.issued')} {fmtDate(inv.issuedDate, dateLocale)}
                   </div>
                 </div>
-                <Button
-                  onClick={() => handleApproveChangeOrder(inv)}
-                  disabled={approving === inv.id}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8 px-3"
-                >
-                  {approving === inv.id
-                    ? t('common:buttons.approving')
-                    : t('finance:receivable.pendingApproval.approve')}
-                </Button>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {/* Download the PDF BEFORE approval: the whole point of a
+                      change order is to send this document to the client so
+                      THEY decide. The PDF is generated client-side and never
+                      touches billing state, so it's independent of the
+                      approval gate (which only governs whether the amount is
+                      billable). */}
+                  <Button
+                    variant="outline"
+                    onClick={() => downloadInvoicePdf(invoiceToPdfData(inv))}
+                    className="text-xs h-8 px-3 border-amber-300 text-amber-800 hover:bg-amber-100 gap-1.5"
+                    title={t('finance:receivable.downloadPdf')}
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    {t('finance:receivable.downloadPdf')}
+                  </Button>
+                  <Button
+                    onClick={() => handleApproveChangeOrder(inv)}
+                    disabled={approving === inv.id}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8 px-3"
+                  >
+                    {approving === inv.id
+                      ? t('common:buttons.approving')
+                      : t('finance:receivable.pendingApproval.approve')}
+                  </Button>
+                </div>
               </div>
             ))}
           </div>

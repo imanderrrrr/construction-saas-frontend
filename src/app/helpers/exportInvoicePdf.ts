@@ -389,3 +389,14 @@ export function downloadInvoicePdf(data: InvoicePdfData) {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+
+/**
+ * Build a blob: object URL for the same PDF, for inline preview (e.g. an
+ * `<iframe>`). The CALLER OWNS the returned url and must
+ * `URL.revokeObjectURL` it when it changes or the component unmounts —
+ * otherwise the blobs leak. Used by the live invoice preview.
+ */
+export function invoicePdfPreviewUrl(data: InvoicePdfData): string {
+  const { blob } = generateInvoicePdf(data);
+  return URL.createObjectURL(blob);
+}
