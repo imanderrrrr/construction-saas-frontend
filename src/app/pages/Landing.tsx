@@ -16,11 +16,18 @@ import {
   Star,
   Menu,
   X,
+  FlaskConical,
+  Bug,
+  MessageSquareText,
+  BadgeDollarSign,
+  Headset,
+  Mail,
 } from 'lucide-react';
 
 import { Button } from '../components/ui/button';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { Pricing } from './landing/Pricing';
+import { BETA_CONTACT_EMAIL } from '../components/landing/BetaPlanCard';
 import { AppSection } from '../components/landing/AppSection';
 import { BlueprintGridSection } from '../components/landing/BlueprintGrid';
 import { ProductWindow } from '../components/landing/ProductWindow';
@@ -121,8 +128,17 @@ export function Landing() {
     { href: '#features', label: t('nav.features') },
     { href: '#why', label: t('nav.why') },
     { href: '#app', label: t('nav.app') },
+    { href: '#beta', label: t('nav.beta') },
     { href: '#pricing', label: t('nav.pricing') },
   ];
+
+  // Joining the beta is a conversation, not a checkout: the CTA opens the
+  // visitor's mail client with a prefilled message to the founder.
+  const betaMailto =
+    `mailto:${BETA_CONTACT_EMAIL}?subject=` +
+    encodeURIComponent(t('beta.emailSubject')) +
+    '&body=' +
+    encodeURIComponent(t('beta.emailBody'));
 
   return (
     <div className="min-h-screen bg-white font-sans text-[#0A0A0A]">
@@ -205,6 +221,13 @@ export function Landing() {
           <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#D4D4D8] bg-[#F4F4F5] px-3.5 py-1.5 text-[13px] font-medium text-[#71717A]">
             <span className="h-1.5 w-1.5 rounded-full bg-[#F97316]" />
             {t('hero.eyebrow')}
+            {/* Beta pill: the whole site is honest about the product stage */}
+            <a
+              href="#beta"
+              className="ml-1 rounded-full bg-[#F97316] px-2 py-0.5 text-[11px] font-bold tracking-wide text-white transition hover:bg-[#C2410C]"
+            >
+              {t('hero.betaPill')}
+            </a>
           </span>
           <h1 className="max-w-3xl text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl md:text-[56px]">
             {t('hero.title.line1')} <span className="text-[#F97316]">{t('hero.title.highlight')}</span>.{' '}
@@ -407,6 +430,67 @@ export function Landing() {
               <p className="text-base font-bold text-[#0A0A0A]">Roberto Salazar</p>
               <p className="text-sm text-[#71717A]">Director de obra · Constructora piloto</p>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Beta program — sets expectations honestly BEFORE the visitor sees
+          the beta offer below: the product works and is in real use, but it
+          is a beta (bugs possible, they help report, feedback loop). Joining
+          is by email (no automatic billing): $350 for 2 months of full
+          access, arranged personally with the founder. */}
+      <section id="beta" className="scroll-mt-20 border-y border-[#D4D4D8] bg-[#F4F4F5] py-16 sm:py-24">
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="mx-auto mb-12 max-w-2xl text-center">
+            <span className="mb-4 inline-flex items-center gap-2 rounded-full bg-[#F97316] px-3.5 py-1.5 text-[12px] font-bold tracking-wide text-white">
+              <FlaskConical className="h-3.5 w-3.5" aria-hidden="true" />
+              {t('beta.eyebrow')}
+            </span>
+            <h2 className="text-3xl font-semibold tracking-tight text-[#0A0A0A] sm:text-4xl">
+              {t('beta.title')}
+            </h2>
+            <p className="mt-4 leading-relaxed text-[#71717A]">{t('beta.body')}</p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {(
+              [
+                [Bug, 0],
+                [MessageSquareText, 1],
+                [Star, 2],
+                [BadgeDollarSign, 3],
+                [Headset, 4],
+                [ShieldCheck, 5],
+              ] as const
+            ).map(([Icon, i]) => (
+              <div
+                key={i}
+                className="rounded-2xl border border-[#D4D4D8] bg-white p-6 transition hover:border-[#F97316]"
+              >
+                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-[#F97316]/10">
+                  <Icon className="h-5 w-5 text-[#F97316]" aria-hidden="true" />
+                </div>
+                <h3 className="mb-1.5 text-[15px] font-semibold text-[#0A0A0A]">
+                  {t(`beta.item.${i}.title`)}
+                </h3>
+                <p className="text-sm leading-relaxed text-[#71717A]">
+                  {t(`beta.item.${i}.body`)}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-10 flex flex-col items-center gap-3 text-center">
+            <Button
+              asChild
+              className="h-12 bg-[#F97316] px-6 text-base text-white hover:bg-[#C2410C]"
+            >
+              <a href={betaMailto}>
+                <Mail className="mr-1 h-4 w-4" aria-hidden="true" />
+                {t('beta.cta')}
+              </a>
+            </Button>
+            <p className="text-[13px] text-[#71717A]">{t('beta.note')}</p>
           </div>
         </div>
       </section>
