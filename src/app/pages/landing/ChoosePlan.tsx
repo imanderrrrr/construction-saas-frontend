@@ -27,6 +27,7 @@ import {
 } from '../../components/ui/card';
 import { Switch } from '../../components/ui/switch';
 import { LanguageSwitcher } from '../../components/LanguageSwitcher';
+import { BetaPlanCard } from '../../components/landing/BetaPlanCard';
 
 const FEATURES_PER_PLAN = 13;
 
@@ -35,17 +36,17 @@ const BILLING_INTERVAL_BY_KEY = { monthly: 'MONTHLY', annual: 'ANNUAL' } as cons
 
 type PlanKey = keyof typeof PLAN_CODE_BY_KEY;
 type BillingKey = keyof typeof BILLING_INTERVAL_BY_KEY;
-type TrialMode = 'trial' | 'pay';
 
 interface PlanCardProps {
   planKey: PlanKey;
   billing: BillingKey;
-  trialMode: TrialMode;
   featured?: boolean;
+  /** Beta gate: keep the card fully rendered but block purchase until launch. */
+  disabled?: boolean;
   onSelect: (planKey: PlanKey) => void;
 }
 
-function PlanCard({ planKey, billing, trialMode, featured = false, onSelect }: PlanCardProps) {
+function PlanCard({ planKey, billing, featured = false, disabled = false, onSelect }: PlanCardProps) {
   const { t } = useTranslation('pricing');
 
   const name = t(`plans.${planKey}.name`);
@@ -60,12 +61,10 @@ function PlanCard({ planKey, billing, trialMode, featured = false, onSelect }: P
   const showAnnual = billing === 'annual';
   const displayPrice = showAnnual ? annualPerMonth : monthlyPrice;
 
-  // CTA + fine print reflect the trial-vs-pay choice.
-  const ctaLabel = trialMode === 'trial' ? t(`plans.${planKey}.ctaLabel`) : t('cta.subscribe', 'Suscribirme y pagar');
-  const ctaHint =
-    trialMode === 'trial'
-      ? t(`plans.${planKey}.ctaHint`)
-      : t('cta.payHint', { defaultValue: 'Cobro hoy {{price}}/mes · cancela cuando quieras', price: displayPrice });
+  // CTA + fine print (only shown when the plan is purchasable, i.e. at launch;
+  // during the beta these cards are gated so this branch never renders).
+  const ctaLabel = t(`plans.${planKey}.ctaLabel`);
+  const ctaHint = t(`plans.${planKey}.ctaHint`);
 
   return (
     <Card
@@ -124,51 +123,31 @@ function PlanCard({ planKey, billing, trialMode, featured = false, onSelect }: P
       </CardContent>
 
       <CardFooter className="flex flex-col gap-2 pb-8">
-        <Button
-          onClick={() => onSelect(planKey)}
-          data-testid={`choose-plan-select-${planKey}`}
-          className={[
-            'w-full h-11 text-base',
-            featured ? 'bg-[#F97316] hover:bg-[#C2410C] text-white' : 'bg-[#0A0A0A] hover:bg-[#27272A] text-white',
-          ].join(' ')}
-        >
-          {ctaLabel}
-          <ArrowRight className="w-4 h-4 ml-1" aria-hidden="true" />
-        </Button>
-        <p className="text-xs text-[#71717A] text-center">{ctaHint}</p>
-      </CardFooter>
-    </Card>
-  );
-}
-
-// Segmented control: start a free trial vs. pay immediately.
-function TrialChoice({ value, onChange }: { value: TrialMode; onChange: (v: TrialMode) => void }) {
-  const { t } = useTranslation('auth');
-  const options: { key: TrialMode; title: string; sub: string }[] = [
-    { key: 'trial', title: t('choosePlan.trial.title', '14 días gratis'), sub: t('choosePlan.trial.sub', 'Sin cargo hoy') },
-    { key: 'pay', title: t('choosePlan.pay.title', 'Pagar ahora'), sub: t('choosePlan.pay.sub', 'Activa al instante') },
-  ];
-  return (
-    <div className="inline-flex gap-1 rounded-xl bg-[#F4F4F5] p-1.5">
-      {options.map((o) => {
-        const active = value === o.key;
-        return (
-          <button
-            key={o.key}
-            type="button"
-            onClick={() => onChange(o.key)}
-            aria-pressed={active}
+        {disabled ? (
+          <Button
+            disabled
+            aria-disabled="true"
+            data-testid={`choose-plan-select-${planKey}`}
+            className="w-full h-11 text-base bg-[#F4F4F5] text-[#71717A] border border-[#D4D4D8] cursor-not-allowed hover:bg-[#F4F4F5]"
+          >
+            {t('betaGate.cta')}
+          </Button>
+        ) : (
+          <Button
+            onClick={() => onSelect(planKey)}
+            data-testid={`choose-plan-select-${planKey}`}
             className={[
-              'flex flex-col items-center rounded-lg px-7 py-2.5 transition',
-              active ? 'border border-[#D4D4D8] bg-white shadow-sm' : 'border border-transparent',
+              'w-full h-11 text-base',
+              featured ? 'bg-[#F97316] hover:bg-[#C2410C] text-white' : 'bg-[#0A0A0A] hover:bg-[#27272A] text-white',
             ].join(' ')}
           >
-            <span className={`text-[15px] font-bold ${active ? 'text-[#0A0A0A]' : 'text-[#71717A]'}`}>{o.title}</span>
-            <span className="text-xs text-[#71717A]">{o.sub}</span>
-          </button>
-        );
-      })}
-    </div>
+            {ctaLabel}
+            <ArrowRight className="w-4 h-4 ml-1" aria-hidden="true" />
+          </Button>
+        )}
+        <p className="text-xs text-[#71717A] text-center">{disabled ? t('betaGate.hint') : ctaHint}</p>
+      </CardFooter>
+    </Card>
   );
 }
 
@@ -176,13 +155,11 @@ export function ChoosePlan() {
   const { t } = useTranslation(['pricing', 'auth']);
   const navigate = useNavigate();
   const [billing, setBilling] = useState<BillingKey>('monthly');
-  const [trialMode, setTrialMode] = useState<TrialMode>('trial');
 
   const goToSignup = (planKey: PlanKey) => {
     const planCode = PLAN_CODE_BY_KEY[planKey];
     const billingInterval = BILLING_INTERVAL_BY_KEY[billing];
-    const trial = trialMode === 'trial';
-    navigate(`/signup?plan=${planCode}&interval=${billingInterval}&trial=${trial}`);
+    navigate(`/signup?plan=${planCode}&interval=${billingInterval}`);
   };
 
   const goBack = () => {
@@ -232,11 +209,6 @@ export function ChoosePlan() {
           <p className="mt-4 text-base leading-relaxed text-[#71717A]">{t('auth:choosePlan.subtitle')}</p>
         </div>
 
-        {/* Trial-vs-pay choice */}
-        <div className="mb-7 flex justify-center">
-          <TrialChoice value={trialMode} onChange={setTrialMode} />
-        </div>
-
         {/* Billing toggle */}
         <div className="mb-10 flex items-center justify-center gap-3">
           <span className={`text-sm font-medium transition ${billing === 'monthly' ? 'text-[#0A0A0A]' : 'text-[#71717A]'}`}>
@@ -257,10 +229,16 @@ export function ChoosePlan() {
           )}
         </div>
 
-        {/* Plan cards */}
-        <div className="mx-auto grid max-w-4xl grid-cols-1 gap-6 md:grid-cols-2">
-          <PlanCard planKey="pro" billing={billing} trialMode={trialMode} onSelect={goToSignup} />
-          <PlanCard planKey="business" billing={billing} trialMode={trialMode} featured onSelect={goToSignup} />
+        {/* Beta notice — Beta joins by email, Pro/Business gated for now */}
+        <p className="mx-auto mb-8 max-w-2xl rounded-xl border border-[#F97316]/20 bg-[#F97316]/5 px-4 py-3 text-center text-sm text-[#71717A]">
+          {t('pricing:betaBanner')}
+        </p>
+
+        {/* Plan cards: Beta first (join by email); Pro/Business gated until launch */}
+        <div className="mx-auto grid max-w-6xl grid-cols-1 items-start gap-6 md:grid-cols-3">
+          <BetaPlanCard />
+          <PlanCard planKey="pro" billing={billing} disabled onSelect={goToSignup} />
+          <PlanCard planKey="business" billing={billing} disabled onSelect={goToSignup} />
         </div>
 
         <p className="mx-auto mt-10 max-w-xl text-center text-xs text-[#71717A]">{t('auth:choosePlan.note')}</p>

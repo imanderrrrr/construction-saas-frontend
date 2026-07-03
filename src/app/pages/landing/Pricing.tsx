@@ -38,6 +38,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '../../components/ui/accordion';
+import { BetaPlanCard } from '../../components/landing/BetaPlanCard';
 
 // Public sales contact — change here if the routing email changes.
 const SALES_EMAIL = 'andersonaguirre794@gmail.com';
@@ -54,6 +55,13 @@ interface PlanCardProps {
   planKey: 'pro' | 'business';
   billing: 'monthly' | 'annual';
   featured?: boolean;
+  /**
+   * Beta gate: while BuildTrack is in beta, Pro/Business stay visible as
+   * reference pricing but cannot be purchased. Everything else about the
+   * card (prices, features, the signup wiring) is untouched — flip this
+   * back to false at launch and the plan sells again.
+   */
+  disabled?: boolean;
 }
 
 const PLAN_CODE_BY_KEY = {
@@ -66,7 +74,7 @@ const BILLING_INTERVAL_BY_KEY = {
   annual: 'ANNUAL',
 } as const;
 
-function PlanCard({ planKey, billing, featured = false }: PlanCardProps) {
+function PlanCard({ planKey, billing, featured = false, disabled = false }: PlanCardProps) {
   const { t } = useTranslation('pricing');
   const navigate = useNavigate();
   // Phase-3: trial CTA goes straight into the public signup flow.
@@ -165,19 +173,31 @@ function PlanCard({ planKey, billing, featured = false }: PlanCardProps) {
       </CardContent>
 
       <CardFooter className="flex flex-col gap-2 pb-8">
-        <Button
-          onClick={goToSignup}
-          className={[
-            'w-full h-11 text-base',
-            featured
-              ? 'bg-[#F97316] hover:bg-[#C2410C] text-white'
-              : 'bg-[#0A0A0A] hover:bg-[#27272A] text-white',
-          ].join(' ')}
-        >
-          {ctaLabel}
-          <ArrowRight className="w-4 h-4 ml-1" aria-hidden="true" />
-        </Button>
-        <p className="text-xs text-[#71717A] text-center">{ctaHint}</p>
+        {disabled ? (
+          <Button
+            disabled
+            aria-disabled="true"
+            className="w-full h-11 text-base bg-[#F4F4F5] text-[#71717A] border border-[#D4D4D8] cursor-not-allowed hover:bg-[#F4F4F5]"
+          >
+            {t('betaGate.cta')}
+          </Button>
+        ) : (
+          <Button
+            onClick={goToSignup}
+            className={[
+              'w-full h-11 text-base',
+              featured
+                ? 'bg-[#F97316] hover:bg-[#C2410C] text-white'
+                : 'bg-[#0A0A0A] hover:bg-[#27272A] text-white',
+            ].join(' ')}
+          >
+            {ctaLabel}
+            <ArrowRight className="w-4 h-4 ml-1" aria-hidden="true" />
+          </Button>
+        )}
+        <p className="text-xs text-[#71717A] text-center">
+          {disabled ? t('betaGate.hint') : ctaHint}
+        </p>
       </CardFooter>
     </Card>
   );
@@ -245,10 +265,18 @@ export function Pricing() {
           )}
         </div>
 
-        {/* Plan cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-          <PlanCard planKey="pro" billing={billing} />
-          <PlanCard planKey="business" billing={billing} featured />
+        {/* Beta notice — Pro/Business stay as reference pricing only */}
+        <p className="text-center text-sm text-[#71717A] max-w-2xl mx-auto mb-8 bg-[#F97316]/5 border border-[#F97316]/20 rounded-xl px-4 py-3">
+          {t('betaBanner')}
+        </p>
+
+        {/* Plan cards: Beta is the only way in during the beta and joins by
+            email (no checkout); Pro/Business keep all their pricing/features
+            but their buy button is gated (disabled) until launch. */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto items-start">
+          <BetaPlanCard />
+          <PlanCard planKey="pro" billing={billing} disabled />
+          <PlanCard planKey="business" billing={billing} disabled />
         </div>
 
         {/* Enterprise band */}

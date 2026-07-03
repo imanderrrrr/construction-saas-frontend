@@ -121,33 +121,54 @@ describe('ChoosePlan', () => {
     expect(businessPrice.textContent).toBe('plans.business.priceAnnualPerMonth');
   });
 
-  it('navigates to /signup with PRO + MONTHLY when selecting Pro Monthly', async () => {
+  it('renders the Beta plan card with its price', async () => {
     await render();
 
-    const proButton = getByTestId(container, 'choose-plan-select-pro');
+    expect(getByTestId(container, 'choose-plan-price-beta').textContent).toBe(
+      'plans.beta.price',
+    );
+  });
+
+  it('gates Pro and Business during the beta (buy buttons disabled)', async () => {
+    await render();
+
+    const proButton = getByTestId(
+      container,
+      'choose-plan-select-pro',
+    ) as HTMLButtonElement;
+    const businessButton = getByTestId(
+      container,
+      'choose-plan-select-business',
+    ) as HTMLButtonElement;
+
+    expect(proButton.disabled).toBe(true);
+    expect(businessButton.disabled).toBe(true);
+
+    // Clicking a gated plan must NOT start checkout.
     await act(async () => {
       proButton.click();
-    });
-
-    expect(mocks.navigate).toHaveBeenCalledWith(
-      '/signup?plan=PRO&interval=MONTHLY&trial=true',
-    );
-  });
-
-  it('navigates to /signup with BUSINESS + MONTHLY when selecting Business Monthly', async () => {
-    await render();
-
-    const businessButton = getByTestId(container, 'choose-plan-select-business');
-    await act(async () => {
       businessButton.click();
     });
-
-    expect(mocks.navigate).toHaveBeenCalledWith(
-      '/signup?plan=BUSINESS&interval=MONTHLY&trial=true',
-    );
+    expect(mocks.navigate).not.toHaveBeenCalled();
   });
 
-  it('navigates to /signup with PRO + ANNUAL after switching to annual', async () => {
+  it('Beta CTA is a mailto contact link (join by email, no checkout)', async () => {
+    await render();
+
+    const beta = getByTestId(container, 'choose-plan-select-beta');
+    // No self-serve checkout during the beta — the CTA emails the founder.
+    expect(beta.tagName).toBe('A');
+    const href = beta.getAttribute('href') ?? '';
+    expect(href.startsWith('mailto:')).toBe(true);
+    expect(href).toContain('andersonaguirre794@gmail.com');
+
+    await act(async () => {
+      beta.click();
+    });
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+
+  it('the monthly/annual toggle still switches Pro/Business reference prices', async () => {
     await render();
 
     const toggle = container.querySelector<HTMLInputElement>(
@@ -157,55 +178,9 @@ describe('ChoosePlan', () => {
       toggle!.click();
     });
 
-    const proButton = getByTestId(container, 'choose-plan-select-pro');
-    await act(async () => {
-      proButton.click();
-    });
-
-    expect(mocks.navigate).toHaveBeenCalledWith(
-      '/signup?plan=PRO&interval=ANNUAL&trial=true',
-    );
-  });
-
-  it('navigates to /signup with BUSINESS + ANNUAL after switching to annual', async () => {
-    await render();
-
-    const toggle = container.querySelector<HTMLInputElement>(
-      'input[type="checkbox"]',
-    );
-    await act(async () => {
-      toggle!.click();
-    });
-
-    const businessButton = getByTestId(container, 'choose-plan-select-business');
-    await act(async () => {
-      businessButton.click();
-    });
-
-    expect(mocks.navigate).toHaveBeenCalledWith(
-      '/signup?plan=BUSINESS&interval=ANNUAL&trial=true',
-    );
-  });
-
-  it('passes trial=false when "Pagar ahora" is chosen', async () => {
-    await render();
-
-    // The TrialChoice segments are the only buttons carrying aria-pressed.
-    const payButton = Array.from(
-      container.querySelectorAll<HTMLButtonElement>('button[aria-pressed]'),
-    ).find((b) => b.textContent?.includes('choosePlan.pay.title'));
-    expect(payButton).toBeDefined();
-    await act(async () => {
-      payButton!.click();
-    });
-
-    const proButton = getByTestId(container, 'choose-plan-select-pro');
-    await act(async () => {
-      proButton.click();
-    });
-
-    expect(mocks.navigate).toHaveBeenCalledWith(
-      '/signup?plan=PRO&interval=MONTHLY&trial=false',
+    // Even gated, the reference cards reflect the chosen interval.
+    expect(getByTestId(container, 'choose-plan-price-pro').textContent).toBe(
+      'plans.pro.priceAnnualPerMonth',
     );
   });
 
