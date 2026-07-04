@@ -10,7 +10,7 @@ import {
   Clock, CalendarClock, ClipboardList, Receipt, FileBarChart,
   Wallet, PieChart, Wrench, Banknote, HardHat,
   ArrowDownToLine, ArrowUpFromLine, UserRound, FileText, Briefcase,
-  CreditCard,
+  CreditCard, FileSignature,
 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -148,6 +148,11 @@ const SubcontractorManagement = lazyWithRetry(() =>
   import('../components/SubcontractorManagement').then(m => ({ default: m.SubcontractorManagement }))
 );
 
+// Lazy-loaded invoice template (issuer branding) settings
+const InvoiceBrandingSettings = lazyWithRetry(() =>
+  import('../components/InvoiceBrandingSettings').then(m => ({ default: m.InvoiceBrandingSettings }))
+);
+
 type ActiveSection =
   | 'dashboard' | 'users' | 'schedules' | 'hours' | 'projects' | 'audit'
   | 'clients'
@@ -156,7 +161,7 @@ type ActiveSection =
   | 'budgets'  | 'budget-report'
   | 'tool-inventory' | 'tool-report'
   | 'labor-cost' | 'labor-payroll'
-  | 'invoices'
+  | 'invoices' | 'invoice-branding'
   | 'accounts-receivable' | 'accounts-payable'
   | 'office-expenses'
   | 'subcontractors';
@@ -198,6 +203,7 @@ const NAV_PROJECTS: NavItem[] = [
 
 const NAV_FINANCE: NavItem[] = [
   { key: 'invoices',             labelKey: 'admin:nav.invoices',            icon: FileText        },
+  { key: 'invoice-branding',     labelKey: 'admin:nav.invoiceBranding',     icon: FileSignature   },
   { key: 'budgets',              labelKey: 'admin:nav.budgets',             icon: Wallet          },
   { key: 'budget-report',        labelKey: 'admin:nav.budgetReport',        icon: PieChart        },
   { key: 'expenses',             labelKey: 'admin:nav.allExpenses',         icon: Receipt         },
@@ -226,6 +232,7 @@ const SECTION_META: Record<ActiveSection, { titleKey: string; subtitleKey: strin
   'labor-cost':           { titleKey: 'admin:section.laborCost.title',           subtitleKey: 'admin:section.laborCost.subtitle'           },
   'labor-payroll':        { titleKey: 'admin:section.laborPayroll.title',        subtitleKey: 'admin:section.laborPayroll.subtitle'        },
   'invoices':             { titleKey: 'admin:section.invoices.title',             subtitleKey: 'admin:section.invoices.subtitle'             },
+  'invoice-branding':     { titleKey: 'admin:section.invoiceBranding.title',      subtitleKey: 'admin:section.invoiceBranding.subtitle'      },
   'accounts-receivable':  { titleKey: 'admin:section.accountsReceivable.title',  subtitleKey: 'admin:section.accountsReceivable.subtitle'  },
   'accounts-payable':     { titleKey: 'admin:section.accountsPayable.title',     subtitleKey: 'admin:section.accountsPayable.subtitle'     },
   'office-expenses':      { titleKey: 'admin:section.officeExpenses.title',      subtitleKey: 'admin:section.officeExpenses.subtitle'      },
@@ -532,6 +539,11 @@ export function AdminDashboard() {
           {activeSection === 'invoices' && (
             <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
               <InvoiceManager />
+            </Suspense></SectionErrorBoundary>
+          )}
+          {activeSection === 'invoice-branding' && (
+            <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
+              <InvoiceBrandingSettings />
             </Suspense></SectionErrorBoundary>
           )}
           {activeSection === 'accounts-receivable' && (

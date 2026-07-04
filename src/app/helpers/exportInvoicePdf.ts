@@ -38,7 +38,24 @@ export interface InvoicePdfData {
   notes?: string | null;
 }
 
-/* ───────────────────────── Company info ───────────────────────── */
+/**
+ * Issuer block printed in the PDF header — the tenant's "invoice template"
+ * configured once in Configuración → Plantilla de factura (see the
+ * invoiceBranding service, which loads it). When omitted/undefined the
+ * legacy hardcoded [COMPANY] header is used, so tenants that never
+ * configured a template keep today's PDFs unchanged.
+ */
+export interface InvoiceIssuerPdf {
+  name?: string | null;
+  contact?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  /** PNG/JPEG data URL; drawn in place of the legacy vector logo. */
+  logoDataUrl?: string | null;
+}
+
+/* ───────────────────────── Company info (legacy fallback) ───────────────────────── */
 const COMPANY = {
   name: 'OFJR Construction LLC',
   contact: 'Oscar Figueroa',
@@ -107,9 +124,26 @@ function drawCompanyLogo(doc: jsPDF, x: number, y: number, size: number) {
   doc.text('CONSTRUCTION LLC', cx, cy + r + 6, { align: 'center' });
 }
 
+/**
+ * Draw the tenant's uploaded logo (PNG/JPEG data URL) aspect-fitted and
+ * centered inside a `box`-sized square. A corrupt/unreadable image skips the
+ * logo rather than break invoice generation.
+ */
+function drawLogoImage(doc: jsPDF, dataUrl: string, x: number, y: number, box: number) {
+  try {
+    const props = doc.getImageProperties(dataUrl);
+    const scale = Math.min(box / props.width, box / props.height);
+    const w = props.width * scale;
+    const h = props.height * scale;
+    doc.addImage(dataUrl, props.fileType, x + (box - w) / 2, y + (box - h) / 2, w, h);
+  } catch {
+    // Bad image data: render the invoice without a logo.
+  }
+}
+
 /* ───────────────────────── Main export ───────────────────────── */
 
-export function generateInvoicePdf(data: InvoicePdfData): { blob: Blob; filename: string } {
+export function generateInvoicePdf(data: InvoicePdfData, issuer?: InvoiceIssuerPdf): { blob: Blob; filename: string } {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
   const pageW = doc.internal.pageSize.getWidth();
   const margin = 18;
@@ -119,23 +153,35 @@ export function generateInvoicePdf(data: InvoicePdfData): { blob: Blob; filename
 
   /* ═══════════════════ Header ═══════════════════ */
 
-  // Company logo
-  drawCompanyLogo(doc, margin, y - 2, 18);
+  // Issuer block: the tenant's configured template, or the legacy hardcoded
+  // COMPANY block (incl. its vector logo) when no template exists.
+  if (issuer?.logoDataUrl) {
+    drawLogoImage(doc, issuer.logoDataUrl, margin, y - 2, 18);
+  } else if (!issuer) {
+    drawCompanyLogo(doc, margin, y - 2, 18);
+  }
+
+  const issuerName = issuer ? (issuer.name ?? '') : COMPANY.name;
+  const issuerLines = issuer
+    ? [issuer.contact, issuer.address, issuer.phone, issuer.email]
+        .filter((line): line is string => Boolean(line && line.trim()))
+    : [COMPANY.contact, COMPANY.address, COMPANY.phone, COMPANY.email];
 
   // Company name & info (to the right of logo)
   const infoX = margin + 24;
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...BLACK);
-  doc.text(COMPANY.name, infoX, y + 4);
+  if (issuerName) {
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...BLACK);
+    doc.text(issuerName, infoX, y + 4);
+  }
 
   doc.setFontSize(8.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...GRAY_TEXT);
-  doc.text(COMPANY.contact, infoX, y + 10);
-  doc.text(COMPANY.address, infoX, y + 14.5);
-  doc.text(COMPANY.phone, infoX, y + 19);
-  doc.text(COMPANY.email, infoX, y + 23.5);
+  issuerLines.forEach((line, i) => {
+    doc.text(line, infoX, y + 10 + i * 4.5);
+  });
 
   // BILL TO (right side)
   const billX = pageW - margin;
@@ -378,8 +424,8 @@ export function generateInvoicePdf(data: InvoicePdfData): { blob: Blob; filename
 }
 
 /** Generate and immediately trigger download. */
-export function downloadInvoicePdf(data: InvoicePdfData) {
-  const { blob, filename } = generateInvoicePdf(data);
+export function downloadInvoicePdf(data: InvoicePdfData, issuer?: InvoiceIssuerPdf) {
+  const { blob, filename } = generateInvoicePdf(data, issuer);
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -396,7 +442,7 @@ export function downloadInvoicePdf(data: InvoicePdfData) {
  * `URL.revokeObjectURL` it when it changes or the component unmounts —
  * otherwise the blobs leak. Used by the live invoice preview.
  */
-export function invoicePdfPreviewUrl(data: InvoicePdfData): string {
-  const { blob } = generateInvoicePdf(data);
+export function invoicePdfPreviewUrl(data: InvoicePdfData, issuer?: InvoiceIssuerPdf): string {
+  const { blob } = generateInvoicePdf(data, issuer);
   return URL.createObjectURL(blob);
 }

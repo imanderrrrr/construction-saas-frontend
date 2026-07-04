@@ -23,6 +23,7 @@ import {
 import { listProjects } from '../services/projects';
 import { listClients, type ClientResponse } from '../services/clients';
 import { generateInvoicePdf, downloadInvoicePdf, type InvoicePdfData } from '../helpers/exportInvoicePdf';
+import { loadInvoiceIssuer } from '../services/invoiceBranding';
 
 // Types — aligned with API
 
@@ -390,7 +391,7 @@ export function AccountsReceivable() {
       try {
         const inv = toInvoice(created);
         const pdfData = invoiceToPdfData(inv);
-        const { blob, filename } = generateInvoicePdf(pdfData);
+        const { blob, filename } = generateInvoicePdf(pdfData, await loadInvoiceIssuer());
         setGeneratedPdfs(prev => [{
           id: created.id,
           invoiceNumber: created.invoiceNumber,
@@ -466,7 +467,7 @@ export function AccountsReceivable() {
                       billable). */}
                   <Button
                     variant="outline"
-                    onClick={() => downloadInvoicePdf(invoiceToPdfData(inv))}
+                    onClick={async () => downloadInvoicePdf(invoiceToPdfData(inv), await loadInvoiceIssuer())}
                     className="text-xs h-8 px-3 border-amber-300 text-amber-800 hover:bg-amber-100 gap-1.5"
                     title={t('finance:receivable.downloadPdf')}
                   >
@@ -611,7 +612,7 @@ export function AccountsReceivable() {
                             {t('finance:receivable.registerPayment')}
                           </Button>
                           <button
-                            onClick={() => downloadInvoicePdf(invoiceToPdfData(inv))}
+                            onClick={async () => downloadInvoicePdf(invoiceToPdfData(inv), await loadInvoiceIssuer())}
                             className="h-7 w-7 flex items-center justify-center rounded-md border border-red-200 text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors"
                             title={t('finance:receivable.downloadPdf')}
                           >
