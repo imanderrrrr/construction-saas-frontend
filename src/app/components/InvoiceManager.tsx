@@ -13,8 +13,9 @@ import { listProjects } from '../services/projects';
 import { listClients, type ClientResponse } from '../services/clients';
 import { businessToday } from '../helpers/dateTime';
 import {
-  invoicePdfPreviewUrl, downloadInvoicePdf, type InvoicePdfData,
+  invoicePdfPreviewUrl, downloadInvoicePdf, type InvoicePdfData, type InvoiceIssuerPdf,
 } from '../helpers/exportInvoicePdf';
+import { loadInvoiceIssuer } from '../services/invoiceBranding';
 
 // ── Types ───────────────────────────────────────────
 
@@ -139,6 +140,20 @@ export function InvoiceManager() {
     taxRateVal, taxVal, totalAmount, notes, t,
   ]);
 
+  // The tenant's invoice template (issuer block + logo) — loaded once
+  // (session-cached in the service); the preview regenerates when it lands.
+  const [issuer, setIssuer] = useState<InvoiceIssuerPdf | undefined>(undefined);
+  const [issuerReady, setIssuerReady] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    loadInvoiceIssuer().then((loaded) => {
+      if (cancelled) return;
+      setIssuer(loaded);
+      setIssuerReady(true);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   // Regenerate the blob URL (debounced) whenever the data changes, and
   // always revoke the previous URL so blobs don't leak.
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -150,10 +165,11 @@ export function InvoiceManager() {
       setPreviewUrl(null);
       return;
     }
+    if (!issuerReady) return; // avoid a legacy-header flash before the template loads
     const handle = setTimeout(() => {
       let url: string | null = null;
       try {
-        url = invoicePdfPreviewUrl(previewData);
+        url = invoicePdfPreviewUrl(previewData, issuer);
       } catch {
         url = null; // a transient bad state shouldn't crash the editor
       }
@@ -162,7 +178,7 @@ export function InvoiceManager() {
       setPreviewUrl(url);
     }, 400);
     return () => clearTimeout(handle);
-  }, [previewData]);
+  }, [previewData, issuer, issuerReady]);
 
   // Final cleanup on unmount.
   useEffect(() => () => {
@@ -567,7 +583,9 @@ export function InvoiceManager() {
             {previewData && (
               <button
                 type="button"
-                onClick={() => previewData && downloadInvoicePdf(previewData)}
+                onClick={async () => {
+                  if (previewData) downloadInvoicePdf(previewData, await loadInvoiceIssuer());
+                }}
                 className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-purple-600 hover:text-purple-800 transition-colors"
                 title={t('invoice.preview.download')}
               >
