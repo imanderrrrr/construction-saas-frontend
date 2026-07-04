@@ -1485,5 +1485,8 @@
   "clients.toast.created": "Cliente creado",
   "clients.toast.updated": "Cliente actualizado",
   "clients.toast.createFailed": "No se pudo crear el cliente",
-  "clients.toast.updateFailed": "No se pudo actualizar el cliente"
+  "clients.toast.updateFailed": "No se pudo actualizar el cliente",
+  "approvals.addMark": "Agregar marcas",
+  "approvals.createDay": "Crear jornada",
+  "approvals.marksAdded": "Marcas agregadas — pendientes de aprobación"
 }

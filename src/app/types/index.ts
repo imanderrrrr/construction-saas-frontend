@@ -109,6 +109,12 @@ export interface TimeEvent {
   disputeResolvedBy?: string | null;
   /** ISO 8601 timestamp when the dispute was resolved. */
   disputeResolvedAt?: string | null;
+  /**
+   * Username of the ADMIN/FINANCE user who manually created this mark on the
+   * worker's behalf; null for organic punches. Manual marks carry no GPS —
+   * the UI shows a "Manual" badge and no map link.
+   */
+  manualCreatorUsername?: string | null;
 }
 
 /** Review metadata attached once a record has been reviewed. */

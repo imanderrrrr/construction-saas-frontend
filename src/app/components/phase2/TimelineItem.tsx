@@ -1,4 +1,5 @@
-import { LogIn, LogOut, Utensils, MapPin, AlertTriangle, WifiOff, ShieldAlert, CheckCircle, PenLine, XCircle, Loader2, Car } from 'lucide-react';
+import { LogIn, LogOut, Utensils, MapPin, AlertTriangle, WifiOff, ShieldAlert, CheckCircle, PenLine, XCircle, Loader2, Car, UserCog } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { TimeEvent, TimeEventType, LocationStatus, ApprovalStatus } from '../../types';
 import { Button } from '../ui/button';
 
@@ -65,11 +66,14 @@ interface TimelineItemProps {
 }
 
 export function TimelineItem({ event, isLast = false, onApprove, onCorrect, onReject, actionEventId }: TimelineItemProps) {
+  const { t } = useTranslation('time');
   const ec  = EVENT_CONFIG[event.type] ?? { label: event.type, icon: LogIn, color: 'text-[#71717A]', bg: 'bg-[#FAFAFA]' };
   const lc  = LOC_CONFIG[event.locationStatus] ?? { icon: MapPin, color: 'text-[#71717A]', label: event.locationStatus };
   const EventIcon = ec.icon;
   const LocIcon   = lc.icon;
-  const hasIssue  = event.locationStatus !== 'OK';
+  /** Mark created by ADMIN/FINANCE on the worker's behalf: no GPS to show, badge instead. */
+  const isManual  = !!event.manualCreatorUsername;
+  const hasIssue  = !isManual && event.locationStatus !== 'OK';
   const isPending = event.approvalStatus === 'PENDING';
   const showActions = !!(onApprove && onCorrect && onReject);
   const isLoading = actionEventId === event.id;
@@ -98,13 +102,24 @@ export function TimelineItem({ event, isLast = false, onApprove, onCorrect, onRe
             )}
           </div>
           <div className="flex items-center gap-2 flex-wrap justify-end">
-            {/* Location chip */}
-            <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold ${
-              hasIssue ? 'bg-red-50 border border-red-100' : 'bg-emerald-50 border border-emerald-100'
-            }`}>
-              <LocIcon className={`w-3 h-3 ${lc.color}`} />
-              <span className={lc.color}>{lc.label}</span>
-            </div>
+            {/* Manual provenance badge — replaces the location chip (manual marks have no GPS) */}
+            {isManual ? (
+              <div
+                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-violet-50 border border-violet-200 text-violet-700"
+                data-testid="manual-mark-badge"
+              >
+                <UserCog className="w-3 h-3" />
+                <span>{t('manualMarks.badge', 'Manual — created by {{user}}', { user: event.manualCreatorUsername })}</span>
+              </div>
+            ) : (
+              /* Location chip */
+              <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold ${
+                hasIssue ? 'bg-red-50 border border-red-100' : 'bg-emerald-50 border border-emerald-100'
+              }`}>
+                <LocIcon className={`w-3 h-3 ${lc.color}`} />
+                <span className={lc.color}>{lc.label}</span>
+              </div>
+            )}
             {/* Per-event approval status badge */}
             <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold border ${sc.className}`}>
               {sc.icon && <sc.icon className="w-3 h-3" />}
@@ -121,8 +136,9 @@ export function TimelineItem({ event, isLast = false, onApprove, onCorrect, onRe
           </p>
         )}
 
-        {/* Exact punch location: distance from the site + Google Maps deep-link */}
-        {(event.distanceMeters != null || (event.lat != null && event.lng != null)) && (
+        {/* Exact punch location: distance from the site + Google Maps deep-link.
+            Never shown for manual marks — they carry no GPS by design. */}
+        {!isManual && (event.distanceMeters != null || (event.lat != null && event.lng != null)) && (
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             {event.distanceMeters != null && (
               <span className={`text-[11px] ${event.locationStatus === 'OUT_OF_RANGE' ? 'text-red-600 font-semibold' : 'text-[#71717A]'}`}>
