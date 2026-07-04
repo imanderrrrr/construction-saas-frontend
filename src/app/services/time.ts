@@ -69,6 +69,12 @@ export interface TimeRecordResponse {
     disputeResolvedBy?: string | null;
     /** ISO 8601 timestamp when the dispute was resolved. */
     disputeResolvedAt?: string | null;
+    /**
+     * Username of the ADMIN/FINANCE user who manually created this mark on
+     * the worker's behalf; null for organic punches. Manual marks carry no
+     * GPS — clients show a "Manual" badge and no map link.
+     */
+    manualCreatorUsername?: string | null;
   }[];
   reviews: {
     id: number;
@@ -553,4 +559,63 @@ export async function getPaymentHistory(params?: {
     `/api/v1/admin/payroll/history?${qs.toString()}`,
   );
   return page.content;
+}
+
+// Manual time marks (ADMIN/FINANCE create marks on a worker's/supervisor's behalf)
+
+export interface ManualMarkInput {
+  type: TimeEventType;
+  capturedAt: string; // ISO 8601
+}
+
+export interface ManualMarkContextResponse {
+  userId: number;
+  date: string; // YYYY-MM-DD
+  /**
+   * True when the date is covered by an already-confirmed labor payment for
+   * this user. Creating marks is still allowed (incremental re-payment is
+   * supported by design) — the UI shows a yellow warning.
+   */
+  paidPeriod: boolean;
+  records: {
+    recordId: number;
+    projectId: number;
+    projectName: string;
+    approvalStatus: 'PENDING' | 'APPROVED' | 'OBSERVED' | 'REJECTED' | 'AUTO_REJECTED';
+    /** True when this record itself was already paid — no more marks can be added to it. */
+    paid: boolean;
+    /** Mark types already present on the record (a manual mark of the same type cannot be added). */
+    presentTypes: TimeEventType[];
+  }[];
+  /** ACTIVE projects the subject is assigned to — the valid targets for a manual day. */
+  assignedProjects: { id: number; name: string }[];
+}
+
+/** Context for the manual-marks UI: paid-period flag + the user's existing records for a date. */
+export function getManualMarkContext(userId: number, date: string): Promise<ManualMarkContextResponse> {
+  const qs = new URLSearchParams();
+  qs.set('userId', String(userId));
+  qs.set('date', date);
+  return api<ManualMarkContextResponse>(`/api/v1/time-records/manual/context?${qs.toString()}`);
+}
+
+/** Create a full day (record + marks) from scratch. Marks are born PENDING. */
+export function createManualRecord(request: {
+  userId: number;
+  projectId: number;
+  workDate: string; // YYYY-MM-DD
+  marks: ManualMarkInput[];
+}): Promise<TimeRecordResponse> {
+  return api<TimeRecordResponse>('/api/v1/time-records/manual', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
+}
+
+/** Add missing marks to an existing record. Reopens machine-closed records. */
+export function addManualMarks(recordId: number, marks: ManualMarkInput[]): Promise<TimeRecordResponse> {
+  return api<TimeRecordResponse>(`/api/v1/time-records/${recordId}/events/manual`, {
+    method: 'POST',
+    body: JSON.stringify({ marks }),
+  });
 }
