@@ -86,14 +86,12 @@
   "faq.title": "Preguntas frecuentes",
   "faq.0.q": "¿Hay un período de prueba?",
   "faq.0.a": "Sí, 14 días gratis con tarjeta requerida. Cancelás cuando quieras durante el trial sin cargo.",
-  "faq.1.q": "¿Hay costo de setup?",
-  "faq.1.a": "Pro $499 USD, Business $999 USD — una sola vez. Incluye onboarding, training y migración de datos.",
-  "faq.2.q": "¿Puedo cambiar de plan?",
-  "faq.2.a": "Sí. Upgrade en cualquier momento (cambio inmediato, prorrateado). Downgrade al final del ciclo de facturación.",
-  "faq.3.q": "¿Qué métodos de pago aceptan?",
-  "faq.3.a": "Tarjeta de crédito (Visa, Mastercard, Amex) y ACH para clientes anuales.",
-  "faq.4.q": "¿Hay contrato de permanencia?",
-  "faq.4.a": "No para el plan mensual. El anual se factura por adelantado, pero podés cancelar la renovación.",
-  "faq.5.q": "¿Y si superamos los usuarios incluidos?",
-  "faq.5.a": "Te avisamos antes de pasarte y te ayudamos a evaluar si Business o Enterprise hace más sentido."
+  "faq.1.q": "¿Puedo cambiar de plan?",
+  "faq.1.a": "Sí. Upgrade en cualquier momento (cambio inmediato, prorrateado). Downgrade al final del ciclo de facturación.",
+  "faq.2.q": "¿Qué métodos de pago aceptan?",
+  "faq.2.a": "Tarjeta de crédito (Visa, Mastercard, Amex) y ACH para clientes anuales.",
+  "faq.3.q": "¿Hay contrato de permanencia?",
+  "faq.3.a": "No para el plan mensual. El anual se factura por adelantado, pero podés cancelar la renovación.",
+  "faq.4.q": "¿Y si superamos los usuarios incluidos?",
+  "faq.4.a": "Te avisamos antes de pasarte y te ayudamos a evaluar si Business o Enterprise hace más sentido."
 }

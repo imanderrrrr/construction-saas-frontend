@@ -1,9 +1,7 @@
 // Public pricing section for the BuildTrack landing page.
 //
-// Pricing model: two flat tiers (Pro / Business) — no per-user billing.
-// "Sweet spot" target is 11–30 employees. Setup fees ($499 / $999) are
-// intentionally excluded from the cards (they appear only in the FAQ to
-// avoid sticker-shock at the top of the funnel).
+// Pricing model: two flat tiers (Pro / Business) — no per-user billing,
+// no setup fee. "Sweet spot" target is 11–30 employees.
 //
 // INTERNAL — not for public display:
 //   The OFJR Construction anchor client has a grandfathered deal:
@@ -47,7 +45,7 @@ const SALES_EMAIL = 'andersonaguirre794@gmail.com';
 const FEATURES_PER_PLAN = 13;
 
 // Number of FAQ entries (faq.0..faq.N-1 in pricing.json).
-const FAQ_COUNT = 6;
+const FAQ_COUNT = 5;
 
 // Plan card
 

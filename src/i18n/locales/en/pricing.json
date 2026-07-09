@@ -86,14 +86,12 @@
   "faq.title": "Frequently asked questions",
   "faq.0.q": "Is there a trial period?",
   "faq.0.a": "Yes — 14 days free, card required. Cancel any time during the trial at no charge.",
-  "faq.1.q": "Is there a setup fee?",
-  "faq.1.a": "Pro $499 USD, Business $999 USD — one-time. Includes onboarding, training and data migration.",
-  "faq.2.q": "Can I change plans?",
-  "faq.2.a": "Yes. Upgrade any time (effective immediately, prorated). Downgrade at the end of your billing cycle.",
-  "faq.3.q": "What payment methods do you accept?",
-  "faq.3.a": "Credit card (Visa, Mastercard, Amex) and ACH for annual customers.",
-  "faq.4.q": "Is there a long-term contract?",
-  "faq.4.a": "Not for monthly. Annual is billed up-front, but you can cancel renewal at any time.",
-  "faq.5.q": "What if we exceed the included users?",
-  "faq.5.a": "We notify you before you go over and help you evaluate whether Business or Enterprise makes more sense."
+  "faq.1.q": "Can I change plans?",
+  "faq.1.a": "Yes. Upgrade any time (effective immediately, prorated). Downgrade at the end of your billing cycle.",
+  "faq.2.q": "What payment methods do you accept?",
+  "faq.2.a": "Credit card (Visa, Mastercard, Amex) and ACH for annual customers.",
+  "faq.3.q": "Is there a long-term contract?",
+  "faq.3.a": "Not for monthly. Annual is billed up-front, but you can cancel renewal at any time.",
+  "faq.4.q": "What if we exceed the included users?",
+  "faq.4.a": "We notify you before you go over and help you evaluate whether Business or Enterprise makes more sense."
 }
