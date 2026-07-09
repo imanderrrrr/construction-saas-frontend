@@ -411,26 +411,17 @@ export function Landing() {
       {/* App móvil */}
       <AppSection />
 
-      {/* Testimonial */}
+      {/* Value statement — our promise, in our own voice. Intentionally NOT a
+          customer testimonial (no fabricated person/rating). */}
       <section className="bg-white py-16 sm:py-24">
         <div className="mx-auto flex max-w-3xl flex-col items-center px-6 text-center">
-          <div className="flex gap-1.5">
-            {[0, 1, 2, 3, 4].map((i) => (
-              <Star key={i} className="h-5 w-5 fill-[#F97316] text-[#F97316]" />
-            ))}
-          </div>
+          <span className="h-1 w-12 rounded-full bg-[#F97316]" />
           <p className="mt-7 text-[22px] font-semibold leading-snug tracking-tight text-[#0A0A0A] sm:text-[28px]">
-            “Dejamos atrás cinco hojas de cálculo y dos grupos de WhatsApp. Hoy veo el avance y el presupuesto de cada obra en un solo lugar, en tiempo real.”
+            Deja atrás las hojas de cálculo y los grupos de WhatsApp. Ve el avance y el presupuesto de cada obra en un solo lugar, en tiempo real.
           </p>
-          <div className="mt-8 flex items-center gap-3.5">
-            <span className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-[#F97316] text-lg font-bold text-white">
-              RS
-            </span>
-            <div className="text-left">
-              <p className="text-base font-bold text-[#0A0A0A]">Roberto Salazar</p>
-              <p className="text-sm text-[#71717A]">Director de obra · Constructora piloto</p>
-            </div>
-          </div>
+          <p className="mt-6 text-sm font-semibold uppercase tracking-wide text-[#F97316]">
+            BuildTrack
+          </p>
         </div>
       </section>
 
