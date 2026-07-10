@@ -21,6 +21,7 @@ import enLanding from './locales/en/landing.json';
 import enBilling from './locales/en/billing.json';
 import enSiteLog from './locales/en/siteLog.json';
 import enClientView from './locales/en/clientView.json';
+import enPunchList from './locales/en/punchList.json';
 
 // Spanish
 import esCommon from './locales/es/common.json';
@@ -41,8 +42,9 @@ import esLanding from './locales/es/landing.json';
 import esBilling from './locales/es/billing.json';
 import esSiteLog from './locales/es/siteLog.json';
 import esClientView from './locales/es/clientView.json';
+import esPunchList from './locales/es/punchList.json';
 
-const ns = ['common', 'auth', 'admin', 'expenses', 'finance', 'projects', 'time', 'inventory', 'users', 'dashboard', 'worker', 'supervisor', 'subcontractors', 'pricing', 'landing', 'billing', 'siteLog', 'clientView'] as const;
+const ns = ['common', 'auth', 'admin', 'expenses', 'finance', 'projects', 'time', 'inventory', 'users', 'dashboard', 'worker', 'supervisor', 'subcontractors', 'pricing', 'landing', 'billing', 'siteLog', 'clientView', 'punchList'] as const;
 
 i18n
   .use(LanguageDetector)
@@ -68,6 +70,7 @@ i18n
         billing: enBilling,
         siteLog: enSiteLog,
         clientView: enClientView,
+        punchList: enPunchList,
       },
       es: {
         common: esCommon,
@@ -88,6 +91,7 @@ i18n
         billing: esBilling,
         siteLog: esSiteLog,
         clientView: esClientView,
+        punchList: esPunchList,
       },
     },
     fallbackLng: 'es',

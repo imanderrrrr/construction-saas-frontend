@@ -8,7 +8,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import {
-  Camera, CheckCircle2, CloudFog, CloudLightning, CloudRain, Cloudy,
+  Camera, CheckCircle2, ClipboardList, CloudFog, CloudLightning, CloudRain, Cloudy,
   HardHat, Loader2, Lock, NotebookPen, ShieldAlert, Sun, Users,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -24,9 +24,11 @@ import {
 import type { Weather } from '../services/siteLog';
 import { AuthImage } from '../components/sitelog/AuthImage';
 import { Lightbox, type LightboxImage } from '../components/sitelog/Lightbox';
+import { ClientPunchSection } from '../components/punchlist/ClientPunchSection';
 
 type Phase = 'loading' | 'pin' | 'ready' | 'gone' | 'invalid';
 type PinError = 'wrong' | 'rate' | null;
+type PortalTab = 'sitelog' | 'punch';
 
 const PAGE_SIZE = 10;
 
@@ -50,8 +52,9 @@ function classify(err: unknown): 'pin' | 'wrong' | 'rate' | 'gone' | 'invalid' {
 
 export function ClientView() {
   const { token = '' } = useParams<{ token: string }>();
-  const { t, i18n } = useTranslation(['clientView']);
+  const { t, i18n } = useTranslation(['clientView', 'punchList']);
 
+  const [tab, setTab] = useState<PortalTab>('sitelog');
   const [phase, setPhase] = useState<Phase>('loading');
   const [session, setSession] = useState<ClientViewSession | null>(null);
   const [pin, setPin] = useState('');
@@ -266,6 +269,28 @@ export function ClientView() {
           </section>
         )}
 
+        {/* Section tabs: bitácora | punch list */}
+        <div className="bg-white rounded-xl border border-[#D4D4D8] p-1.5 flex gap-1" role="tablist">
+          <TabButton
+            active={tab === 'sitelog'}
+            icon={NotebookPen}
+            label={t('punchList:tab.sitelog')}
+            onClick={() => setTab('sitelog')}
+          />
+          <TabButton
+            active={tab === 'punch'}
+            icon={ClipboardList}
+            label={t('punchList:tab.punch')}
+            onClick={() => setTab('punch')}
+          />
+        </div>
+
+        {tab === 'punch' && session && (
+          <ClientPunchSection session={session} onGone={() => setPhase('gone')} />
+        )}
+
+        {tab === 'sitelog' && (
+        <>
         {/* Entries */}
         {listError && (
           <div className="bg-white rounded-xl border border-red-200 p-5 text-center">
@@ -389,6 +414,8 @@ export function ClientView() {
             </button>
           </div>
         )}
+        </>
+        )}
 
         <footer className="pt-2 pb-6 text-center">
           <p className="text-[11px] text-[#71717A]">{t('footer.note')}</p>
@@ -415,6 +442,28 @@ export function ClientView() {
 }
 
 // ──────────────────────────── sub-components ────────────────────────────
+
+function TabButton({ active, icon: Icon, label, onClick }: {
+  active: boolean;
+  icon: LucideIcon;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className={`flex-1 h-10 rounded-lg text-sm font-semibold inline-flex items-center justify-center gap-2 transition-colors ${
+        active ? 'bg-[#F97316] text-white' : 'text-[#71717A] hover:bg-[#FAFAFA]'
+      }`}
+    >
+      <Icon className="w-4 h-4" />
+      {label}
+    </button>
+  );
+}
 
 function CenteredShell({ children }: { children: React.ReactNode }) {
   return (

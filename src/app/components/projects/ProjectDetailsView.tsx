@@ -25,6 +25,8 @@ import {
   getContractHistory, type ContractHistoryEntry,
   listChangeOrders, createChangeOrder, deleteChangeOrder, type ChangeOrderEntry,
 } from '../../services/projects';
+import { PunchList } from '../punchlist/PunchList';
+import { useSiteLogFeature } from '../../hooks/useSiteLogFeature';
 
 export function ProjectDetailsView({ project, allUsers, usersLoading, onBack, onAssign, onToggleStatus, onCloseProject, onEdit }: {
   project: Project; allUsers: UserForAssign[]; usersLoading: boolean;
@@ -37,6 +39,12 @@ export function ProjectDetailsView({ project, allUsers, usersLoading, onBack, on
     .map(id => allUsers.find(u => u.id === id))
     .filter(Boolean) as UserForAssign[];
   const closed = isProjectClosed(project);
+
+  // Punch list rides the same plan feature as the bitácora / client portal.
+  const { enabled: punchEnabled } = useSiteLogFeature();
+  const punchAssignees = allUsers
+    .filter(u => u.status === 'ACTIVE' && (u.role === 'WORKER' || u.role === 'SUPERVISOR' || u.role === 'SUBCONTRACTOR'))
+    .map(u => ({ id: u.id, name: u.fullName || u.username }));
 
   const [history, setHistory] = useState<ContractHistoryEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -496,6 +504,11 @@ export function ProjectDetailsView({ project, allUsers, usersLoading, onBack, on
           )}
         </div>
       </div>
+
+      {/* Punch list (client portal fase 2) — hidden when the plan lacks the feature */}
+      {punchEnabled && (
+        <PunchList projects={[{ id: project.id, name: project.name, assignees: punchAssignees }]} />
+      )}
 
       <ShareSiteLogModal
         open={shareOpen}
