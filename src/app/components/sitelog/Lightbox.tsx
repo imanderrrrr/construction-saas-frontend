@@ -52,6 +52,7 @@ export function Lightbox({
   showDownload = true,
   labels,
   onDownloadError,
+  imageHeaders,
 }: {
   images: LightboxImage[];
   index: number;
@@ -61,6 +62,8 @@ export function Lightbox({
   showDownload?: boolean;
   labels?: LightboxLabels;
   onDownloadError?: (err: unknown) => void;
+  /** Extra request headers for image fetches — e.g. the client-portal bearer. */
+  imageHeaders?: Record<string, string>;
 }) {
   const l = { ...DEFAULT_LABELS, ...labels };
   const total = images.length;
@@ -87,7 +90,10 @@ export function Lightbox({
   const handleDownload = useCallback(async () => {
     if (!image) return;
     try {
-      const res = await fetch(image.url, { credentials: 'include' as RequestCredentials });
+      const res = await fetch(image.url, {
+        credentials: 'include' as RequestCredentials,
+        headers: imageHeaders,
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
       const objectUrl = URL.createObjectURL(blob);
@@ -101,7 +107,7 @@ export function Lightbox({
     } catch (err) {
       onDownloadError?.(err);
     }
-  }, [image, onDownloadError]);
+  }, [image, onDownloadError, imageHeaders]);
 
   if (!image) return null;
   if (typeof document === 'undefined') return null;
@@ -170,6 +176,7 @@ export function Lightbox({
             src={image.url}
             alt={image.alt ?? ''}
             className="max-h-full max-w-full rounded-md object-contain"
+            headers={imageHeaders}
           />
         </div>
 
@@ -210,7 +217,7 @@ export function Lightbox({
                 i === index ? 'border-[#F97316]' : 'border-transparent opacity-60 hover:opacity-100',
               )}
             >
-              <AuthImage src={img.url} alt="" className="h-full w-full object-cover" />
+              <AuthImage src={img.url} alt="" className="h-full w-full object-cover" headers={imageHeaders} />
             </button>
           ))}
         </div>

@@ -24,6 +24,7 @@ import { SubcontractorWebInfo } from './pages/SubcontractorWebInfo';
 import { BillingPage }         from './pages/admin/BillingPage';
 import { CheckoutSuccess }     from './pages/CheckoutSuccess';
 import { CheckoutCancel }      from './pages/CheckoutCancel';
+import { ClientView }          from './pages/ClientView';
 import { AuthService }         from './services/auth';
 import { BillingGuard }        from './components/BillingGuard';
 import { CanonicalRole, ROLE_DASHBOARD_ROUTES } from './types';
@@ -79,6 +80,9 @@ export const routes = [
   { path: '/choose-plan',            element: <ChoosePlan /> },
   { path: '/signup',                 element: <Signup /> },
   { path: '/accept-invite/:token',   element: <AcceptInvite /> },
+  // Client portal — public read-only site-log view. Auth is the signed token
+  // in the URL (exchanged in-page), NOT a user session: no guards on purpose.
+  { path: '/client-view/:token',     element: <ClientView /> },
   { path: '/forgot-password',        element: <ForgotPassword /> },
   { path: '/reset-password/:token',  element: <ResetPassword /> },
   { path: '/auth/handoff',           element: <AuthHandoff /> },

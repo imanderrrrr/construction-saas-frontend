@@ -1,7 +1,7 @@
 import {
   FolderOpen, UserPlus, Users, PowerOff, Power,
   Lock, ShieldAlert, Pencil, History, TrendingDown, TrendingUp, FileText,
-  Plus, Minus, Trash2, Loader2, AlertCircle,
+  Plus, Minus, Trash2, Loader2, AlertCircle, Share2,
 } from 'lucide-react';
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +16,7 @@ import {
 import { toast } from 'sonner';
 import { isProjectClosed, CLOSED_PROJECT_MSG } from '../../helpers/project-utils';
 import { ClosedProjectBanner } from '../ClosedProjectBanner';
+import { ShareSiteLogModal } from './ShareSiteLogModal';
 import type { Project, UserForAssign } from './types';
 import { fmtUSD, fmtDate } from './helpers';
 import { StatusBadge, UserAvatar, RoleBadge } from './badges';
@@ -30,7 +31,8 @@ export function ProjectDetailsView({ project, allUsers, usersLoading, onBack, on
   onBack: () => void;
   onAssign: () => void; onToggleStatus: () => void; onCloseProject: () => void; onEdit: () => void;
 }) {
-  const { t, i18n } = useTranslation(['admin', 'common']);
+  const { t, i18n } = useTranslation(['admin', 'common', 'clientView']);
+  const [shareOpen, setShareOpen] = useState(false);
   const assignedUsers = project.assignedUserIds
     .map(id => allUsers.find(u => u.id === id))
     .filter(Boolean) as UserForAssign[];
@@ -143,6 +145,10 @@ export function ProjectDetailsView({ project, allUsers, usersLoading, onBack, on
               <Button onClick={onEdit} variant="outline"
                 className="gap-2 h-9 border-[#D4D4D8] text-[#0A0A0A]">
                 <Pencil className="w-3.5 h-3.5" />{t('common:buttons.edit')}
+              </Button>
+              <Button onClick={() => setShareOpen(true)} variant="outline"
+                className="gap-2 h-9 border-[#D4D4D8] text-[#0A0A0A]">
+                <Share2 className="w-3.5 h-3.5" />{t('clientView:share.button')}
               </Button>
               <Button onClick={onAssign}
                 className="bg-[#F97316] hover:bg-[#C2410C] text-white gap-2 h-9">
@@ -490,6 +496,14 @@ export function ProjectDetailsView({ project, allUsers, usersLoading, onBack, on
           )}
         </div>
       </div>
+
+      <ShareSiteLogModal
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        projectId={project.id}
+        projectName={project.name}
+        clientName={project.clientName ?? null}
+      />
     </div>
   );
 }
