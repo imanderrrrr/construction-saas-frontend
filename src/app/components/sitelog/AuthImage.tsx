@@ -19,15 +19,21 @@ export function AuthImage({
   photoId,
   alt,
   className,
+  headers,
 }: {
   src?: string;
   siteLogId?: number;
   photoId?: number;
   alt: string;
   className?: string;
+  /** Extra request headers — e.g. the client-portal `Authorization: Bearer <session>`. */
+  headers?: Record<string, string>;
 }) {
   const url =
     src ?? (siteLogId != null && photoId != null ? siteLogPhotoUrl(siteLogId, photoId) : null);
+
+  // Serialize so the effect deps stay primitive (callers pass inline objects).
+  const headersKey = headers ? JSON.stringify(headers) : null;
 
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [error, setError] = useState(false);
@@ -41,7 +47,10 @@ export function AuthImage({
     let cancelled = false;
     setBlobUrl(null);
     setError(false);
-    fetch(url, { credentials: 'include' as RequestCredentials })
+    fetch(url, {
+      credentials: 'include' as RequestCredentials,
+      headers: headersKey ? (JSON.parse(headersKey) as Record<string, string>) : undefined,
+    })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.blob();
@@ -59,7 +68,7 @@ export function AuthImage({
       cancelled = true;
       if (revoke) URL.revokeObjectURL(revoke);
     };
-  }, [url]);
+  }, [url, headersKey]);
 
   if (error) {
     return (
