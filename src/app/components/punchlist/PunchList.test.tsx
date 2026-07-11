@@ -13,6 +13,8 @@ const svc = vi.hoisted(() => ({
   markPunchItemReady: vi.fn(),
   returnPunchItemToProgress: vi.fn(),
   closePunchItem: vi.fn(),
+  listPunchItemComments: vi.fn(),
+  addPunchItemComment: vi.fn(),
 }));
 
 vi.mock('../../services/punchItems', async (importOriginal) => {
@@ -31,6 +33,8 @@ const PROJECT = { id: 7, name: 'Casa Roble', assignees: [{ id: 3, name: 'Obrero 
 function item(overrides: Partial<PunchItem> = {}): PunchItem {
   return {
     id: 1,
+    itemNumber: 1,
+    displayNumber: '#001',
     origin: 'CLIENT',
     title: 'Fuga en el lavamanos',
     description: null,
@@ -51,6 +55,8 @@ function item(overrides: Partial<PunchItem> = {}): PunchItem {
     closableInternally: false,
     photos: [],
     events: [],
+    comments: [],
+    commentCount: 0,
     createdAt: '2026-07-08T12:00:00Z',
     updatedAt: '2026-07-08T12:00:00Z',
     ...overrides,
@@ -216,5 +222,51 @@ describe('PunchList (internal view)', () => {
     expect(container.textContent).toContain(i18n.t('punchList:internal.event.CREATED'));
     expect(container.textContent).toContain(i18n.t('punchList:internal.timeline.client'));
     expect(container.textContent).toContain(i18n.t('punchList:internal.event.ASSIGNED'));
+  });
+
+  it('shows the per-project number on the card and the export trigger', async () => {
+    svc.listPunchItems.mockResolvedValue([item({ itemNumber: 12, displayNumber: '#012' })]);
+
+    await render(root);
+
+    expect(container.textContent).toContain('#012');
+    expect(container.textContent).toContain(i18n.t('punchList:internal.export'));
+  });
+
+  it('opens the comment thread, labels both sides and posts a reply', async () => {
+    svc.listPunchItems.mockResolvedValue([item({ commentCount: 1 })]);
+    svc.listPunchItemComments.mockResolvedValue([
+      { id: 1, authorName: null, byClient: true, body: '¿Cuándo vienen?', createdAt: '2026-07-09T10:00:00Z' },
+      { id: 2, authorName: 'Ana Admin', byClient: false, body: 'Mañana a primera hora', createdAt: '2026-07-09T11:00:00Z' },
+    ]);
+    svc.addPunchItemComment.mockResolvedValue(
+      { id: 3, authorName: 'Ana Admin', byClient: false, body: 'Ya quedó', createdAt: '2026-07-09T12:00:00Z' },
+    );
+
+    await render(root);
+    await click(buttonByText(container, i18n.t('punchList:internal.comments.toggle', { count: 1 })));
+
+    expect(svc.listPunchItemComments).toHaveBeenCalledWith(1);
+    // The client's message is labelled as the client; the internal one by name.
+    expect(container.textContent).toContain(i18n.t('punchList:internal.comments.client'));
+    expect(container.textContent).toContain('¿Cuándo vienen?');
+    expect(container.textContent).toContain('Ana Admin');
+    // A CLIENT item warns that the owner reads the thread.
+    expect(container.textContent).toContain(i18n.t('punchList:internal.comments.visibleHint'));
+
+    const box = container.querySelector<HTMLTextAreaElement>(
+      `textarea[placeholder="${i18n.t('punchList:internal.comments.placeholder')}"]`,
+    )!;
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')!.set!;
+      setter.call(box, 'Ya quedó');
+      box.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await click(buttonByText(container, i18n.t('punchList:internal.comments.send')));
+
+    expect(svc.addPunchItemComment).toHaveBeenCalledWith(1, 'Ya quedó');
+    expect(container.textContent).toContain('Ya quedó');
+    // The toggle badge follows the loaded thread size.
+    expect(container.textContent).toContain(i18n.t('punchList:internal.comments.toggle', { count: 3 }));
   });
 });

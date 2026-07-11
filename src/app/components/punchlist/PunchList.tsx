@@ -6,15 +6,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Camera, CheckCircle2, ClipboardList, History, Loader2, MapPin, Plus,
-  Undo2, User as UserIcon, X,
+  Camera, CheckCircle2, ClipboardList, Download, FileSpreadsheet, FileText,
+  History, Loader2, MapPin, MessageSquare, Plus, Send, Undo2,
+  User as UserIcon, X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
+  addPunchItemComment,
   assignPunchItem,
   closePunchItem,
   createPunchItem,
   getPunchItem,
+  listPunchItemComments,
   listPunchItems,
   markPunchItemReady,
   MAX_INTERNAL_PHOTO_BYTES,
@@ -22,10 +25,15 @@ import {
   punchItemPhotoUrl,
   returnPunchItemToProgress,
   type PunchItem,
+  type PunchItemComment,
   type PunchItemStatus,
 } from '../../services/punchItems';
+import { exportPunchListCsv, exportPunchListPdf, type PunchListExportLabels } from '../../helpers/exportPunchList';
 import { AuthImage } from '../sitelog/AuthImage';
 import { Lightbox, type LightboxImage } from '../sitelog/Lightbox';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '../ui/dropdown-menu';
 
 /** One assignable field user (WORKER / SUPERVISOR / SUBCONTRACTOR). */
 export interface PunchAssignee {
@@ -134,6 +142,55 @@ export function PunchList({ projects }: { projects: PunchProject[] }) {
     setLightbox({ images, index });
   };
 
+  // Export of the CURRENTLY FILTERED list (fase 3) — labels pre-translated
+  // so the file matches the user's language.
+  const exportLabels = (): PunchListExportLabels => ({
+    docTitle: t('internal.title'),
+    filterLine: [
+      project?.name ?? '',
+      statusFilter === 'ALL' ? t('internal.filter.all') : t(`status.${statusFilter}`),
+      t('internal.export.count', { count: items.length }),
+    ].filter(Boolean).join(' · '),
+    columns: {
+      number: t('internal.export.col.number'),
+      title: t('internal.export.col.title'),
+      status: t('internal.export.col.status'),
+      origin: t('internal.export.col.origin'),
+      assignee: t('internal.export.col.assignee'),
+      location: t('internal.export.col.location'),
+      createdAt: t('internal.export.col.createdAt'),
+      readyAt: t('internal.export.col.readyAt'),
+      closedAt: t('internal.export.col.closedAt'),
+      resolution: t('internal.export.col.resolution'),
+    },
+    status: {
+      OPEN: t('status.OPEN'),
+      IN_PROGRESS: t('status.IN_PROGRESS'),
+      READY_FOR_REVIEW: t('status.READY_FOR_REVIEW'),
+      REOPENED: t('status.REOPENED'),
+      CLOSED: t('status.CLOSED'),
+    },
+    origin: {
+      CLIENT: t('internal.origin.CLIENT'),
+      INTERNAL: t('internal.origin.INTERNAL'),
+    },
+  });
+
+  const runExport = (kind: 'csv' | 'pdf') => {
+    if (!project || items.length === 0) {
+      toast.error(t('internal.export.empty'));
+      return;
+    }
+    try {
+      const params = { items, projectName: project.name, labels: exportLabels() };
+      if (kind === 'csv') exportPunchListCsv(params);
+      else exportPunchListPdf(params);
+      toast.success(t('internal.export.started'));
+    } catch {
+      toast.error(t('internal.export.failed'));
+    }
+  };
+
   if (projects.length === 0) return null;
 
   return (
@@ -160,6 +217,27 @@ export function PunchList({ projects }: { projects: PunchProject[] }) {
               ))}
             </select>
           )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="h-8 px-3 rounded-lg border border-[#D4D4D8] bg-white text-xs font-medium text-[#0A0A0A] hover:text-[#F97316] inline-flex items-center gap-1.5 transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+                {t('internal.export')}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem onClick={() => runExport('pdf')} className="gap-2 text-sm cursor-pointer">
+                <FileText className="w-4 h-4 text-[#71717A]" />
+                {t('internal.export.pdf')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => runExport('csv')} className="gap-2 text-sm cursor-pointer">
+                <FileSpreadsheet className="w-4 h-4 text-[#71717A]" />
+                {t('internal.export.csv')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <button
             type="button"
             onClick={() => setCreateOpen((v) => !v)}
@@ -278,6 +356,22 @@ function PunchItemCard({ item, assignees, detail, fmtDate, onChanged, onToggleTi
   const [busy, setBusy] = useState(false);
   const [readyOpen, setReadyOpen] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
+  const [thread, setThread] = useState<PunchItemComment[] | 'loading' | 'error' | null>(null);
+
+  const commentCount = Array.isArray(thread) ? thread.length : item.commentCount;
+
+  const toggleThread = async () => {
+    if (thread) {
+      setThread(null);
+      return;
+    }
+    setThread('loading');
+    try {
+      setThread(await listPunchItemComments(item.id));
+    } catch {
+      setThread('error');
+    }
+  };
 
   const act = async (action: () => Promise<PunchItem>, successKey: string) => {
     setBusy(true);
@@ -300,6 +394,7 @@ function PunchItemCard({ item, assignees, detail, fmtDate, onChanged, onToggleTi
     <article className="rounded-lg border border-[#D4D4D8] overflow-hidden">
       <header className="px-4 py-3 bg-[#FAFAFA]/60 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2 min-w-0">
+          <span className="text-sm font-semibold text-[#F97316] tabular-nums">{item.displayNumber}</span>
           <h4 className="text-sm font-semibold text-[#0A0A0A]">{item.title}</h4>
           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_STYLES[item.status]}`}>
             {t(`status.${item.status}`)}
@@ -313,14 +408,24 @@ function PunchItemCard({ item, assignees, detail, fmtDate, onChanged, onToggleTi
             </span>
           )}
         </div>
-        <button
-          type="button"
-          onClick={onToggleTimeline}
-          className="h-7 px-2.5 rounded-lg text-[11px] font-medium text-[#71717A] hover:bg-white inline-flex items-center gap-1.5 border border-transparent hover:border-[#D4D4D8] transition-colors"
-        >
-          <History className="w-3.5 h-3.5" />
-          {detail ? t('internal.timeline.hide') : t('internal.timeline.show')}
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => void toggleThread()}
+            className="h-7 px-2.5 rounded-lg text-[11px] font-medium text-[#71717A] hover:bg-white inline-flex items-center gap-1.5 border border-transparent hover:border-[#D4D4D8] transition-colors"
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            {t('internal.comments.toggle', { count: commentCount })}
+          </button>
+          <button
+            type="button"
+            onClick={onToggleTimeline}
+            className="h-7 px-2.5 rounded-lg text-[11px] font-medium text-[#71717A] hover:bg-white inline-flex items-center gap-1.5 border border-transparent hover:border-[#D4D4D8] transition-colors"
+          >
+            <History className="w-3.5 h-3.5" />
+            {detail ? t('internal.timeline.hide') : t('internal.timeline.show')}
+          </button>
+        </div>
       </header>
 
       <div className="p-4 space-y-3">
@@ -478,6 +583,23 @@ function PunchItemCard({ item, assignees, detail, fmtDate, onChanged, onToggleTi
           />
         )}
 
+        {/* Comment thread (fase 3, D5) */}
+        {thread === 'loading' && (
+          <div className="flex justify-center py-2">
+            <Loader2 className="w-4 h-4 text-[#F97316] animate-spin" />
+          </div>
+        )}
+        {thread === 'error' && (
+          <p className="text-xs text-red-600">{t('internal.comments.loadFailed')}</p>
+        )}
+        {Array.isArray(thread) && (
+          <InternalCommentThread
+            item={item}
+            thread={thread}
+            onPosted={(comment) => setThread((prev) => (Array.isArray(prev) ? [...prev, comment] : [comment]))}
+          />
+        )}
+
         {/* Timeline */}
         {detail === 'loading' && (
           <div className="flex justify-center py-2">
@@ -504,6 +626,97 @@ function PunchItemCard({ item, assignees, detail, fmtDate, onChanged, onToggleTi
         )}
       </div>
     </article>
+  );
+}
+
+// ──────────────────────────── comment thread (fase 3, D5) ────────────────────────────
+
+/**
+ * The item's shared conversation, internal face: full author names; the
+ * client's messages labelled as the client. On CLIENT items the hint reminds
+ * the team that the OWNER READS THIS THREAD on their portal.
+ */
+function InternalCommentThread({ item, thread, onPosted }: {
+  item: PunchItem;
+  thread: PunchItemComment[];
+  onPosted: (comment: PunchItemComment) => void;
+}) {
+  const { t, i18n } = useTranslation(['punchList']);
+  const [body, setBody] = useState('');
+  const [sending, setSending] = useState(false);
+
+  const fmtDateTime = (iso: string): string =>
+    new Date(iso).toLocaleString(
+      i18n.language.startsWith('en') ? 'en-US' : 'es',
+      { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' },
+    );
+
+  const submit = async () => {
+    if (!body.trim() || sending) return;
+    setSending(true);
+    try {
+      onPosted(await addPunchItemComment(item.id, body));
+      setBody('');
+      toast.success(t('internal.comments.sent'));
+    } catch {
+      toast.error(t('internal.comments.failed'));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="rounded-lg bg-[#FAFAFA] border border-[#F4F4F5] px-3 py-2 space-y-2">
+      <p className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide">
+        {t('internal.comments')}
+        <span className="ml-1.5 normal-case font-normal tracking-normal">
+          {item.origin === 'CLIENT' ? t('internal.comments.visibleHint') : t('internal.comments.internalHint')}
+        </span>
+      </p>
+
+      {thread.length === 0 && (
+        <p className="text-xs text-[#71717A]">{t('internal.comments.empty')}</p>
+      )}
+      <ul className="space-y-1.5">
+        {thread.map((comment) => (
+          <li
+            key={comment.id}
+            className={`rounded-lg border px-3 py-2 ${
+              comment.byClient ? 'bg-[#F97316]/5 border-[#F97316]/20' : 'bg-white border-[#F4F4F5]'
+            }`}
+          >
+            <p className="text-[11px] mb-0.5">
+              <span className="font-semibold text-[#0A0A0A]">
+                {comment.byClient ? t('internal.comments.client') : (comment.authorName ?? '—')}
+              </span>
+              <span className="text-[#71717A] ml-1.5">{fmtDateTime(comment.createdAt)}</span>
+            </p>
+            <p className="text-sm text-[#0A0A0A] whitespace-pre-wrap">{comment.body}</p>
+          </li>
+        ))}
+      </ul>
+
+      <div className="flex items-end gap-2">
+        <textarea
+          aria-label={t('internal.comments.placeholder')}
+          maxLength={2000}
+          rows={2}
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder={t('internal.comments.placeholder')}
+          className="flex-1 px-3 py-2 rounded-lg border border-[#D4D4D8] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#F97316] resize-y"
+        />
+        <button
+          type="button"
+          disabled={sending || !body.trim()}
+          onClick={() => void submit()}
+          className="h-9 px-3.5 rounded-lg bg-[#F97316] hover:bg-[#C2410C] disabled:opacity-50 text-white text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
+        >
+          {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+          {t('internal.comments.send')}
+        </button>
+      </div>
+    </div>
   );
 }
 

@@ -25,7 +25,15 @@ export interface PunchItemPhoto {
 }
 
 export interface PunchItemEvent {
-  type: 'CREATED' | 'ASSIGNED' | 'READY' | 'CONFIRMED' | 'REJECTED' | 'CLOSED' | 'RETURNED_TO_PROGRESS';
+  type:
+    | 'CREATED'
+    | 'ASSIGNED'
+    | 'READY'
+    | 'CONFIRMED'
+    | 'REJECTED'
+    | 'CLOSED'
+    | 'RETURNED_TO_PROGRESS'
+    | 'COMMENT';
   actorName: string | null;
   /** True when the external client acted through the portal. */
   byClient: boolean;
@@ -33,8 +41,22 @@ export interface PunchItemEvent {
   createdAt: string;
 }
 
+/** One message of the item's shared thread (fase 3, D5) as seen internally. */
+export interface PunchItemComment {
+  id: number;
+  /** Null = the external client wrote it (render as the project's client). */
+  authorName: string | null;
+  byClient: boolean;
+  body: string;
+  createdAt: string;
+}
+
 export interface PunchItem {
   id: number;
+  /** Per-project sequential number (fase 3, D11). */
+  itemNumber: number;
+  /** Preformatted "#001" — render this everywhere the item is named. */
+  displayNumber: string;
   origin: PunchItemOrigin;
   title: string;
   description: string | null;
@@ -57,6 +79,9 @@ export interface PunchItem {
   photos: PunchItemPhoto[];
   /** Populated on the detail endpoint only; empty on lists. */
   events: PunchItemEvent[];
+  /** The comment thread (fase 3, D5). Populated on detail only, like events. */
+  comments: PunchItemComment[];
+  commentCount: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -129,6 +154,19 @@ export function closePunchItem(id: number, note?: string): Promise<PunchItem> {
   return api<PunchItem>(`/api/v1/punch-items/${id}/close`, {
     method: 'POST',
     body: JSON.stringify(note?.trim() ? { note: note.trim() } : {}),
+  });
+}
+
+/** The item's shared comment thread (fase 3, D5), oldest first. */
+export function listPunchItemComments(id: number): Promise<PunchItemComment[]> {
+  return api<PunchItemComment[]>(`/api/v1/punch-items/${id}/comments`);
+}
+
+/** Reply in the thread. The client sees it on their next portal visit. */
+export function addPunchItemComment(id: number, body: string): Promise<PunchItemComment> {
+  return api<PunchItemComment>(`/api/v1/punch-items/${id}/comments`, {
+    method: 'POST',
+    body: JSON.stringify({ body: body.trim() }),
   });
 }
 
