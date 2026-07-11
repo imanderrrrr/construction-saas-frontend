@@ -1,6 +1,6 @@
 // OFJR Construction — Finance API Service (Payables & Receivables)
 
-import { api } from '../lib/api';
+import { api, apiMultipart, getBaseUrl } from '../lib/api';
 import type { BudgetWarning } from '../types';
 
 // ── Shared ────���─────────────────────────────────────
@@ -31,6 +31,10 @@ export interface PayablePayment {
   method: string;
   reference?: string;
   approvedBy?: string;
+  voided?: boolean;
+  voidedAt?: string | null;
+  voidedBy?: string | null;
+  voidReason?: string | null;
 }
 
 export interface Payable {
@@ -109,6 +113,62 @@ export function recordPayablePayment(id: number, data: {
 
 export function listPayableVendors(): Promise<string[]> {
   return api<string[]>(`${PAYABLES}/vendors`);
+}
+
+/** Correct the total amount of a bill. Cannot drop below what is already paid. */
+export function updatePayableAmount(id: number, data: { amount: number; reason?: string }): Promise<Payable> {
+  const { amount, ...rest } = data;
+  return api<Payable>(`${PAYABLES}/${id}/amount`, {
+    method: 'PATCH',
+    body: JSON.stringify({ ...rest, amountCents: toCents(amount) }),
+  });
+}
+
+/** Mark a bill as unpaid: voids all active payments (kept in history) and restores the project budget. */
+export function markPayableUnpaid(id: number, reason?: string): Promise<Payable> {
+  return api<Payable>(`${PAYABLES}/${id}/unpay`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  });
+}
+
+/** Void a single payment (kept in history) and restore the project budget. */
+export function voidPayablePayment(id: number, paymentId: number, reason?: string): Promise<Payable> {
+  return api<Payable>(`${PAYABLES}/${id}/payments/${paymentId}/void`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  });
+}
+
+// ── Payable photo attachments (bytes in object storage) ──
+
+export interface PayableAttachmentResponse {
+  id: number;
+  payableId: number;
+  contentType: string;
+  originalName: string | null;
+  sizeBytes: number;
+  uploadedBy: string | null;
+  createdAt: string;
+}
+
+export function listPayableAttachments(payableId: number): Promise<PayableAttachmentResponse[]> {
+  return api<PayableAttachmentResponse[]>(`${PAYABLES}/${payableId}/attachments`);
+}
+
+export function uploadPayableAttachment(payableId: number, file: File): Promise<PayableAttachmentResponse> {
+  const form = new FormData();
+  form.append('file', file);
+  return apiMultipart<PayableAttachmentResponse>(`${PAYABLES}/${payableId}/attachments`, 'POST', form);
+}
+
+/** Authenticated download URL — consumed by AuthImage (blob fetch with the session cookie). */
+export function payableAttachmentUrl(payableId: number, attachmentId: number): string {
+  return `${getBaseUrl()}${PAYABLES}/${payableId}/attachments/${attachmentId}/file`;
+}
+
+export function deletePayableAttachment(payableId: number, attachmentId: number): Promise<void> {
+  return api<void>(`${PAYABLES}/${payableId}/attachments/${attachmentId}`, { method: 'DELETE' });
 }
 
 // ── Receivables (Accounts Receivable) ───────────────
