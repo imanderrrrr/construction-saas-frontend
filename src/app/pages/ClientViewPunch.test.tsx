@@ -16,6 +16,8 @@ const punchSvc = vi.hoisted(() => ({
   createClientPunchItem: vi.fn(),
   confirmClientPunchItem: vi.fn(),
   rejectClientPunchItem: vi.fn(),
+  getClientPunchComments: vi.fn(),
+  addClientPunchComment: vi.fn(),
 }));
 
 vi.mock('../services/clientView', async (importOriginal) => {
@@ -44,6 +46,8 @@ const SITELOG_PAGE = { content: [], page: 0, size: 10, totalElements: 0, totalPa
 function punchItem(overrides: Partial<ClientPunchItem> = {}): ClientPunchItem {
   return {
     id: 11,
+    itemNumber: 1,
+    displayNumber: '#001',
     title: 'Fuga en el lavamanos',
     description: 'Gotea de noche',
     location: 'Baño principal',
@@ -56,6 +60,7 @@ function punchItem(overrides: Partial<ClientPunchItem> = {}): ClientPunchItem {
     closeNote: null,
     lastRejectNote: null,
     canReview: false,
+    commentCount: 0,
     photos: [],
     ...overrides,
   };
@@ -220,5 +225,54 @@ describe('ClientView punch-list tab (public portal)', () => {
 
     expect(punchSvc.rejectClientPunchItem).toHaveBeenCalledWith('sess-1', 40, 'Sigue goteando');
     expect(container.textContent).toContain(i18n.t('punchList:status.REOPENED'));
+  });
+
+  it('shows the per-project number on each card', async () => {
+    punchSvc.getClientPunchItems.mockResolvedValue(page([
+      punchItem({ itemNumber: 12, displayNumber: '#012' }),
+    ]));
+
+    await renderPortalOnPunchTab(root, container);
+
+    expect(container.textContent).toContain('#012');
+  });
+
+  it('opens the thread: team messages are anonymous, own messages carry the client name', async () => {
+    punchSvc.getClientPunchItems.mockResolvedValue(page([punchItem({ commentCount: 2 })]));
+    punchSvc.getClientPunchComments.mockResolvedValue([
+      { id: 1, byClient: true, body: '¿Cuándo vienen a verlo?', createdAt: '2026-07-09T10:00:00Z' },
+      { id: 2, byClient: false, body: 'Mañana a primera hora', createdAt: '2026-07-09T11:00:00Z' },
+    ]);
+
+    await renderPortalOnPunchTab(root, container);
+    await click(buttonByText(container, i18n.t('punchList:client.comments.toggle', { count: 2 })));
+
+    expect(punchSvc.getClientPunchComments).toHaveBeenCalledWith('sess-1', 11);
+    // The team side is the LOCALIZED anonymous label (D7) + the client's own name.
+    expect(container.textContent).toContain(i18n.t('punchList:client.comments.team'));
+    expect(container.textContent).toContain('Don Roberto');
+    expect(container.textContent).toContain('Mañana a primera hora');
+  });
+
+  it('posts a comment to the thread', async () => {
+    punchSvc.getClientPunchItems.mockResolvedValue(page([punchItem()]));
+    punchSvc.getClientPunchComments.mockResolvedValue([]);
+    punchSvc.addClientPunchComment.mockResolvedValue(
+      { id: 9, byClient: true, body: 'Gracias, quedo pendiente', createdAt: '2026-07-09T12:00:00Z' },
+    );
+
+    await renderPortalOnPunchTab(root, container);
+    await click(buttonByText(container, i18n.t('punchList:client.comments.toggle', { count: 0 })));
+
+    const box = container.querySelector<HTMLTextAreaElement>(
+      `textarea[placeholder="${i18n.t('punchList:client.comments.placeholder')}"]`,
+    )!;
+    await act(async () => {
+      setValue(box, 'Gracias, quedo pendiente');
+    });
+    await click(buttonByText(container, i18n.t('punchList:client.comments.send')));
+
+    expect(punchSvc.addClientPunchComment).toHaveBeenCalledWith('sess-1', 11, 'Gracias, quedo pendiente');
+    expect(container.textContent).toContain('Gracias, quedo pendiente');
   });
 });

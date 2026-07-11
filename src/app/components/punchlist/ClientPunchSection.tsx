@@ -6,19 +6,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Camera, CheckCircle2, ClipboardList, Loader2, MapPin, Plus, Undo2, X,
+  Camera, CheckCircle2, ClipboardList, Loader2, MapPin, MessageSquare, Plus,
+  Send, Undo2, X,
 } from 'lucide-react';
 import { ApiError } from '../../lib/api';
 import { clientAuthHeaders, type ClientViewSession } from '../../services/clientView';
 import {
+  addClientPunchComment,
   clientPunchPhotoUrl,
   confirmClientPunchItem,
   createClientPunchItem,
+  getClientPunchComments,
   getClientPunchItems,
   MAX_REPORT_PHOTO_BYTES,
   MAX_REPORT_PHOTOS,
   rejectClientPunchItem,
   type ClientPunchItem,
+  type ClientPunchItemComment,
   type ClientPunchItemPhoto,
   type ClientPunchItemStatus,
 } from '../../services/clientPunchItems';
@@ -363,7 +367,10 @@ export function ClientPunchSection({ session, onGone }: {
         return (
           <article key={item.id} className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden">
             <header className="px-4 sm:px-6 py-3 border-b border-[#F4F4F5] bg-[#FAFAFA]/60 flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-sm sm:text-base font-semibold text-[#0A0A0A]">{item.title}</h3>
+              <div className="flex flex-wrap items-center gap-2 min-w-0">
+                <span className="text-sm sm:text-base font-semibold text-[#F97316] tabular-nums">{item.displayNumber}</span>
+                <h3 className="text-sm sm:text-base font-semibold text-[#0A0A0A]">{item.title}</h3>
+              </div>
               <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold border ${STATUS_STYLES[item.status]}`}>
                 {t(`status.${item.status}`)}
               </span>
@@ -487,6 +494,9 @@ export function ClientPunchSection({ session, onGone }: {
                 </div>
               )}
 
+              {/* Comment thread with the construction team (fase 3, D5) */}
+              <ClientCommentThread session={session} item={item} onGone={onGone} />
+
               {/* Closed summary (evidence stays visible) */}
               {item.status === 'CLOSED' && (
                 <div className="rounded-lg bg-emerald-50 border border-emerald-100 px-3 py-2 space-y-2">
@@ -553,6 +563,138 @@ export function ClientPunchSection({ session, onGone }: {
 }
 
 // ──────────────────────────── sub-components ────────────────────────────
+
+/**
+ * The item's shared conversation, portal face (fase 3, D5): the client talks
+ * with the construction company about THIS item. Identity is deliberately
+ * anonymous team-side (D7): the payload only says `byClient`, rendered here
+ * as the client's own name (the session knows it) or the localized
+ * "construction team" label — never an internal user's name.
+ */
+function ClientCommentThread({ session, item, onGone }: {
+  session: ClientViewSession;
+  item: ClientPunchItem;
+  onGone: () => void;
+}) {
+  const { t, i18n } = useTranslation(['punchList']);
+  const [thread, setThread] = useState<ClientPunchItemComment[] | 'loading' | 'error' | null>(null);
+  const [body, setBody] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+
+  const commentCount = Array.isArray(thread) ? thread.length : item.commentCount;
+
+  const isGone = (err: unknown): boolean =>
+    err instanceof ApiError && (err.status === 410 || err.code === 'CLIENT_VIEW_GONE');
+
+  const fmtDateTime = (iso: string): string =>
+    new Date(iso).toLocaleString(
+      i18n.language.startsWith('en') ? 'en-US' : 'es',
+      { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' },
+    );
+
+  const toggle = async () => {
+    if (thread) {
+      setThread(null);
+      return;
+    }
+    setThread('loading');
+    try {
+      setThread(await getClientPunchComments(session.sessionToken, item.id));
+    } catch (err) {
+      if (isGone(err)) onGone();
+      else setThread('error');
+    }
+  };
+
+  const submit = async () => {
+    if (!body.trim() || sending) return;
+    setSending(true);
+    setSendError(null);
+    try {
+      const created = await addClientPunchComment(session.sessionToken, item.id, body);
+      setThread((prev) => (Array.isArray(prev) ? [...prev, created] : [created]));
+      setBody('');
+    } catch (err) {
+      if (isGone(err)) onGone();
+      else if (err instanceof ApiError && err.status === 429) setSendError(t('client.comments.rateLimited'));
+      else setSendError(t('client.comments.failed'));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="rounded-lg border border-[#F4F4F5] bg-[#FAFAFA]/60 px-3 py-2 space-y-2">
+      <button
+        type="button"
+        onClick={() => void toggle()}
+        className="h-8 rounded-lg text-xs font-semibold text-[#0A0A0A] inline-flex items-center gap-1.5 hover:text-[#F97316] transition-colors"
+      >
+        <MessageSquare className="w-4 h-4 text-[#F97316]" />
+        {t('client.comments.toggle', { count: commentCount })}
+      </button>
+
+      {thread === 'loading' && (
+        <div className="flex justify-center py-2">
+          <Loader2 className="w-4 h-4 text-[#F97316] animate-spin" />
+        </div>
+      )}
+      {thread === 'error' && (
+        <p className="text-xs text-red-600">{t('client.comments.loadFailed')}</p>
+      )}
+
+      {Array.isArray(thread) && (
+        <>
+          {thread.length === 0 && (
+            <p className="text-xs text-[#71717A]">{t('client.comments.empty')}</p>
+          )}
+          <ul className="space-y-1.5">
+            {thread.map((comment) => (
+              <li
+                key={comment.id}
+                className={`rounded-lg border px-3 py-2 ${
+                  comment.byClient ? 'bg-[#F97316]/5 border-[#F97316]/20' : 'bg-white border-[#F4F4F5]'
+                }`}
+              >
+                <p className="text-[11px] mb-0.5">
+                  <span className="font-semibold text-[#0A0A0A]">
+                    {comment.byClient ? session.project.clientName : t('client.comments.team')}
+                  </span>
+                  <span className="text-[#71717A] ml-1.5">{fmtDateTime(comment.createdAt)}</span>
+                </p>
+                <p className="text-sm text-[#0A0A0A] whitespace-pre-wrap">{comment.body}</p>
+              </li>
+            ))}
+          </ul>
+
+          {sendError && <p className="text-xs text-red-600" role="alert">{sendError}</p>}
+
+          <div className="flex items-end gap-2">
+            <textarea
+              aria-label={t('client.comments.placeholder')}
+              maxLength={2000}
+              rows={2}
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              placeholder={t('client.comments.placeholder')}
+              className="flex-1 px-3 py-2 rounded-lg border border-[#D4D4D8] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#F97316] resize-y"
+            />
+            <button
+              type="button"
+              disabled={sending || !body.trim()}
+              onClick={() => void submit()}
+              className="h-10 px-4 rounded-lg bg-[#F97316] hover:bg-[#C2410C] disabled:opacity-50 text-white text-sm font-semibold inline-flex items-center gap-2 transition-colors"
+            >
+              {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              {t('client.comments.send')}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 /** Local (not-yet-uploaded) photo thumbnail with a remove button. */
 function PhotoPreview({ file, onRemove }: { file: File; onRemove: () => void }) {

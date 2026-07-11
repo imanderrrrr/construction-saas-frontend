@@ -22,8 +22,25 @@ export interface ClientPunchItemPhoto {
   url: string;
 }
 
+/**
+ * One thread message as the portal sees it (fase 3, D5). Deliberately NO
+ * author identity (D7): render `byClient` as either the client's own name
+ * (the session knows it) or the localized "construction team" label.
+ */
+export interface ClientPunchItemComment {
+  id: number;
+  /** True = the client wrote it; false = the construction team did. */
+  byClient: boolean;
+  body: string;
+  createdAt: string;
+}
+
 export interface ClientPunchItem {
   id: number;
+  /** Per-project sequential number (fase 3, D11). */
+  itemNumber: number;
+  /** Preformatted "#001" — render this everywhere the item is named. */
+  displayNumber: string;
   title: string;
   description: string | null;
   location: string | null;
@@ -38,6 +55,8 @@ export interface ClientPunchItem {
   lastRejectNote: string | null;
   /** True when the item waits on the client (confirm/reject buttons). */
   canReview: boolean;
+  /** Thread size — the thread itself loads through getClientPunchComments(). */
+  commentCount: number;
   photos: ClientPunchItemPhoto[];
 }
 
@@ -126,6 +145,29 @@ export function rejectClientPunchItem(
     method: 'POST',
     headers: clientAuthHeaders(sessionToken),
     body: JSON.stringify(note?.trim() ? { note: note.trim() } : {}),
+  });
+}
+
+/** The item's shared comment thread, oldest first (fase 3, D5). */
+export function getClientPunchComments(
+  sessionToken: string,
+  itemId: number,
+): Promise<ClientPunchItemComment[]> {
+  return api<ClientPunchItemComment[]>(`/api/v1/client-view/punch-items/${itemId}/comments`, {
+    headers: clientAuthHeaders(sessionToken),
+  });
+}
+
+/** The client writes in the thread. Rate-limited server-side (429 → retry later). */
+export function addClientPunchComment(
+  sessionToken: string,
+  itemId: number,
+  body: string,
+): Promise<ClientPunchItemComment> {
+  return api<ClientPunchItemComment>(`/api/v1/client-view/punch-items/${itemId}/comments`, {
+    method: 'POST',
+    headers: clientAuthHeaders(sessionToken),
+    body: JSON.stringify({ body: body.trim() }),
   });
 }
 
