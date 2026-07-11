@@ -37,6 +37,8 @@ export interface PayablePayment {
   voidReason?: string | null;
 }
 
+export type PayableDocumentType = 'BILL' | 'INVOICE';
+
 export interface Payable {
   id: number;
   billNumber: string;
@@ -45,6 +47,10 @@ export interface Payable {
   project: string;
   projectId: number;
   description: string | null;
+  /** AP Block 2 — "BILL" (cuenta) or "INVOICE" (factura). */
+  documentType: PayableDocumentType;
+  /** AP Block 2 — supplier invoice number; null until promoted to an invoice. */
+  invoiceNumber: string | null;
   receivedDate: string;
   dueDate: string;
   amount: number;
@@ -138,6 +144,27 @@ export function voidPayablePayment(id: number, paymentId: number, reason?: strin
     method: 'POST',
     body: JSON.stringify({ reason }),
   });
+}
+
+/** AP Block 2 — promote a bill (cuenta) to an invoice (factura) by assigning its invoice number. */
+export function convertPayableToInvoice(id: number, invoiceNumber: string): Promise<Payable> {
+  return api<Payable>(`${PAYABLES}/${id}/convert-to-invoice`, {
+    method: 'PATCH',
+    body: JSON.stringify({ invoiceNumber }),
+  });
+}
+
+/** AP Block 2 — correct a bill's received / due dates (dueDate must be >= receivedDate). */
+export function updatePayableDates(id: number, data: { receivedDate: string; dueDate: string }): Promise<Payable> {
+  return api<Payable>(`${PAYABLES}/${id}/dates`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+/** AP Block 2 — soft-delete a bill / invoice. Blocked (409) while it has active payments. */
+export function deletePayable(id: number): Promise<void> {
+  return api<void>(`${PAYABLES}/${id}`, { method: 'DELETE' });
 }
 
 // ── Payable photo attachments (bytes in object storage) ──
