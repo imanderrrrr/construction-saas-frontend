@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
   Wallet, DollarSign, Clock, AlertTriangle,
   ChevronDown, ChevronRight, Filter, Plus, Upload, FileText, CircleX,
-  Pencil, RotateCcw, Ban,
+  Pencil, RotateCcw, Ban, Receipt, Trash2,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { StatCard } from './StatCard';
@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import {
   listPayables, createPayable, recordPayablePayment, listPayableVendors,
   updatePayableAmount, markPayableUnpaid, voidPayablePayment,
+  convertPayableToInvoice, updatePayableDates, deletePayable,
   type Payable, type PayablePayment as ApiPayablePayment,
 } from '../services/finance';
 import { listProjects } from '../services/projects';
@@ -39,6 +40,8 @@ interface VendorBill {
   project: string;
   projectId: number;
   description: string | null;
+  documentType: 'BILL' | 'INVOICE';
+  invoiceNumber: string | null;
   receivedDate: string;
   dueDate: string;
   amount: number;
@@ -72,6 +75,8 @@ function toVendorBill(p: Payable): VendorBill {
     project: p.project,
     projectId: p.projectId,
     description: p.description,
+    documentType: p.documentType,
+    invoiceNumber: p.invoiceNumber,
     receivedDate: p.receivedDate,
     dueDate: p.dueDate,
     amount: p.amount,
@@ -174,14 +179,24 @@ export function AccountsPayable() {
   const [newCreateNotes, setNewCreateNotes] = useState('');
   const [newFiles, setNewFiles] = useState<File[]>([]);
 
-  // Edit-amount dialog
+  // Edit dialog — amount + dates (Block 1 amount, Block 2 dates)
   const [editBill, setEditBill] = useState<VendorBill | null>(null);
   const [editAmount, setEditAmount] = useState('');
+  const [editReceivedDate, setEditReceivedDate] = useState('');
+  const [editDueDate, setEditDueDate] = useState('');
   const [editReason, setEditReason] = useState('');
 
   // Mark-unpaid confirm dialog
   const [unpayBill, setUnpayBill] = useState<VendorBill | null>(null);
   const [unpayReason, setUnpayReason] = useState('');
+
+  // Convert-to-invoice dialog (Block 2)
+  const [convertBill, setConvertBill] = useState<VendorBill | null>(null);
+  const [convertNumber, setConvertNumber] = useState('');
+
+  // Delete dialog — two-step confirmation (Block 2)
+  const [deleteBill, setDeleteBill] = useState<VendorBill | null>(null);
+  const [deleteStep, setDeleteStep] = useState<1 | 2>(1);
 
   const hasFilters = filterVendor !== 'all' || filterStatus !== 'all' || filterCategory !== 'all';
   const uniqueVendors = useMemo(() => {
@@ -289,14 +304,16 @@ export function AccountsPayable() {
     }
   }
 
-  // Edit amount
+  // Edit amount + dates
   function openEditDialog(bill: VendorBill) {
     setEditBill(bill);
     setEditAmount(bill.amount.toFixed(2));
+    setEditReceivedDate(bill.receivedDate);
+    setEditDueDate(bill.dueDate);
     setEditReason('');
   }
 
-  async function submitEditAmount() {
+  async function submitEdit() {
     if (!editBill) return;
     const amt = parseFloat(editAmount);
     if (!amt || amt <= 0) {
@@ -307,15 +324,101 @@ export function AccountsPayable() {
       toast.error(t('payable.edit.belowPaid', { paid: fmtAmount(editBill.paidAmount) }));
       return;
     }
+    if (!editReceivedDate || !editDueDate) {
+      toast.error(t('payable.validation.requiredFields'));
+      return;
+    }
+    if (editDueDate < editReceivedDate) {
+      toast.error(t('payable.validation.dueDateAfter'));
+      return;
+    }
+
+    const amountChanged = Math.round(amt * 100) !== Math.round(editBill.amount * 100);
+    const datesChanged = editReceivedDate !== editBill.receivedDate || editDueDate !== editBill.dueDate;
+    if (!amountChanged && !datesChanged) {
+      setEditBill(null);
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const updated = await updatePayableAmount(editBill.id, { amount: amt, reason: editReason.trim() || undefined });
-      setBills(prev => prev.map(b => b.id === editBill.id ? toVendorBill(updated) : b));
+      let updated: Payable | undefined;
+      // Amount and dates are separate endpoints (Block 1 / Block 2); each
+      // returns the full bill, so the last call reflects both changes.
+      if (amountChanged) {
+        updated = await updatePayableAmount(editBill.id, { amount: amt, reason: editReason.trim() || undefined });
+      }
+      if (datesChanged) {
+        updated = await updatePayableDates(editBill.id, { receivedDate: editReceivedDate, dueDate: editDueDate });
+      }
+      if (updated) {
+        const settled = updated;
+        setBills(prev => prev.map(b => b.id === editBill.id ? toVendorBill(settled) : b));
+      }
       toast.success(t('payable.edit.updated', { bill: editBill.billNumber }));
       setEditBill(null);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : undefined;
       toast.error(t('payable.edit.failed'), { description: message });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // Convert a bill (cuenta) into an invoice (factura)
+  function openConvertDialog(bill: VendorBill) {
+    setConvertBill(bill);
+    setConvertNumber(bill.invoiceNumber ?? '');
+  }
+
+  async function submitConvert() {
+    if (!convertBill) return;
+    const number = convertNumber.trim();
+    if (!number) {
+      toast.error(t('payable.convert.numberRequired'));
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const updated = await convertPayableToInvoice(convertBill.id, number);
+      setBills(prev => prev.map(b => b.id === convertBill.id ? toVendorBill(updated) : b));
+      toast.success(t('payable.convert.done', { number }));
+      setConvertBill(null);
+    } catch (err: unknown) {
+      if (err instanceof ApiError && err.code === 'DUPLICATE_INVOICE_NUMBER') {
+        toast.error(t('payable.convert.duplicate'), { description: err.message });
+      } else {
+        const message = err instanceof Error ? err.message : undefined;
+        toast.error(t('payable.convert.failed'), { description: message });
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // Delete (soft) — two-step confirmation
+  function openDeleteDialog(bill: VendorBill) {
+    setDeleteBill(bill);
+    setDeleteStep(1);
+  }
+
+  async function submitDelete() {
+    if (!deleteBill) return;
+    setSubmitting(true);
+    try {
+      await deletePayable(deleteBill.id);
+      setBills(prev => prev.filter(b => b.id !== deleteBill.id));
+      if (expandedId === deleteBill.id) setExpandedId(null);
+      toast.success(t('payable.delete.done', { bill: deleteBill.billNumber }));
+      setDeleteBill(null);
+    } catch (err: unknown) {
+      if (err instanceof ApiError && err.code === 'PAYABLE_HAS_ACTIVE_PAYMENTS') {
+        toast.error(t('payable.delete.hasPayments'), { description: err.message });
+      } else {
+        const message = err instanceof Error ? err.message : undefined;
+        toast.error(t('payable.delete.failed'), { description: message });
+      }
+      setDeleteBill(null);
     } finally {
       setSubmitting(false);
     }
@@ -549,7 +652,16 @@ export function AccountsPayable() {
                           {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                         </button>
                       </td>
-                      <td className="py-3 px-3 font-mono text-sm text-[#0A0A0A]">{bill.billNumber}</td>
+                      <td className="py-3 px-3 font-mono text-sm text-[#0A0A0A]">
+                        <div className="flex flex-col">
+                          <span>{bill.billNumber}</span>
+                          {bill.documentType === 'INVOICE' && bill.invoiceNumber && (
+                            <span className="mt-0.5 inline-flex w-fit items-center gap-1 rounded-full border border-purple-200 bg-purple-50 px-1.5 py-0.5 font-sans text-[9px] font-semibold text-purple-700">
+                              <Receipt className="h-2.5 w-2.5" /> {bill.invoiceNumber}
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="py-3 px-3 text-sm text-[#0A0A0A]">{bill.vendor}</td>
                       <td className="py-3 px-3"><CategoryBadge category={bill.category} /></td>
                       <td className="py-3 px-3 text-sm text-[#71717A]">{bill.project}</td>
@@ -573,11 +685,25 @@ export function AccountsPayable() {
                               <Pencil className="w-3.5 h-3.5" />
                             </button>
                           )}
+                          {canManage && bill.documentType === 'BILL' && (
+                            <button title={t('payable.convert.action')} aria-label={t('payable.convert.action')}
+                              onClick={() => openConvertDialog(bill)}
+                              className="h-7 w-7 inline-flex items-center justify-center rounded-md border border-[#D4D4D8] text-[#71717A] hover:text-purple-700 hover:border-purple-300 transition-colors">
+                              <Receipt className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                           {canManage && bill.payments.some(p => !p.voided) && (
                             <button title={t('payable.unpay.action')} aria-label={t('payable.unpay.action')}
                               onClick={() => openUnpayDialog(bill)}
                               className="h-7 w-7 inline-flex items-center justify-center rounded-md border border-amber-200 text-amber-600 hover:bg-amber-50 hover:border-amber-300 transition-colors">
                               <RotateCcw className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          {canManage && (
+                            <button title={t('payable.delete.action')} aria-label={t('payable.delete.action')}
+                              onClick={() => openDeleteDialog(bill)}
+                              className="h-7 w-7 inline-flex items-center justify-center rounded-md border border-red-200 text-red-500 hover:bg-red-50 hover:border-red-300 transition-colors">
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           )}
                         </div>
@@ -913,6 +1039,18 @@ export function AccountsPayable() {
               <input type="number" step="0.01" min="0.01" value={editAmount} onChange={e => setEditAmount(e.target.value)}
                 className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.receivedDate')}</label>
+                <input type="date" value={editReceivedDate} onChange={e => setEditReceivedDate(e.target.value)}
+                  className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.dueDate')}</label>
+                <input type="date" value={editDueDate} onChange={e => setEditDueDate(e.target.value)}
+                  className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
+              </div>
+            </div>
             <div>
               <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.edit.reason')}</label>
               <textarea value={editReason} onChange={e => setEditReason(e.target.value)} rows={2} placeholder={t('payable.edit.reasonPlaceholder')}
@@ -921,7 +1059,7 @@ export function AccountsPayable() {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setEditBill(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
-            <Button onClick={submitEditAmount} disabled={submitting} className="bg-purple-600 hover:bg-purple-700 text-white">{t('buttons.save', { ns: 'common' })}</Button>
+            <Button onClick={submitEdit} disabled={submitting} className="bg-purple-600 hover:bg-purple-700 text-white">{t('buttons.save', { ns: 'common' })}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -947,6 +1085,68 @@ export function AccountsPayable() {
             <Button onClick={submitUnpay} disabled={submitting} className="bg-amber-600 hover:bg-amber-700 text-white gap-1.5">
               <RotateCcw className="w-4 h-4" /> {t('payable.unpay.confirm')}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Convert to Invoice Dialog (Block 2) */}
+      <Dialog open={!!convertBill} onOpenChange={open => { if (!open) setConvertBill(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('payable.convert.title')} — {convertBill?.billNumber}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="rounded-md p-3 text-sm bg-blue-50 border border-blue-200 text-blue-800">
+              {t('payable.convert.hint')}
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.convert.number')}</label>
+              <input type="text" value={convertNumber} onChange={e => setConvertNumber(e.target.value)}
+                placeholder={t('payable.convert.numberPlaceholder')}
+                className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] font-mono focus:outline-none focus:ring-2 focus:ring-purple-400" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setConvertBill(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
+            <Button onClick={submitConvert} disabled={submitting} className="bg-purple-600 hover:bg-purple-700 text-white gap-1.5">
+              <Receipt className="w-4 h-4" /> {t('payable.convert.confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Dialog — two-step confirmation (Block 2) */}
+      <Dialog open={!!deleteBill} onOpenChange={open => { if (!open) setDeleteBill(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('payable.delete.title')} — {deleteBill?.billNumber}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="rounded-md p-3 text-sm bg-red-50 border border-red-200 text-red-800">
+              {t('payable.delete.warning')}
+            </div>
+            {deleteBill && deleteBill.payments.some(p => !p.voided) && (
+              <div className="rounded-md p-3 text-sm bg-amber-50 border border-amber-200 text-amber-800">
+                {t('payable.delete.activePaymentsHint')}
+              </div>
+            )}
+            {deleteStep === 2 && (
+              <div className="rounded-md p-3 text-sm bg-red-100 border border-red-300 text-red-900 font-medium">
+                {t('payable.delete.confirmFinal')}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleteBill(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
+            {deleteStep === 1 ? (
+              <Button onClick={() => setDeleteStep(2)} className="bg-red-600 hover:bg-red-700 text-white gap-1.5">
+                <Trash2 className="w-4 h-4" /> {t('payable.delete.continue')}
+              </Button>
+            ) : (
+              <Button onClick={submitDelete} disabled={submitting} className="bg-red-600 hover:bg-red-700 text-white gap-1.5">
+                <Trash2 className="w-4 h-4" /> {t('payable.delete.confirm')}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
