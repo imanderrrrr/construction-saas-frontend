@@ -236,6 +236,15 @@
   "payable.info.vendorRequired": "El proveedor es obligatorio",
   "payable.info.notAnInvoice": "Solo las facturas tienen número — convertí la cuenta primero",
 
+  "payable.detail.action": "Ver detalle",
+  "payable.detail.title": "Detalle",
+  "payable.detail.infoSection": "Información general",
+  "payable.detail.documentType": "Tipo de documento",
+  "payable.detail.docType.bill": "Cuenta",
+  "payable.detail.docType.invoice": "Factura",
+  "payable.detail.createdAt": "Creada",
+  "payable.detail.updatedAt": "Última actualización",
+
   "payable.delete.action": "Eliminar",
   "payable.delete.title": "Eliminar cuenta / factura",
   "payable.delete.warning": "Se eliminará esta cuenta/factura y dejará de aparecer en listados y totales. Los registros se conservan para auditoría (eliminación reversible en base de datos), no se borran físicamente.",
@@ -280,6 +289,12 @@
   "payable.validation.requiredFields": "Por favor completa todos los campos requeridos",
   "payable.validation.dueDateAfter": "La fecha de vencimiento debe ser igual o posterior a la fecha de recepción",
 
+  "payable.toast.loadFailed": "No se pudieron cargar las cuentas por pagar",
+  "payable.toast.paymentFailed": "No se pudo registrar el pago",
+  "payable.toast.createFailed": "No se pudo registrar la factura",
+  "payable.toast.budgetExceeded.title": "Presupuesto del proyecto excedido",
+  "payable.dialog.remainingBudget": "Presupuesto restante del proyecto",
+  "payable.dialog.wouldExceed": "Este pago excedería el presupuesto restante y será rechazado.",
   "payable.toast.paymentRecorded": "Pago de {{amount}} registrado para {{bill}}",
   "payable.toast.billRegistered": "Factura {{bill}} registrada exitosamente",
 
