@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
   Wallet, DollarSign, Clock, AlertTriangle,
   ChevronDown, ChevronRight, Filter, Plus, Upload, FileText, CircleX,
-  Pencil, RotateCcw, Ban, Receipt, Trash2,
+  Pencil, RotateCcw, Ban, Receipt, Trash2, ArrowRightLeft,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { StatCard } from './StatCard';
@@ -18,7 +18,7 @@ import { toast } from 'sonner';
 import {
   listPayables, createPayable, recordPayablePayment, listPayableVendors,
   updatePayableAmount, markPayableUnpaid, voidPayablePayment,
-  convertPayableToInvoice, updatePayableDates, deletePayable,
+  convertPayableToInvoice, updatePayableDates, deletePayable, reassignPayableProject,
   type Payable, type PayablePayment as ApiPayablePayment,
 } from '../services/finance';
 import { listProjects } from '../services/projects';
@@ -153,6 +153,7 @@ export function AccountsPayable() {
   const [filterVendor, setFilterVendor] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
+  const [filterProject, setFilterProject] = useState('all'); // AP Block 4 — project id as string
 
   // Submitting state
   const [submitting, setSubmitting] = useState(false);
@@ -198,7 +199,11 @@ export function AccountsPayable() {
   const [deleteBill, setDeleteBill] = useState<VendorBill | null>(null);
   const [deleteStep, setDeleteStep] = useState<1 | 2>(1);
 
-  const hasFilters = filterVendor !== 'all' || filterStatus !== 'all' || filterCategory !== 'all';
+  // Reassign-project dialog (Block 4)
+  const [reassignBill, setReassignBill] = useState<VendorBill | null>(null);
+  const [reassignTarget, setReassignTarget] = useState('');
+
+  const hasFilters = filterVendor !== 'all' || filterStatus !== 'all' || filterCategory !== 'all' || filterProject !== 'all';
   const uniqueVendors = useMemo(() => {
     const fromBills = bills.map(b => b.vendor);
     return [...new Set([...vendors, ...fromBills])].sort();
@@ -224,9 +229,10 @@ export function AccountsPayable() {
       if (filterVendor !== 'all' && b.vendor !== filterVendor) return false;
       if (filterStatus !== 'all' && b.status !== filterStatus) return false;
       if (filterCategory !== 'all' && b.category !== filterCategory) return false;
+      if (filterProject !== 'all' && String(b.projectId) !== filterProject) return false;
       return true;
     });
-  }, [bills, filterVendor, filterStatus, filterCategory]);
+  }, [bills, filterVendor, filterStatus, filterCategory, filterProject]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -249,7 +255,7 @@ export function AccountsPayable() {
   }, [bills]);
 
   function clearFilters() {
-    setFilterVendor('all'); setFilterStatus('all'); setFilterCategory('all');
+    setFilterVendor('all'); setFilterStatus('all'); setFilterCategory('all'); setFilterProject('all');
     setCurrentPage(1);
   }
 
@@ -424,6 +430,36 @@ export function AccountsPayable() {
     }
   }
 
+  // Reassign to another project (Block 4)
+  function openReassignDialog(bill: VendorBill) {
+    setReassignBill(bill);
+    setReassignTarget('');
+  }
+
+  async function submitReassign() {
+    if (!reassignBill || !reassignTarget) return;
+    setSubmitting(true);
+    try {
+      const updated = await reassignPayableProject(reassignBill.id, Number(reassignTarget));
+      setBills(prev => prev.map(b => b.id === reassignBill.id ? toVendorBill(updated) : b));
+      toast.success(t('payable.reassign.done', { bill: reassignBill.billNumber, project: toVendorBill(updated).project }));
+      setReassignBill(null);
+    } catch (err: unknown) {
+      if (err instanceof ApiError && err.code === 'PAYABLE_HAS_ACTIVE_PAYMENTS') {
+        toast.error(t('payable.reassign.hasPayments'), { description: err.message });
+      } else if (err instanceof ApiError && err.code === 'PROJECT_NOT_ACTIVE') {
+        toast.error(t('payable.reassign.notActive'), { description: err.message });
+      } else if (err instanceof ApiError && err.code === 'PAYABLE_ALREADY_IN_PROJECT') {
+        toast.error(t('payable.reassign.sameProject'), { description: err.message });
+      } else {
+        const message = err instanceof Error ? err.message : undefined;
+        toast.error(t('payable.reassign.failed'), { description: message });
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   // Mark unpaid (void all active payments)
   function openUnpayDialog(bill: VendorBill) {
     setUnpayBill(bill);
@@ -538,7 +574,7 @@ export function AccountsPayable() {
           <Filter className="w-4 h-4 text-[#71717A]" />
           <span className="text-sm font-semibold text-[#0A0A0A]">{t('buttons.filters', { ns: 'common' })}</span>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div>
             <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.filters.vendor')}</label>
             <Select value={filterVendor} onValueChange={v => { setFilterVendor(v); setCurrentPage(1); }}>
@@ -546,6 +582,16 @@ export function AccountsPayable() {
               <SelectContent>
                 <SelectItem value="all">{t('payable.filters.allVendors')}</SelectItem>
                 {uniqueVendors.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('labels.project', { ns: 'common' })}</label>
+            <Select value={filterProject} onValueChange={v => { setFilterProject(v); setCurrentPage(1); }}>
+              <SelectTrigger className="h-9 text-sm border-[#D4D4D8]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('labels.allProjects', { ns: 'common' })}</SelectItem>
+                {projects.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -690,6 +736,13 @@ export function AccountsPayable() {
                               onClick={() => openConvertDialog(bill)}
                               className="h-7 w-7 inline-flex items-center justify-center rounded-md border border-[#D4D4D8] text-[#71717A] hover:text-purple-700 hover:border-purple-300 transition-colors">
                               <Receipt className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          {canManage && (
+                            <button title={t('payable.reassign.action')} aria-label={t('payable.reassign.action')}
+                              onClick={() => openReassignDialog(bill)}
+                              className="h-7 w-7 inline-flex items-center justify-center rounded-md border border-[#D4D4D8] text-[#71717A] hover:text-purple-700 hover:border-purple-300 transition-colors">
+                              <ArrowRightLeft className="w-3.5 h-3.5" />
                             </button>
                           )}
                           {canManage && bill.payments.some(p => !p.voided) && (
@@ -1110,6 +1163,44 @@ export function AccountsPayable() {
             <Button variant="ghost" onClick={() => setConvertBill(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
             <Button onClick={submitConvert} disabled={submitting} className="bg-purple-600 hover:bg-purple-700 text-white gap-1.5">
               <Receipt className="w-4 h-4" /> {t('payable.convert.confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reassign-project Dialog (Block 4) */}
+      <Dialog open={!!reassignBill} onOpenChange={open => { if (!open) setReassignBill(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('payable.reassign.title')} — {reassignBill?.billNumber}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-[#71717A]">
+              {t('payable.reassign.description', { project: reassignBill?.project })}
+            </p>
+            {reassignBill && reassignBill.payments.some(p => !p.voided) && (
+              <div className="rounded-md p-3 text-sm bg-amber-50 border border-amber-200 text-amber-800">
+                {t('payable.reassign.activePaymentsHint')}
+              </div>
+            )}
+            <div>
+              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.reassign.targetLabel')}</label>
+              <Select value={reassignTarget} onValueChange={setReassignTarget}>
+                <SelectTrigger className="h-9 text-sm border-[#D4D4D8]">
+                  <SelectValue placeholder={t('payable.reassign.targetPlaceholder')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.filter(p => p.id !== reassignBill?.projectId).map(p => (
+                    <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setReassignBill(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
+            <Button onClick={submitReassign} disabled={submitting || !reassignTarget} className="bg-purple-600 hover:bg-purple-700 text-white gap-1.5">
+              <ArrowRightLeft className="w-4 h-4" /> {t('payable.reassign.confirm')}
             </Button>
           </DialogFooter>
         </DialogContent>
