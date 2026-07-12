@@ -164,6 +164,26 @@ export function updatePayableDates(id: number, data: { receivedDate: string; due
   });
 }
 
+/**
+ * AP Block 5 — edit a bill/invoice's general info after creation: vendor,
+ * category, description, notes, and (for invoices) the supplier invoice number.
+ * Partial: omit a field to leave it unchanged. invoiceNumber stays unique per
+ * vendor among active bills; setting it on a plain BILL is rejected (convert
+ * first). billNumber (cuenta) is not editable.
+ */
+export function updatePayableInfo(id: number, data: {
+  vendor?: string;
+  category?: string;
+  description?: string | null;
+  notes?: string | null;
+  invoiceNumber?: string;
+}): Promise<Payable> {
+  return api<Payable>(`${PAYABLES}/${id}/info`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
 /** AP Block 2 — soft-delete a bill / invoice. Blocked (409) while it has active payments. */
 export function deletePayable(id: number): Promise<void> {
   return api<void>(`${PAYABLES}/${id}`, { method: 'DELETE' });
