@@ -236,6 +236,15 @@
   "payable.info.vendorRequired": "Vendor is required",
   "payable.info.notAnInvoice": "Only invoices have an invoice number — convert the bill first",
 
+  "payable.detail.action": "View details",
+  "payable.detail.title": "Details",
+  "payable.detail.infoSection": "General information",
+  "payable.detail.documentType": "Document type",
+  "payable.detail.docType.bill": "Bill",
+  "payable.detail.docType.invoice": "Invoice",
+  "payable.detail.createdAt": "Created",
+  "payable.detail.updatedAt": "Last updated",
+
   "payable.delete.action": "Delete",
   "payable.delete.title": "Delete bill / invoice",
   "payable.delete.warning": "This bill/invoice will be removed from lists and totals. Records are kept for audit (reversible soft delete in the database), not physically erased.",
@@ -280,6 +289,12 @@
   "payable.validation.requiredFields": "Please fill all required fields",
   "payable.validation.dueDateAfter": "Due date must be on or after received date",
 
+  "payable.toast.loadFailed": "Could not load accounts payable",
+  "payable.toast.paymentFailed": "Could not record the payment",
+  "payable.toast.createFailed": "Could not register the bill",
+  "payable.toast.budgetExceeded.title": "Project budget exceeded",
+  "payable.dialog.remainingBudget": "Remaining project budget",
+  "payable.dialog.wouldExceed": "This payment would exceed the remaining budget and will be rejected.",
   "payable.toast.paymentRecorded": "Payment of {{amount}} recorded for {{bill}}",
   "payable.toast.billRegistered": "Bill {{bill}} registered successfully",
 

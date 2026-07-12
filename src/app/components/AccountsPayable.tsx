@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
   Wallet, DollarSign, Clock, AlertTriangle,
   ChevronDown, ChevronRight, Filter, Plus, Upload, FileText, CircleX,
-  Pencil, RotateCcw, Ban, Receipt, Trash2, ArrowRightLeft,
+  RotateCcw, Receipt, Trash2, ArrowRightLeft, Eye,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { StatCard } from './StatCard';
@@ -19,103 +19,20 @@ import {
   listPayables, createPayable, recordPayablePayment, listPayableVendors,
   updatePayableAmount, markPayableUnpaid, voidPayablePayment,
   convertPayableToInvoice, updatePayableDates, updatePayableInfo, deletePayable, reassignPayableProject,
-  type Payable, type PayablePayment as ApiPayablePayment,
+  getPayable, type Payable,
 } from '../services/finance';
 import { listProjects } from '../services/projects';
 import { ApiError } from '../lib/api';
 import { AuthService } from '../services/auth';
-import { PayableAttachmentsPanel } from './PayableAttachmentsPanel';
-
-// Types — aligned with API response
-
-type VendorPayment = ApiPayablePayment;
-
-type BillCategory = 'materials' | 'equipment-rental' | 'subcontractor' | 'services' | 'other';
-
-interface VendorBill {
-  id: number;
-  billNumber: string;
-  vendor: string;
-  category: BillCategory;
-  project: string;
-  projectId: number;
-  description: string | null;
-  documentType: 'BILL' | 'INVOICE';
-  invoiceNumber: string | null;
-  receivedDate: string;
-  dueDate: string;
-  amount: number;
-  paidAmount: number;
-  status: 'paid' | 'pending' | 'partial' | 'overdue';
-  notes: string | null;
-  payments: VendorPayment[];
-}
-
-// Helpers
-
 import { fmtDate, businessToday, daysOverdue, currentMonth } from '../helpers/dateTime';
-
-function fmtAmount(n: number) {
-  return `$${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
-}
-
-const CATEGORY_KEY_MAP: Record<BillCategory, string> = {
-  materials: 'payable.category.materials',
-  'equipment-rental': 'payable.category.equipmentRental',
-  subcontractor: 'payable.category.subcontractor',
-  services: 'payable.category.services',
-  other: 'payable.category.other',
-};
-
-function toVendorBill(p: Payable): VendorBill {
-  return {
-    id: p.id,
-    billNumber: p.billNumber,
-    vendor: p.vendor,
-    category: p.category as BillCategory,
-    project: p.project,
-    projectId: p.projectId,
-    description: p.description,
-    documentType: p.documentType,
-    invoiceNumber: p.invoiceNumber,
-    receivedDate: p.receivedDate,
-    dueDate: p.dueDate,
-    amount: p.amount,
-    paidAmount: p.paidAmount,
-    status: p.status as VendorBill['status'],
-    notes: p.notes,
-    payments: p.payments,
-  };
-}
+// AP Block 6 — types/badges/helpers shared with the detail modal.
+import {
+  StatusBadge, CategoryBadge, fmtAmount, toVendorBill, CATEGORY_KEY_MAP,
+  type VendorBill, type BillCategory,
+} from './PayableCommon';
+import { PayableDetailModal } from './PayableDetailModal';
 
 const ITEMS_PER_PAGE = 10;
-
-// Badges
-
-function StatusBadge({ status }: { status: VendorBill['status'] }) {
-  const { t } = useTranslation('common');
-  const map: Record<string, string> = {
-    paid:    'bg-emerald-50 text-emerald-700 border-emerald-200',
-    pending: 'bg-amber-50 text-amber-700 border-amber-200',
-    partial: 'bg-blue-50 text-blue-700 border-blue-200',
-    overdue: 'bg-red-50 text-red-700 border-red-200',
-  };
-  return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${map[status]}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${status === 'paid' ? 'bg-emerald-500' : status === 'partial' ? 'bg-blue-500' : status === 'pending' ? 'bg-amber-500' : 'bg-red-500'}`} />
-      {t('status.' + status)}
-    </span>
-  );
-}
-
-function CategoryBadge({ category }: { category: BillCategory }) {
-  const { t } = useTranslation('finance');
-  return (
-    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#FAFAFA] text-[#0A0A0A] border border-[#D4D4D8]">
-      {t(CATEGORY_KEY_MAP[category])}
-    </span>
-  );
-}
 
 // Component
 
@@ -125,7 +42,9 @@ export function AccountsPayable() {
   const canManage = ['ADMIN', 'FINANCE'].includes(AuthService.getCanonicalRole() ?? '');
   const [bills, setBills] = useState<VendorBill[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedId, setExpandedId] = useState<number | null>(null);
+  // AP Block 6 — clicking a row opens the full detail modal; the bill shown is
+  // derived from [bills] by id so every action keeps the detail fresh.
+  const [detailId, setDetailId] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [showVendorSummary, setShowVendorSummary] = useState(false);
   const [vendors, setVendors] = useState<string[]>([]);
@@ -166,7 +85,6 @@ export function AccountsPayable() {
   const [payDate, setPayDate] = useState(businessToday());
   const [payMethod, setPayMethod] = useState('Bank transfer');
   const [payRef, setPayRef] = useState('');
-  const [payNotes, setPayNotes] = useState('');
 
   // Create bill dialog
   const [showCreate, setShowCreate] = useState(false);
@@ -269,6 +187,15 @@ export function AccountsPayable() {
     setCurrentPage(1);
   }
 
+  // AP Block 6 — open the full detail view; refresh the bill from the server
+  // (GET /payables/{id}) so concurrent edits by another session show up.
+  function openDetail(bill: VendorBill) {
+    setDetailId(bill.id);
+    getPayable(bill.id)
+      .then(fresh => setBills(prev => prev.map(b => b.id === fresh.id ? toVendorBill(fresh) : b)))
+      .catch(err => toast.error(t('payable.toast.loadFailed'), { description: err?.message }));
+  }
+
   // Payment dialog
   function openPayDialog(bill: VendorBill) {
     const balance = bill.amount - bill.paidAmount;
@@ -277,7 +204,6 @@ export function AccountsPayable() {
     setPayDate(businessToday());
     setPayMethod('Bank transfer');
     setPayRef('');
-    setPayNotes('');
   }
 
   async function submitPayment() {
@@ -477,7 +403,7 @@ export function AccountsPayable() {
     try {
       await deletePayable(deleteBill.id);
       setBills(prev => prev.filter(b => b.id !== deleteBill.id));
-      if (expandedId === deleteBill.id) setExpandedId(null);
+      if (detailId === deleteBill.id) setDetailId(null);
       toast.success(t('payable.delete.done', { bill: deleteBill.billNumber }));
       setDeleteBill(null);
     } catch (err: unknown) {
@@ -742,25 +668,19 @@ export function AccountsPayable() {
             <table className="w-full min-w-[1100px]">
               <thead>
                 <tr className="bg-[#FAFAFA]">
-                  <th className="w-9 px-2" />
                   {[t('payable.table.billNo'), t('payable.table.vendor'), t('payable.table.category'), t('payable.table.project'), t('payable.table.received'), t('payable.table.dueDate'), t('payable.table.amount'), t('payable.table.paid'), t('payable.table.balance'), t('payable.table.status'), t('payable.table.actions')].map(h => (
                     <th key={h} className="text-left text-[11px] font-semibold text-[#71717A] uppercase tracking-wider px-3 py-2.5">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {paginated.flatMap(bill => {
-                  const isExpanded = expandedId === bill.id;
+                {paginated.map(bill => {
                   const balance = bill.amount - bill.paidAmount;
                   const isOverdue = bill.status === 'overdue';
-                  return [
+                  return (
                     <tr key={bill.id}
-                      className={`border-b border-[#D4D4D8]/50 transition-colors ${isExpanded ? 'bg-[#FAFAFA]' : 'hover:bg-[#FAFAFA]/60'}`}>
-                      <td className="py-3 pl-3 pr-0">
-                        <button onClick={() => setExpandedId(isExpanded ? null : bill.id)} className="text-[#71717A] hover:text-[#0A0A0A] transition-colors">
-                          {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                        </button>
-                      </td>
+                      onClick={() => openDetail(bill)}
+                      className="border-b border-[#D4D4D8]/50 transition-colors cursor-pointer hover:bg-[#FAFAFA]/60">
                       <td className="py-3 px-3 font-mono text-sm text-[#0A0A0A]">
                         <div className="flex flex-col">
                           <span>{bill.billNumber}</span>
@@ -781,110 +701,23 @@ export function AccountsPayable() {
                       <td className={`py-3 px-3 font-mono text-sm font-semibold ${balance === 0 ? 'text-[#D4D4D8]' : isOverdue ? 'text-red-600' : 'text-amber-600'}`}>{fmtAmount(balance)}</td>
                       <td className="py-3 px-3"><StatusBadge status={bill.status} /></td>
                       <td className="py-3 px-3">
-                        <div className="flex items-center gap-1.5">
+                        {/* Actions live in the detail modal now; the row keeps the
+                            everyday quick action + an explicit "view detail" button. */}
+                        <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
                           <Button variant="outline" size="sm" disabled={bill.status === 'paid'}
                             onClick={() => openPayDialog(bill)}
                             className="h-7 text-[11px] border-purple-300 text-purple-600 hover:bg-purple-50 hover:text-purple-700 disabled:opacity-40">
                             {t('payable.recordPayment')}
                           </Button>
-                          {canManage && (
-                            <button title={t('payable.edit.action')} aria-label={t('payable.edit.action')}
-                              onClick={() => openEditDialog(bill)}
-                              className="h-7 w-7 inline-flex items-center justify-center rounded-md border border-[#D4D4D8] text-[#71717A] hover:text-[#0A0A0A] hover:border-purple-300 transition-colors">
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                          {canManage && (
-                            <button title={t('payable.info.action')} aria-label={t('payable.info.action')}
-                              onClick={() => openInfoDialog(bill)}
-                              className="h-7 w-7 inline-flex items-center justify-center rounded-md border border-[#D4D4D8] text-[#71717A] hover:text-[#0A0A0A] hover:border-purple-300 transition-colors">
-                              <FileText className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                          {canManage && bill.documentType === 'BILL' && (
-                            <button title={t('payable.convert.action')} aria-label={t('payable.convert.action')}
-                              onClick={() => openConvertDialog(bill)}
-                              className="h-7 w-7 inline-flex items-center justify-center rounded-md border border-[#D4D4D8] text-[#71717A] hover:text-purple-700 hover:border-purple-300 transition-colors">
-                              <Receipt className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                          {canManage && (
-                            <button title={t('payable.reassign.action')} aria-label={t('payable.reassign.action')}
-                              onClick={() => openReassignDialog(bill)}
-                              className="h-7 w-7 inline-flex items-center justify-center rounded-md border border-[#D4D4D8] text-[#71717A] hover:text-purple-700 hover:border-purple-300 transition-colors">
-                              <ArrowRightLeft className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                          {canManage && bill.payments.some(p => !p.voided) && (
-                            <button title={t('payable.unpay.action')} aria-label={t('payable.unpay.action')}
-                              onClick={() => openUnpayDialog(bill)}
-                              className="h-7 w-7 inline-flex items-center justify-center rounded-md border border-amber-200 text-amber-600 hover:bg-amber-50 hover:border-amber-300 transition-colors">
-                              <RotateCcw className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                          {canManage && (
-                            <button title={t('payable.delete.action')} aria-label={t('payable.delete.action')}
-                              onClick={() => openDeleteDialog(bill)}
-                              className="h-7 w-7 inline-flex items-center justify-center rounded-md border border-red-200 text-red-500 hover:bg-red-50 hover:border-red-300 transition-colors">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
+                          <button title={t('payable.detail.action')} aria-label={t('payable.detail.action')}
+                            onClick={() => openDetail(bill)}
+                            className="h-7 w-7 inline-flex items-center justify-center rounded-md border border-[#D4D4D8] text-[#71717A] hover:text-[#0A0A0A] hover:border-purple-300 transition-colors">
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </td>
-                    </tr>,
-                    ...(isExpanded ? [
-                      <tr key={`${bill.id}-detail`} className="bg-[#FAFAFA]/80">
-                        <td colSpan={12} className="px-6 py-4 border-b border-[#D4D4D8]/50">
-                          <div className="space-y-3">
-                            <p className="text-xs font-semibold text-[#71717A] uppercase tracking-wide">{t('payable.paymentHistory')}</p>
-                            {bill.payments.length === 0 ? (
-                              <p className="text-sm text-[#71717A]">{t('payable.noPayments')}</p>
-                            ) : (
-                              <table className="w-full max-w-3xl">
-                                <thead>
-                                  <tr>
-                                    {[t('payable.paymentHistory.date'), t('labels.amount', { ns: 'common' }), t('payable.paymentHistory.method'), t('payable.paymentHistory.reference'), t('payable.paymentHistory.approvedBy')].map(h => (
-                                      <th key={h} className="text-left text-[10px] font-semibold text-[#71717A] uppercase tracking-wider px-3 py-1.5">{h}</th>
-                                    ))}
-                                    {canManage && <th className="px-3 py-1.5" />}
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {bill.payments.map(p => (
-                                    <tr key={p.id} className={`border-t border-[#D4D4D8]/30 ${p.voided ? 'opacity-60' : ''}`}>
-                                      <td className="px-3 py-2 text-sm text-[#0A0A0A]">{fmtDate(p.date, dateLoc)}</td>
-                                      <td className={`px-3 py-2 font-mono text-sm font-semibold ${p.voided ? 'text-[#71717A] line-through' : 'text-emerald-600'}`}>{fmtAmount(p.amount)}</td>
-                                      <td className="px-3 py-2 text-sm text-[#71717A]">{p.method}</td>
-                                      <td className="px-3 py-2 font-mono text-sm text-[#71717A]">{p.reference ?? '—'}</td>
-                                      <td className="px-3 py-2 text-sm text-[#71717A]">
-                                        {p.voided
-                                          ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-red-700 border border-red-200" title={p.voidReason ?? undefined}><Ban className="w-3 h-3" />{t('payable.void.voided')}</span>
-                                          : (p.approvedBy ?? '—')}
-                                      </td>
-                                      {canManage && (
-                                        <td className="px-3 py-2 text-right">
-                                          {!p.voided && (
-                                            <button onClick={() => handleVoidPayment(bill, p.id)} disabled={submitting}
-                                              title={t('payable.void.action')} aria-label={t('payable.void.action')}
-                                              className="inline-flex items-center gap-1 text-[11px] text-red-600 hover:text-red-700 disabled:opacity-40">
-                                              <Ban className="w-3.5 h-3.5" /> {t('payable.void.action')}
-                                            </button>
-                                          )}
-                                        </td>
-                                      )}
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            )}
-                            <div className="pt-2 border-t border-[#D4D4D8]/40">
-                              <PayableAttachmentsPanel payableId={bill.id} canManage={canManage} />
-                            </div>
-                          </div>
-                        </td>
-                      </tr>,
-                    ] : []),
-                  ];
+                    </tr>
+                  );
                 })}
               </tbody>
             </table>
@@ -938,6 +771,23 @@ export function AccountsPayable() {
           </div>
         </div>
       )}
+
+      {/* AP Block 6 — full detail modal (all fields + payments + images + actions).
+          The action dialogs below stack on top of it. */}
+      <PayableDetailModal
+        bill={detailId != null ? bills.find(b => b.id === detailId) ?? null : null}
+        onClose={() => setDetailId(null)}
+        canManage={canManage}
+        submitting={submitting}
+        onRecordPayment={openPayDialog}
+        onEditAmountDates={openEditDialog}
+        onEditInfo={openInfoDialog}
+        onConvert={openConvertDialog}
+        onReassign={openReassignDialog}
+        onMarkUnpaid={openUnpayDialog}
+        onDelete={openDeleteDialog}
+        onVoidPayment={handleVoidPayment}
+      />
 
       {/* Record Payment Dialog */}
       <Dialog open={!!payBill} onOpenChange={open => { if (!open) setPayBill(null); }}>
@@ -1008,11 +858,6 @@ export function AccountsPayable() {
               <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.reference')}</label>
               <input type="text" value={payRef} onChange={e => setPayRef(e.target.value)} placeholder={t('payable.dialog.referencePlaceholder')}
                 className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
-            </div>
-            <div>
-              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.notes')}</label>
-              <textarea value={payNotes} onChange={e => setPayNotes(e.target.value)} placeholder={t('payable.dialog.notesPlaceholder')} rows={2}
-                className="w-full rounded-md border border-[#D4D4D8] px-3 py-2 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none" />
             </div>
           </div>
           <DialogFooter>
