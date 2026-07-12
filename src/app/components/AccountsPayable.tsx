@@ -18,7 +18,7 @@ import { toast } from 'sonner';
 import {
   listPayables, createPayable, recordPayablePayment, listPayableVendors,
   updatePayableAmount, markPayableUnpaid, voidPayablePayment,
-  convertPayableToInvoice, updatePayableDates, deletePayable, reassignPayableProject,
+  convertPayableToInvoice, updatePayableDates, updatePayableInfo, deletePayable, reassignPayableProject,
   type Payable, type PayablePayment as ApiPayablePayment,
 } from '../services/finance';
 import { listProjects } from '../services/projects';
@@ -47,6 +47,7 @@ interface VendorBill {
   amount: number;
   paidAmount: number;
   status: 'paid' | 'pending' | 'partial' | 'overdue';
+  notes: string | null;
   payments: VendorPayment[];
 }
 
@@ -82,6 +83,7 @@ function toVendorBill(p: Payable): VendorBill {
     amount: p.amount,
     paidAmount: p.paidAmount,
     status: p.status as VendorBill['status'],
+    notes: p.notes,
     payments: p.payments,
   };
 }
@@ -194,6 +196,14 @@ export function AccountsPayable() {
   // Convert-to-invoice dialog (Block 2)
   const [convertBill, setConvertBill] = useState<VendorBill | null>(null);
   const [convertNumber, setConvertNumber] = useState('');
+
+  // AP Block 5 — edit general info (vendor/category/description/notes/invoice #)
+  const [infoBill, setInfoBill] = useState<VendorBill | null>(null);
+  const [infoVendor, setInfoVendor] = useState('');
+  const [infoCategory, setInfoCategory] = useState<string>('');
+  const [infoDescription, setInfoDescription] = useState('');
+  const [infoNotes, setInfoNotes] = useState('');
+  const [infoInvoiceNumber, setInfoInvoiceNumber] = useState('');
 
   // Delete dialog — two-step confirmation (Block 2)
   const [deleteBill, setDeleteBill] = useState<VendorBill | null>(null);
@@ -396,6 +406,59 @@ export function AccountsPayable() {
       } else {
         const message = err instanceof Error ? err.message : undefined;
         toast.error(t('payable.convert.failed'), { description: message });
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // AP Block 5 — edit general info (vendor / category / description / notes /
+  // invoice number). Sends only the changed fields.
+  function openInfoDialog(bill: VendorBill) {
+    setInfoBill(bill);
+    setInfoVendor(bill.vendor);
+    setInfoCategory(bill.category);
+    setInfoDescription(bill.description ?? '');
+    setInfoNotes(bill.notes ?? '');
+    setInfoInvoiceNumber(bill.invoiceNumber ?? '');
+  }
+
+  async function submitInfo() {
+    if (!infoBill) return;
+    const vendor = infoVendor.trim();
+    if (!vendor) {
+      toast.error(t('payable.info.vendorRequired'));
+      return;
+    }
+    const payload: { vendor?: string; category?: string; description?: string | null; notes?: string | null; invoiceNumber?: string } = {};
+    if (vendor !== infoBill.vendor) payload.vendor = vendor;
+    if (infoCategory && infoCategory !== infoBill.category) payload.category = infoCategory;
+    const desc = infoDescription.trim();
+    if (desc !== (infoBill.description ?? '')) payload.description = desc || null;
+    const notes = infoNotes.trim();
+    if (notes !== (infoBill.notes ?? '')) payload.notes = notes || null;
+    if (infoBill.documentType === 'INVOICE') {
+      const inv = infoInvoiceNumber.trim();
+      if (inv && inv !== (infoBill.invoiceNumber ?? '')) payload.invoiceNumber = inv;
+    }
+    if (Object.keys(payload).length === 0) {
+      setInfoBill(null);
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const updated = await updatePayableInfo(infoBill.id, payload);
+      setBills(prev => prev.map(b => b.id === infoBill.id ? toVendorBill(updated) : b));
+      toast.success(t('payable.info.updated', { bill: infoBill.billNumber }));
+      setInfoBill(null);
+    } catch (err: unknown) {
+      if (err instanceof ApiError && err.code === 'DUPLICATE_INVOICE_NUMBER') {
+        toast.error(t('payable.convert.duplicate'), { description: err.message });
+      } else if (err instanceof ApiError && err.code === 'NOT_AN_INVOICE') {
+        toast.error(t('payable.info.notAnInvoice'), { description: err.message });
+      } else {
+        const message = err instanceof Error ? err.message : undefined;
+        toast.error(t('payable.info.failed'), { description: message });
       }
     } finally {
       setSubmitting(false);
@@ -729,6 +792,13 @@ export function AccountsPayable() {
                               onClick={() => openEditDialog(bill)}
                               className="h-7 w-7 inline-flex items-center justify-center rounded-md border border-[#D4D4D8] text-[#71717A] hover:text-[#0A0A0A] hover:border-purple-300 transition-colors">
                               <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          {canManage && (
+                            <button title={t('payable.info.action')} aria-label={t('payable.info.action')}
+                              onClick={() => openInfoDialog(bill)}
+                              className="h-7 w-7 inline-flex items-center justify-center rounded-md border border-[#D4D4D8] text-[#71717A] hover:text-[#0A0A0A] hover:border-purple-300 transition-colors">
+                              <FileText className="w-3.5 h-3.5" />
                             </button>
                           )}
                           {canManage && bill.documentType === 'BILL' && (
@@ -1163,6 +1233,62 @@ export function AccountsPayable() {
             <Button variant="ghost" onClick={() => setConvertBill(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
             <Button onClick={submitConvert} disabled={submitting} className="bg-purple-600 hover:bg-purple-700 text-white gap-1.5">
               <Receipt className="w-4 h-4" /> {t('payable.convert.confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit-info Dialog (Block 5) — vendor / category / description / notes / invoice # */}
+      <Dialog open={!!infoBill} onOpenChange={open => { if (!open) setInfoBill(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('payable.info.title')} — {infoBill?.billNumber}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.info.vendor')}</label>
+              <input type="text" value={infoVendor} onChange={e => setInfoVendor(e.target.value)} maxLength={200}
+                className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.info.category')}</label>
+              <Select value={infoCategory} onValueChange={setInfoCategory}>
+                <SelectTrigger className="h-9 text-sm border-[#D4D4D8]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(CATEGORY_KEY_MAP) as BillCategory[]).map(c => (
+                    <SelectItem key={c} value={c}>{t(CATEGORY_KEY_MAP[c])}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.info.description')}</label>
+              <input type="text" value={infoDescription} onChange={e => setInfoDescription(e.target.value)} maxLength={500}
+                className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.info.notes')}</label>
+              <textarea value={infoNotes} onChange={e => setInfoNotes(e.target.value)} maxLength={1000} rows={2}
+                className="w-full rounded-md border border-[#D4D4D8] px-3 py-2 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
+            </div>
+            {infoBill?.documentType === 'INVOICE' ? (
+              <div>
+                <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.info.invoiceNumber')}</label>
+                <input type="text" value={infoInvoiceNumber} onChange={e => setInfoInvoiceNumber(e.target.value)} maxLength={100}
+                  className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] font-mono focus:outline-none focus:ring-2 focus:ring-purple-400" />
+              </div>
+            ) : (
+              <div className="rounded-md p-2.5 text-xs bg-[#FAFAFA] border border-[#D4D4D8] text-[#71717A]">
+                {t('payable.info.invoiceNumberBillHint')}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setInfoBill(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
+            <Button onClick={submitInfo} disabled={submitting} className="bg-purple-600 hover:bg-purple-700 text-white gap-1.5">
+              <FileText className="w-4 h-4" /> {t('payable.info.confirm')}
             </Button>
           </DialogFooter>
         </DialogContent>

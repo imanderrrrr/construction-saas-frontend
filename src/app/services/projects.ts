@@ -169,6 +169,8 @@ export async function getFinanceContractHistory(projectId: number): Promise<Cont
 
 export interface ChangeOrderEntry {
   id: number;
+  /** AP Block 5 — the client's change-order reference; null if unset. */
+  number: string | null;
   description: string;
   amountCents: number;
   createdBy: string | null;
@@ -178,6 +180,15 @@ export interface ChangeOrderEntry {
 export interface CreateChangeOrderPayload {
   description: string;
   amountCents: number;
+  /** AP Block 5 — optional change-order reference. */
+  number?: string | null;
+}
+
+/** AP Block 5 — partial edit; omitted fields are left unchanged. */
+export interface UpdateChangeOrderPayload {
+  description?: string;
+  amountCents?: number;
+  number?: string | null;
 }
 
 export async function listChangeOrders(projectId: number): Promise<ChangeOrderEntry[]> {
@@ -187,6 +198,13 @@ export async function listChangeOrders(projectId: number): Promise<ChangeOrderEn
 export async function createChangeOrder(projectId: number, payload: CreateChangeOrderPayload): Promise<ChangeOrderEntry> {
   return api<ChangeOrderEntry>(`/api/v1/admin/projects/${projectId}/change-orders`, {
     method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateChangeOrder(projectId: number, changeOrderId: number, payload: UpdateChangeOrderPayload): Promise<ChangeOrderEntry> {
+  return api<ChangeOrderEntry>(`/api/v1/admin/projects/${projectId}/change-orders/${changeOrderId}`, {
+    method: 'PATCH',
     body: JSON.stringify(payload),
   });
 }

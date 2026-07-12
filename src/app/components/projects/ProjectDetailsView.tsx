@@ -23,7 +23,7 @@ import { StatusBadge, UserAvatar, RoleBadge } from './badges';
 import { IncompleteBanner } from './IncompleteBanner';
 import {
   getContractHistory, type ContractHistoryEntry,
-  listChangeOrders, createChangeOrder, deleteChangeOrder, type ChangeOrderEntry,
+  listChangeOrders, createChangeOrder, updateChangeOrder, deleteChangeOrder, type ChangeOrderEntry,
 } from '../../services/projects';
 import { PunchList } from '../punchlist/PunchList';
 import { useSiteLogFeature } from '../../hooks/useSiteLogFeature';
@@ -53,11 +53,13 @@ export function ProjectDetailsView({ project, allUsers, usersLoading, onBack, on
   const [cosLoading, setCosLoading] = useState(false);
   const [cosError, setCosError] = useState(false);
 
-  // Change order form state
+  // Change order form state (shared between the "add" and "edit" modes)
+  const [coNumber, setCoNumber] = useState('');
   const [coDesc, setCoDesc] = useState('');
   const [coAmount, setCoAmount] = useState('');
   const [coSign, setCoSign] = useState<'+' | '-'>('+');
   const [coSaving, setCoSaving] = useState(false);
+  const [editingCoId, setEditingCoId] = useState<number | null>(null);
 
   const loadChangeOrders = useCallback(() => {
     setCosLoading(true);
@@ -84,21 +86,44 @@ export function ProjectDetailsView({ project, allUsers, usersLoading, onBack, on
     }
   }, [project.originalContractCents, loadHistory, loadChangeOrders]);
 
-  const handleCreateCO = async () => {
+  const resetCoForm = () => {
+    setCoNumber('');
+    setCoDesc('');
+    setCoAmount('');
+    setCoSign('+');
+    setEditingCoId(null);
+  };
+
+  const startEditCO = (co: ChangeOrderEntry) => {
+    setEditingCoId(co.id);
+    setCoNumber(co.number ?? '');
+    setCoDesc(co.description);
+    setCoSign(co.amountCents < 0 ? '-' : '+');
+    setCoAmount((Math.abs(co.amountCents) / 100).toString());
+  };
+
+  // Create (POST) or edit (PATCH) a change order. A positive amount can push the
+  // revised contract above the original — there is intentionally no cap.
+  const handleSubmitCO = async () => {
     const cents = Math.round(parseFloat(coAmount.replace(/[^0-9.]/g, '')) * 100);
     if (!coDesc.trim() || isNaN(cents) || cents <= 0) return;
     const signedCents = coSign === '+' ? cents : -cents;
+    const number = coNumber.trim() || null;
     setCoSaving(true);
     try {
-      await createChangeOrder(project.id, { description: coDesc.trim(), amountCents: signedCents });
-      setCoDesc('');
-      setCoAmount('');
+      if (editingCoId != null) {
+        await updateChangeOrder(project.id, editingCoId, { description: coDesc.trim(), amountCents: signedCents, number });
+        toast.success(t('admin:changeOrders.updated'));
+      } else {
+        await createChangeOrder(project.id, { description: coDesc.trim(), amountCents: signedCents, number });
+        toast.success(t('admin:changeOrders.created'));
+      }
+      resetCoForm();
       loadChangeOrders();
-      // Refresh contract history too
-      getContractHistory(project.id).then(setHistory).catch(err => toast.error(err?.message));
-      toast.success(t('admin:changeOrders.created'));
+      // Refresh contract history too (the ledger just moved).
+      loadHistory();
     } catch {
-      toast.error(t('admin:changeOrders.createFailed'));
+      toast.error(editingCoId != null ? t('admin:changeOrders.updateFailed') : t('admin:changeOrders.createFailed'));
     } finally {
       setCoSaving(false);
     }
@@ -263,23 +288,35 @@ export function ProjectDetailsView({ project, allUsers, usersLoading, onBack, on
             {!cosLoading && !cosError && changeOrders.length > 0 && (
               <div className="space-y-2">
                 {changeOrders.map(co => (
-                  <div key={co.id} className="flex items-center justify-between px-4 py-3 bg-[#FAFAFA] rounded-lg border border-[#D4D4D8]/50">
+                  <div key={co.id} className={`flex items-center justify-between px-4 py-3 rounded-lg border ${editingCoId === co.id ? 'bg-[#F97316]/5 border-[#F97316]/40' : 'bg-[#FAFAFA] border-[#D4D4D8]/50'}`}>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-[#0A0A0A] truncate">{co.description}</p>
+                      <p className="text-sm font-medium text-[#0A0A0A] truncate">
+                        {co.number && <span className="font-mono font-semibold text-[#F97316] mr-2">{co.number}</span>}
+                        {co.description}
+                      </p>
                       <p className="text-xs text-[#71717A] mt-0.5">{fmtDate(co.createdAt, i18n.language)}{co.createdBy ? ` · ${co.createdBy}` : ''}</p>
                     </div>
-                    <div className="flex items-center gap-3 ml-4">
+                    <div className="flex items-center gap-2 ml-4">
                       <span className={`text-sm font-mono font-semibold ${co.amountCents >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                         {co.amountCents >= 0 ? '+' : ''}{fmtUSD(co.amountCents)}
                       </span>
                       {!closed && (
-                        <button
-                          onClick={() => handleDeleteCO(co.id)}
-                          className="p-1.5 rounded-md text-[#71717A] hover:text-red-600 hover:bg-red-50 transition-colors"
-                          title={t('common:buttons.delete')}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <>
+                          <button
+                            onClick={() => startEditCO(co)}
+                            className="p-1.5 rounded-md text-[#71717A] hover:text-[#F97316] hover:bg-[#F97316]/10 transition-colors"
+                            title={t('common:buttons.edit')}
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteCO(co.id)}
+                            className="p-1.5 rounded-md text-[#71717A] hover:text-red-600 hover:bg-red-50 transition-colors"
+                            title={t('common:buttons.delete')}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -287,11 +324,21 @@ export function ProjectDetailsView({ project, allUsers, usersLoading, onBack, on
               </div>
             )}
 
-            {/* Add CO form */}
+            {/* Add / edit CO form */}
             {!closed && (
               <div className="border-t border-[#D4D4D8] pt-5">
-                <h4 className="text-sm font-semibold text-[#0A0A0A] mb-3">{t('admin:changeOrders.addTitle')}</h4>
+                <h4 className="text-sm font-semibold text-[#0A0A0A] mb-3">{editingCoId != null ? t('admin:changeOrders.editTitle') : t('admin:changeOrders.addTitle')}</h4>
                 <div className="space-y-3">
+                  <div>
+                    <Label className="text-xs font-medium text-[#71717A]">{t('admin:changeOrders.number')}</Label>
+                    <Input
+                      value={coNumber}
+                      onChange={e => setCoNumber(e.target.value)}
+                      placeholder={t('admin:changeOrders.numberPlaceholder')}
+                      className="mt-1 font-mono"
+                      maxLength={50}
+                    />
+                  </div>
                   <div>
                     <Label className="text-xs font-medium text-[#71717A]">{t('admin:changeOrders.description')}</Label>
                     <Input
@@ -330,14 +377,23 @@ export function ProjectDetailsView({ project, allUsers, usersLoading, onBack, on
                       </button>
                     </div>
                   </div>
-                  <Button
-                    onClick={handleCreateCO}
-                    disabled={coSaving || !coDesc.trim() || !coAmount.trim()}
-                    className="bg-[#F97316] hover:bg-[#C2410C] text-white gap-2"
-                  >
-                    {coSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                    {coSaving ? t('admin:changeOrders.saving') : t('admin:changeOrders.save')}
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      onClick={handleSubmitCO}
+                      disabled={coSaving || !coDesc.trim() || !coAmount.trim()}
+                      className="bg-[#F97316] hover:bg-[#C2410C] text-white gap-2"
+                    >
+                      {coSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : editingCoId != null ? <Pencil className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                      {coSaving
+                        ? (editingCoId != null ? t('admin:changeOrders.updating') : t('admin:changeOrders.saving'))
+                        : (editingCoId != null ? t('admin:changeOrders.update') : t('admin:changeOrders.save'))}
+                    </Button>
+                    {editingCoId != null && (
+                      <Button onClick={resetCoForm} variant="outline" disabled={coSaving} className="border-[#D4D4D8] text-[#0A0A0A]">
+                        {t('common:buttons.cancel')}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
