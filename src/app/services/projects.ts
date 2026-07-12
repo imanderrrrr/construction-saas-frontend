@@ -112,6 +112,15 @@ export async function updateProject(id: number, payload: UpdateProjectPayload): 
   });
 }
 
+/**
+ * AP Block 4 — soft-delete a project (ADMIN only). Blocked by the backend
+ * (409 PROJECT_HAS_ACTIVE_RECORDS) while the project still has payables,
+ * expenses, time records or any other financial/operational history.
+ */
+export async function deleteProject(id: number): Promise<void> {
+  return api<void>(`/api/v1/admin/projects/${id}`, { method: 'DELETE' });
+}
+
 export async function setAssignments(projectId: number, userIds: number[]): Promise<ProjectResponse> {
   return api<ProjectResponse>(`/api/v1/admin/projects/${projectId}/assignments`, {
     method: 'PUT',

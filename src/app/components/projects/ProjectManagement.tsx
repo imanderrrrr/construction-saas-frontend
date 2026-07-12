@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
   FolderOpen, Plus, Search, MoreVertical,
   AlertCircle, Loader2, RefreshCw, Filter,
-  UserPlus, PowerOff, Power, Lock, ShieldAlert,
+  UserPlus, PowerOff, Power, Lock, ShieldAlert, Trash2,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -37,6 +37,7 @@ import { StatusBadge, AssignedAvatars, ContractBar } from './badges';
 import { AssignUsersModal } from './AssignUsersModal';
 import { ToggleStatusModal } from './ToggleStatusModal';
 import { CloseProjectModal } from './CloseProjectModal';
+import { DeleteProjectModal } from './DeleteProjectModal';
 import { ProjectDetailsView } from './ProjectDetailsView';
 
 // MAIN PROJECT MANAGEMENT
@@ -69,6 +70,7 @@ export function ProjectManagement() {
   const [assignOpen, setAssignOpen] = useState(false);
   const [toggleStatusOpen, setToggleStatusOpen] = useState(false);
   const [closeProjectOpen, setCloseProjectOpen] = useState(false);
+  const [deleteProjectOpen, setDeleteProjectOpen] = useState(false);
 
   // Debounce search
   const searchTimerRef = useRef<ReturnType<typeof setTimeout>>();
@@ -160,6 +162,13 @@ export function ProjectManagement() {
   const openAssign = useCallback((p: Project) => { setSelectedProject(p); setAssignOpen(true); }, []);
   const openToggleStatus = useCallback((p: Project) => { setSelectedProject(p); setToggleStatusOpen(true); }, []);
   const openCloseProject = useCallback((p: Project) => { setSelectedProject(p); setCloseProjectOpen(true); }, []);
+  const openDeleteProject = useCallback((p: Project) => { setSelectedProject(p); setDeleteProjectOpen(true); }, []);
+
+  const handleProjectDeleted = useCallback((projectId: number) => {
+    if (selectedProject?.id === projectId) { setSelectedProject(null); setView('list'); }
+    // Refresh so pagination/count stay accurate
+    fetchProjects();
+  }, [selectedProject, fetchProjects]);
 
   // Pagination helpers (UI is 1-based display)
   const displayPage = currentPage + 1;
@@ -370,6 +379,11 @@ export function ProjectManagement() {
                                 </DropdownMenuItem>
                               </>
                             )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => openDeleteProject(project)}
+                              className="gap-2 cursor-pointer text-red-600 focus:text-red-600">
+                              <Trash2 className="w-4 h-4" />{t('admin:projectMgmt.deleteProject')}
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -457,6 +471,11 @@ export function ProjectManagement() {
                                 </DropdownMenuItem>
                               </>
                             )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => openDeleteProject(project)}
+                              className="gap-2 cursor-pointer text-red-600">
+                              <Trash2 className="w-4 h-4" />{t('admin:projectMgmt.deleteProject')}
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
@@ -489,6 +508,7 @@ export function ProjectManagement() {
       <AssignUsersModal project={selectedProject} open={assignOpen} onClose={() => setAssignOpen(false)} onAssigned={handleAssigned} />
       <ToggleStatusModal project={selectedProject} open={toggleStatusOpen} onClose={() => setToggleStatusOpen(false)} onConfirmed={handleStatusToggled} />
       <CloseProjectModal project={selectedProject} open={closeProjectOpen} onClose={() => setCloseProjectOpen(false)} onConfirmed={handleProjectClosed} />
+      <DeleteProjectModal project={selectedProject} open={deleteProjectOpen} onClose={() => setDeleteProjectOpen(false)} onDeleted={handleProjectDeleted} />
     </>
   );
 }

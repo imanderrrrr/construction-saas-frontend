@@ -69,6 +69,8 @@ export function listPayables(params?: {
   vendor?: string;
   status?: string;
   category?: string;
+  /** AP Block 4 — server-side filter by project. */
+  projectId?: number;
   page?: number;
   size?: number;
 }): Promise<PageResponse<Payable>> {
@@ -165,6 +167,18 @@ export function updatePayableDates(id: number, data: { receivedDate: string; due
 /** AP Block 2 — soft-delete a bill / invoice. Blocked (409) while it has active payments. */
 export function deletePayable(id: number): Promise<void> {
   return api<void>(`${PAYABLES}/${id}`, { method: 'DELETE' });
+}
+
+/**
+ * AP Block 4 — reassign a bill / invoice to another project.
+ * Blocked (409 PAYABLE_HAS_ACTIVE_PAYMENTS) while it has active payments:
+ * void them first (the budget returns to the source project), then reassign.
+ */
+export function reassignPayableProject(id: number, projectId: number): Promise<Payable> {
+  return api<Payable>(`${PAYABLES}/${id}/project`, {
+    method: 'PATCH',
+    body: JSON.stringify({ projectId }),
+  });
 }
 
 // ── Payable photo attachments (bytes in object storage) ──
