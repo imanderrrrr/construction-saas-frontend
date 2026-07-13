@@ -32,6 +32,17 @@ vi.mock('jspdf', () => ({
 import { exportPunchListCsv, exportPunchListPdf, type PunchListExportLabels } from './exportPunchList';
 import type { PunchItem } from '../services/punchItems';
 
+// dateTime.getBusinessTz() reads localStorage, which jsdom does not back here.
+// Stub it so fmtDate/fmtDateTime/todayStamp fall through to the default TZ.
+vi.stubGlobal('localStorage', {
+  getItem: () => null,
+  setItem: () => {},
+  removeItem: () => {},
+  clear: () => {},
+  key: () => null,
+  length: 0,
+});
+
 const LABELS: PunchListExportLabels = {
   docTitle: 'Punch list',
   filterLine: 'Casa Roble · Todos · 2 ítems',
