@@ -9,7 +9,7 @@ import {
 } from './ui/dialog';
 import { fmtDate, fmtDateTime, daysOverdue } from '../helpers/dateTime';
 import {
-  StatusBadge, CategoryBadge, fmtAmount, type VendorBill,
+  StatusBadge, CategoryBadge, fmtAmount, type VendorBill, type VendorPayment,
 } from './PayableCommon';
 import { PayableAttachmentsPanel } from './PayableAttachmentsPanel';
 
@@ -33,6 +33,7 @@ export function PayableDetailModal({
   onMarkUnpaid,
   onDelete,
   onVoidPayment,
+  onEditPayment,
 }: {
   bill: VendorBill | null;
   onClose: () => void;
@@ -46,6 +47,7 @@ export function PayableDetailModal({
   onMarkUnpaid: (bill: VendorBill) => void;
   onDelete: (bill: VendorBill) => void;
   onVoidPayment: (bill: VendorBill, paymentId: number) => void;
+  onEditPayment: (bill: VendorBill, payment: VendorPayment) => void;
 }) {
   const { t, i18n } = useTranslation('finance');
   const dateLoc = i18n.language === 'es' ? 'es' : 'en-US';
@@ -204,11 +206,18 @@ export function PayableDetailModal({
                         {canManage && (
                           <td className="px-3 py-2 text-right">
                             {!p.voided && (
-                              <button onClick={() => onVoidPayment(bill, p.id)} disabled={submitting}
-                                title={t('payable.void.action')} aria-label={t('payable.void.action')}
-                                className="inline-flex items-center gap-1 text-[11px] text-red-600 hover:text-red-700 disabled:opacity-40">
-                                <Ban className="w-3.5 h-3.5" /> {t('payable.void.action')}
-                              </button>
+                              <div className="inline-flex items-center gap-3">
+                                <button onClick={() => onEditPayment(bill, p)} disabled={submitting}
+                                  title={t('payable.editPayment.action')} aria-label={t('payable.editPayment.action')}
+                                  className="inline-flex items-center gap-1 text-[11px] text-[#0A0A0A] hover:text-purple-700 disabled:opacity-40">
+                                  <Pencil className="w-3.5 h-3.5" /> {t('payable.editPayment.action')}
+                                </button>
+                                <button onClick={() => onVoidPayment(bill, p.id)} disabled={submitting}
+                                  title={t('payable.void.action')} aria-label={t('payable.void.action')}
+                                  className="inline-flex items-center gap-1 text-[11px] text-red-600 hover:text-red-700 disabled:opacity-40">
+                                  <Ban className="w-3.5 h-3.5" /> {t('payable.void.action')}
+                                </button>
+                              </div>
                             )}
                           </td>
                         )}

@@ -211,6 +211,11 @@
   "payable.void.done": "Pago anulado",
   "payable.void.failed": "No se pudo anular el pago",
 
+  "payable.editPayment.action": "Editar",
+  "payable.editPayment.title": "Editar Pago",
+  "payable.editPayment.done": "Pago actualizado",
+  "payable.editPayment.failed": "No se pudo actualizar el pago",
+
   "payable.convert.action": "Convertir en factura",
   "payable.convert.title": "Convertir cuenta en factura",
   "payable.convert.hint": "Asigná el número de factura del proveedor. La cuenta pasará a tipo «Factura».",
@@ -288,6 +293,7 @@
   "payable.validation.checkFields": "Por favor verifica los campos de monto y fecha",
   "payable.validation.requiredFields": "Por favor completa todos los campos requeridos",
   "payable.validation.dueDateAfter": "La fecha de vencimiento debe ser igual o posterior a la fecha de recepción",
+  "payable.validation.methodRequired": "Ingresá el método de pago",
 
   "payable.toast.loadFailed": "No se pudieron cargar las cuentas por pagar",
   "payable.toast.paymentFailed": "No se pudo registrar el pago",
@@ -302,7 +308,9 @@
   "paymentMethod.check": "Cheque",
   "paymentMethod.cash": "Efectivo",
   "paymentMethod.wireTransfer": "Transferencia electrónica",
+  "paymentMethod.creditCard": "Tarjeta de crédito",
   "paymentMethod.other": "Otro",
+  "paymentMethod.otherPlaceholder": "Especificá el método de pago",
 
   "receivable.title": "Facturas",
   "receivable.kpi.totalReceivable": "Total por cobrar",
