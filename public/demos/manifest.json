@@ -4,6 +4,33 @@
   "note": "Auto-recorded raw screen loops of the BuildTrack admin app (Playwright). No narration, no zoom/cursor-highlight editing. Real seeded demo data (tenant 'andes'). 1280x800, silent. Each clip ships as VP9 .webm + H.264 .mp4 (faststart) with a .jpg poster. Wiring into the landing Videos section is a follow-up (kept separate from PR #12).",
   "video": { "width": 1280, "height": 800 },
   "playback": { "autoplay": true, "loop": true, "muted": true, "playsInline": true },
+  "seeItCarousel": {
+    "recordedAt": "2026-07-12",
+    "note": "Module walkthroughs for the #see-it LandingVideoCarousel (slots 2-3). Same pipeline as `clips` (Playwright over the seeded 'andes' demo tenant, VP9 .webm + H.264 .mp4 + .jpg poster) but 1280x720 and lightly time-compressed (1.15-1.3x).",
+    "video": { "width": 1280, "height": 720 },
+    "clips": [
+      {
+        "key": "punch-list",
+        "durationSec": 17.2,
+        "beats": "client portal report list → internal punch list (statuses, photos, assignee) → shared comment thread reply → client confirms and the item closes",
+        "poster": "/demos/punch-list.jpg",
+        "sources": [
+          { "src": "/demos/punch-list.webm", "type": "video/webm" },
+          { "src": "/demos/punch-list.mp4", "type": "video/mp4" }
+        ]
+      },
+      {
+        "key": "cuentas-por-pagar",
+        "durationSec": 11.0,
+        "beats": "AP dashboard (totals, filters, invoice table) → detail modal (amount/paid/balance, general info, actions, payment history) → scanned vendor invoice in the lightbox",
+        "poster": "/demos/cuentas-por-pagar.jpg",
+        "sources": [
+          { "src": "/demos/cuentas-por-pagar.webm", "type": "video/webm" },
+          { "src": "/demos/cuentas-por-pagar.mp4", "type": "video/mp4" }
+        ]
+      }
+    ]
+  },
   "clips": [
     {
       "key": "bitacora",

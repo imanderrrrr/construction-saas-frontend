@@ -29,6 +29,7 @@ import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { Pricing } from './landing/Pricing';
 import { BETA_CONTACT_EMAIL } from '../components/landing/BetaPlanCard';
 import { AppSection } from '../components/landing/AppSection';
+import { LandingVideoCarousel } from '../components/LandingVideoCarousel';
 import { BlueprintGridSection } from '../components/landing/BlueprintGrid';
 import { ProductWindow } from '../components/landing/ProductWindow';
 
@@ -358,6 +359,9 @@ export function Landing() {
           </div>
         </div>
       </section>
+
+      {/* Guided walkthroughs — intro animation + auto-recorded module demos */}
+      <LandingVideoCarousel />
 
       {/* Why */}
       <section id="why" className="scroll-mt-20 bg-white py-16 sm:py-24">
