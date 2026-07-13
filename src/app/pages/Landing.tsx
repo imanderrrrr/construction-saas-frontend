@@ -328,6 +328,8 @@ export function Landing() {
                 ['tiempo', 'Control de tiempo', 'Filtra por rol y aprueba marcajes con ubicación GPS, distancia y enlaces a Google Maps.'],
                 ['kanban', 'Tablero de tareas', 'Kanban por proyecto: arrastra tarjetas entre columnas, con comentarios y adjuntos.'],
                 ['finanzas', 'Finanzas', 'Seguimiento de contrato por proyecto: presupuesto vs. gastado, con desglose de costos.'],
+                ['punch-list', 'Punch list', 'El cliente reporta pendientes con foto desde su portal; el equipo asigna, comenta y cierra al confirmar.'],
+                ['cuentas-por-pagar', 'Cuentas por pagar', 'Facturas de proveedores con detalle completo: pagos, saldos y la factura escaneada en el visor.'],
               ] as [string, string, string][]
             ).map(([key, title, caption]) => (
               <figure
