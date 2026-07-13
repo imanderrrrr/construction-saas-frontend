@@ -24,7 +24,7 @@ import {
 import { listProjects } from '../services/projects';
 import { ApiError } from '../lib/api';
 import { AuthService } from '../services/auth';
-import { fmtDate, businessToday, daysOverdue, currentMonth } from '../helpers/dateTime';
+import { fmtDate, businessToday, daysOverdue, currentMonth, currentMonthLabel } from '../helpers/dateTime';
 // AP Block 6 — types/badges/helpers shared with the detail modal.
 import {
   StatusBadge, CategoryBadge, fmtAmount, toVendorBill, CATEGORY_KEY_MAP,
@@ -39,6 +39,8 @@ const ITEMS_PER_PAGE = 10;
 export function AccountsPayable() {
   const { t, i18n } = useTranslation('finance');
   const dateLoc = i18n.language === 'es' ? 'es' : 'en-US';
+  // Current accounting month for the "Paid this month" KPI, locale-aware (e.g. "Jul 2026" / "jul 2026").
+  const paidMonthLabel = currentMonthLabel(dateLoc);
   const canManage = ['ADMIN', 'FINANCE'].includes(AuthService.getCanonicalRole() ?? '');
   const [bills, setBills] = useState<VendorBill[]>([]);
   const [loading, setLoading] = useState(true);
@@ -142,8 +144,10 @@ export function AccountsPayable() {
     const nonPaid = bills.filter(b => b.status !== 'paid');
     const totalPayable = nonPaid.reduce((s, b) => s + (b.amount - b.paidAmount), 0);
     const cm = currentMonth();
+    // Voided payments stay listed for audit but no longer count as paid
+    // (mirrors the backend's paidCents).
     const paidThisMonth = bills.reduce((s, b) => {
-      return s + b.payments.filter(p => p.date.startsWith(cm)).reduce((ps, p) => ps + p.amount, 0);
+      return s + b.payments.filter(p => !p.voided && p.date.startsWith(cm)).reduce((ps, p) => ps + p.amount, 0);
     }, 0);
     const pending = bills.filter(b => b.status === 'pending');
     const pendingTotal = pending.reduce((s, b) => s + (b.amount - b.paidAmount), 0);
@@ -552,7 +556,7 @@ export function AccountsPayable() {
       {/* KPI cards — computed from state */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={Wallet}         title={t('payable.kpi.totalPayable')}   value={fmtAmount(kpis.totalPayable)}    subtitle={t('payable.kpi.allInvoices')}                                              iconBgColor="bg-purple-50"  iconColor="text-purple-600" />
-        <StatCard icon={DollarSign}     title={t('payable.kpi.paidThisMonth')}  value={fmtAmount(kpis.paidThisMonth)}   subtitle="Feb 2026"                                                        iconBgColor="bg-emerald-50" iconColor="text-emerald-600" />
+        <StatCard icon={DollarSign}     title={t('payable.kpi.paidThisMonth')}  value={fmtAmount(kpis.paidThisMonth)}   subtitle={paidMonthLabel}                                                  iconBgColor="bg-emerald-50" iconColor="text-emerald-600" />
         <StatCard icon={Clock}          title={t('payable.kpi.pendingPayment')} value={fmtAmount(kpis.pendingTotal)}    subtitle={`${kpis.pendingCount} invoice${kpis.pendingCount !== 1 ? 's' : ''}`} iconBgColor="bg-amber-50" iconColor="text-amber-600" />
         <StatCard icon={AlertTriangle}  title={t('payable.kpi.overdue')}        value={fmtAmount(kpis.overdueTotal)}    subtitle={`${kpis.overdueCount} invoice${kpis.overdueCount !== 1 ? 's' : ''}`} iconBgColor="bg-red-50"   iconColor="text-red-600" />
       </div>
