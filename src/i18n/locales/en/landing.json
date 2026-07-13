@@ -40,10 +40,8 @@
 
   "videos.title": "BuildTrack in action",
   "videos.subtitle": "See how the platform works. We'll keep adding walkthroughs of every module.",
-  "videos.punchList.title": "Punch list with your client",
-  "videos.punchList.subtitle": "Clients report punch items with photos from their portal; your team assigns and replies in the thread, and the client confirms closure.",
-  "videos.finance.title": "Accounts payable",
-  "videos.finance.subtitle": "Vendor invoices with partial payments, per-project balances, and the scanned invoice one click away.",
+  "videos.placeholder.label": "Coming soon",
+  "videos.placeholder.title": "New walkthrough on the way",
   "videos.goToSlide": "Go to video {{n}}",
 
   "features.title": "Everything your job site needs",

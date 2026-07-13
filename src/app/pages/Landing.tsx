@@ -29,7 +29,6 @@ import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { Pricing } from './landing/Pricing';
 import { BETA_CONTACT_EMAIL } from '../components/landing/BetaPlanCard';
 import { AppSection } from '../components/landing/AppSection';
-import { LandingVideoCarousel } from '../components/LandingVideoCarousel';
 import { BlueprintGridSection } from '../components/landing/BlueprintGrid';
 import { ProductWindow } from '../components/landing/ProductWindow';
 
@@ -329,6 +328,8 @@ export function Landing() {
                 ['tiempo', 'Control de tiempo', 'Filtra por rol y aprueba marcajes con ubicación GPS, distancia y enlaces a Google Maps.'],
                 ['kanban', 'Tablero de tareas', 'Kanban por proyecto: arrastra tarjetas entre columnas, con comentarios y adjuntos.'],
                 ['finanzas', 'Finanzas', 'Seguimiento de contrato por proyecto: presupuesto vs. gastado, con desglose de costos.'],
+                ['punch-list', 'Punch list', 'El cliente reporta pendientes con foto desde su portal; el equipo asigna, comenta y cierra al confirmar.'],
+                ['cuentas-por-pagar', 'Cuentas por pagar', 'Facturas de proveedores con detalle completo: pagos, saldos y la factura escaneada en el visor.'],
               ] as [string, string, string][]
             ).map(([key, title, caption]) => (
               <figure
@@ -359,9 +360,6 @@ export function Landing() {
           </div>
         </div>
       </section>
-
-      {/* Guided walkthroughs — intro animation + auto-recorded module demos */}
-      <LandingVideoCarousel />
 
       {/* Why */}
       <section id="why" className="scroll-mt-20 bg-white py-16 sm:py-24">

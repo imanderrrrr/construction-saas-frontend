@@ -40,10 +40,8 @@
 
   "videos.title": "BuildTrack en acción",
   "videos.subtitle": "Mira cómo funciona la plataforma. Iremos sumando recorridos por cada módulo.",
-  "videos.punchList.title": "Punch list con tu cliente",
-  "videos.punchList.subtitle": "El cliente reporta pendientes con fotos desde su portal; tu equipo los asigna, responde en el hilo y el cliente confirma el cierre.",
-  "videos.finance.title": "Cuentas por pagar",
-  "videos.finance.subtitle": "Facturas de proveedores con pagos parciales, saldo por proyecto y la factura escaneada a un clic.",
+  "videos.placeholder.label": "Próximamente",
+  "videos.placeholder.title": "Nuevo recorrido en camino",
   "videos.goToSlide": "Ir al video {{n}}",
 
   "features.title": "Todo lo que tu obra necesita",
