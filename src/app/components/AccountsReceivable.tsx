@@ -61,7 +61,7 @@ interface DraftLineItem {
 
 // Helpers
 
-import { fmtDate, businessToday, daysOverdue, currentMonth } from '../helpers/dateTime';
+import { fmtDate, businessToday, daysOverdue, currentMonth, currentMonthLabel } from '../helpers/dateTime';
 
 function fmtAmount(n: number) {
   return `$${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
@@ -161,8 +161,7 @@ export function AccountsReceivable() {
   const { t, i18n } = useTranslation(['finance', 'common']);
   const dateLocale = i18n.language === 'es' ? 'es' : 'en-US';
   // Current accounting month for the "Collected this month" KPI, formatted locale-aware (e.g. "Jun 2026" / "jun 2026")
-  const collectedMonthLabel = new Date(`${currentMonth()}-01T00:00:00`)
-    .toLocaleDateString(dateLocale, { month: 'short', year: 'numeric' });
+  const collectedMonthLabel = currentMonthLabel(dateLocale);
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);

@@ -29,6 +29,15 @@ export function currentMonth(): string {
   return businessToday().slice(0, 7);
 }
 
+/** Current business month formatted for display (e.g. "Jul 2026" / "jul 2026"). */
+export function currentMonthLabel(locale: string = 'en-US'): string {
+  // Local-midnight parse + local-tz format: the business-TZ month is already
+  // baked into currentMonth(), so re-applying the business TZ here could
+  // shift the label into the previous month.
+  return new Date(`${currentMonth()}-01T00:00:00`)
+    .toLocaleDateString(locale, { month: 'short', year: 'numeric' });
+}
+
 /** Date N days ago as YYYY-MM-DD in the business timezone. */
 export function nDaysAgo(n: number): string {
   // Walk back calendar days to avoid DST 23/25-hour issues
