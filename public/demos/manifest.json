@@ -21,7 +21,9 @@
       },
       {
         "key": "cuentas-por-pagar",
-        "durationSec": 11.0,
+        "durationSec": 10.9,
+        "recordedAt": "2026-07-13",
+        "note": "Re-recorded after the 'Paid this month' KPI fix (current business month label, voided payments excluded).",
         "beats": "AP dashboard (totals, filters, invoice table) → detail modal (amount/paid/balance, general info, actions, payment history) → scanned vendor invoice in the lightbox",
         "poster": "/demos/cuentas-por-pagar.jpg",
         "sources": [
