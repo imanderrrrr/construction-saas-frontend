@@ -211,6 +211,11 @@
   "payable.void.done": "Payment voided",
   "payable.void.failed": "Could not void the payment",
 
+  "payable.editPayment.action": "Edit",
+  "payable.editPayment.title": "Edit Payment",
+  "payable.editPayment.done": "Payment updated",
+  "payable.editPayment.failed": "Could not update the payment",
+
   "payable.convert.action": "Convert to invoice",
   "payable.convert.title": "Convert bill to invoice",
   "payable.convert.hint": "Assign the supplier's invoice number. The bill will become type “Invoice”.",
@@ -288,6 +293,7 @@
   "payable.validation.checkFields": "Please check amount and date fields",
   "payable.validation.requiredFields": "Please fill all required fields",
   "payable.validation.dueDateAfter": "Due date must be on or after received date",
+  "payable.validation.methodRequired": "Enter the payment method",
 
   "payable.toast.loadFailed": "Could not load accounts payable",
   "payable.toast.paymentFailed": "Could not record the payment",
@@ -302,7 +308,9 @@
   "paymentMethod.check": "Check",
   "paymentMethod.cash": "Cash",
   "paymentMethod.wireTransfer": "Wire transfer",
+  "paymentMethod.creditCard": "Credit card",
   "paymentMethod.other": "Other",
+  "paymentMethod.otherPlaceholder": "Specify the payment method",
 
   "receivable.title": "Invoices",
   "receivable.kpi.totalReceivable": "Total receivable",

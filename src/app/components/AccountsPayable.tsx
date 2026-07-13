@@ -17,7 +17,7 @@ import { EmptyState } from './EmptyState';
 import { toast } from 'sonner';
 import {
   listPayables, createPayable, recordPayablePayment, listPayableVendors,
-  updatePayableAmount, markPayableUnpaid, voidPayablePayment,
+  updatePayableAmount, markPayableUnpaid, voidPayablePayment, updatePayablePayment,
   convertPayableToInvoice, updatePayableDates, updatePayableInfo, deletePayable, reassignPayableProject,
   getPayable, type Payable,
 } from '../services/finance';
@@ -26,9 +26,11 @@ import { ApiError } from '../lib/api';
 import { AuthService } from '../services/auth';
 import { fmtDate, businessToday, daysOverdue, currentMonth, currentMonthLabel } from '../helpers/dateTime';
 // AP Block 6 — types/badges/helpers shared with the detail modal.
+// AP Block 3 — PaymentMethodField (Credit card + typed-in Other) + resolve/split helpers.
 import {
   StatusBadge, CategoryBadge, fmtAmount, toVendorBill, CATEGORY_KEY_MAP,
-  type VendorBill, type BillCategory,
+  PaymentMethodField, resolveMethod, splitMethod,
+  type VendorBill, type BillCategory, type VendorPayment,
 } from './PayableCommon';
 import { PayableDetailModal } from './PayableDetailModal';
 
@@ -86,7 +88,15 @@ export function AccountsPayable() {
   const [payAmount, setPayAmount] = useState('');
   const [payDate, setPayDate] = useState(businessToday());
   const [payMethod, setPayMethod] = useState('Bank transfer');
+  // AP Block 3 — free text shown when method === 'Other'.
+  const [payMethodOther, setPayMethodOther] = useState('');
   const [payRef, setPayRef] = useState('');
+
+  // AP Block 3 — edit an existing payment's method + date.
+  const [editPayment, setEditPayment] = useState<{ bill: VendorBill; payment: VendorPayment } | null>(null);
+  const [epMethod, setEpMethod] = useState('Bank transfer');
+  const [epMethodOther, setEpMethodOther] = useState('');
+  const [epDate, setEpDate] = useState('');
 
   // Create bill dialog
   const [showCreate, setShowCreate] = useState(false);
@@ -207,6 +217,7 @@ export function AccountsPayable() {
     setPayAmount(balance.toFixed(2));
     setPayDate(businessToday());
     setPayMethod('Bank transfer');
+    setPayMethodOther('');
     setPayRef('');
   }
 
@@ -218,11 +229,17 @@ export function AccountsPayable() {
       toast.error(t('payable.validation.checkFields'));
       return;
     }
+    // AP Block 3 — collapse the method picker; a "Other" choice must carry text.
+    const method = resolveMethod(payMethod, payMethodOther);
+    if (!method) {
+      toast.error(t('payable.validation.methodRequired'));
+      return;
+    }
     try {
       const updated = await recordPayablePayment(payBill.id, {
         amount: amt,
         date: payDate,
-        method: payMethod,
+        method,
         reference: payRef || undefined,
         approvedBy: 'finance',
       });
@@ -485,6 +502,41 @@ export function AccountsPayable() {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : undefined;
       toast.error(t('payable.void.failed'), { description: message });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // AP Block 3 — edit an existing payment's method + date (metadata only)
+  function openEditPaymentDialog(bill: VendorBill, payment: VendorPayment) {
+    const { method, otherText } = splitMethod(payment.method);
+    setEpMethod(method);
+    setEpMethodOther(otherText);
+    setEpDate(payment.date);
+    setEditPayment({ bill, payment });
+  }
+
+  async function submitEditPayment() {
+    if (!editPayment) return;
+    const { bill, payment } = editPayment;
+    const method = resolveMethod(epMethod, epMethodOther);
+    if (!method) {
+      toast.error(t('payable.validation.methodRequired'));
+      return;
+    }
+    if (!epDate) {
+      toast.error(t('payable.validation.checkFields'));
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const updated = await updatePayablePayment(bill.id, payment.id, { method, date: epDate });
+      setBills(prev => prev.map(b => b.id === bill.id ? toVendorBill(updated) : b));
+      toast.success(t('payable.editPayment.done'));
+      setEditPayment(null);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : undefined;
+      toast.error(t('payable.editPayment.failed'), { description: message });
     } finally {
       setSubmitting(false);
     }
@@ -791,6 +843,7 @@ export function AccountsPayable() {
         onMarkUnpaid={openUnpayDialog}
         onDelete={openDeleteDialog}
         onVoidPayment={handleVoidPayment}
+        onEditPayment={openEditPaymentDialog}
       />
 
       {/* Record Payment Dialog */}
@@ -845,18 +898,12 @@ export function AccountsPayable() {
             </div>
             <div>
               <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.method')}</label>
-              <Select value={payMethod} onValueChange={setPayMethod}>
-                <SelectTrigger className="h-9 text-sm border-[#D4D4D8]"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {[
-                    { value: 'Bank transfer', label: t('paymentMethod.bankTransfer') },
-                    { value: 'Check', label: t('paymentMethod.check') },
-                    { value: 'Cash', label: t('paymentMethod.cash') },
-                    { value: 'Wire transfer', label: t('paymentMethod.wireTransfer') },
-                    { value: 'Other', label: t('paymentMethod.other') },
-                  ].map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <PaymentMethodField
+                method={payMethod}
+                otherText={payMethodOther}
+                onMethodChange={setPayMethod}
+                onOtherTextChange={setPayMethodOther}
+              />
             </div>
             <div>
               <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.reference')}</label>
@@ -867,6 +914,40 @@ export function AccountsPayable() {
           <DialogFooter>
             <Button variant="ghost" onClick={() => setPayBill(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
             <Button onClick={submitPayment} className="bg-purple-600 hover:bg-purple-700 text-white">{t('payable.recordPayment')}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* AP Block 3 — Edit Payment (method + date) Dialog */}
+      <Dialog open={!!editPayment} onOpenChange={open => { if (!open) setEditPayment(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('payable.editPayment.title')} — {editPayment?.bill.billNumber}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {editPayment && (
+              <div className="rounded-md border border-[#D4D4D8] bg-[#FAFAFA]/60 px-3 py-2 text-xs text-[#71717A]">
+                {t('payable.table.amount')}: <span className="font-mono font-semibold text-[#0A0A0A]">{fmtAmount(editPayment.payment.amount)}</span>
+              </div>
+            )}
+            <div>
+              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.paymentDate')}</label>
+              <input type="date" value={epDate} onChange={e => setEpDate(e.target.value)}
+                className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.method')}</label>
+              <PaymentMethodField
+                method={epMethod}
+                otherText={epMethodOther}
+                onMethodChange={setEpMethod}
+                onOtherTextChange={setEpMethodOther}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditPayment(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
+            <Button onClick={submitEditPayment} disabled={submitting} className="bg-purple-600 hover:bg-purple-700 text-white">{t('buttons.save', { ns: 'common' })}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

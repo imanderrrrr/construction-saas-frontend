@@ -148,6 +148,23 @@ export function voidPayablePayment(id: number, paymentId: number, reason?: strin
   });
 }
 
+/**
+ * AP Block 3 — edit an active payment's method and/or date. Metadata only: the
+ * amount is changed by voiding + re-recording (this never moves the budget).
+ * Partial: omit a field to leave it unchanged. `method` is free text (the UI
+ * offers "Credit card" and a typed-in "Other"). A voided payment cannot be
+ * edited (409).
+ */
+export function updatePayablePayment(id: number, paymentId: number, data: {
+  method?: string;
+  date?: string;
+}): Promise<Payable> {
+  return api<Payable>(`${PAYABLES}/${id}/payments/${paymentId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
 /** AP Block 2 — promote a bill (cuenta) to an invoice (factura) by assigning its invoice number. */
 export function convertPayableToInvoice(id: number, invoiceNumber: string): Promise<Payable> {
   return api<Payable>(`${PAYABLES}/${id}/convert-to-invoice`, {
