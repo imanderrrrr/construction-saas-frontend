@@ -9,7 +9,7 @@ import { useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import {
   Camera, CheckCircle2, ClipboardList, CloudFog, CloudLightning, CloudRain, Cloudy,
-  HardHat, Loader2, Lock, NotebookPen, ShieldAlert, Sun, Users,
+  HardHat, HelpCircle, Loader2, Lock, NotebookPen, ShieldAlert, Sun, Users,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { ApiError } from '../lib/api';
@@ -25,10 +25,11 @@ import type { Weather } from '../services/siteLog';
 import { AuthImage } from '../components/sitelog/AuthImage';
 import { Lightbox, type LightboxImage } from '../components/sitelog/Lightbox';
 import { ClientPunchSection } from '../components/punchlist/ClientPunchSection';
+import { ClientRfiSection } from '../components/rfi/ClientRfiSection';
 
 type Phase = 'loading' | 'pin' | 'ready' | 'gone' | 'invalid';
 type PinError = 'wrong' | 'rate' | null;
-type PortalTab = 'sitelog' | 'punch';
+type PortalTab = 'sitelog' | 'punch' | 'rfi';
 
 const PAGE_SIZE = 10;
 
@@ -52,7 +53,7 @@ function classify(err: unknown): 'pin' | 'wrong' | 'rate' | 'gone' | 'invalid' {
 
 export function ClientView() {
   const { token = '' } = useParams<{ token: string }>();
-  const { t, i18n } = useTranslation(['clientView', 'punchList']);
+  const { t, i18n } = useTranslation(['clientView', 'punchList', 'rfi']);
 
   const [tab, setTab] = useState<PortalTab>('sitelog');
   const [phase, setPhase] = useState<Phase>('loading');
@@ -283,10 +284,20 @@ export function ClientView() {
             label={t('punchList:tab.punch')}
             onClick={() => setTab('punch')}
           />
+          <TabButton
+            active={tab === 'rfi'}
+            icon={HelpCircle}
+            label={t('rfi:tab.rfi')}
+            onClick={() => setTab('rfi')}
+          />
         </div>
 
         {tab === 'punch' && session && (
           <ClientPunchSection session={session} onGone={() => setPhase('gone')} />
+        )}
+
+        {tab === 'rfi' && session && (
+          <ClientRfiSection session={session} onGone={() => setPhase('gone')} />
         )}
 
         {tab === 'sitelog' && (
