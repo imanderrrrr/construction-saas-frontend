@@ -1,7 +1,12 @@
-// "Compartir bitácora con el cliente" — generate / copy / revoke the public
-// read-only share link of a project's site log. Mirrors InviteUserModal's
-// link + QR + copy pattern; the link itself is minted by the backend
-// (`/projects/{id}/client-access`) and opens /client-view/<token>.
+// "Compartir portal del cliente" — generate / copy / revoke the share link of
+// a project's client portal (bitácora + punch list + RFIs). Mirrors
+// InviteUserModal's link + QR + copy pattern; the link itself is minted by the
+// backend (`/projects/{id}/client-access`) and opens /client-view/<token>.
+//
+// PIN handling: while a link with a PIN exists, the modal shows a "PIN
+// protected" badge instead of re-asking for one, and regenerates with
+// `preservePin` so the stored PIN survives the version bump. Changing or
+// removing the PIN goes through revoke + generate anew.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -82,6 +87,11 @@ export function ShareSiteLogModal({
 
   const shareUrl = status?.shareToken ? buildClientViewUrl(status.shareToken) : null;
 
+  // A PIN is stored server-side (as a hash — its value is unrecoverable).
+  // Once set, the modal never re-asks for it: regenerating carries it over
+  // via preservePin, and changing/removing it goes through revoke + generate.
+  const hasStoredPin = !!status && status.enabled && status.pinRequired;
+
   // Paint the QR whenever there is an active link.
   useEffect(() => {
     if (!shareUrl || !qrCanvasRef.current) return;
@@ -93,7 +103,7 @@ export function ShareSiteLogModal({
   if (!open) return null;
 
   const handleGenerate = async () => {
-    if (pinEnabled && !/^[0-9]{6}$/.test(pin)) {
+    if (!hasStoredPin && pinEnabled && !/^[0-9]{6}$/.test(pin)) {
       setPinInvalid(true);
       return;
     }
@@ -103,8 +113,11 @@ export function ShareSiteLogModal({
     setNotice(null);
     try {
       await generateClientAccess(projectId, {
-        pin: pinEnabled ? pin : undefined,
+        pin: !hasStoredPin && pinEnabled ? pin : undefined,
         expiresInDays,
+        // Only sent while a PIN exists; old backends ignore it (worst case:
+        // the pre-preservePin behavior), so no version coupling.
+        preservePin: hasStoredPin || undefined,
       });
       setNotice('generated');
       setPin('');
@@ -309,32 +322,50 @@ export function ShareSiteLogModal({
 
               {/* Generate / regenerate */}
               <div className="space-y-3">
-                <label className="flex items-center gap-2 text-sm text-[#0A0A0A]">
-                  <input
-                    type="checkbox"
-                    checked={pinEnabled}
-                    onChange={(e) => { setPinEnabled(e.target.checked); setPinInvalid(false); }}
-                    className="w-4 h-4 accent-[#F97316]"
-                  />
-                  {t('share.pin.toggle')}
-                </label>
-                {pinEnabled && (
-                  <div className="space-y-1">
-                    <Input
-                      value={pin}
-                      onChange={(e) => { setPin(e.target.value.replace(/\D/g, '').slice(0, 6)); setPinInvalid(false); }}
-                      inputMode="numeric"
-                      maxLength={6}
-                      placeholder="123456"
-                      className="h-10 font-mono tracking-widest"
-                      aria-invalid={pinInvalid}
-                    />
-                    {pinInvalid ? (
-                      <p className="text-xs text-red-600">{t('share.pin.invalid')}</p>
-                    ) : (
-                      <p className="text-xs text-[#71717A]">{t('share.pin.hint')}</p>
-                    )}
+                {hasStoredPin ? (
+                  // Already protected: don't ask for a PIN again — regenerating
+                  // keeps the current one (preservePin).
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+                    <p className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-800">
+                      <Lock className="w-4 h-4" />
+                      {t('share.pin.badge')}
+                    </p>
+                    <p className="text-xs text-emerald-700 mt-0.5">{t('share.pin.badgeNote')}</p>
                   </div>
+                ) : (
+                  <>
+                    <label className="flex items-center gap-2 text-sm text-[#0A0A0A]">
+                      <input
+                        type="checkbox"
+                        checked={pinEnabled}
+                        onChange={(e) => { setPinEnabled(e.target.checked); setPinInvalid(false); }}
+                        className="w-4 h-4 accent-[#F97316]"
+                      />
+                      {t('share.pin.toggle')}
+                    </label>
+                    {pinEnabled ? (
+                      <div className="space-y-1">
+                        <Input
+                          value={pin}
+                          onChange={(e) => { setPin(e.target.value.replace(/\D/g, '').slice(0, 6)); setPinInvalid(false); }}
+                          inputMode="numeric"
+                          maxLength={6}
+                          placeholder="123456"
+                          className="h-10 font-mono tracking-widest"
+                          aria-invalid={pinInvalid}
+                        />
+                        {pinInvalid ? (
+                          <p className="text-xs text-red-600">{t('share.pin.invalid')}</p>
+                        ) : (
+                          <p className="text-xs text-[#71717A]">{t('share.pin.hint')}</p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                        {t('share.pin.recommend')}
+                      </p>
+                    )}
+                  </>
                 )}
 
                 <div className="space-y-1">
