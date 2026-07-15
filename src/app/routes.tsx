@@ -6,9 +6,7 @@ import { createBrowserRouter, Navigate } from 'react-router';
 import { Landing }             from './pages/Landing';
 import { Docs }                from './pages/Docs';
 import { Status }              from './pages/Status';
-import { ChoosePlan }          from './pages/landing/ChoosePlan';
 import { Login }               from './pages/Login';
-import { Signup }              from './pages/Signup';
 import { AcceptInvite }        from './pages/AcceptInvite';
 import { ForgotPassword }      from './pages/ForgotPassword';
 import { ResetPassword }       from './pages/ResetPassword';
@@ -24,8 +22,6 @@ import { FinanceDashboard }    from './pages/FinanceDashboard';
 import { WarehouseDashboard }  from './pages/WarehouseDashboard';
 import { SubcontractorWebInfo } from './pages/SubcontractorWebInfo';
 import { BillingPage }         from './pages/admin/BillingPage';
-import { CheckoutSuccess }     from './pages/CheckoutSuccess';
-import { CheckoutCancel }      from './pages/CheckoutCancel';
 import { ClientView }          from './pages/ClientView';
 import { AuthService }         from './services/auth';
 import { BillingGuard }        from './components/BillingGuard';
@@ -82,8 +78,9 @@ export const routes = [
   { path: '/docs',                   element: <Docs /> },
   { path: '/status',                 element: <Status /> },
   { path: '/login',                  element: <Login /> },
-  { path: '/choose-plan',            element: <ChoosePlan /> },
-  { path: '/signup',                 element: <Signup /> },
+  // No public self-serve signup: accounts are provisioned by us after the
+  // customer asks for one on the demo call, so there is no /signup, no
+  // plan chooser and no Paddle return page on the public site.
   { path: '/accept-invite/:token',   element: <AcceptInvite /> },
   // Client portal — public read-only site-log view. Auth is the signed token
   // in the URL (exchanged in-page), NOT a user session: no guards on purpose.
@@ -97,13 +94,6 @@ export const routes = [
   { path: '/support',       element: <Support /> },
   { path: '/dashboard',    element: <ProtectedRoute><BillingGuard><RoleRedirect /></BillingGuard></ProtectedRoute> },
 
-  // Paddle return pages — public on purpose. Activation lives on the
-  // backend webhook, NOT on these pages, so they need no auth and never
-  // mutate state. They MUST stay outside BillingGuard so the user can
-  // land here right after checkout while billingStatus is still pending.
-  { path: '/checkout/success', element: <CheckoutSuccess /> },
-  { path: '/checkout/cancel',  element: <CheckoutCancel /> },
-
   // ADMIN
   {
     path: '/admin/dashboard',
@@ -116,8 +106,8 @@ export const routes = [
     ),
   },
   // Admin time-approvals is a section inside AdminDashboard (no separate route needed)
-  // Billing page is deliberately OUTSIDE BillingGuard — it's the activation
-  // surface that admins are sent to when their tenant is locked.
+  // Billing page is deliberately OUTSIDE BillingGuard — it's where admins
+  // land when their tenant is locked, so it has to render while blocked.
   {
     path: '/admin/billing',
     element: (

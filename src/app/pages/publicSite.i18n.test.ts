@@ -6,6 +6,8 @@ import enDocs from '../../i18n/locales/en/docs.json';
 import esDocs from '../../i18n/locales/es/docs.json';
 import enStatus from '../../i18n/locales/en/status.json';
 import esStatus from '../../i18n/locales/es/status.json';
+import enBilling from '../../i18n/locales/en/billing.json';
+import esBilling from '../../i18n/locales/es/billing.json';
 
 type Bundle = Record<string, string>;
 
@@ -13,6 +15,10 @@ const NAMESPACES: [name: string, en: Bundle, es: Bundle][] = [
   ['landing', enLanding as Bundle, esLanding as Bundle],
   ['docs', enDocs as Bundle, esDocs as Bundle],
   ['status', enStatus as Bundle, esStatus as Bundle],
+  // `billing` is not public, but /admin/billing is where a locked tenant is
+  // sent — the one logged-in surface that used to quote a plan price and
+  // take money. It lives under the same rule as the public site.
+  ['billing', enBilling as Bundle, esBilling as Bundle],
 ];
 
 const tokens = (s: string): string[] =>
@@ -40,7 +46,7 @@ describe.each(NAMESPACES)('%s locale coverage', (_name, en, es) => {
 });
 
 describe('public site content rules', () => {
-  // The site quotes project by project: no plan table, no amount, anywhere.
+  // We quote project by project: no plan table, no amount, anywhere.
   // This guards the thing that must never come back: what BuildTrack costs.
   // dash.k2sub is a fictional jobsite's contract inside the dashboard mock, not
   // a price; it only escaped this regex before because the mock still read "Q".

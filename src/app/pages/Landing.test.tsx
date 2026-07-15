@@ -70,8 +70,9 @@ describe('Landing — public CTAs and content rules', () => {
   }
 
   // The point of the redesign: the site sells nothing directly. Every
-  // commercial path is a conversation by email, so no CTA may lead into the
-  // plan-picker / checkout flow.
+  // commercial path is a conversation by email — we create the account by
+  // hand afterwards. /choose-plan and /signup have since been deleted
+  // outright, so these now also guard against linking at a dead route.
   it('never links into the /choose-plan billing flow', async () => {
     await render();
     expect(hrefs().filter((h) => h.includes('/choose-plan'))).toHaveLength(0);
