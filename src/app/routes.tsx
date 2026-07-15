@@ -4,6 +4,8 @@
 import React from 'react';
 import { createBrowserRouter, Navigate } from 'react-router';
 import { Landing }             from './pages/Landing';
+import { Docs }                from './pages/Docs';
+import { Status }              from './pages/Status';
 import { ChoosePlan }          from './pages/landing/ChoosePlan';
 import { Login }               from './pages/Login';
 import { Signup }              from './pages/Signup';
@@ -76,6 +78,9 @@ export const routes = [
 
   // Public
   { path: '/',                       element: <Landing /> },
+  // Public marketing site alongside the landing — linked from its nav/footer.
+  { path: '/docs',                   element: <Docs /> },
+  { path: '/status',                 element: <Status /> },
   { path: '/login',                  element: <Login /> },
   { path: '/choose-plan',            element: <ChoosePlan /> },
   { path: '/signup',                 element: <Signup /> },

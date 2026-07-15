@@ -7,3 +7,88 @@
 @theme {
   --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
+
+/* ── Public site (landing / docs / status) ──────────────────────────────
+   Design source of truth: Claude Design project "BuildTrack para
+   constructoras" (BuildTrack Landing v2 / Docs / Estado).
+
+   Deliberately namespaced `bt-*` and kept OFF the global --font-sans so the
+   authenticated app keeps its Inter + zinc look. Only the public pages opt
+   in, via `font-bt-body` on their root element. */
+@theme {
+  --font-bt-display: 'Big Shoulders Display', 'Arial Narrow', sans-serif;
+  --font-bt-heading: 'Syne', ui-sans-serif, system-ui, sans-serif;
+  --font-bt-wordmark: 'Quicksand', ui-rounded, system-ui, sans-serif;
+  --font-bt-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', monospace;
+  --font-bt-body: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+
+  /* Ink / paper */
+  --color-bt-ink: #17130f; /* near-black — dark sections, body text  */
+  --color-bt-brown: #3a2c20; /* beta section bg, secondary body text   */
+  --color-bt-paper: #f3eee6; /* default light section background       */
+  --color-bt-paper-2: #e7dfd1; /* alternating light section background   */
+  --color-bt-sheet: #fbf8f1; /* drawing-sheet white (mocks, inputs)    */
+  --color-bt-bone: #f8f3eb; /* primary text on dark                   */
+
+  /* Accent */
+  --color-bt-orange: #f97316; /* brand orange (unchanged from today)    */
+  --color-bt-orange-hover: #e8630a;
+
+  /* Muted text */
+  --color-bt-muted: #6c6152; /* muted on light                         */
+  --color-bt-muted-2: #a89a87; /* muted on dark / faint on light         */
+
+  /* Rules — light → dark */
+  --color-bt-rule: #d9cfbc; /* on --bt-paper                          */
+  --color-bt-rule-2: #e3daca; /* inner rules                            */
+  --color-bt-rule-3: #efe8da; /* faintest rules                         */
+  --color-bt-rule-4: #cfc4ae; /* on --bt-paper-2                        */
+
+  /* Status semantics (status page + sheet chips) */
+  --color-bt-green: #2e7d4f;
+  --color-bt-red: #b3402a;
+}
+
+/* The design ships these as page-level rules. Here they're scoped to
+   `.bt-public` (the root of the landing / docs / status pages) so the
+   authenticated app keeps its own selection colour and focus ring. */
+.bt-public ::selection {
+  background: var(--color-bt-orange);
+  color: var(--color-bt-ink);
+}
+
+.bt-public :focus-visible {
+  outline: 2px solid var(--color-bt-orange);
+  outline-offset: 3px;
+}
+
+/* Anchor links (#plataforma, #demo, …) glide instead of jumping — but only
+   while a public page is mounted, and only if motion is welcome. */
+@media (prefers-reduced-motion: no-preference) {
+  html:has(.bt-public) {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Hero entrance: content rises into place. Elements opt in with `data-anim`
+   and stagger themselves with an inline animation-delay. */
+@keyframes bt-up {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.bt-public [data-anim] {
+  animation: bt-up 0.8s cubic-bezier(0.22, 0.7, 0.25, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bt-public [data-anim] {
+    animation: none !important;
+  }
+}
