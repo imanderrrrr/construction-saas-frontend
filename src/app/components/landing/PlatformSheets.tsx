@@ -136,13 +136,13 @@ export function DashboardSheet() {
               />
               <Kpi
                 label={t('dash.k2')}
-                value="Q 1.82M"
+                value="$1.82M"
                 sub={t('dash.k2sub')}
                 className="border-r border-bt-rule-2 px-4 py-3.5 pb-4"
               />
               <Kpi
                 label={t('dash.k3')}
-                value="Q 310,400"
+                value="$310,400"
                 sub={t('dash.k3sub')}
                 className="border-r border-bt-rule-2 px-4 py-3.5 pb-4"
               />
@@ -275,34 +275,34 @@ export function PayablesSheet() {
           <PayableRow
             vendor="Cementos Progreso"
             detail={t('sheet2.row1')}
-            amount="Q 48,600"
+            amount="$48,600"
             state={t('sheet2.state1')}
             stateTone="orange"
           />
           <PayableRow
             vendor="Aceros de Guatemala"
             detail={t('sheet2.row2')}
-            amount="Q 61,250"
+            amount="$61,250"
             state={t('sheet2.state2')}
           />
           <PayableRow
             vendor={t('sheet2.row3title')}
             detail={t('sheet2.row3')}
-            amount="Q 52,400"
+            amount="$52,400"
             state={t('sheet2.state3')}
             stateTone="faint"
           />
           <PayableRow
             vendor="Ferretería El Cantero"
             detail={t('sheet2.row4')}
-            amount="Q 7,830"
+            amount="$7,830"
             state={t('sheet2.state3')}
             stateTone="faint"
           />
         </div>
         <div className="mt-auto flex items-baseline justify-between gap-2.5 pt-3.5">
           <p className="font-bt-mono text-[8.5px] tracking-[0.12em] text-bt-muted">{t('sheet2.total')}</p>
-          <p className="font-bt-mono text-[15px] font-semibold text-bt-ink">Q 109,850</p>
+          <p className="font-bt-mono text-[15px] font-semibold text-bt-ink">$109,850</p>
         </div>
       </div>
       <TitleBlock code={t('sheet2.titleblock')} />

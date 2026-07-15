@@ -34,7 +34,7 @@ type Section = {
 };
 
 const SECTIONS: Section[] = [
-  { id: 'primeros-pasos', prefix: 's0', navKey: 'nav.start', groups: [{ keyBase: 's0', steps: 4 }] },
+  { id: 'primeros-pasos', prefix: 's0', navKey: 'nav.start', groups: [{ keyBase: 's0', steps: 4 }], noteKey: 's0.note' },
   { id: 'doc-proyectos', prefix: 's1', navKey: 'nav.1', groups: [{ keyBase: 's1', steps: 5 }], noteKey: 's1.note' },
   {
     id: 'doc-finanzas',

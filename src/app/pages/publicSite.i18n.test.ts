@@ -41,12 +41,16 @@ describe.each(NAMESPACES)('%s locale coverage', (_name, en, es) => {
 
 describe('public site content rules', () => {
   // The site quotes project by project: no plan table, no amount, anywhere.
-  // Quetzal figures inside the dashboard mock are jobsite data, not a price —
-  // this guards the thing that must never come back: what BuildTrack costs.
+  // This guards the thing that must never come back: what BuildTrack costs.
+  // dash.k2sub is a fictional jobsite's contract inside the dashboard mock, not
+  // a price; it only escaped this regex before because the mock still read "Q".
+  const MOCK_AMOUNT_KEYS = new Set(['landing:dash.k2sub']);
+
   it('publishes no currency price anywhere on the public site', () => {
     for (const [name, en, es] of NAMESPACES) {
       for (const bundle of [en, es]) {
         for (const [k, v] of Object.entries(bundle)) {
+          if (MOCK_AMOUNT_KEYS.has(`${name}:${k}`)) continue;
           expect(/\$\s?\d/.test(v), `${name}:${k} mentions a price: ${v}`).toBe(false);
         }
       }
