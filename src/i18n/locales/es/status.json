@@ -1,0 +1,45 @@
+{
+  "meta.title": "Estado del sistema — BuildTrack",
+
+  "topbar.label": "ESTADO DEL SISTEMA",
+  "topbar.docs": "Documentación",
+  "topbar.back": "← Volver al sitio",
+
+  "overall.checking": "Comprobando el estado…",
+  "overall.operational": "Todos los sistemas operativos",
+  "overall.degraded": "Hay un servicio con problemas",
+  "overall.unknown": "No podemos comprobar el estado desde aquí",
+  "checkedAt": "COMPROBADO {{time}}",
+  "checking": "COMPROBANDO…",
+  "recheck": "Volver a comprobar",
+
+  "service.web.name": "App web",
+  "service.web.note": "LA ESTÁS VIENDO: SI ESTA PÁGINA CARGA, ESTÁ OPERATIVA",
+  "service.api.name": "API",
+  "service.api.note": "COMPROBACIÓN EN VIVO CONTRA EL HEALTH DEL BACKEND",
+  "service.db.name": "Base de datos",
+  "service.db.note": "INCLUIDA EN LA MISMA COMPROBACIÓN DE SALUD DEL BACKEND",
+
+  "state.operational": "OPERATIVO",
+  "state.degraded": "DEGRADADO",
+  "state.down": "CAÍDA",
+  "state.unknown": "SIN COMPROBAR",
+  "state.checking": "COMPROBANDO",
+
+  "legend.operational": "OPERATIVO",
+  "legend.degraded": "DEGRADADO",
+  "legend.down": "CAÍDA",
+  "legend.unknown": "SIN COMPROBAR",
+
+  "noHistory": "TODAVÍA NO PUBLICAMOS UPTIME NI HISTORIAL DE 90 DÍAS — LO EMPEZAMOS A REGISTRAR DESDE AHORA. LO QUE VES ARRIBA ES UNA COMPROBACIÓN EN VIVO, HECHA AL ABRIR ESTA PÁGINA.",
+  "degradedNote": "LA COMPROBACIÓN ES AGREGADA: AVISA QUE ALGO FALLA, PERO NO DISTINGUE QUÉ COMPONENTE.",
+  "unknownNote": "ESTA COMPROBACIÓN SOLO CORRE DESDE EL SITIO PUBLICADO. DESDE UN ENTORNO LOCAL O UNA PREVIEW, EL BACKEND RECHAZA EL ORIGEN Y NO PODEMOS AFIRMAR NADA — NO ES UNA CAÍDA.",
+
+  "incidents.title": "Historial de incidentes",
+  "incidents.subtitle": "Lo contamos todo, también lo que salió mal. Así trabajamos la beta.",
+  "incidents.empty": "Todavía no hay incidentes publicados. Empezamos a llevar este historial desde hoy: cuando algo salga mal, lo vas a ver acá — con su fecha, cuánto duró y qué hicimos.",
+  "incidents.report": "¿ALGO NO FUNCIONA Y AQUÍ SE VE VERDE? AVISANOS:",
+
+  "footer.copy": "© 2026 BUILDTRACK · UN PRODUCTO DE ARCHLOGIC",
+  "footer.coord": "14.6349° N · 90.5069° O"
+}

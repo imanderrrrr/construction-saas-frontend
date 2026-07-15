@@ -23,6 +23,8 @@ import enSiteLog from './locales/en/siteLog.json';
 import enClientView from './locales/en/clientView.json';
 import enPunchList from './locales/en/punchList.json';
 import enRfi from './locales/en/rfi.json';
+import enDocs from './locales/en/docs.json';
+import enStatus from './locales/en/status.json';
 
 // Spanish
 import esCommon from './locales/es/common.json';
@@ -45,8 +47,10 @@ import esSiteLog from './locales/es/siteLog.json';
 import esClientView from './locales/es/clientView.json';
 import esPunchList from './locales/es/punchList.json';
 import esRfi from './locales/es/rfi.json';
+import esDocs from './locales/es/docs.json';
+import esStatus from './locales/es/status.json';
 
-const ns = ['common', 'auth', 'admin', 'expenses', 'finance', 'projects', 'time', 'inventory', 'users', 'dashboard', 'worker', 'supervisor', 'subcontractors', 'pricing', 'landing', 'billing', 'siteLog', 'clientView', 'punchList', 'rfi'] as const;
+const ns = ['common', 'auth', 'admin', 'expenses', 'finance', 'projects', 'time', 'inventory', 'users', 'dashboard', 'worker', 'supervisor', 'subcontractors', 'pricing', 'landing', 'billing', 'siteLog', 'clientView', 'punchList', 'rfi', 'docs', 'status'] as const;
 
 i18n
   .use(LanguageDetector)
@@ -74,6 +78,8 @@ i18n
         clientView: enClientView,
         punchList: enPunchList,
         rfi: enRfi,
+        docs: enDocs,
+        status: enStatus,
       },
       es: {
         common: esCommon,
@@ -96,6 +102,8 @@ i18n
         clientView: esClientView,
         punchList: esPunchList,
         rfi: esRfi,
+        docs: esDocs,
+        status: esStatus,
       },
     },
     fallbackLng: 'es',
