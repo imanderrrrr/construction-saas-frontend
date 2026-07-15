@@ -45,8 +45,8 @@ const STATUS_STYLES: Record<RfiStatus, string> = {
   CLOSED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
 };
 
-const fmtQ = (cents: number): string =>
-  `Q ${(cents / 100).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const fmtUsd = (cents: number): string =>
+  `$${(cents / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 
 export function RfiList({ projects }: { projects: RfiProject[] }) {
   const { t, i18n } = useTranslation(['rfi']);
@@ -341,7 +341,7 @@ function RfiCard({ rfi, detail, fmtDate, fmtDay, onChanged, onDeleted, onLoadDet
     const parts: string[] = [];
     if (rfi.costImpact !== 'TBD') {
       parts.push(`${t('impact.cost')}: ${t(`impact.${rfi.costImpact}`)}${
-        rfi.costImpact === 'YES' && rfi.costImpactAmountCents != null ? ` (${fmtQ(rfi.costImpactAmountCents)})` : ''
+        rfi.costImpact === 'YES' && rfi.costImpactAmountCents != null ? ` (${fmtUsd(rfi.costImpactAmountCents)})` : ''
       }`);
     }
     if (rfi.scheduleImpact !== 'TBD') {

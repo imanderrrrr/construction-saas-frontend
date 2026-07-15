@@ -12,7 +12,7 @@
   "impact.YES": "Sí",
   "impact.NO": "No",
   "impact.TBD": "Por definir",
-  "impact.amount": "Monto estimado (Q)",
+  "impact.amount": "Monto estimado (USD)",
   "impact.days": "Días de atraso",
   "impact.none": "Sin impactos registrados",
   "internal.title": "Consultas (RFI)",
