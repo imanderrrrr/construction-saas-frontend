@@ -16,7 +16,6 @@ import enDashboard from './locales/en/dashboard.json';
 import enWorker from './locales/en/worker.json';
 import enSupervisor from './locales/en/supervisor.json';
 import enSubcontractors from './locales/en/subcontractors.json';
-import enPricing from './locales/en/pricing.json';
 import enLanding from './locales/en/landing.json';
 import enBilling from './locales/en/billing.json';
 import enSiteLog from './locales/en/siteLog.json';
@@ -40,7 +39,6 @@ import esDashboard from './locales/es/dashboard.json';
 import esWorker from './locales/es/worker.json';
 import esSupervisor from './locales/es/supervisor.json';
 import esSubcontractors from './locales/es/subcontractors.json';
-import esPricing from './locales/es/pricing.json';
 import esLanding from './locales/es/landing.json';
 import esBilling from './locales/es/billing.json';
 import esSiteLog from './locales/es/siteLog.json';
@@ -50,7 +48,7 @@ import esRfi from './locales/es/rfi.json';
 import esDocs from './locales/es/docs.json';
 import esStatus from './locales/es/status.json';
 
-const ns = ['common', 'auth', 'admin', 'expenses', 'finance', 'projects', 'time', 'inventory', 'users', 'dashboard', 'worker', 'supervisor', 'subcontractors', 'pricing', 'landing', 'billing', 'siteLog', 'clientView', 'punchList', 'rfi', 'docs', 'status'] as const;
+const ns = ['common', 'auth', 'admin', 'expenses', 'finance', 'projects', 'time', 'inventory', 'users', 'dashboard', 'worker', 'supervisor', 'subcontractors', 'landing', 'billing', 'siteLog', 'clientView', 'punchList', 'rfi', 'docs', 'status'] as const;
 
 i18n
   .use(LanguageDetector)
@@ -71,7 +69,6 @@ i18n
         worker: enWorker,
         supervisor: enSupervisor,
         subcontractors: enSubcontractors,
-        pricing: enPricing,
         landing: enLanding,
         billing: enBilling,
         siteLog: enSiteLog,
@@ -95,7 +92,6 @@ i18n
         worker: esWorker,
         supervisor: esSupervisor,
         subcontractors: esSubcontractors,
-        pricing: esPricing,
         landing: esLanding,
         billing: esBilling,
         siteLog: esSiteLog,
