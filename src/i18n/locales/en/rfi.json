@@ -12,7 +12,7 @@
   "impact.YES": "Yes",
   "impact.NO": "No",
   "impact.TBD": "TBD",
-  "impact.amount": "Estimated amount (Q)",
+  "impact.amount": "Estimated amount (USD)",
   "impact.days": "Delay days",
   "impact.none": "No impacts recorded",
   "internal.title": "RFIs",
