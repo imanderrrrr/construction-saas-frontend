@@ -1,5 +1,7 @@
 import { platformApi } from '../lib/platformApi';
 import type {
+  CreateTenantRequest,
+  CreateTenantResponse,
   FleetOverview,
   Page,
   PlatformAuditEntry,
@@ -23,6 +25,22 @@ export async function listTenants(page = 0, size = 50): Promise<Page<TenantSumma
 
 export async function getTenant(id: number): Promise<TenantDetail> {
   return platformApi<TenantDetail>(`/platform/tenants/${id}`);
+}
+
+/**
+ * Provision a customer workspace: tenant + admin + a MANUAL billing row
+ * carrying the plan, then the backend emails the admin a set-your-password
+ * link. OWNER / SUPPORT only.
+ *
+ * `planCode` / `billingInterval` are sent explicitly rather than relying on
+ * the backend defaults, because the form always has a value for them — the
+ * defaults exist for API callers, not for this UI.
+ */
+export async function createTenant(request: CreateTenantRequest): Promise<CreateTenantResponse> {
+  return platformApi<CreateTenantResponse>('/platform/tenants', {
+    method: 'POST',
+    body: request,
+  });
 }
 
 export async function listTenantUsers(
