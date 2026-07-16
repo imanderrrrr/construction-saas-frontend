@@ -6,7 +6,9 @@ import type {
   Page,
   PlatformAuditEntry,
   PlatformMe,
+  RecordPaymentRequest,
   TenantDetail,
+  TenantPayments,
   TenantSummary,
   TenantUserSummary,
 } from '../types';
@@ -61,6 +63,31 @@ export async function getTenantAudit(
   return platformApi<Page<PlatformAuditEntry>>(
     `/platform/tenants/${id}/audit?page=${page}&size=${size}`,
   );
+}
+
+/**
+ * Billing summary + manual payment history for the tenant-detail Payments
+ * panel. OWNER / BILLING only. Returns the whole panel in one round-trip.
+ */
+export async function getTenantPayments(id: number): Promise<TenantPayments> {
+  return platformApi<TenantPayments>(`/platform/tenants/${id}/payments`);
+}
+
+/**
+ * Record an out-of-band payment (wire/Wise/PayPal/transfer — never Paddle),
+ * which also sets `current_period_ends_at = coversUntil` and reactivates the
+ * account to ACTIVE. OWNER / BILLING only. Returns the updated panel (new
+ * status + period + history) so the caller can re-render without a refetch.
+ * Rejected with 409 BILLING_ACCOUNT_NOT_MANUAL for a Paddle account.
+ */
+export async function recordTenantPayment(
+  id: number,
+  body: RecordPaymentRequest,
+): Promise<TenantPayments> {
+  return platformApi<TenantPayments>(`/platform/tenants/${id}/payments`, {
+    method: 'POST',
+    body,
+  });
 }
 
 export async function suspendTenant(id: number, reason: string): Promise<TenantSummary> {

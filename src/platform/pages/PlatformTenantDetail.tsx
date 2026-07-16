@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { ArrowLeft, Pause, Play, Trash2 } from 'lucide-react';
+import { ArrowLeft, Pause, Play, Plus, Trash2 } from 'lucide-react';
 
 import { PlatformShell } from '../components/PlatformShell';
 import { PlatformModal } from '../components/PlatformModal';
+import { RecordPaymentDialog } from '../components/RecordPaymentDialog';
 import { extractMessage } from '../lib/platformError';
 import { TenantStatusPill } from '../components/TenantStatusPill';
 import { usePlatformAuth } from '../context/PlatformAuthContext';
@@ -11,18 +12,30 @@ import {
   deleteTenant,
   getTenant,
   getTenantAudit,
+  getTenantPayments,
   listTenantUsers,
   reactivateTenant,
+  recordTenantPayment,
   suspendTenant,
 } from '../services/platformDashboard';
 import type {
   Page,
   PlatformAuditEntry,
+  PlatformPaymentEntry,
   TenantDetail,
+  TenantPayments,
   TenantUserSummary,
 } from '../types';
+import { fmtDate } from '../../app/helpers/dateTime';
 
-type Tab = 'summary' | 'users' | 'audit';
+type Tab = 'summary' | 'users' | 'audit' | 'payments';
+
+/** USD cents → "$1,234.50". Console has no shared money util; matches BudgetManagement. */
+function fmtCents(cents: number): string {
+  const dollars = cents / 100;
+  const sign = dollars < 0 ? '-' : '';
+  return `${sign}$${Math.abs(dollars).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+}
 
 export function PlatformTenantDetailPage() {
   const params = useParams<{ id: string }>();
@@ -33,6 +46,7 @@ export function PlatformTenantDetailPage() {
   const [tenant, setTenant] = useState<TenantDetail | null>(null);
   const [users, setUsers] = useState<Page<TenantUserSummary> | null>(null);
   const [audit, setAudit] = useState<Page<PlatformAuditEntry> | null>(null);
+  const [payments, setPayments] = useState<TenantPayments | null>(null);
   const [tab, setTab] = useState<Tab>('summary');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +55,11 @@ export function PlatformTenantDetailPage() {
   const [showSuspend, setShowSuspend] = useState(false);
   const [showReactivate, setShowReactivate] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const [showRecordPayment, setShowRecordPayment] = useState(false);
+
+  // Payments (billing summary + history) are OWNER/BILLING only — mirrors the
+  // backend @PreAuthorize on /platform/tenants/{id}/payments.
+  const canBilling = role === 'OWNER' || role === 'BILLING';
 
   const loadTenant = useCallback(() => {
     if (!id) return;
@@ -66,9 +85,17 @@ export function PlatformTenantDetailPage() {
       .catch(() => setAudit(null));
   }, [id]);
 
+  const loadPayments = useCallback(() => {
+    if (!id) return;
+    getTenantPayments(id)
+      .then(setPayments)
+      .catch(() => setPayments(null));
+  }, [id]);
+
   useEffect(() => { loadTenant(); }, [loadTenant]);
   useEffect(() => { if (tab === 'users') loadUsers(); }, [tab, loadUsers]);
   useEffect(() => { if (tab === 'audit') loadAudit(); }, [tab, loadAudit]);
+  useEffect(() => { if (tab === 'payments') loadPayments(); }, [tab, loadPayments]);
 
   if (!id) {
     return <PlatformShell><p>Invalid tenant id.</p></PlatformShell>;
@@ -138,7 +165,10 @@ export function PlatformTenantDetailPage() {
           </header>
 
           <nav className="flex gap-1 border-b border-slate-200 mb-6">
-            {(['summary', 'users', 'audit'] as const).map(key => (
+            {(canBilling
+              ? (['summary', 'users', 'audit', 'payments'] as const)
+              : (['summary', 'users', 'audit'] as const)
+            ).map(key => (
               <button
                 key={key}
                 type="button"
@@ -157,6 +187,9 @@ export function PlatformTenantDetailPage() {
           {tab === 'summary' && <SummaryTab tenant={tenant} />}
           {tab === 'users' && <UsersTab data={users} />}
           {tab === 'audit' && <AuditTab data={audit} />}
+          {tab === 'payments' && canBilling && (
+            <PaymentsTab data={payments} onRecord={() => setShowRecordPayment(true)} />
+          )}
 
           {showSuspend && (
             <SuspendDialog
@@ -187,6 +220,18 @@ export function PlatformTenantDetailPage() {
               onSuccess={() => {
                 setShowDelete(false);
                 loadTenant();
+              }}
+            />
+          )}
+          {showRecordPayment && (
+            <RecordPaymentDialog
+              tenantId={tenant.id}
+              tenantName={tenant.name}
+              currentPeriodEndsAt={payments?.currentPeriodEndsAt ?? null}
+              onClose={() => setShowRecordPayment(false)}
+              onSuccess={updated => {
+                setShowRecordPayment(false);
+                setPayments(updated);
               }}
             />
           )}
@@ -454,3 +499,112 @@ function DeleteDialog({
   );
 }
 
+// ── Payments (billing) tab + record dialog (V85) ────────────────
+
+/** Badge color for a billing status. */
+function statusBadgeClass(status: string | null): string {
+  switch (status) {
+    case 'ACTIVE':
+    case 'TRIALING':
+      return 'bg-emerald-100 text-emerald-800';
+    case 'PAST_DUE':
+      return 'bg-amber-100 text-amber-800';
+    case 'EXPIRED':
+    case 'CANCELED':
+    case 'PAUSED':
+      return 'bg-red-100 text-red-800';
+    default:
+      return 'bg-slate-100 text-slate-700';
+  }
+}
+
+function PaymentsTab({
+  data,
+  onRecord,
+}: {
+  data: TenantPayments | null;
+  onRecord: () => void;
+}) {
+  if (!data) return <p className="text-slate-500">Loading payments…</p>;
+
+  const hasAccount = data.billingProvider !== null;
+  const isManual = data.billingProvider === 'MANUAL';
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-lg border border-slate-200 bg-white px-5 py-4">
+        <div className="text-sm text-slate-600">Billing</div>
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          {hasAccount ? (
+            <>
+              <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusBadgeClass(data.billingStatus)}`}>
+                {data.billingStatus}
+              </span>
+              {data.billingProvider === 'PADDLE' && (
+                <span className="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-600">Paddle</span>
+              )}
+              {data.currentPeriodEndsAt && (
+                <span className="text-sm text-slate-700">
+                  · valid until{' '}
+                  <span className="font-medium">{fmtDate(data.currentPeriodEndsAt)}</span>
+                </span>
+              )}
+            </>
+          ) : (
+            <span className="text-sm text-slate-500">No billing account</span>
+          )}
+        </div>
+        {data.billingProvider === 'PADDLE' && (
+          <p className="mt-2 text-xs text-slate-500">
+            Billed through Paddle — the period is managed automatically, so manual payments don&apos;t apply.
+          </p>
+        )}
+      </div>
+
+      <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
+          <h3 className="text-sm font-medium text-slate-700">Payments</h3>
+          {isManual && (
+            <button
+              type="button"
+              onClick={onRecord}
+              className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
+            >
+              <Plus size={14} /> Record payment
+            </button>
+          )}
+        </div>
+        {data.payments.length === 0 ? (
+          <p className="px-4 py-6 text-sm text-slate-500">No payments recorded yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr className="text-left text-slate-600">
+                  <th className="px-4 py-2 font-medium">Paid</th>
+                  <th className="px-4 py-2 font-medium">Amount</th>
+                  <th className="px-4 py-2 font-medium">Method</th>
+                  <th className="px-4 py-2 font-medium">Reference</th>
+                  <th className="px-4 py-2 font-medium">Covers until</th>
+                  <th className="px-4 py-2 font-medium">Recorded by</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.payments.map((p: PlatformPaymentEntry) => (
+                  <tr key={p.id} className="border-b border-slate-100 last:border-0">
+                    <td className="px-4 py-2 text-slate-700 whitespace-nowrap">{fmtDate(p.paidAt)}</td>
+                    <td className="px-4 py-2 font-medium text-slate-900 whitespace-nowrap">{fmtCents(p.amountCents)}</td>
+                    <td className="px-4 py-2 text-slate-700">{p.method}</td>
+                    <td className="px-4 py-2 text-slate-600">{p.reference ?? '—'}</td>
+                    <td className="px-4 py-2 text-slate-700 whitespace-nowrap">{fmtDate(p.coversUntil)}</td>
+                    <td className="px-4 py-2 text-slate-500 text-xs">{p.recordedByEmail}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
