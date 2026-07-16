@@ -105,6 +105,46 @@ export interface TenantDetail {
   clientCount: number;
 }
 
+// ── Manual payments (V85) ───────────────────────────────────────
+
+/** One recorded out-of-band payment. `amountCents` is USD cents. */
+export interface PlatformPaymentEntry {
+  id: number;
+  amountCents: number;
+  paidAt: string;
+  method: string;
+  reference: string | null;
+  coversUntil: string;
+  recordedByPlatformUserId: number;
+  recordedByEmail: string;
+  createdAt: string;
+}
+
+/**
+ * GET/POST /platform/tenants/{id}/payments — the tenant's billing summary
+ * (status + "valid until") plus its manual payment history. Billing fields are
+ * null for a tenant with no billing account. `billingProvider === 'PADDLE'`
+ * means the period is Paddle-managed and manual recording is refused.
+ */
+export interface TenantPayments {
+  tenantId: number;
+  billingProvider: 'MANUAL' | 'PADDLE' | null;
+  billingStatus: string | null;
+  planCode: PlanCode | null;
+  billingInterval: BillingInterval | null;
+  currentPeriodEndsAt: string | null;
+  payments: PlatformPaymentEntry[];
+}
+
+/** POST body. `amountCents` is USD cents; `paidAt`/`coversUntil` are ISO instants. */
+export interface RecordPaymentRequest {
+  amountCents: number;
+  paidAt: string;
+  method: string;
+  reference?: string;
+  coversUntil: string;
+}
+
 export interface TenantUserSummary {
   id: number;
   username: string;

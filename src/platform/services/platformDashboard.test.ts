@@ -7,7 +7,7 @@ vi.mock('../lib/platformApi', () => ({
   platformApi: (...args: unknown[]) => platformApiMock(...args),
 }));
 
-import { createTenant } from './platformDashboard';
+import { createTenant, getTenantPayments, recordTenantPayment } from './platformDashboard';
 
 describe('createTenant', () => {
   beforeEach(() => {
@@ -77,5 +77,64 @@ describe('createTenant', () => {
 
     expect(res.tenantId).toBe(42);
     expect(res.setupLinkSent).toBe(true);
+  });
+});
+
+describe('getTenantPayments', () => {
+  beforeEach(() => {
+    platformApiMock.mockReset();
+    platformApiMock.mockResolvedValue({ tenantId: 7, payments: [] });
+  });
+
+  it('GETs the tenant payments panel', async () => {
+    await getTenantPayments(7);
+    expect(platformApiMock).toHaveBeenCalledWith('/platform/tenants/7/payments');
+  });
+});
+
+describe('recordTenantPayment', () => {
+  beforeEach(() => {
+    platformApiMock.mockReset();
+    platformApiMock.mockResolvedValue({ tenantId: 7, billingStatus: 'ACTIVE', payments: [] });
+  });
+
+  it('POSTs the payment body to the tenant payments endpoint', async () => {
+    await recordTenantPayment(7, {
+      amountCents: 35_000,
+      paidAt: '2026-07-12T00:00:00.000Z',
+      method: 'Wire transfer',
+      reference: '#4471',
+      coversUntil: '2026-08-12T23:59:59.999Z',
+    });
+
+    expect(platformApiMock).toHaveBeenCalledWith('/platform/tenants/7/payments', {
+      method: 'POST',
+      body: {
+        amountCents: 35_000,
+        paidAt: '2026-07-12T00:00:00.000Z',
+        method: 'Wire transfer',
+        reference: '#4471',
+        coversUntil: '2026-08-12T23:59:59.999Z',
+      },
+    });
+  });
+
+  it('returns the updated panel to the caller', async () => {
+    platformApiMock.mockResolvedValueOnce({
+      tenantId: 7,
+      billingStatus: 'ACTIVE',
+      currentPeriodEndsAt: '2026-08-12T23:59:59.999Z',
+      payments: [{ id: 1 }],
+    });
+
+    const res = await recordTenantPayment(7, {
+      amountCents: 35_000,
+      paidAt: '2026-07-12T00:00:00.000Z',
+      method: 'Wire',
+      coversUntil: '2026-08-12T23:59:59.999Z',
+    });
+
+    expect(res.billingStatus).toBe('ACTIVE');
+    expect(res.payments).toHaveLength(1);
   });
 });
