@@ -54,6 +54,44 @@ export interface TenantSummary {
   updatedAt: string;
 }
 
+export type PlanCode = 'PRO' | 'BUSINESS';
+export type BillingInterval = 'MONTHLY' | 'ANNUAL';
+
+/**
+ * POST /platform/tenants. No password field, by design: staff provision the
+ * workspace and the customer sets their own password from an emailed link —
+ * nobody on this side ever knows it.
+ */
+export interface CreateTenantRequest {
+  companyName: string;
+  tenantSlug: string;
+  adminUsername: string;
+  adminFullName: string;
+  adminEmail: string;
+  /** Backend defaults to PRO when omitted. */
+  planCode?: PlanCode;
+  /** Backend defaults to MONTHLY when omitted. */
+  billingInterval?: BillingInterval;
+}
+
+export interface CreateTenantResponse {
+  tenantId: number;
+  tenantSlug: string;
+  companyName: string;
+  adminUserId: number;
+  adminUsername: string;
+  adminEmail: string;
+  planCode: PlanCode;
+  billingInterval: BillingInterval;
+  billingStatus: string;
+  billingProvider: 'MANUAL' | 'PADDLE';
+  /**
+   * False → the workspace exists but the admin was never told. Surface it:
+   * staff must fall back to "use forgot password on the login screen".
+   */
+  setupLinkSent: boolean;
+}
+
 export interface TenantDetail {
   id: number;
   slug: string;

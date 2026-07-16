@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router';
 import { ArrowLeft, Pause, Play, Trash2 } from 'lucide-react';
 
 import { PlatformShell } from '../components/PlatformShell';
+import { PlatformModal } from '../components/PlatformModal';
+import { extractMessage } from '../lib/platformError';
 import { TenantStatusPill } from '../components/TenantStatusPill';
 import { usePlatformAuth } from '../context/PlatformAuthContext';
 import {
@@ -311,7 +313,7 @@ function SuspendDialog({
   };
 
   return (
-    <Modal title={`Suspend ${tenantSlug}`} onClose={onClose}>
+    <PlatformModal title={`Suspend ${tenantSlug}`} onClose={onClose}>
       <p className="text-sm text-slate-600 mb-4">
         Users of this workspace will be blocked from API access until you reactivate.
         The reason is recorded in the audit log.
@@ -329,7 +331,7 @@ function SuspendDialog({
         <button type="button" onClick={onClose} disabled={submitting} className="px-3 py-1.5 border border-slate-300 rounded text-sm">Cancel</button>
         <button type="button" onClick={submit} disabled={submitting} className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white rounded text-sm">{submitting ? 'Suspending…' : 'Suspend'}</button>
       </div>
-    </Modal>
+    </PlatformModal>
   );
 }
 
@@ -360,7 +362,7 @@ function ReactivateDialog({
   };
 
   return (
-    <Modal title="Reactivate workspace" onClose={onClose}>
+    <PlatformModal title="Reactivate workspace" onClose={onClose}>
       <p className="text-sm text-slate-600 mb-4">
         Users will regain access immediately. An optional note will appear in the audit log.
       </p>
@@ -377,7 +379,7 @@ function ReactivateDialog({
         <button type="button" onClick={onClose} disabled={submitting} className="px-3 py-1.5 border border-slate-300 rounded text-sm">Cancel</button>
         <button type="button" onClick={submit} disabled={submitting} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white rounded text-sm">{submitting ? 'Reactivating…' : 'Reactivate'}</button>
       </div>
-    </Modal>
+    </PlatformModal>
   );
 }
 
@@ -419,7 +421,7 @@ function DeleteDialog({
   };
 
   return (
-    <Modal title="Delete workspace (soft)" onClose={onClose}>
+    <PlatformModal title="Delete workspace (soft)" onClose={onClose}>
       <p className="text-sm text-slate-600 mb-4">
         Marks the workspace DELETED. Data rows remain in tables for audit lineage; the
         workspace becomes unreachable. This is irreversible from the dashboard — only
@@ -448,25 +450,7 @@ function DeleteDialog({
         <button type="button" onClick={onClose} disabled={submitting} className="px-3 py-1.5 border border-slate-300 rounded text-sm">Cancel</button>
         <button type="button" onClick={submit} disabled={submitting} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded text-sm">{submitting ? 'Deleting…' : 'Delete'}</button>
       </div>
-    </Modal>
+    </PlatformModal>
   );
 }
 
-function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center px-4 z-50" onClick={onClose}>
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
-        <h2 className="text-lg font-semibold mb-3">{title}</h2>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function extractMessage(err: unknown): string | null {
-  if (err && typeof err === 'object' && 'message' in err) {
-    const m = (err as { message?: unknown }).message;
-    if (typeof m === 'string') return m;
-  }
-  return null;
-}

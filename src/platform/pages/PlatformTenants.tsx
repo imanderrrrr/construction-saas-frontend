@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { Plus } from 'lucide-react';
 
 import { PlatformShell } from '../components/PlatformShell';
+import { CreateTenantDialog } from '../components/CreateTenantDialog';
+import { usePlatformAuth } from '../context/PlatformAuthContext';
 import { listTenants } from '../services/platformDashboard';
-import type { Page, TenantSummary } from '../types';
+import type { CreateTenantResponse, Page, TenantSummary } from '../types';
 import { TenantStatusPill } from '../components/TenantStatusPill';
 
 const PAGE_SIZE = 50;
@@ -13,7 +16,16 @@ export function PlatformTenants() {
   const [data, setData] = useState<Page<TenantSummary> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [created, setCreated] = useState<CreateTenantResponse | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const navigate = useNavigate();
+  const { role } = usePlatformAuth();
+
+  // Mirrors the backend's @PreAuthorize on POST /platform/tenants. The server
+  // is the authority; this only avoids showing ENGINEERING/BILLING a button
+  // that would 403.
+  const canCreate = role === 'OWNER' || role === 'SUPPORT';
 
   useEffect(() => {
     let cancelled = false;
@@ -24,7 +36,7 @@ export function PlatformTenants() {
       .catch(err => { if (!cancelled) setError(err?.message ?? 'Failed to load tenants.'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [page]);
+  }, [page, reloadKey]);
 
   const totalPages = data?.totalPages ?? 0;
   const rows = data?.content ?? [];
@@ -38,7 +50,33 @@ export function PlatformTenants() {
             {data ? `${data.totalElements} total` : 'Loading…'}
           </p>
         </div>
+        {canCreate && (
+          <button
+            type="button"
+            onClick={() => { setCreated(null); setShowCreate(true); }}
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded text-sm font-medium"
+          >
+            <Plus className="w-4 h-4" />
+            New tenant
+          </button>
+        )}
       </header>
+
+      {created && (
+        <div
+          role="status"
+          className="mb-6 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded text-sm text-emerald-900"
+        >
+          <p className="font-medium">
+            Created {created.companyName} ({created.tenantSlug}) on a manual {created.planCode} plan.
+          </p>
+          <p className="mt-1">
+            {created.setupLinkSent
+              ? `${created.adminUsername} was emailed a link at ${created.adminEmail} to set their password.`
+              : `Heads up: the set-up email to ${created.adminEmail} could not be sent. Ask ${created.adminUsername} to use “Forgot password” on the login screen with the identifier ${created.tenantSlug}.`}
+          </p>
+        </div>
+      )}
 
       {error && (
         <div className="mb-6 px-4 py-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
@@ -109,6 +147,20 @@ export function PlatformTenants() {
             </button>
           </div>
         </div>
+      )}
+
+      {showCreate && (
+        <CreateTenantDialog
+          onClose={() => setShowCreate(false)}
+          onCreated={result => {
+            setShowCreate(false);
+            setCreated(result);
+            // Jump back to the first page: the new tenant is the freshest row
+            // and staff expect to see what they just made.
+            setPage(0);
+            setReloadKey(k => k + 1);
+          }}
+        />
       )}
     </PlatformShell>
   );
