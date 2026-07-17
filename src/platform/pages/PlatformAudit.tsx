@@ -1,8 +1,20 @@
 import { useEffect, useState } from 'react';
+import { motion } from 'motion/react';
 
-import { PlatformShell } from '../components/PlatformShell';
 import { searchAudit } from '../services/platformDashboard';
 import type { Page, PlatformAuditEntry } from '../types';
+import { fmtDateTime } from '../../app/helpers/dateTime';
+import {
+  cardCx,
+  colHeadCx,
+  errorBoxCx,
+  inputCx,
+  monoInputCx,
+  pageTitleCx,
+  rowDelay,
+  secondaryBtnCx,
+  Skeleton,
+} from '../components/console';
 
 const PAGE_SIZE = 100;
 
@@ -36,103 +48,115 @@ export function PlatformAudit() {
   const totalPages = data?.totalPages ?? 0;
 
   return (
-    <PlatformShell>
-      <header className="mb-4">
-        <h1 className="text-2xl font-semibold">Platform audit log</h1>
-        <p className="text-sm text-slate-600 mt-1">
+    <>
+      <header>
+        <h1 className={pageTitleCx}>Platform audit log</h1>
+        <p className="mt-2.5 text-sm text-bt-muted">
           Actions performed by platform staff. {data ? `${data.totalElements} total` : ''}
         </p>
       </header>
 
-      <section className="mb-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <section className="mt-6 grid grid-cols-3 gap-3">
         <input
           value={actionFilter}
           onChange={e => { setActionFilter(e.target.value); setPage(0); }}
           placeholder="Action (e.g. SUSPEND_TENANT)"
-          className="px-3 py-2 border border-slate-300 rounded text-sm"
+          className={inputCx}
         />
         <input
           value={tenantIdFilter}
           onChange={e => { setTenantIdFilter(e.target.value.replace(/\D/g, '')); setPage(0); }}
           placeholder="Target tenant id"
-          className="px-3 py-2 border border-slate-300 rounded text-sm font-mono"
+          className={monoInputCx}
         />
         <input
           value={actorIdFilter}
           onChange={e => { setActorIdFilter(e.target.value.replace(/\D/g, '')); setPage(0); }}
           placeholder="Actor platform user id"
-          className="px-3 py-2 border border-slate-300 rounded text-sm font-mono"
+          className={monoInputCx}
         />
       </section>
 
-      {error && (
-        <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-          {error}
-        </div>
-      )}
+      {error && <div className={`${errorBoxCx} mt-4`}>{error}</div>}
 
-      <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+      <div className={`${cardCx} mt-4 overflow-hidden`}>
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 border-b border-slate-200">
-            <tr className="text-left text-slate-600">
-              <th className="px-4 py-2 font-medium">When</th>
-              <th className="px-4 py-2 font-medium">Actor</th>
-              <th className="px-4 py-2 font-medium">Action</th>
-              <th className="px-4 py-2 font-medium">Target tenant</th>
-              <th className="px-4 py-2 font-medium">Outcome</th>
-              <th className="px-4 py-2 font-medium">Message</th>
+          <thead>
+            <tr className={`text-left ${colHeadCx}`}>
+              <th className="px-6 pb-2.5 pt-4 font-semibold">When</th>
+              <th className="px-4 pb-2.5 pt-4 font-semibold">Actor</th>
+              <th className="px-4 pb-2.5 pt-4 font-semibold">Action</th>
+              <th className="px-4 pb-2.5 pt-4 font-semibold">Target tenant</th>
+              <th className="px-4 pb-2.5 pt-4 font-semibold">Outcome</th>
+              <th className="px-6 pb-2.5 pt-4 font-semibold">Message</th>
             </tr>
           </thead>
           <tbody>
-            {loading && (
-              <tr><td colSpan={6} className="px-4 py-6 text-slate-500">Loading…</td></tr>
-            )}
+            {loading &&
+              Array.from({ length: 5 }, (_, i) => (
+                <tr key={`s${i}`} className="border-t border-bt-rule-3">
+                  {Array.from({ length: 6 }, (_, j) => (
+                    <td key={j} className="px-4 py-3.5 first:pl-6 last:pr-6">
+                      <Skeleton className="h-3.5 w-24" />
+                    </td>
+                  ))}
+                </tr>
+              ))}
             {!loading && (data?.content.length ?? 0) === 0 && !error && (
-              <tr><td colSpan={6} className="px-4 py-6 text-slate-500">No audit entries match the filters.</td></tr>
-            )}
-            {data?.content.map(a => (
-              <tr key={a.id} className="border-b border-slate-100 last:border-0">
-                <td className="px-4 py-2 text-slate-600 whitespace-nowrap">{new Date(a.createdAt).toLocaleString()}</td>
-                <td className="px-4 py-2 text-slate-700">
-                  {a.actorEmail}
-                  <div className="text-xs text-slate-500">{a.actorRole}</div>
-                </td>
-                <td className="px-4 py-2 font-mono text-xs">{a.action}</td>
-                <td className="px-4 py-2 text-slate-700">
-                  {a.targetTenantSlug ?? '—'}
-                  {a.targetTenantId !== null && (
-                    <div className="text-xs text-slate-500 font-mono">id={a.targetTenantId}</div>
-                  )}
-                </td>
-                <td className="px-4 py-2">
-                  <span
-                    className={
-                      a.outcome === 'SUCCESS'
-                        ? 'text-emerald-700'
-                        : 'text-red-700'
-                    }
-                  >
-                    {a.outcome}
-                  </span>
-                </td>
-                <td className="px-4 py-2 text-slate-600 max-w-md truncate" title={a.message ?? ''}>
-                  {a.message ?? '—'}
-                </td>
+              <tr className="border-t border-bt-rule-3">
+                <td colSpan={6} className="px-6 py-8 text-bt-muted">No audit entries match the filters.</td>
               </tr>
-            ))}
+            )}
+            {!loading &&
+              data?.content.map((a, i) => (
+                <motion.tr
+                  key={a.id}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.22, delay: rowDelay(i) }}
+                  className="border-t border-bt-rule-3 transition-colors hover:bg-[#F9F5EC]"
+                >
+                  <td className="whitespace-nowrap px-6 py-3 font-bt-mono text-xs text-bt-muted">{fmtDateTime(a.createdAt)}</td>
+                  <td className="px-4 py-3">
+                    <div className="font-bt-mono text-xs text-bt-muted">{a.actorEmail}</div>
+                    <div className="text-[11px] text-bt-muted-2">{a.actorRole}</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="inline-block rounded-[5px] border border-bt-rule-2 bg-bt-paper px-1.5 py-0.5 font-bt-mono text-[11px] font-semibold text-bt-ink">
+                      {a.action}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="text-[13px] text-bt-ink">{a.targetTenantSlug ?? '—'}</span>
+                    {a.targetTenantId !== null && (
+                      <div className="font-bt-mono text-[11px] text-bt-muted-2">id={a.targetTenantId}</div>
+                    )}
+                  </td>
+                  <td className={`px-4 py-3 text-[12.5px] font-semibold ${
+                    a.outcome === 'SUCCESS' ? 'text-[#3D6112]' : 'text-[#B42318]'
+                  }`}>
+                    {a.outcome}
+                  </td>
+                  <td className="max-w-md truncate px-6 py-3 text-[12.5px] text-bt-muted" title={a.message ?? ''}>
+                    {a.message ?? '—'}
+                  </td>
+                </motion.tr>
+              ))}
           </tbody>
         </table>
       </div>
 
       {totalPages > 1 && (
-        <div className="mt-4 flex items-center justify-between text-sm text-slate-600">
-          <span>Page {page + 1} of {totalPages}</span>
+        <div className="mt-4 flex items-center justify-between">
+          <span className="font-bt-mono text-[11px] font-semibold tracking-[0.1em] text-bt-muted-2">
+            PAGE {page + 1} OF {totalPages}
+          </span>
           <div className="flex gap-2">
-            <button type="button" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0 || loading} className="px-3 py-1.5 border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50">Previous</button>
-            <button type="button" onClick={() => setPage(p => p + 1)} disabled={page + 1 >= totalPages || loading} className="px-3 py-1.5 border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-50">Next</button>
+            <button type="button" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0 || loading} className={secondaryBtnCx}>Previous</button>
+            <button type="button" onClick={() => setPage(p => p + 1)} disabled={page + 1 >= totalPages || loading} className={secondaryBtnCx}>Next</button>
           </div>
         </div>
       )}
-    </PlatformShell>
+    </>
   );
 }

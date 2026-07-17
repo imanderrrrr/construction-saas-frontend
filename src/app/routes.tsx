@@ -31,9 +31,11 @@ import { CanonicalRole, ROLE_DASHBOARD_ROUTES } from './types';
 // separate context, separate shell. Lives at /platform/<...>.
 import { PlatformAuthProvider } from '../platform/context/PlatformAuthContext';
 import { ProtectedPlatformRoute } from '../platform/components/ProtectedPlatformRoute';
+import { PlatformShell } from '../platform/components/PlatformShell';
 import { PlatformLogin } from '../platform/pages/PlatformLogin';
 import { PlatformOverview } from '../platform/pages/PlatformOverview';
 import { PlatformTenants } from '../platform/pages/PlatformTenants';
+import { PlatformTenantCreate } from '../platform/pages/PlatformTenantCreate';
 import { PlatformTenantDetailPage } from '../platform/pages/PlatformTenantDetail';
 import { PlatformAudit } from '../platform/pages/PlatformAudit';
 
@@ -236,7 +238,9 @@ export const routes = [
   // ── Platform (super-admin) console ──────────────────────────
   // Separate auth (Bearer + TOTP MFA) from the tenant cookie flow.
   // Wrapped in PlatformAuthProvider so all sub-routes share one
-  // session context.
+  // session context. The authenticated pages hang off one layout
+  // route: PlatformShell renders the chrome once and cross-fades
+  // page changes through its router outlet.
   {
     path: '/platform/login',
     element: (
@@ -249,49 +253,19 @@ export const routes = [
     path: '/platform',
     element: (
       <PlatformAuthProvider>
-        <Navigate to="/platform/overview" replace />
-      </PlatformAuthProvider>
-    ),
-  },
-  {
-    path: '/platform/overview',
-    element: (
-      <PlatformAuthProvider>
         <ProtectedPlatformRoute>
-          <PlatformOverview />
+          <PlatformShell />
         </ProtectedPlatformRoute>
       </PlatformAuthProvider>
     ),
-  },
-  {
-    path: '/platform/tenants',
-    element: (
-      <PlatformAuthProvider>
-        <ProtectedPlatformRoute>
-          <PlatformTenants />
-        </ProtectedPlatformRoute>
-      </PlatformAuthProvider>
-    ),
-  },
-  {
-    path: '/platform/tenants/:id',
-    element: (
-      <PlatformAuthProvider>
-        <ProtectedPlatformRoute>
-          <PlatformTenantDetailPage />
-        </ProtectedPlatformRoute>
-      </PlatformAuthProvider>
-    ),
-  },
-  {
-    path: '/platform/audit',
-    element: (
-      <PlatformAuthProvider>
-        <ProtectedPlatformRoute>
-          <PlatformAudit />
-        </ProtectedPlatformRoute>
-      </PlatformAuthProvider>
-    ),
+    children: [
+      { index: true, element: <Navigate to="/platform/overview" replace /> },
+      { path: 'overview', element: <PlatformOverview /> },
+      { path: 'tenants', element: <PlatformTenants /> },
+      { path: 'tenants/new', element: <PlatformTenantCreate /> },
+      { path: 'tenants/:id', element: <PlatformTenantDetailPage /> },
+      { path: 'audit', element: <PlatformAudit /> },
+    ],
   },
 
   // Catch-all
