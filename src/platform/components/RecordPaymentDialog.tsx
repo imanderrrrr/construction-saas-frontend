@@ -10,6 +10,15 @@ import {
   getBusinessTz,
   startOfDayISO,
 } from '../../app/helpers/dateTime';
+import {
+  errorBoxCx,
+  hintCx,
+  inputCx,
+  labelCx,
+  monoInputCx,
+  primaryBtnCx,
+  secondaryBtnCx,
+} from './console';
 
 /** Instant → YYYY-MM-DD in the business timezone (for the date-input pre-fill). */
 function isoToBusinessDate(iso: string): string {
@@ -40,7 +49,7 @@ export function defaultCoversUntil(currentPeriodEndsAt: string | null): string {
 
 /**
  * Record an out-of-band payment for a MANUAL-billed tenant. Mirrors the
- * console's CreateTenantDialog shape (controlled inputs, a synchronous
+ * console's tenant-creation form shape (controlled inputs, a synchronous
  * validate(), a role="alert" error box, submit → service → onSuccess).
  *
  * Dates are date-only inputs converted to business-TZ-anchored instants
@@ -101,92 +110,98 @@ export function RecordPaymentDialog({
     }
   };
 
-  const inputClass = 'w-full px-3 py-2 border border-slate-300 rounded text-sm disabled:bg-slate-50';
-
   return (
     <PlatformModal title={`Record payment · ${tenantName}`} onClose={onClose}>
-      <p className="text-sm text-slate-600 mb-4">
+      <p className="mt-1.5 text-[13px] leading-normal text-bt-muted">
         Records an out-of-band payment (USD) and extends the workspace&apos;s access until the
-        &ldquo;covers until&rdquo; date. Reactivates the account if it had expired.
+        &ldquo;Valid until&rdquo; date. Reactivates the account if it had expired.
       </p>
       {error && (
-        <div role="alert" className="mb-3 px-3 py-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+        <div role="alert" className={`${errorBoxCx} mt-3`}>
           {error}
         </div>
       )}
-      <div className="space-y-3">
-        <label className="block">
-          <span className="text-sm font-medium text-slate-700">Amount (USD)</span>
-          <div className="relative mt-1">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">$</span>
+      <div className="mt-4 flex flex-col gap-3.5">
+        <div className="grid grid-cols-2 gap-3.5">
+          <label className="flex flex-col gap-1.5" htmlFor="p-amount">
+            <span className={labelCx}>Amount (USD)</span>
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-bt-mono text-[13px] text-bt-muted">$</span>
+              <input
+                id="p-amount"
+                type="number"
+                min="0"
+                step="0.01"
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                placeholder="350.00"
+                className={`${monoInputCx} pl-[26px]`}
+                disabled={submitting}
+              />
+            </div>
+          </label>
+          <label className="flex flex-col gap-1.5" htmlFor="p-paid">
+            <span className={labelCx}>Paid on</span>
             <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={amount}
-              onChange={e => setAmount(e.target.value)}
-              placeholder="350.00"
-              className={`${inputClass} pl-6`}
+              id="p-paid"
+              type="date"
+              value={paidDate}
+              onChange={e => setPaidDate(e.target.value)}
+              className={`${monoInputCx} text-[12.5px]`}
               disabled={submitting}
             />
-          </div>
-        </label>
-        <label className="block">
-          <span className="text-sm font-medium text-slate-700">Payment date</span>
+          </label>
+        </div>
+        <label className="flex flex-col gap-1.5" htmlFor="p-method">
+          <span className={labelCx}>Method</span>
           <input
-            type="date"
-            value={paidDate}
-            onChange={e => setPaidDate(e.target.value)}
-            className={`${inputClass} mt-1`}
-            disabled={submitting}
-          />
-        </label>
-        <label className="block">
-          <span className="text-sm font-medium text-slate-700">Method</span>
-          <input
+            id="p-method"
             type="text"
             value={method}
             onChange={e => setMethod(e.target.value)}
             placeholder="Wire, Wise, PayPal, transfer…"
             maxLength={100}
-            className={`${inputClass} mt-1`}
+            className={inputCx}
             disabled={submitting}
           />
         </label>
-        <label className="block">
-          <span className="text-sm font-medium text-slate-700">
-            Reference <span className="font-normal text-slate-400">(optional)</span>
+        <label className="flex flex-col gap-1.5" htmlFor="p-ref">
+          <span className={labelCx}>
+            Reference <span className="font-medium text-bt-muted-2">(optional)</span>
           </span>
           <input
+            id="p-ref"
             type="text"
             value={reference}
             onChange={e => setReference(e.target.value)}
             placeholder="Transfer #, invoice #…"
             maxLength={200}
-            className={`${inputClass} mt-1`}
+            spellCheck={false}
+            className={`${monoInputCx} text-[12.5px]`}
             disabled={submitting}
           />
         </label>
-        <label className="block">
-          <span className="text-sm font-medium text-slate-700">Covers until</span>
+        <label className="flex flex-col gap-1.5" htmlFor="p-covers">
+          <span className={labelCx}>Valid until</span>
           <input
+            id="p-covers"
             type="date"
             value={coversDate}
             onChange={e => setCoversDate(e.target.value)}
-            className={`${inputClass} mt-1`}
+            className={`${monoInputCx} text-[12.5px]`}
             disabled={submitting}
           />
-          <span className="mt-1 block text-xs text-slate-500">
+          <span className={hintCx}>
             The workspace stays active through this date. Pre-filled one month out; edit as negotiated.
           </span>
         </label>
       </div>
-      <div className="mt-4 flex gap-2 justify-end">
+      <div className="mt-5 flex justify-end gap-2.5">
         <button
           type="button"
           onClick={onClose}
           disabled={submitting}
-          className="px-3 py-1.5 border border-slate-300 rounded text-sm"
+          className={secondaryBtnCx}
         >
           Cancel
         </button>
@@ -194,7 +209,7 @@ export function RecordPaymentDialog({
           type="button"
           onClick={submit}
           disabled={submitting}
-          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded text-sm"
+          className={primaryBtnCx}
         >
           {submitting ? 'Recording…' : 'Record payment'}
         </button>

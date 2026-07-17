@@ -1,9 +1,18 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Building2, UserCheck, Users } from 'lucide-react';
+import { TriangleAlert } from 'lucide-react';
+import { motion } from 'motion/react';
 
-import { PlatformShell } from '../components/PlatformShell';
 import { getOverview } from '../services/platformDashboard';
 import type { FleetOverview } from '../types';
+import {
+  cardCx,
+  errorBoxCx,
+  microLabelCx,
+  pageTitleCx,
+  riseIn,
+  Skeleton,
+  staggerParent,
+} from '../components/console';
 
 export function PlatformOverview() {
   const [data, setData] = useState<FleetOverview | null>(null);
@@ -20,89 +29,106 @@ export function PlatformOverview() {
     return () => { cancelled = true; };
   }, []);
 
+  const asOf = new Date()
+    .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    .toUpperCase();
+
   return (
-    <PlatformShell>
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold">Fleet overview</h1>
-        <p className="text-sm text-slate-600 mt-1">
-          KPIs across every tenant. Refresh the page for live numbers.
-        </p>
+    <>
+      <header className="flex items-end justify-between gap-4">
+        <div>
+          <h1 className={pageTitleCx}>Fleet overview</h1>
+          <p className="mt-2.5 text-sm leading-relaxed text-bt-muted">Every customer workspace at a glance.</p>
+        </div>
+        <span className={`${microLabelCx} pb-1`}>AS OF {asOf}</span>
       </header>
 
-      {error && (
-        <div className="mb-6 px-4 py-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-          {error}
-        </div>
-      )}
+      {error && <div className={`${errorBoxCx} mt-6`}>{error}</div>}
 
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <motion.section
+        className="mt-7 grid grid-cols-5 gap-4"
+        variants={staggerParent}
+        initial="hidden"
+        animate="show"
+      >
         <Kpi
-          icon={<Building2 size={20} />}
           label="Total tenants"
-          value={loading ? '…' : data?.tenants.total ?? '—'}
+          loading={loading}
+          value={data?.tenants.total}
           sub={
             data
               ? `${data.tenants.active} active · ${data.tenants.suspended} suspended · ${data.tenants.deleted} deleted`
               : null
           }
         />
+        <Kpi label="Tenant users" loading={loading} value={data?.totalTenantUsers} sub="Across every workspace" />
+        <Kpi label="Signups (7d)" loading={loading} value={data?.signupsLast7Days} sub="New tenants this week" />
         <Kpi
-          icon={<Users size={20} />}
-          label="Tenant users"
-          value={loading ? '…' : data?.totalTenantUsers ?? '—'}
-          sub="Across every workspace"
-        />
-        <Kpi
-          icon={<UserCheck size={20} />}
-          label="Signups (7d)"
-          value={loading ? '…' : data?.signupsLast7Days ?? '—'}
-          sub="New tenants this week"
-        />
-        <Kpi
-          icon={<AlertTriangle size={20} />}
           label="At-risk tenants"
-          value={loading ? '…' : data?.tenantsAtRisk ?? '—'}
+          loading={loading}
+          value={data?.tenantsAtRisk}
           sub="No activity > 14 days"
           tone={data && data.tenantsAtRisk > 0 ? 'warn' : 'default'}
         />
-      </section>
-
-      <section className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Kpi
           label="Platform staff"
-          value={loading ? '…' : data?.totalPlatformUsers ?? '—'}
-          sub="OWNERs / SUPPORT / ENGINEERING / BILLING"
+          loading={loading}
+          value={data?.totalPlatformUsers}
+          sub="OWNER / SUPPORT / BILLING / ENGINEERING"
+          subMono
         />
-      </section>
-    </PlatformShell>
+      </motion.section>
+    </>
   );
 }
 
 function Kpi({
-  icon,
   label,
   value,
   sub,
+  loading,
   tone = 'default',
+  subMono = false,
 }: {
-  icon?: React.ReactNode;
   label: string;
-  value: string | number;
+  value: number | undefined;
   sub?: string | null;
+  loading: boolean;
   tone?: 'default' | 'warn';
+  subMono?: boolean;
 }) {
-  const toneClasses =
-    tone === 'warn'
-      ? 'border-amber-300 bg-amber-50'
-      : 'border-slate-200 bg-white';
+  const warn = tone === 'warn';
   return (
-    <div className={`rounded-lg border ${toneClasses} px-5 py-4 shadow-sm`}>
-      <div className="flex items-center gap-2 text-sm text-slate-600">
-        {icon}
-        <span>{label}</span>
-      </div>
-      <div className="mt-2 text-3xl font-semibold text-slate-900">{value}</div>
-      {sub && <div className="mt-1 text-xs text-slate-500">{sub}</div>}
-    </div>
+    <motion.div
+      variants={riseIn}
+      className={`flex flex-col gap-2.5 px-5 py-[18px] ${
+        warn
+          ? 'rounded-xl border border-[#EAD8A6] bg-[#F8EED2] shadow-[0_1px_2px_rgba(23,19,15,0.04)]'
+          : cardCx
+      }`}
+    >
+      <span className={`flex items-center gap-1.5 text-[12.5px] font-semibold ${warn ? 'text-[#93640C]' : 'text-bt-muted'}`}>
+        {warn && <TriangleAlert size={12} strokeWidth={2.2} />}
+        {label}
+      </span>
+      {loading ? (
+        <Skeleton className="h-8 w-14" />
+      ) : (
+        <span className={`font-bt-mono text-[32px] font-semibold leading-none ${warn ? 'text-[#93640C]' : 'text-bt-ink'}`}>
+          {value ?? '—'}
+        </span>
+      )}
+      {sub && (
+        <span
+          className={`leading-[1.45] ${
+            subMono
+              ? 'font-bt-mono text-[9.5px] font-semibold tracking-[0.1em]'
+              : 'text-[11.5px]'
+          } ${warn ? 'text-[#93640C]' : 'text-bt-muted-2'}`}
+        >
+          {sub}
+        </span>
+      )}
+    </motion.div>
   );
 }

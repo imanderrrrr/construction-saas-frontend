@@ -10,9 +10,22 @@ vi.mock('../services/platformDashboard', () => ({
   createTenant: (...args: unknown[]) => mocks.createTenant(...args),
 }));
 
-import { CreateTenantDialog } from './CreateTenantDialog';
+// jsdom ships no matchMedia; motion's reduced-motion probe asks for it when
+// the first animation mounts. Answer "no preference" so components render.
+window.matchMedia = ((query: string) => ({
+  matches: false,
+  media: query,
+  onchange: null,
+  addEventListener: () => {},
+  removeEventListener: () => {},
+  addListener: () => {},
+  removeListener: () => {},
+  dispatchEvent: () => false,
+})) as typeof window.matchMedia;
 
-describe('CreateTenantDialog', () => {
+import { CreateTenantForm } from './CreateTenantForm';
+
+describe('CreateTenantForm', () => {
   let container: HTMLDivElement;
   let root: Root;
 
@@ -43,21 +56,26 @@ describe('CreateTenantDialog', () => {
     container.remove();
   });
 
-  const render = (onCreated = vi.fn(), onClose = vi.fn()) => {
+  const render = (onCreated = vi.fn(), onCancel = vi.fn()) => {
     act(() => {
-      root.render(<CreateTenantDialog onClose={onClose} onCreated={onCreated} />);
+      root.render(<CreateTenantForm onCancel={onCancel} onCreated={onCreated} />);
     });
-    return { onCreated, onClose };
+    return { onCreated, onCancel };
   };
 
+  // DOM order: company, slug, admin full name, admin username, admin email.
   const inputs = () => Array.from(container.querySelectorAll('input'));
-  const selects = () => Array.from(container.querySelectorAll('select'));
   const buttonByText = (text: string) =>
     Array.from(container.querySelectorAll('button')).find(b => b.textContent?.includes(text))!;
+  // Plan cards and the billing-interval segments are aria-pressed toggles now,
+  // not <select>s (the approved design uses cards + a segmented control).
+  const toggleByText = (text: string) =>
+    Array.from(container.querySelectorAll('button[aria-pressed]')).find(b =>
+      b.textContent?.includes(text),
+    )! as HTMLButtonElement;
 
-  const setValue = (el: HTMLInputElement | HTMLSelectElement, value: string) => {
-    const proto = el instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
-    const setter = Object.getOwnPropertyDescriptor(proto, 'value')!.set!;
+  const setValue = (el: HTMLInputElement, value: string) => {
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
     act(() => {
       setter.call(el, value);
       el.dispatchEvent(new Event('input', { bubbles: true }));
@@ -130,12 +148,18 @@ describe('CreateTenantDialog', () => {
   it('defaults to PRO / MONTHLY and lets staff pick BUSINESS / ANNUAL', async () => {
     render();
     fillValid();
-    const [plan, interval] = selects();
-    expect(plan.value).toBe('PRO');
-    expect(interval.value).toBe('MONTHLY');
+    expect(toggleByText('Pro').getAttribute('aria-pressed')).toBe('true');
+    expect(toggleByText('Monthly').getAttribute('aria-pressed')).toBe('true');
 
-    setValue(plan, 'BUSINESS');
-    setValue(interval, 'ANNUAL');
+    act(() => {
+      toggleByText('Business').click();
+    });
+    act(() => {
+      toggleByText('Annual').click();
+    });
+    expect(toggleByText('Business').getAttribute('aria-pressed')).toBe('true');
+    expect(toggleByText('Annual').getAttribute('aria-pressed')).toBe('true');
+
     await act(async () => {
       buttonByText('Create tenant').click();
     });
@@ -185,5 +209,15 @@ describe('CreateTenantDialog', () => {
     expect(container.querySelector('[role="alert"]')?.textContent).toContain('already taken');
     expect(onCreated).not.toHaveBeenCalled();
     expect(buttonByText('Create tenant')).toBeTruthy();
+  });
+
+  it('hands Cancel to the caller', () => {
+    const { onCancel } = render();
+
+    act(() => {
+      buttonByText('Cancel').click();
+    });
+
+    expect(onCancel).toHaveBeenCalled();
   });
 });
