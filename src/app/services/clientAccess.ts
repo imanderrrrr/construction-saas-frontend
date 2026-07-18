@@ -31,6 +31,13 @@ export interface GenerateClientAccessInput {
   pin?: string;
   /** Link lifetime in days (backend default: 90). */
   expiresInDays?: number;
+  /**
+   * Keep the CURRENT PIN across the regeneration (the panel only knows a PIN
+   * exists, never its value). Backends that predate the field ignore it, so
+   * the worst case is the old behavior (link regenerates unprotected) — never
+   * an error.
+   */
+  preservePin?: boolean;
 }
 
 export function getClientAccessStatus(projectId: number): Promise<ClientAccessStatus> {
