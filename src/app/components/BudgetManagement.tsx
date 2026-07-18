@@ -33,6 +33,7 @@ import {
 } from '../services/projects';
 import { getExpenseReport } from '../services/expenses';
 import { listPayables } from '../services/finance';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 // Types
 
@@ -941,6 +942,7 @@ export function BudgetManagement() {
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-[#0A0A0A]">{t('admin:budgetMgmt.create.notes')} <span className="text-[#71717A] font-normal">({t('admin:budgetMgmt.create.optional')})</span></label>
                 <Textarea value={createNotes} onChange={e => setCreateNotes(e.target.value)}
+                  maxLength={FIELD_LIMITS.LONG_TEXT}
                   placeholder={t('admin:budgetMgmt.create.notesPlaceholder')}
                   className="resize-none text-sm border-[#D4D4D8] min-h-[72px]" rows={3} />
               </div>
@@ -1003,6 +1005,7 @@ export function BudgetManagement() {
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-[#0A0A0A]">{t('admin:budgetMgmt.edit.notes')}</label>
                   <Textarea value={editNotes} onChange={e => setEditNotes(e.target.value)}
+                    maxLength={FIELD_LIMITS.LONG_TEXT}
                     placeholder={t('admin:budgetMgmt.edit.notesPlaceholder')}
                     className="resize-none text-sm border-[#D4D4D8] min-h-[56px]" rows={2} />
                 </div>
@@ -1012,6 +1015,7 @@ export function BudgetManagement() {
                   </label>
                   <Textarea value={editReason} onChange={e => setEditReason(e.target.value)}
                     onBlur={() => setEditReasonTouched(true)}
+                    maxLength={FIELD_LIMITS.LONG_TEXT}
                     placeholder={t('admin:budgetMgmt.edit.reasonPlaceholder')}
                     className={`resize-none text-sm min-h-[80px] transition-colors ${editReasonTouched && !editReasonValid ? 'border-red-400' : 'border-[#D4D4D8]'}`}
                     rows={3} />
@@ -1127,6 +1131,7 @@ export function BudgetManagement() {
                   </label>
                   <Textarea value={closeReason} onChange={e => setCloseReason(e.target.value)}
                     onBlur={() => setCloseReasonTouched(true)}
+                    maxLength={FIELD_LIMITS.LONG_TEXT}
                     placeholder={t('admin:budgetMgmt.close.reasonPlaceholder')}
                     className={`resize-none text-sm min-h-[80px] transition-colors ${closeReasonTouched && !closeReasonValid ? 'border-red-400' : 'border-[#D4D4D8]'}`}
                     rows={3} />

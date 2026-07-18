@@ -11,6 +11,7 @@ import { ApiError } from '../../lib/api';
 import type { Project, UserForAssign, Role } from './types';
 import { apiErrorMsg } from './helpers';
 import { UserAvatar, RoleBadge } from './badges';
+import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 
 // ── User row used in both panels ────────────────────────────────────────────
 
@@ -251,6 +252,7 @@ export function AssignUsersModal({ project, open, onClose, onAssigned }: {
                 value={leftSearch}
                 onChange={e => setLeftSearch(e.target.value)}
                 placeholder={t('admin:projectModals.assign.searchPlaceholder')}
+                maxLength={FIELD_LIMITS.SEARCH}
                 className="pl-9 h-9 text-sm border-[#D4D4D8]"
                 disabled={usersLoading || isSaving}
               />
@@ -321,6 +323,7 @@ export function AssignUsersModal({ project, open, onClose, onAssigned }: {
                 value={rightSearch}
                 onChange={e => setRightSearch(e.target.value)}
                 placeholder={t('admin:projectModals.assign.searchPlaceholder')}
+                maxLength={FIELD_LIMITS.SEARCH}
                 className="pl-9 h-9 text-sm border-[#D4D4D8]"
                 disabled={usersLoading || isSaving}
               />

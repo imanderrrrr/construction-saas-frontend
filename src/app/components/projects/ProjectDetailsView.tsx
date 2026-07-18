@@ -28,6 +28,7 @@ import {
 import { PunchList } from '../punchlist/PunchList';
 import { RfiList } from '../rfi/RfiList';
 import { useSiteLogFeature } from '../../hooks/useSiteLogFeature';
+import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 
 export function ProjectDetailsView({ project, allUsers, usersLoading, onBack, onAssign, onToggleStatus, onCloseProject, onEdit }: {
   project: Project; allUsers: UserForAssign[]; usersLoading: boolean;
@@ -347,6 +348,7 @@ export function ProjectDetailsView({ project, allUsers, usersLoading, onBack, on
                       onChange={e => setCoDesc(e.target.value)}
                       placeholder={t('admin:changeOrders.descriptionPlaceholder')}
                       className="mt-1"
+                      maxLength={FIELD_LIMITS.NOTE}
                     />
                   </div>
                   <div className="flex gap-3 items-end">

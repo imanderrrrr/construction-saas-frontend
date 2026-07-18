@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { updateProject as apiUpdateProject } from '../../services/projects';
 import type { Project } from './types';
 import { toProject, apiErrorMsg } from './helpers';
+import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 
 export function CloseProjectModal({ project, open, onClose, onConfirmed }: {
   project: Project | null; open: boolean; onClose: () => void;
@@ -96,6 +97,7 @@ export function CloseProjectModal({ project, open, onClose, onConfirmed }: {
             value={confirmation}
             onChange={e => setConfirmation(e.target.value)}
             placeholder={t('admin:projectModals.close.confirmPlaceholder')}
+            maxLength={FIELD_LIMITS.SHORT_NAME}
             className={`h-10 text-sm ${isMatch ? 'border-emerald-400 bg-emerald-50/30 focus-visible:ring-emerald-200' : 'border-[#D4D4D8]'}`}
             disabled={isLoading}
             autoComplete="off"

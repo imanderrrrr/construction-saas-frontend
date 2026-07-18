@@ -26,6 +26,7 @@ import {
   type LaborPaymentResponse,
 } from '../services/time';
 import { listProjects, type ProjectResponse } from '../services/projects';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 import { listActiveUsers, type UserDTO } from '../services/users';
 import { exportPayrollExcel } from '../helpers/exportPayrollExcel';
 import { exportPayrollPdf } from '../helpers/exportPayrollPdf';
@@ -553,6 +554,7 @@ export function LaborPayrollReport() {
                     onChange={e => setConfirmNotes(e.target.value)}
                     placeholder={t('admin:payroll.notesPlaceholder')}
                     rows={2}
+                    maxLength={FIELD_LIMITS.NOTE}
                     className="w-full rounded-md border border-[#D4D4D8] px-3 py-2 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[#F97316]/40 resize-none"
                   />
                 </div>

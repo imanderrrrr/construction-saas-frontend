@@ -23,6 +23,7 @@ import {
 } from '../services/projects';
 import type { Project } from './projects/types';
 import { ApiError } from '../lib/api';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 // TYPES
 
@@ -165,6 +166,7 @@ function ClientSelector({ value, onChange, disabled, onRequestCreateClient }: {
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 placeholder={t('projectForm.searchClients')}
+                                maxLength={FIELD_LIMITS.SEARCH}
                                 className="w-full h-8 pl-8 pr-3 text-sm bg-[#FAFAFA] border border-[#D4D4D8] rounded-md
                   focus:outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316]/30"
                                 autoFocus
@@ -673,6 +675,7 @@ export function ProjectFormDialog({ open, onClose, onSaved, editProject }: Proje
                                     value={form.name}
                                     onChange={e => updateField('name', e.target.value)}
                                     placeholder={t('admin:projectForm.projectNamePlaceholder')}
+                                    maxLength={FIELD_LIMITS.SHORT_NAME}
                                     className={`h-10 ${nameError ? 'border-red-400' : 'border-[#D4D4D8]'}`}
                                     disabled={isLoading}
                                 />

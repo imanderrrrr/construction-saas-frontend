@@ -32,6 +32,7 @@ import {
 } from '../services/time';
 import { toast } from 'sonner';
 import { businessToday, nDaysAgo } from '../helpers/dateTime';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 // â”€â”€â”€ Date helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -399,6 +400,7 @@ function ApprovalDetail({
                       value={disputeComment}
                       onChange={e => setDisputeComment(e.target.value)}
                       placeholder={t('time:dispute.commentPlaceholder')}
+                      maxLength={FIELD_LIMITS.LONG_TEXT}
                       className="w-full text-sm border border-[#D4D4D8] rounded-lg p-2.5 resize-none h-20 focus:outline-none focus:ring-2 focus:ring-[#F97316]/30 focus:border-[#F97316]"
                     />
                   </div>
@@ -932,6 +934,7 @@ export function SupervisorApprovals({ mode = 'admin' }: { mode?: 'admin' | 'supe
             <Input
               value={search} onChange={e => setSearch(e.target.value)}
               placeholder={t('admin:approvals.searchPlaceholder')}
+              maxLength={FIELD_LIMITS.SEARCH}
               className="pl-9 h-9 text-sm border-[#D4D4D8]"
               disabled={loading}
             />

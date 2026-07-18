@@ -19,6 +19,7 @@ import {
     type ClientResponse,
 } from '../services/clients';
 import { ApiError } from '../lib/api';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 
@@ -528,6 +529,7 @@ export function ClientManagement() {
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                     placeholder={t('clients.searchPlaceholder')}
+                    maxLength={FIELD_LIMITS.SEARCH}
                     className="pl-9 h-10 border-[#D4D4D8] bg-white max-w-sm"
                 />
                 {search && (

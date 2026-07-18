@@ -45,6 +45,7 @@ import {
   secondaryBtnCx,
   Skeleton,
 } from '../components/console';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 type Tab = 'summary' | 'users' | 'audit' | 'payments';
 
@@ -662,6 +663,7 @@ function SuspendDialog({
           value={reason}
           onChange={e => { setReason(e.target.value); setLocalError(null); }}
           placeholder="e.g. Payment overdue"
+          maxLength={FIELD_LIMITS.NOTE}
           disabled={submitting}
           className={fieldInputCx({ invalid: !!localError })}
         />
@@ -720,6 +722,7 @@ function ReactivateDialog({
           value={note}
           onChange={e => setNote(e.target.value)}
           placeholder="e.g. Payment received"
+          maxLength={FIELD_LIMITS.NOTE}
           disabled={submitting}
           className={inputCx}
         />
@@ -797,6 +800,7 @@ function DeleteDialog({
           value={confirmSlug}
           onChange={e => { setConfirmSlug(e.target.value); setLocalError(null); }}
           placeholder={tenantSlug}
+          maxLength={FIELD_LIMITS.LEGACY_WORKSPACE_SLUG}
           spellCheck={false}
           autoComplete="off"
           disabled={submitting}
@@ -811,6 +815,7 @@ function DeleteDialog({
           value={reason}
           onChange={e => { setReason(e.target.value); setLocalError(null); }}
           placeholder="Required, min 5 characters — recorded in the audit log"
+          maxLength={FIELD_LIMITS.NOTE}
           disabled={submitting}
           className={fieldInputCx({ invalid: !!(localError && reason.trim().length < 5) })}
         />

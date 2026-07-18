@@ -34,6 +34,7 @@ import {
 } from '../services/expenses';
 import { listActiveUsers, type UserDTO } from '../services/users';
 import { listProjects, type ProjectResponse } from '../services/projects';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 // Types
 
@@ -891,6 +892,7 @@ export function ExpenseManagement() {
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-[#0A0A0A]">{t('admin:expenseMgmt.approve.noteLabel')}</label>
                 <Textarea value={approveNote} onChange={e => setApproveNote(e.target.value)}
+                  maxLength={FIELD_LIMITS.NOTE}
                   placeholder={t('admin:expenseMgmt.approve.notePlaceholder')} className="resize-none text-sm border-[#D4D4D8] min-h-[72px]" rows={3} />
               </div>
             </div>
@@ -921,6 +923,7 @@ export function ExpenseManagement() {
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-[#0A0A0A]">{t('admin:expenseMgmt.observe.reasonLabel')} <span className="text-red-500">*</span></label>
                 <Textarea value={observeComment} onChange={e => setObserveComment(e.target.value)} onBlur={() => setObserveTouched(true)}
+                  maxLength={FIELD_LIMITS.NOTE}
                   placeholder={t('admin:expenseMgmt.observe.reasonPlaceholder')}
                   className={`resize-none text-sm min-h-[88px] ${observeTouched && !observeValid ? 'border-red-400' : 'border-[#D4D4D8]'}`} rows={3} />
                 {observeTouched && !observeValid && (
@@ -955,6 +958,7 @@ export function ExpenseManagement() {
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-[#0A0A0A]">{t('admin:expenseMgmt.reject.reasonLabel')} <span className="text-red-500">*</span></label>
                 <Textarea value={rejectComment} onChange={e => setRejectComment(e.target.value)} onBlur={() => setRejectTouched(true)}
+                  maxLength={FIELD_LIMITS.NOTE}
                   placeholder={t('admin:expenseMgmt.reject.reasonPlaceholder')}
                   className={`resize-none text-sm min-h-[88px] ${rejectTouched && !rejectValid ? 'border-red-400' : 'border-[#D4D4D8]'}`} rows={3} />
                 {rejectTouched && !rejectValid && (

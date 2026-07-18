@@ -3,6 +3,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from './ui/select';
 import type { Payable, PayablePayment as ApiPayablePayment } from '../services/finance';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 // Shared payable presentation bits (AP Block 6) — extracted from
 // AccountsPayable.tsx so the detail modal can reuse them without a cycle.
@@ -150,6 +151,7 @@ export function PaymentMethodField({
           type="text"
           value={otherText}
           onChange={e => onOtherTextChange(e.target.value)}
+          maxLength={FIELD_LIMITS.SHORT_NAME}
           placeholder={t('paymentMethod.otherPlaceholder')}
           aria-label={t('paymentMethod.otherPlaceholder')}
           className="mt-2 h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400"

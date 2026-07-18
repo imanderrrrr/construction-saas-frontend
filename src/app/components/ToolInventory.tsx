@@ -26,6 +26,7 @@ import {
   listTools, getToolSummary, createTool, updateTool, changeToolStatus,
 } from '../services/warehouse';
 import type { ToolResponse, ToolSummary, ToolHistoryEntry as ApiToolHistoryEntry } from '../services/warehouse';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 // Types
 
@@ -194,6 +195,7 @@ function AddToolModal({ open, onClose, onAdd }: {
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-[#71717A] uppercase tracking-wide">{t('tools.table.code')} *</label>
               <Input value={code} onChange={e => setCode(e.target.value)} placeholder="TL-XXX"
+                maxLength={FIELD_LIMITS.CODE}
                 className="border-[#D4D4D8] text-sm font-mono" />
             </div>
             <div className="space-y-1.5">
@@ -207,11 +209,13 @@ function AddToolModal({ open, onClose, onAdd }: {
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-[#71717A] uppercase tracking-wide">{t('tools.table.toolName')} *</label>
             <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Bosch Laser Level 5"
+              maxLength={FIELD_LIMITS.SHORT_NAME}
               className="border-[#D4D4D8] text-sm" />
           </div>
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-[#71717A] uppercase tracking-wide">{t('labels.notes', { ns: 'common' })}</label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3}
+              maxLength={FIELD_LIMITS.LONG_TEXT}
               placeholder={t('labels.notesOptional', { ns: 'common' })}
               className="w-full rounded-md border border-[#D4D4D8] bg-white px-3 py-2 text-sm text-[#0A0A0A] placeholder:text-[#71717A] focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none" />
           </div>
@@ -252,11 +256,11 @@ function EditToolModal({ open, tool, onClose, onSave }: {
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-[#71717A] uppercase tracking-wide">{t('tools.table.code')}</label>
-            <Input value={tool.code} disabled className="border-[#D4D4D8] text-sm font-mono bg-[#FAFAFA] text-[#71717A]" />
+            <Input value={tool.code} disabled maxLength={FIELD_LIMITS.CODE} className="border-[#D4D4D8] text-sm font-mono bg-[#FAFAFA] text-[#71717A]" />
           </div>
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-[#71717A] uppercase tracking-wide">{t('tools.table.toolName')} *</label>
-            <Input value={name} onChange={e => setName(e.target.value)} className="border-[#D4D4D8] text-sm" />
+            <Input value={name} onChange={e => setName(e.target.value)} maxLength={FIELD_LIMITS.SHORT_NAME} className="border-[#D4D4D8] text-sm" />
           </div>
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-[#71717A] uppercase tracking-wide">{t('labels.category', { ns: 'common' })}</label>
@@ -268,6 +272,7 @@ function EditToolModal({ open, tool, onClose, onSave }: {
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-[#71717A] uppercase tracking-wide">{t('labels.notes', { ns: 'common' })}</label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3}
+              maxLength={FIELD_LIMITS.LONG_TEXT}
               className="w-full rounded-md border border-[#D4D4D8] bg-white px-3 py-2 text-sm text-[#0A0A0A] placeholder:text-[#71717A] focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none" />
           </div>
         </div>
@@ -327,6 +332,7 @@ function ChangeStatusModal({ open, tool, onClose, onSave }: {
                   {t('tools.dialog.reason')} *
                 </label>
                 <textarea value={reason} onChange={e => setReason(e.target.value)} rows={3}
+                  maxLength={FIELD_LIMITS.LONG_TEXT}
                   placeholder={t('tools.dialog.reason')}
                   className="w-full rounded-md border border-[#D4D4D8] bg-white px-3 py-2 text-sm text-[#0A0A0A] placeholder:text-[#71717A] focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none" />
                 {reason.length > 0 && reason.length < 10 && (
@@ -513,6 +519,7 @@ export function ToolInventory({ onNavigate }: ToolInventoryProps) {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#71717A]" />
               <Input value={search} onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
+                maxLength={FIELD_LIMITS.SEARCH}
                 placeholder={t('consumables.search')} className="pl-8 h-9 border-[#D4D4D8] text-sm" />
             </div>
           </div>

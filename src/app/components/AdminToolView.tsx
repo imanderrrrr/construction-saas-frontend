@@ -53,6 +53,7 @@ const CATEGORY_KEY_MAP: Record<string, string> = {
 // Helpers
 
 import { fmtDate, fmtDateShort } from '../helpers/dateTime';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 // Sub-components
 
@@ -322,6 +323,7 @@ export function AdminToolView() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#71717A]" />
               <Input value={search} onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
+                maxLength={FIELD_LIMITS.SEARCH}
                 placeholder={t('admin:toolView.searchPlaceholder')} className="pl-8 h-9 border-[#D4D4D8] text-sm" />
             </div>
           </div>
@@ -535,6 +537,7 @@ export function AdminToolView() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#71717A]" />
               <Input value={cSearch} onChange={e => { setCSearch(e.target.value); setCPage(1); }}
+                maxLength={FIELD_LIMITS.SEARCH}
                 placeholder={t('admin:consumableView.searchPlaceholder')} className="pl-8 h-9 border-[#D4D4D8] text-sm" />
             </div>
           </div>
