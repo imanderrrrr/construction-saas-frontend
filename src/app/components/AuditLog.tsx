@@ -65,6 +65,7 @@ import {
 } from './ui/sheet';
 import { searchAuditLogs, type AuditLogDTO, type AuditLogsPage } from '../services/audit';
 import { exportAuditCsv, exportAuditExcel } from '../helpers/exportAuditCsv';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 // Types
 
@@ -518,6 +519,7 @@ function AuditFilterBar({ filters, onChange, onApply, onClear }: AuditFilterBarP
           <label className="text-[11px] font-medium text-[#71717A] uppercase tracking-wide">{t('admin:audit.filters.actorId')}</label>
           <Input type="text" placeholder="e.g. 1" value={filters.actorUserId}
             onChange={(e) => update('actorUserId', e.target.value)}
+            maxLength={FIELD_LIMITS.SEARCH}
             className="h-9 border-[#D4D4D8] text-sm font-mono"
           />
         </div>
@@ -546,6 +548,7 @@ function AuditFilterBar({ filters, onChange, onApply, onClear }: AuditFilterBarP
             <label className="text-[11px] font-medium text-[#71717A] uppercase tracking-wide">{t('admin:audit.filters.entityId')}</label>
             <Input type="text" placeholder="e.g. TL-112" value={filters.entityId}
               onChange={(e) => update('entityId', e.target.value)}
+              maxLength={FIELD_LIMITS.SEARCH}
               className="h-9 border-[#D4D4D8] text-sm font-mono"
             />
           </div>

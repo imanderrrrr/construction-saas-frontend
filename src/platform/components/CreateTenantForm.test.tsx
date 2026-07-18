@@ -23,6 +23,7 @@ window.matchMedia = ((query: string) => ({
   dispatchEvent: () => false,
 })) as typeof window.matchMedia;
 
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 import { CreateTenantForm } from './CreateTenantForm';
 
 describe('CreateTenantForm', () => {
@@ -106,13 +107,81 @@ describe('CreateTenantForm', () => {
     });
   });
 
+  /**
+   * The regression this form exists to prevent: a tenant was created from this
+   * screen with a ~100-character junk company name, because not one field here
+   * carried a maxLength. Every field must be bounded, at the same number the
+   * backend enforces — a limit the server knows and the browser does not just
+   * moves the failure to after the user has typed.
+   */
+  it('bounds every identity field at the shared limit', () => {
+    render();
+    const [company, slug, fullName, username, email] = inputs();
+
+    expect(company.maxLength).toBe(FIELD_LIMITS.COMPANY_NAME);
+    expect(slug.maxLength).toBe(FIELD_LIMITS.WORKSPACE_SLUG);
+    expect(fullName.maxLength).toBe(FIELD_LIMITS.PERSON_NAME);
+    expect(username.maxLength).toBe(FIELD_LIMITS.USERNAME);
+    expect(email.maxLength).toBe(FIELD_LIMITS.EMAIL);
+  });
+
+  it('rejects an over-long company name instead of submitting it', () => {
+    const { onCreated } = render();
+    fillValid();
+    const [company] = inputs();
+
+    // maxLength stops a human typing this, but it cannot stop a paste into a
+    // detached value or a stale autofill, so the guard has to exist in the
+    // validation layer too.
+    setValue(company, 'a'.repeat(FIELD_LIMITS.COMPANY_NAME + 1));
+    act(() => buttonByText('Create tenant').click());
+
+    expect(mocks.createTenant).not.toHaveBeenCalled();
+    expect(onCreated).not.toHaveBeenCalled();
+    expect(container.textContent).toContain(
+      `Company name must be at most ${FIELD_LIMITS.COMPANY_NAME} characters.`,
+    );
+  });
+
+  it('shows a character count as a field approaches its limit', () => {
+    render();
+    const [company] = inputs();
+
+    // Quiet while there is room left...
+    setValue(company, 'Acme');
+    expect(container.textContent).not.toContain(`/${FIELD_LIMITS.COMPANY_NAME}`);
+
+    // ...and explicit once the cap is close enough to hit, so a field that
+    // stops accepting keystrokes has already said why.
+    setValue(company, 'a'.repeat(FIELD_LIMITS.COMPANY_NAME));
+    expect(container.textContent).toContain(
+      `${FIELD_LIMITS.COMPANY_NAME}/${FIELD_LIMITS.COMPANY_NAME}`,
+    );
+  });
+
   it('suggests a slug from the company name, stripping accents', () => {
+    render();
+    const [company, slug] = inputs();
+
+    setValue(company, 'Obras Pérez');
+
+    expect(slug.value).toBe('obras-perez');
+  });
+
+  /**
+   * The 20-character identifier cap is short enough that an ordinary
+   * two-surname company name overruns it, so the suggestion has to truncate.
+   * It must do so at a word boundary: 'construccion-perez-h' is a blunt slice
+   * and a miserable thing to type at every login.
+   */
+  it('truncates a long slug suggestion at a word boundary', () => {
     render();
     const [company, slug] = inputs();
 
     setValue(company, 'Construcción Pérez & Hijos');
 
-    expect(slug.value).toBe('construccion-perez-hijos');
+    expect(slug.value).toBe('construccion-perez');
+    expect(slug.value.length).toBeLessThanOrEqual(20);
   });
 
   it('stops auto-filling the slug once staff edit it', () => {

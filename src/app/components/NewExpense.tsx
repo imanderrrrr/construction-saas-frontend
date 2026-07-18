@@ -14,6 +14,7 @@ import type { EntityStatus } from '../types';
 import { getMyProjects } from '../services/time';
 import { createExpense } from '../services/expenses';
 import { businessToday } from '../helpers/dateTime';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 // Constants
 
@@ -398,6 +399,7 @@ export function NewExpense({ onSubmitSuccess }: NewExpenseProps) {
             <Textarea
               value={comment}
               onChange={e => setComment(e.target.value.slice(0, 500))}
+              maxLength={FIELD_LIMITS.NOTE}
               placeholder={t('new.notes.placeholder')}
               className="resize-none text-sm border-[#D4D4D8] placeholder:text-[#71717A] min-h-[88px] focus:ring-2 focus:ring-[#F97316]/25 focus:border-[#F97316]"
               rows={3}

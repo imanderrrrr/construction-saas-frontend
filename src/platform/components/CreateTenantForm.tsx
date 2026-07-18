@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { CornerDownRight, Lock, Mail } from 'lucide-react';
 import { motion } from 'motion/react';
 
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 import { extractMessage } from '../lib/platformError';
 import { createTenant } from '../services/platformDashboard';
 import type { BillingInterval, CreateTenantResponse, PlanCode } from '../types';
@@ -30,14 +31,23 @@ const USERNAME_RE = /^[a-zA-Z0-9._-]+$/;
  * reserved list and the uniqueness check).
  */
 function slugify(name: string): string {
-  return name
+  const full = name
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '') // strip accents: "Construcción" → "construccion"
     .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 60)
-    .replace(/-+$/, ''); // a trailing hyphen from the slice would fail the regex
+    .replace(/^-+|-+$/g, '');
+
+  if (full.length <= FIELD_LIMITS.WORKSPACE_SLUG) return full;
+
+  // Over the limit, prefer to lose a whole word rather than half of one:
+  // "Construccion Perez & Hijos" is 24 slug-characters, and a blunt slice
+  // hands the customer "construccion-perez-h" to type at every login.
+  // Falling back to the last word boundary gives "construccion-perez".
+  const clipped = full.slice(0, FIELD_LIMITS.WORKSPACE_SLUG);
+  const lastBoundary = clipped.lastIndexOf('-');
+  const preferred = lastBoundary >= 3 ? clipped.slice(0, lastBoundary) : clipped;
+  return preferred.replace(/-+$/, ''); // a trailing hyphen would fail SLUG_RE
 }
 
 type FieldKey = 'companyName' | 'tenantSlug' | 'adminFullName' | 'adminUsername' | 'adminEmail';
@@ -87,23 +97,40 @@ export function CreateTenantForm({
   const fieldError = (key: FieldKey): string | null => {
     switch (key) {
       case 'companyName':
-        return companyName.trim().length < 2 ? 'Company name must be at least 2 characters.' : null;
+        if (companyName.trim().length < 2) return 'Company name must be at least 2 characters.';
+        if (companyName.trim().length > FIELD_LIMITS.COMPANY_NAME) {
+          return `Company name must be at most ${FIELD_LIMITS.COMPANY_NAME} characters.`;
+        }
+        return null;
       case 'tenantSlug':
-        if (tenantSlug.length < 3 || tenantSlug.length > 60) return 'Workspace identifier must be 3–60 characters.';
+        if (tenantSlug.length < 3 || tenantSlug.length > FIELD_LIMITS.WORKSPACE_SLUG) {
+          return `Workspace identifier must be 3–${FIELD_LIMITS.WORKSPACE_SLUG} characters.`;
+        }
         if (!SLUG_RE.test(tenantSlug)) {
           return 'Workspace identifier must be lowercase letters, digits and hyphens, and cannot start or end with a hyphen.';
         }
         return null;
       case 'adminFullName':
-        return adminFullName.trim().length < 2 ? "Admin's full name must be at least 2 characters." : null;
+        if (adminFullName.trim().length < 2) return "Admin's full name must be at least 2 characters.";
+        if (adminFullName.trim().length > FIELD_LIMITS.PERSON_NAME) {
+          return `Admin's full name must be at most ${FIELD_LIMITS.PERSON_NAME} characters.`;
+        }
+        return null;
       case 'adminUsername':
         if (adminUsername.trim().length < 3) return 'Admin username must be at least 3 characters.';
+        if (adminUsername.trim().length > FIELD_LIMITS.USERNAME) {
+          return `Admin username must be at most ${FIELD_LIMITS.USERNAME} characters.`;
+        }
         if (!USERNAME_RE.test(adminUsername.trim())) {
           return 'Admin username may only contain letters, digits, dots, underscores or hyphens.';
         }
         return null;
       case 'adminEmail':
-        return adminEmail.trim() ? null : 'Admin email is required — it is where the set-up link is sent.';
+        if (!adminEmail.trim()) return 'Admin email is required — it is where the set-up link is sent.';
+        if (adminEmail.trim().length > FIELD_LIMITS.EMAIL) {
+          return `Admin email must be at most ${FIELD_LIMITS.EMAIL} characters.`;
+        }
+        return null;
     }
   };
 
@@ -154,6 +181,8 @@ export function CreateTenantForm({
               id="f-company"
               label="Company name"
               error={visibleError('companyName')}
+              count={companyName.length}
+              max={FIELD_LIMITS.COMPANY_NAME}
             >
               <input
                 id="f-company"
@@ -162,6 +191,7 @@ export function CreateTenantForm({
                 onChange={e => onCompanyNameChange(e.target.value)}
                 onBlur={() => markTouched('companyName')}
                 placeholder="Acme Construcciones"
+                maxLength={FIELD_LIMITS.COMPANY_NAME}
                 disabled={submitting}
                 className={fieldInputCx({ invalid: !!visibleError('companyName') })}
               />
@@ -171,6 +201,8 @@ export function CreateTenantForm({
               label="Workspace identifier"
               hint="The customer types this to log in. Lowercase letters, digits and hyphens."
               error={visibleError('tenantSlug')}
+              count={tenantSlug.length}
+              max={FIELD_LIMITS.WORKSPACE_SLUG}
             >
               <input
                 id="f-ident"
@@ -182,6 +214,7 @@ export function CreateTenantForm({
                 }}
                 onBlur={() => markTouched('tenantSlug')}
                 placeholder="acme-construcciones"
+                maxLength={FIELD_LIMITS.WORKSPACE_SLUG}
                 spellCheck={false}
                 autoComplete="off"
                 disabled={submitting}
@@ -199,7 +232,13 @@ export function CreateTenantForm({
 
           <SectionCard number="2" title="Administrator" subtitle="· The workspace's first user">
             <div className="grid grid-cols-2 gap-4">
-              <Field id="f-aname" label="Admin full name" error={visibleError('adminFullName')}>
+              <Field
+                id="f-aname"
+                label="Admin full name"
+                error={visibleError('adminFullName')}
+                count={adminFullName.length}
+                max={FIELD_LIMITS.PERSON_NAME}
+              >
                 <input
                   id="f-aname"
                   type="text"
@@ -207,6 +246,7 @@ export function CreateTenantForm({
                   onChange={e => setAdminFullName(e.target.value)}
                   onBlur={() => markTouched('adminFullName')}
                   placeholder="Ana Admin"
+                  maxLength={FIELD_LIMITS.PERSON_NAME}
                   disabled={submitting}
                   className={fieldInputCx({ invalid: !!visibleError('adminFullName') })}
                 />
@@ -216,6 +256,8 @@ export function CreateTenantForm({
                 label="Admin username"
                 hint="Letters, digits, dots, underscores or hyphens."
                 error={visibleError('adminUsername')}
+                count={adminUsername.length}
+                max={FIELD_LIMITS.USERNAME}
               >
                 <input
                   id="f-auser"
@@ -224,6 +266,7 @@ export function CreateTenantForm({
                   onChange={e => setAdminUsername(e.target.value)}
                   onBlur={() => markTouched('adminUsername')}
                   placeholder="ana.admin"
+                  maxLength={FIELD_LIMITS.USERNAME}
                   spellCheck={false}
                   autoComplete="off"
                   disabled={submitting}
@@ -244,6 +287,7 @@ export function CreateTenantForm({
                 onChange={e => setAdminEmail(e.target.value)}
                 onBlur={() => markTouched('adminEmail')}
                 placeholder="ana@acme.example"
+                maxLength={FIELD_LIMITS.EMAIL}
                 spellCheck={false}
                 autoComplete="off"
                 disabled={submitting}
@@ -477,17 +521,41 @@ function Field({
   label,
   hint,
   error,
+  count,
+  max,
   children,
 }: {
   id: string;
   label: string;
   hint?: string;
   error: string | null;
+  /**
+   * Current length and the cap. Supplying both turns on the counter — the
+   * input's `maxLength` stops the typing, and this is what explains it. A
+   * field that just goes dead under your fingers reads as a broken form.
+   */
+  count?: number;
+  max?: number;
   children: ReactNode;
 }) {
+  // Stay quiet until the cap is near enough to matter. A counter that is
+  // always on is noise on a field nobody will ever fill.
+  const showCount = count !== undefined && max !== undefined && count >= max * 0.7;
+  const atCap = count !== undefined && max !== undefined && count >= max;
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className={labelCx}>{label}</label>
+      <div className="flex items-baseline justify-between gap-3">
+        <label htmlFor={id} className={labelCx}>{label}</label>
+        {showCount && (
+          <span
+            className={`flex-none font-bt-mono text-[11px] tabular-nums ${
+              atCap ? 'font-semibold text-bt-orange' : 'text-bt-muted-2'
+            }`}
+          >
+            {count}/{max}
+          </span>
+        )}
+      </div>
       {children}
       {hint && <div className={hintCx}>{hint}</div>}
       {error && <FieldError role="alert">{error}</FieldError>}

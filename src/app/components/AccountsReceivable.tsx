@@ -24,6 +24,7 @@ import { listProjects } from '../services/projects';
 import { listClients, type ClientResponse } from '../services/clients';
 import { generateInvoicePdf, downloadInvoicePdf, type InvoicePdfData } from '../helpers/exportInvoicePdf';
 import { loadInvoiceIssuer } from '../services/invoiceBranding';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 // Types — aligned with API
 
@@ -774,7 +775,7 @@ export function AccountsReceivable() {
             </div>
             <div>
               <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('finance:receivable.dialog.reference')}</label>
-              <input type="text" value={payRef} onChange={e => setPayRef(e.target.value)} placeholder={t('finance:receivable.dialog.referencePlaceholder')}
+              <input type="text" value={payRef} onChange={e => setPayRef(e.target.value)} placeholder={t('finance:receivable.dialog.referencePlaceholder')} maxLength={FIELD_LIMITS.REFERENCE}
                 className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
             </div>
           </div>
@@ -794,7 +795,7 @@ export function AccountsReceivable() {
           <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto pr-1">
             <div>
               <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('finance:receivable.dialog.invoiceNo')}</label>
-              <input type="text" value={newInvNumber} onChange={e => setNewInvNumber(e.target.value)}
+              <input type="text" value={newInvNumber} onChange={e => setNewInvNumber(e.target.value)} maxLength={FIELD_LIMITS.IDENTIFIER}
                 className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] font-mono focus:outline-none focus:ring-2 focus:ring-purple-400" />
             </div>
             <div>
@@ -807,7 +808,7 @@ export function AccountsReceivable() {
                 </SelectContent>
               </Select>
               {newClient === 'Other' && (
-                <input type="text" value={newClientOther} onChange={e => setNewClientOther(e.target.value)}
+                <input type="text" value={newClientOther} onChange={e => setNewClientOther(e.target.value)} maxLength={FIELD_LIMITS.SHORT_NAME}
                   placeholder={t('finance:receivable.dialog.clientPlaceholder')} className="mt-2 h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
               )}
             </div>
@@ -822,7 +823,7 @@ export function AccountsReceivable() {
             </div>
             <div>
               <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('finance:receivable.dialog.description')}</label>
-              <textarea value={newDesc} onChange={e => setNewDesc(e.target.value)} rows={2} placeholder={t('finance:receivable.dialog.descriptionPlaceholder')}
+              <textarea value={newDesc} onChange={e => setNewDesc(e.target.value)} rows={2} maxLength={FIELD_LIMITS.NOTE} placeholder={t('finance:receivable.dialog.descriptionPlaceholder')}
                 className="w-full rounded-md border border-[#D4D4D8] px-3 py-2 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none" />
             </div>
             {/* Line Items */}
@@ -853,7 +854,7 @@ export function AccountsReceivable() {
                       return (
                         <tr key={idx} className="border-t border-[#D4D4D8]/50">
                           <td className="px-2 py-1.5">
-                            <input type="text" value={li.description} onChange={e => updateLineItem(idx, 'description', e.target.value)}
+                            <input type="text" value={li.description} onChange={e => updateLineItem(idx, 'description', e.target.value)} maxLength={FIELD_LIMITS.LINE_ITEM}
                               placeholder={t('finance:receivable.dialog.itemDescPlaceholder')}
                               className="h-8 w-full rounded border border-[#D4D4D8] px-2 text-sm text-[#0A0A0A] focus:outline-none focus:ring-1 focus:ring-purple-400" />
                           </td>
@@ -906,7 +907,7 @@ export function AccountsReceivable() {
             </div>
             <div>
               <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('finance:receivable.dialog.notes')}</label>
-              <textarea value={newNotes} onChange={e => setNewNotes(e.target.value)} rows={2} placeholder={t('finance:receivable.dialog.notesPlaceholder')}
+              <textarea value={newNotes} onChange={e => setNewNotes(e.target.value)} rows={2} maxLength={FIELD_LIMITS.EXTENDED_NOTE} placeholder={t('finance:receivable.dialog.notesPlaceholder')}
                 className="w-full rounded-md border border-[#D4D4D8] px-3 py-2 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none" />
             </div>
             {/* Document upload (optional) */}

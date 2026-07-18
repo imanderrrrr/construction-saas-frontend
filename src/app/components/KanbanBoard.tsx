@@ -25,6 +25,7 @@ import { listProjects, type ProjectResponse } from '../services/projects';
 import { TaskHistoryPanel } from './TaskHistoryPanel';
 import { TaskDetailModal } from './TaskDetailModal';
 import { businessToday } from '../helpers/dateTime';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 // ── Constants ────────────────────────────────────────
 
@@ -494,6 +495,7 @@ export function KanbanBoard() {
                   value={form.title}
                   onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
                   placeholder={t('kanban.taskTitlePlaceholder')}
+                  maxLength={FIELD_LIMITS.TITLE}
                   className={inputCls}
                   autoFocus
                 />
@@ -509,6 +511,7 @@ export function KanbanBoard() {
                   onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                   placeholder={t('kanban.descriptionPlaceholder')}
                   rows={3}
+                  maxLength={FIELD_LIMITS.LONG_TEXT}
                   className={`${inputCls} h-auto py-2 resize-none`}
                 />
               </div>

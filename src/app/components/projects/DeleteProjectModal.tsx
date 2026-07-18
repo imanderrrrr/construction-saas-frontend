@@ -12,6 +12,7 @@ import { deleteProject as apiDeleteProject } from '../../services/projects';
 import { ApiError } from '../../lib/api';
 import type { Project } from './types';
 import { apiErrorMsg } from './helpers';
+import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 
 /**
  * AP Block 4 — soft-delete a project, guarded by a type-the-name challenge
@@ -114,6 +115,7 @@ export function DeleteProjectModal({ project, open, onClose, onDeleted }: {
             value={confirmation}
             onChange={e => setConfirmation(e.target.value)}
             placeholder={t('admin:projectModals.delete.confirmPlaceholder')}
+            maxLength={FIELD_LIMITS.SHORT_NAME}
             className={`h-10 text-sm ${isMatch ? 'border-emerald-400 bg-emerald-50/30 focus-visible:ring-emerald-200' : 'border-[#D4D4D8]'}`}
             disabled={isLoading}
             autoComplete="off"

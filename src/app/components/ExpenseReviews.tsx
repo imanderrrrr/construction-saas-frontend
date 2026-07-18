@@ -33,6 +33,7 @@ import {
 import { listActiveUsers, type UserDTO } from '../services/users';
 import { businessToday, nDaysAgo } from '../helpers/dateTime';
 import { ApiError } from '../lib/api';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 // Types
 
@@ -831,6 +832,7 @@ export function ExpenseReviews() {
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-[#0A0A0A]">{t('review.dialog.addNote')}</label>
                 <Textarea value={approveNote} onChange={e => setApproveNote(e.target.value)}
+                  maxLength={FIELD_LIMITS.NOTE}
                   placeholder={t('review.dialog.notePlaceholder')}
                   className="resize-none text-sm border-[#D4D4D8] min-h-[72px]" rows={3} />
               </div>
@@ -868,6 +870,7 @@ export function ExpenseReviews() {
                   {t('review.dialog.observeReason')} <span className="text-red-500">*</span>
                 </label>
                 <Textarea value={observeComment} onChange={e => setObserveComment(e.target.value)}
+                  maxLength={FIELD_LIMITS.NOTE}
                   onBlur={() => setObserveTouched(true)} placeholder={t('review.dialog.observePlaceholder')}
                   className={`resize-none text-sm min-h-[88px] transition-colors ${
                     observeTouched && !observeValid ? 'border-red-400 focus:border-red-500' : 'border-[#D4D4D8]'
@@ -923,6 +926,7 @@ export function ExpenseReviews() {
                   {t('review.dialog.rejectReason')} <span className="text-red-500">*</span>
                 </label>
                 <Textarea value={rejectComment} onChange={e => setRejectComment(e.target.value)}
+                  maxLength={FIELD_LIMITS.NOTE}
                   onBlur={() => setRejectTouched(true)} placeholder={t('review.dialog.rejectPlaceholder')}
                   className={`resize-none text-sm min-h-[88px] transition-colors ${
                     rejectTouched && !rejectValid ? 'border-red-400 focus:border-red-500' : 'border-[#D4D4D8]'

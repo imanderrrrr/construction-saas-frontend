@@ -7,6 +7,7 @@ import {
   DialogFooter, DialogHeader, DialogTitle,
 } from '../ui/dialog';
 import type { TimeEventType } from '../../types';
+import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 
 // Types
 
@@ -180,6 +181,7 @@ export function ModalCorrect({ open, action, workerName, projectName, date, even
                 onChange={e => { setComment(e.target.value); setError(''); }}
                 placeholder={t(`modalCorrect.${action}.placeholder`)}
                 rows={4}
+                maxLength={FIELD_LIMITS.LONG_TEXT}
                 disabled={loading}
                 className={`w-full px-3.5 py-3 border rounded-xl text-sm text-[#0A0A0A] placeholder:text-[#71717A] resize-none focus:outline-none focus:ring-2 transition-all ${
                   error ? 'border-red-400 focus:ring-red-200' : 'border-[#D4D4D8] focus:ring-[#F97316]/20 focus:border-[#F97316]'

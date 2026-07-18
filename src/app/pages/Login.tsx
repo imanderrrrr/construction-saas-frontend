@@ -18,6 +18,7 @@ import {
   Eye,
   EyeOff,
 } from 'lucide-react';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 // Alert Components
 
@@ -226,6 +227,7 @@ export function Login() {
                 autoComplete="organization"
                 placeholder={t('login.tenantSlug.placeholder')}
                 {...register('tenantSlug')}
+                maxLength={FIELD_LIMITS.LEGACY_WORKSPACE_SLUG}
                 className={[
                   'w-full h-11 px-3.5',
                   'border border-[#D4D4D8] rounded-lg',
@@ -257,6 +259,7 @@ export function Login() {
                 autoComplete="username"
                 placeholder={t('login.username.placeholder')}
                 {...register('username', { required: t('login.username.required') })}
+                maxLength={FIELD_LIMITS.LEGACY_USERNAME}
                 className={[
                   'w-full h-11 px-3.5',
                   'border border-[#D4D4D8] rounded-lg',

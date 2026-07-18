@@ -19,6 +19,7 @@ import {
 } from '../types';
 import { isProjectClosed } from '../helpers/project-utils';
 import { ClosedProjectBanner } from './ClosedProjectBanner';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 import {
   getMyProjects, createTimeEvent, getMyRecords, haversineMeters,
   getWorkerState, cancelTransit, disputeTransit,
@@ -838,6 +839,7 @@ export function WorkerTime({ username }: { username: string }) {
                   value={disputeReason}
                   onChange={e => setDisputeReason(e.target.value)}
                   placeholder={t('punch.disputeReasonPlaceholder')}
+                  maxLength={FIELD_LIMITS.LONG_TEXT}
                   className={`w-full text-sm border rounded-lg p-2.5 resize-none h-20 focus:outline-none focus:ring-2 focus:ring-[#F97316]/30 focus:border-[#F97316] ${
                     disputeReason.length > 0 && disputeReason.trim().length < 10
                       ? 'border-red-400'
@@ -1152,6 +1154,7 @@ export function WorkerTime({ username }: { username: string }) {
                     value={cancelCustomReason}
                     onChange={e => setCancelCustomReason(e.target.value)}
                     placeholder={t('punch.cancelCustomReasonPlaceholder')}
+                    maxLength={FIELD_LIMITS.LONG_TEXT}
                     className="w-full text-sm border border-[#D4D4D8] rounded-lg p-2.5 resize-none h-24 focus:outline-none focus:ring-2 focus:ring-[#F97316]/30 focus:border-[#F97316]"
                   />
                 </div>

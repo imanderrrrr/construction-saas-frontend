@@ -7,6 +7,7 @@ import {
   DialogFooter, DialogHeader, DialogTitle,
 } from '../ui/dialog';
 import type { TimeEventType } from '../../types';
+import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 
 interface ModalEditTimeProps {
   open: boolean;
@@ -151,6 +152,7 @@ export function ModalEditTime({
               onChange={e => { setReason(e.target.value); setError(''); }}
               placeholder={t('editModal.reasonPlaceholder')}
               rows={3}
+              maxLength={FIELD_LIMITS.LONG_TEXT}
               disabled={loading}
               className={`w-full px-3.5 py-3 border rounded-xl text-sm text-[#0A0A0A] placeholder:text-[#71717A] resize-none focus:outline-none focus:ring-2 transition-all ${
                 error && reason.trim().length < MIN_REASON_LENGTH
