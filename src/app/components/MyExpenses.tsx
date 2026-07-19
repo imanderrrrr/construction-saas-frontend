@@ -271,6 +271,17 @@ function ExpenseDetail({ expense, onPreviewReceipt }: { expense: ExpenseRecord; 
           </p>
         </div>
       )}
+
+      {/* Reviewer feedback — Approved (the note is optional, so often absent) */}
+      {expense.status === 'Approved' && expense.reviewerComment && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+          <p className="text-xs font-semibold text-emerald-800 mb-1">{t('my.detail.approvalNote')}</p>
+          <p className="text-[11px] text-emerald-700">
+            <span className="font-semibold">{expense.reviewerName}</span> ·{' '}
+            {expense.reviewerComment}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

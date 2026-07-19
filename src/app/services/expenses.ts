@@ -212,9 +212,18 @@ export function adminBatchApprove(): Promise<BatchApproveResponse> {
 
 // ── Shared review actions ────────────────────────────
 
-export function approveExpense(id: number, role: 'admin' | 'supervisor'): Promise<ExpenseResponse> {
+/**
+ * The approval note is optional — unlike the observe/reject comment, which the
+ * backend requires. When there is no note we send no body at all, which is what
+ * the endpoint expects (`@RequestBody(required = false)`).
+ */
+export function approveExpense(id: number, role: 'admin' | 'supervisor', comment?: string): Promise<ExpenseResponse> {
   const base = role === 'admin' ? '/api/v1/admin/expenses' : '/api/v1/supervisor/expenses';
-  return api<ExpenseResponse>(`${base}/${id}/approve`, { method: 'PUT' });
+  const note = comment?.trim();
+  return api<ExpenseResponse>(`${base}/${id}/approve`, {
+    method: 'PUT',
+    ...(note ? { body: JSON.stringify({ comment: note }) } : {}),
+  });
 }
 
 export function observeExpense(id: number, comment: string, role: 'admin' | 'supervisor'): Promise<ExpenseResponse> {

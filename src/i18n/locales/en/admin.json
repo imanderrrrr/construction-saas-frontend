@@ -1127,6 +1127,7 @@
   "expenseMgmt.detail.viewReceipt": "View receipt",
   "expenseMgmt.detail.observation": "Observation",
   "expenseMgmt.detail.rejection": "Rejection",
+  "expenseMgmt.detail.approvalNote": "Approval note",
   "expenseMgmt.detail.review": "Review:",
 
   "expenseMgmt.pagination.prev": "← Prev",
