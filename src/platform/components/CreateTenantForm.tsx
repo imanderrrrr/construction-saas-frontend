@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react';
 import { useState } from 'react';
-import { CornerDownRight, Lock, Mail } from 'lucide-react';
-import { motion } from 'motion/react';
+import { Banknote, CornerDownRight, CreditCard, Lock, Mail } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 
 import { extractMessage } from '../lib/platformError';
+import { fmtCents, MAX_CUSTOM_PRICE_CENTS, MIN_CUSTOM_PRICE_CENTS, parseUsdToCents } from '../lib/money';
 import { createTenant } from '../services/platformDashboard';
-import type { BillingInterval, CreateTenantResponse, PlanCode } from '../types';
+import type { BillingInterval, BillingProvider, CreateTenantRequest, CreateTenantResponse, PlanCode } from '../types';
 import {
   ButtonSpinner,
   chipCx,
@@ -40,7 +41,7 @@ function slugify(name: string): string {
     .replace(/-+$/, ''); // a trailing hyphen from the slice would fail the regex
 }
 
-type FieldKey = 'companyName' | 'tenantSlug' | 'adminFullName' | 'adminUsername' | 'adminEmail';
+type FieldKey = 'companyName' | 'tenantSlug' | 'adminFullName' | 'adminUsername' | 'adminEmail' | 'priceUsd';
 
 const PLAN_LIMITS: Record<PlanCode, string> = {
   PRO: '15 users · 2 admins',
@@ -72,6 +73,11 @@ export function CreateTenantForm({
   const [adminEmail, setAdminEmail] = useState('');
   const [planCode, setPlanCode] = useState<PlanCode>('PRO');
   const [billingInterval, setBillingInterval] = useState<BillingInterval>('MONTHLY');
+  // PADDLE is the product default (per the V86 backend contract): automatic
+  // card billing at the negotiated price. MANUAL stays as the fallback for
+  // customers who can't pay by card.
+  const [billingProvider, setBillingProvider] = useState<BillingProvider>('PADDLE');
+  const [priceUsd, setPriceUsd] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [touched, setTouched] = useState<Partial<Record<FieldKey, boolean>>>({});
@@ -104,21 +110,39 @@ export function CreateTenantForm({
         return null;
       case 'adminEmail':
         return adminEmail.trim() ? null : 'Admin email is required — it is where the set-up link is sent.';
+      case 'priceUsd': {
+        // The price only exists on the PADDLE path; MANUAL must not send one.
+        if (billingProvider !== 'PADDLE') return null;
+        if (priceUsd.trim() === '') return 'Negotiated price is required for automatic billing.';
+        const cents = parseUsdToCents(priceUsd);
+        if (cents === null) return 'Enter a USD amount like 350 or 350.50.';
+        if (cents < MIN_CUSTOM_PRICE_CENTS || cents > MAX_CUSTOM_PRICE_CENTS) {
+          return 'The negotiated price must be between $10.00 and $50,000.00 per period.';
+        }
+        return null;
+      }
     }
   };
 
   const visibleError = (key: FieldKey): string | null => (touched[key] ? fieldError(key) : null);
   const markTouched = (key: FieldKey) => setTouched(t => ({ ...t, [key]: true }));
 
-  const ALL_FIELDS: FieldKey[] = ['companyName', 'tenantSlug', 'adminFullName', 'adminUsername', 'adminEmail'];
+  const ALL_FIELDS: FieldKey[] = ['companyName', 'tenantSlug', 'adminFullName', 'adminUsername', 'adminEmail', 'priceUsd'];
 
   const submit = async () => {
-    setTouched({ companyName: true, tenantSlug: true, adminFullName: true, adminUsername: true, adminEmail: true });
+    setTouched({
+      companyName: true,
+      tenantSlug: true,
+      adminFullName: true,
+      adminUsername: true,
+      adminEmail: true,
+      priceUsd: true,
+    });
     if (ALL_FIELDS.some(k => fieldError(k) !== null)) return;
     setSubmitting(true);
     setServerError(null);
     try {
-      const result = await createTenant({
+      const request: CreateTenantRequest = {
         companyName: companyName.trim(),
         tenantSlug: tenantSlug.trim(),
         adminUsername: adminUsername.trim(),
@@ -126,7 +150,15 @@ export function CreateTenantForm({
         adminEmail: adminEmail.trim(),
         planCode,
         billingInterval,
-      });
+        billingProvider,
+      };
+      // Only the PADDLE path carries a price — the backend 400s a MANUAL
+      // request that sends one (a typed amount + MANUAL is almost always a
+      // mis-click, and it refuses to guess which half was meant).
+      if (billingProvider === 'PADDLE') {
+        request.customPriceUsdCents = parseUsdToCents(priceUsd)!;
+      }
+      const result = await createTenant(request);
       onCreated(result);
     } catch (err) {
       setServerError(extractMessage(err) ?? 'Could not create the workspace.');
@@ -138,6 +170,10 @@ export function CreateTenantForm({
   const slugEcho = tenantSlug.trim();
   const planName = planCode === 'PRO' ? 'Pro' : 'Business';
   const intervalLabel = billingInterval === 'MONTHLY' ? 'Monthly' : 'Annual';
+  const perPeriod = billingInterval === 'MONTHLY' ? 'month' : 'year';
+  const priceCents = parseUsdToCents(priceUsd);
+  const priceInBounds =
+    priceCents !== null && priceCents >= MIN_CUSTOM_PRICE_CENTS && priceCents <= MAX_CUSTOM_PRICE_CENTS;
 
   return (
     <div className="mt-7 flex items-start gap-7">
@@ -262,7 +298,7 @@ export function CreateTenantForm({
           <SectionCard
             number="3"
             title="Plan & billing"
-            headerNote="The plan sets the workspace's user and admin limits. Billing is handled outside the product — no card, no Paddle subscription, and Paddle webhooks cannot alter it."
+            headerNote="The plan sets the workspace's user and admin limits. The billing method decides how the customer pays: an automatic Paddle card subscription at the negotiated price, or manual payments recorded outside the product."
           >
             <div className="flex flex-col gap-2">
               <span className={labelCx}>Plan</span>
@@ -306,6 +342,76 @@ export function CreateTenantForm({
                 />
               </div>
             </div>
+            <div className="flex flex-col gap-2">
+              <span className={labelCx}>Billing method</span>
+              <div className="grid grid-cols-2 gap-3">
+                <ProviderCard
+                  name="Automatic — Paddle"
+                  icon={<CreditCard size={15} strokeWidth={1.8} />}
+                  blurb="Card subscription at the negotiated price. The workspace stays pending until the first payment confirms."
+                  selected={billingProvider === 'PADDLE'}
+                  onPick={() => setBillingProvider('PADDLE')}
+                  disabled={submitting}
+                />
+                <ProviderCard
+                  name="Manual — transfer"
+                  icon={<Banknote size={15} strokeWidth={1.8} />}
+                  blurb="Access starts now; payments arrive outside the product and are recorded in the ledger by hand."
+                  selected={billingProvider === 'MANUAL'}
+                  onPick={() => setBillingProvider('MANUAL')}
+                  disabled={submitting}
+                />
+              </div>
+            </div>
+            <AnimatePresence initial={false}>
+              {billingProvider === 'PADDLE' && (
+                <motion.div
+                  key="price"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.22 }}
+                  className="overflow-hidden"
+                >
+                  <Field
+                    id="f-price"
+                    label="Negotiated price"
+                    hint={`USD per ${perPeriod}, fixed for life. Between $10 and $50,000. Charged via a custom Paddle price — not a catalog plan price.`}
+                    error={visibleError('priceUsd')}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-[220px] flex-none">
+                        <input
+                          id="f-price"
+                          type="text"
+                          inputMode="decimal"
+                          value={priceUsd}
+                          onChange={e => setPriceUsd(e.target.value)}
+                          onBlur={() => markTouched('priceUsd')}
+                          placeholder="350.00"
+                          spellCheck={false}
+                          autoComplete="off"
+                          disabled={submitting}
+                          className={fieldInputCx({ invalid: !!visibleError('priceUsd'), mono: true })}
+                        />
+                      </div>
+                      <span className="text-[12.5px] font-semibold text-bt-muted">USD / {perPeriod}</span>
+                      {priceInBounds && (
+                        <motion.span
+                          key={priceCents}
+                          initial={{ opacity: 0, y: 3 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.18 }}
+                          className="font-bt-mono text-xs font-semibold text-bt-ink"
+                        >
+                          = {fmtCents(priceCents)} every {perPeriod}
+                        </motion.span>
+                      )}
+                    </div>
+                  </Field>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </SectionCard>
         </motion.div>
 
@@ -415,13 +521,39 @@ export function CreateTenantForm({
                 </motion.span>
               </SummaryRow>
               <SummaryRow label="Billing">
-                <span className="text-right text-[13px] font-semibold text-bt-ink">Manual — outside the product</span>
+                <motion.span
+                  key={`${billingProvider}-${priceInBounds ? priceCents : 'none'}-${perPeriod}`}
+                  initial={{ opacity: 0, y: 3 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="text-right text-[13px] font-semibold text-bt-ink"
+                >
+                  {billingProvider === 'PADDLE' ? (
+                    priceInBounds ? (
+                      <>
+                        Paddle · <span className="font-bt-mono text-xs">{fmtCents(priceCents)}/{perPeriod === 'month' ? 'mo' : 'yr'}</span>
+                      </>
+                    ) : (
+                      'Paddle — automatic card billing'
+                    )
+                  ) : (
+                    'Manual — outside the product'
+                  )}
+                </motion.span>
               </SummaryRow>
             </div>
             <div className="flex items-start gap-2 border-t border-bt-rule pt-3.5">
               <Mail size={14} strokeWidth={1.8} className="mt-0.5 flex-none text-bt-muted" />
               <span className="text-xs leading-normal text-bt-muted">
-                An invitation goes to the admin's email with a set-password link.
+                {billingProvider === 'PADDLE' ? (
+                  <>
+                    Two emails go out: the set-password invitation and the Paddle payment link. The
+                    workspace stays <span className="font-semibold text-bt-ink">pending — no access</span> until
+                    the first payment confirms, and is auto-suspended if nobody pays within 7 days.
+                  </>
+                ) : (
+                  <>An invitation goes to the admin&apos;s email with a set-password link.</>
+                )}
               </span>
             </div>
           </div>
@@ -531,6 +663,52 @@ function PlanCard({
         </span>
       </span>
       <span className="flex items-baseline gap-1.5">{children}</span>
+    </button>
+  );
+}
+
+/** Same selection chrome as PlanCard, but carrying an icon + a sentence. */
+function ProviderCard({
+  name,
+  icon,
+  blurb,
+  selected,
+  onPick,
+  disabled,
+}: {
+  name: string;
+  icon: ReactNode;
+  blurb: string;
+  selected: boolean;
+  onPick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onPick}
+      disabled={disabled}
+      aria-pressed={selected}
+      className={`flex cursor-pointer flex-col gap-2 rounded-[10px] border p-4 text-left transition-[border-color,background-color,box-shadow] duration-150 disabled:cursor-not-allowed ${
+        selected
+          ? 'border-bt-orange bg-bt-orange/5 shadow-[0_0_0_3px_rgba(249,115,22,0.14)]'
+          : 'border-bt-rule bg-white hover:shadow-[0_1px_3px_rgba(23,19,15,0.1)]'
+      }`}
+    >
+      <span className="flex w-full items-center justify-between gap-2">
+        <span className="flex items-center gap-2">
+          <span className={selected ? 'text-bt-orange' : 'text-bt-muted'}>{icon}</span>
+          <span className="font-bt-heading text-[13.5px] font-bold text-bt-ink">{name}</span>
+        </span>
+        <span
+          className={`flex size-4 flex-none items-center justify-center rounded-full border-[1.5px] transition-colors ${
+            selected ? 'border-bt-orange' : 'border-bt-rule'
+          }`}
+        >
+          <span className={`size-2 rounded-full transition-colors ${selected ? 'bg-bt-orange' : 'bg-transparent'}`} />
+        </span>
+      </span>
+      <span className="text-[12.5px] leading-normal text-bt-muted">{blurb}</span>
     </button>
   );
 }

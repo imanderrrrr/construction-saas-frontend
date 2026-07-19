@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { ChevronDown, ChevronRight, CirclePause, CirclePlay, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, CirclePause, CirclePlay, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 
 import { PlatformModal } from '../components/PlatformModal';
 import { RecordPaymentDialog } from '../components/RecordPaymentDialog';
+import { IssueCheckoutLinkDialog } from '../components/IssueCheckoutLinkDialog';
 import { extractMessage } from '../lib/platformError';
+import { fmtCents } from '../lib/money';
 import { BillingStatusPill, TenantStatusPill } from '../components/TenantStatusPill';
 import { usePlatformAuth } from '../context/PlatformAuthContext';
 import {
@@ -20,6 +22,7 @@ import {
 import type {
   Page,
   PlatformAuditEntry,
+  PlatformCheckoutLinkResponse,
   PlatformPaymentEntry,
   TenantDetail,
   TenantPayments,
@@ -30,6 +33,7 @@ import {
   cardCx,
   chipCx,
   colHeadCx,
+  CopyButton,
   dangerBtnCx,
   EASE_OUT,
   errorBoxCx,
@@ -55,11 +59,15 @@ const TAB_LABELS: Record<Tab, string> = {
   payments: 'Payments',
 };
 
-/** USD cents → "$1,234.50". Console has no shared money util; matches BudgetManagement. */
-function fmtCents(cents: number): string {
-  const dollars = cents / 100;
-  const sign = dollars < 0 ? '-' : '';
-  return `${sign}$${Math.abs(dollars).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+/**
+ * A console-created PADDLE account that has not confirmed its first payment
+ * yet — the state the header badge and the payment-link card exist for.
+ */
+function awaitingFirstPayment(tenant: TenantDetail): boolean {
+  return (
+    tenant.billingProvider === 'PADDLE' &&
+    (tenant.billingStatus === 'CHECKOUT_PENDING' || tenant.billingStatus === 'PAYMENT_REQUIRED')
+  );
 }
 
 export function PlatformTenantDetailPage() {
@@ -81,6 +89,10 @@ export function PlatformTenantDetailPage() {
   const [showReactivate, setShowReactivate] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [showRecordPayment, setShowRecordPayment] = useState(false);
+  const [showIssueLink, setShowIssueLink] = useState(false);
+  // The last link issued from THIS page, so the billing card can confirm
+  // whether the accompanying email went out. Cleared implicitly on nav.
+  const [lastIssue, setLastIssue] = useState<PlatformCheckoutLinkResponse | null>(null);
 
   // Payments (billing summary + history) are OWNER/BILLING only — mirrors the
   // backend @PreAuthorize on /platform/tenants/{id}/payments.
@@ -128,6 +140,9 @@ export function PlatformTenantDetailPage() {
 
   const canSuspend = role === 'OWNER' || role === 'SUPPORT';
   const canDelete = role === 'OWNER';
+  // Checkout links are OWNER/SUPPORT — the roles that provision tenants —
+  // mirroring the backend @PreAuthorize on /billing/checkout-link.
+  const canIssueLink = role === 'OWNER' || role === 'SUPPORT';
   const showDeleteItem = tenant ? canDelete && tenant.status !== 'DELETED' : false;
   const hasActions = tenant !== null && (canSuspend || showDeleteItem);
 
@@ -163,6 +178,7 @@ export function PlatformTenantDetailPage() {
               </h1>
               <span className={`${chipCx} border-bt-rule bg-white px-2.5 py-1`}>{tenant.slug}</span>
               <TenantStatusPill status={tenant.status} />
+              {awaitingFirstPayment(tenant) && <BillingStatusPill status={tenant.billingStatus} />}
             </div>
 
             {hasActions && (
@@ -251,7 +267,14 @@ export function PlatformTenantDetailPage() {
               exit={{ opacity: 0, transition: { duration: 0.1 } }}
               transition={{ duration: 0.22, ease: EASE_OUT }}
             >
-              {tab === 'summary' && <SummaryTab tenant={tenant} />}
+              {tab === 'summary' && (
+                <SummaryTab
+                  tenant={tenant}
+                  canIssueLink={canIssueLink}
+                  lastIssue={lastIssue}
+                  onIssueNewLink={() => setShowIssueLink(true)}
+                />
+              )}
               {tab === 'users' && <UsersTab data={users} />}
               {tab === 'audit' && <AuditTab data={audit} />}
               {tab === 'payments' && canBilling && (
@@ -312,6 +335,21 @@ export function PlatformTenantDetailPage() {
               />
             )}
           </AnimatePresence>
+          <AnimatePresence>
+            {showIssueLink && (
+              <IssueCheckoutLinkDialog
+                tenantId={tenant.id}
+                tenantName={tenant.name}
+                onClose={() => setShowIssueLink(false)}
+                onIssued={issued => {
+                  setShowIssueLink(false);
+                  setLastIssue(issued);
+                  // Refresh so pendingCheckoutUrl reflects the new live link.
+                  loadTenant();
+                }}
+              />
+            )}
+          </AnimatePresence>
         </>
       )}
     </>
@@ -355,19 +393,115 @@ function SummaryRow({ label, children, first }: { label: string; children: React
   );
 }
 
-function SummaryTab({ tenant }: { tenant: TenantDetail }) {
+function SummaryTab({
+  tenant,
+  canIssueLink,
+  lastIssue,
+  onIssueNewLink,
+}: {
+  tenant: TenantDetail;
+  canIssueLink: boolean;
+  lastIssue: PlatformCheckoutLinkResponse | null;
+  onIssueNewLink: () => void;
+}) {
+  const pending = awaitingFirstPayment(tenant);
+  // Only report on the freshly issued link while it is still the live one.
+  const justIssued = lastIssue !== null && lastIssue.checkoutUrl === tenant.pendingCheckoutUrl;
+
   return (
-    <div className={`${cardCx} mt-6 overflow-hidden`}>
-      <SummaryRow label="Created" first>{fmtDateTime(tenant.createdAt)}</SummaryRow>
-      <SummaryRow label="Updated">{fmtDateTime(tenant.updatedAt)}</SummaryRow>
-      <SummaryRow label="Workspace identifier"><span className={chipCx}>{tenant.slug}</span></SummaryRow>
-      <SummaryRow label="Status"><TenantStatusPill status={tenant.status} /></SummaryRow>
-      <SummaryRow label="Users (total / active)">
-        <span className="font-bt-mono text-xs">{tenant.userCount} / {tenant.activeUserCount}</span>
-      </SummaryRow>
-      <SummaryRow label="Projects"><span className="font-bt-mono text-xs">{tenant.projectCount}</span></SummaryRow>
-      <SummaryRow label="Clients"><span className="font-bt-mono text-xs">{tenant.clientCount}</span></SummaryRow>
-    </div>
+    <>
+      <div className={`${cardCx} mt-6 overflow-hidden`}>
+        <SummaryRow label="Created" first>{fmtDateTime(tenant.createdAt)}</SummaryRow>
+        <SummaryRow label="Updated">{fmtDateTime(tenant.updatedAt)}</SummaryRow>
+        <SummaryRow label="Workspace identifier"><span className={chipCx}>{tenant.slug}</span></SummaryRow>
+        <SummaryRow label="Status"><TenantStatusPill status={tenant.status} /></SummaryRow>
+        {tenant.status === 'SUSPENDED' && tenant.suspensionReason && (
+          <SummaryRow label="Suspension reason">
+            {tenant.suspensionReason === 'PENDING_PAYMENT'
+              ? 'Auto-suspended — the first payment never arrived'
+              : 'Suspended by platform staff'}
+          </SummaryRow>
+        )}
+        <SummaryRow label="Users (total / active)">
+          <span className="font-bt-mono text-xs">{tenant.userCount} / {tenant.activeUserCount}</span>
+        </SummaryRow>
+        <SummaryRow label="Projects"><span className="font-bt-mono text-xs">{tenant.projectCount}</span></SummaryRow>
+        <SummaryRow label="Clients"><span className="font-bt-mono text-xs">{tenant.clientCount}</span></SummaryRow>
+      </div>
+
+      <div className={`${cardCx} mt-5 overflow-hidden`}>
+        <div className="flex items-center justify-between border-b border-bt-rule-3 px-6 py-4">
+          <span className="font-bt-heading text-[13px] font-bold text-bt-ink">Billing</span>
+          {tenant.billingStatus && <BillingStatusPill status={tenant.billingStatus} />}
+        </div>
+        {tenant.billingProvider === null ? (
+          <p className="px-6 py-5 text-sm text-bt-muted">No billing account (legacy tenant).</p>
+        ) : (
+          <>
+            <SummaryRow label="Provider" first>
+              {tenant.billingProvider === 'PADDLE'
+                ? 'Paddle — automatic card billing'
+                : 'Manual — outside the product'}
+            </SummaryRow>
+            {tenant.negotiatedPriceCents != null && (
+              <SummaryRow label="Negotiated price">
+                <span className="font-bt-mono text-[13px]">{fmtCents(tenant.negotiatedPriceCents)} USD</span>
+                <span className="ml-1.5 font-normal text-bt-muted">per period, fixed for life</span>
+              </SummaryRow>
+            )}
+            {pending && (
+              <div className="border-t border-bt-rule-3 px-6 py-4">
+                <div className={`${microLabelCx} mb-2`}>Payment link</div>
+                {tenant.pendingCheckoutUrl ? (
+                  <>
+                    <div className="flex items-center gap-2.5">
+                      <span
+                        className="min-w-0 flex-1 truncate font-bt-mono text-xs font-semibold text-bt-ink"
+                        title={tenant.pendingCheckoutUrl}
+                      >
+                        {tenant.pendingCheckoutUrl}
+                      </span>
+                      <CopyButton value={tenant.pendingCheckoutUrl} />
+                      {canIssueLink && (
+                        <button
+                          type="button"
+                          onClick={onIssueNewLink}
+                          className="inline-flex h-8 flex-none cursor-pointer items-center gap-1.5 rounded-lg border border-bt-rule bg-white px-3 text-xs font-semibold text-bt-ink transition-colors hover:bg-bt-paper"
+                        >
+                          <RefreshCw size={13} strokeWidth={1.8} className="text-bt-muted" />
+                          <span>Issue new link</span>
+                        </button>
+                      )}
+                    </div>
+                    <p className="mt-2 text-xs leading-normal text-bt-muted">
+                      {justIssued &&
+                        (lastIssue.emailSent
+                          ? 'Fresh link issued and emailed to the workspace admin. '
+                          : 'Fresh link issued — the email could not be sent, so copy it and send it yourself. ')}
+                      Access unlocks automatically when Paddle confirms the payment. Issuing a new link
+                      supersedes this one and restarts the 7-day auto-suspension window.
+                    </p>
+                  </>
+                ) : (
+                  <div className="flex items-center justify-between gap-4">
+                    <p className="text-sm leading-normal text-bt-muted">
+                      No live payment link — the last checkout attempt failed, expired, or was never
+                      issued.
+                    </p>
+                    {canIssueLink && (
+                      <button type="button" onClick={onIssueNewLink} className={`${primaryBtnCx} flex-none`}>
+                        <RefreshCw size={14} strokeWidth={2} />
+                        <span>Issue new link</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </>
   );
 }
 

@@ -7,7 +7,7 @@ vi.mock('../lib/platformApi', () => ({
   platformApi: (...args: unknown[]) => platformApiMock(...args),
 }));
 
-import { createTenant, getTenantPayments, recordTenantPayment } from './platformDashboard';
+import { createTenant, getTenantPayments, issueCheckoutLink, recordTenantPayment } from './platformDashboard';
 
 describe('createTenant', () => {
   beforeEach(() => {
@@ -24,6 +24,8 @@ describe('createTenant', () => {
       adminEmail: 'ana@acme.example',
       planCode: 'PRO',
       billingInterval: 'MONTHLY',
+      billingProvider: 'PADDLE',
+      customPriceUsdCents: 35_000,
     });
 
     expect(platformApiMock).toHaveBeenCalledWith('/platform/tenants', {
@@ -36,6 +38,8 @@ describe('createTenant', () => {
         adminEmail: 'ana@acme.example',
         planCode: 'PRO',
         billingInterval: 'MONTHLY',
+        billingProvider: 'PADDLE',
+        customPriceUsdCents: 35_000,
       },
     });
   });
@@ -89,6 +93,32 @@ describe('getTenantPayments', () => {
   it('GETs the tenant payments panel', async () => {
     await getTenantPayments(7);
     expect(platformApiMock).toHaveBeenCalledWith('/platform/tenants/7/payments');
+  });
+});
+
+describe('issueCheckoutLink', () => {
+  beforeEach(() => {
+    platformApiMock.mockReset();
+    platformApiMock.mockResolvedValue({
+      tenantId: 7,
+      checkoutUrl: 'https://sandbox-pay.paddle.io/hsc_new',
+      emailSent: true,
+    });
+  });
+
+  it('POSTs (no body) to the tenant checkout-link endpoint', async () => {
+    await issueCheckoutLink(7);
+
+    expect(platformApiMock).toHaveBeenCalledWith('/platform/tenants/7/billing/checkout-link', {
+      method: 'POST',
+    });
+  });
+
+  it('returns the freshly minted link to the caller', async () => {
+    const res = await issueCheckoutLink(7);
+
+    expect(res.checkoutUrl).toBe('https://sandbox-pay.paddle.io/hsc_new');
+    expect(res.emailSent).toBe(true);
   });
 });
 
