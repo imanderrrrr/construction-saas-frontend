@@ -8,6 +8,8 @@ import enStatus from '../../i18n/locales/en/status.json';
 import esStatus from '../../i18n/locales/es/status.json';
 import enBilling from '../../i18n/locales/en/billing.json';
 import esBilling from '../../i18n/locales/es/billing.json';
+import enPay from '../../i18n/locales/en/pay.json';
+import esPay from '../../i18n/locales/es/pay.json';
 
 type Bundle = Record<string, string>;
 
@@ -19,6 +21,8 @@ const NAMESPACES: [name: string, en: Bundle, es: Bundle][] = [
   // sent — the one logged-in surface that used to quote a plan price and
   // take money. It lives under the same rule as the public site.
   ['billing', enBilling as Bundle, esBilling as Bundle],
+  // `/pay` is the most public page of all: the customer's payment link.
+  ['pay', enPay as Bundle, esPay as Bundle],
 ];
 
 const tokens = (s: string): string[] =>
