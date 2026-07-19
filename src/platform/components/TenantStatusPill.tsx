@@ -45,7 +45,7 @@ export function TenantStatusPill({ status }: { status: TenantStatus }) {
   return <StatusPill tone={tone} label={label} />;
 }
 
-/** Billing statuses (payments tab) — the design's six-state palette. */
+/** Billing statuses (payments tab + billing card) — the design's palette. */
 const BILLING_TONES: Record<string, { tone: PillTone; label: string }> = {
   ACTIVE: { tone: GREEN, label: 'Active' },
   TRIALING: { tone: AMBER, label: 'Trialing' },
@@ -53,6 +53,10 @@ const BILLING_TONES: Record<string, { tone: PillTone; label: string }> = {
   EXPIRED: { tone: RED_SOLID, label: 'Expired' },
   PAUSED: { tone: GRAY, label: 'Paused' },
   CANCELED: { tone: FADED, label: 'Canceled' },
+  // V86 console-Paddle states: awaiting the first card payment.
+  CHECKOUT_PENDING: { tone: AMBER, label: 'Pending payment' },
+  PAYMENT_REQUIRED: { tone: RED_TINT, label: 'Payment required' },
+  INCOMPLETE: { tone: AMBER, label: 'Incomplete' },
 };
 
 export function BillingStatusPill({ status }: { status: string | null }) {

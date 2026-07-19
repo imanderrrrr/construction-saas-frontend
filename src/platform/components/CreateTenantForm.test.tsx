@@ -40,9 +40,14 @@ describe('CreateTenantForm', () => {
       adminEmail: 'ana@acme.example',
       planCode: 'PRO',
       billingInterval: 'MONTHLY',
-      billingStatus: 'ACTIVE',
-      billingProvider: 'MANUAL',
+      billingStatus: 'CHECKOUT_PENDING',
+      billingProvider: 'PADDLE',
       setupLinkSent: true,
+      customPriceUsdCents: 35_000,
+      checkoutUrl: 'https://sandbox-pay.paddle.io/hsc_test',
+      paddleTransactionId: 'txn_123',
+      checkoutLinkEmailSent: true,
+      checkoutError: null,
     });
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -63,7 +68,8 @@ describe('CreateTenantForm', () => {
     return { onCreated, onCancel };
   };
 
-  // DOM order: company, slug, admin full name, admin username, admin email.
+  // DOM order: company, slug, admin full name, admin username, admin email,
+  // negotiated price (present while the billing method is Paddle — the default).
   const inputs = () => Array.from(container.querySelectorAll('input'));
   const buttonByText = (text: string) =>
     Array.from(container.querySelectorAll('button')).find(b => b.textContent?.includes(text))!;
@@ -84,12 +90,13 @@ describe('CreateTenantForm', () => {
   };
 
   const fillValid = () => {
-    const [company, slug, fullName, username, email] = inputs();
+    const [company, slug, fullName, username, email, price] = inputs();
     setValue(company, 'Acme Construcciones');
     setValue(slug, 'acme-construcciones');
     setValue(fullName, 'Ana Admin');
     setValue(username, 'ana.admin');
     setValue(email, 'ana@acme.example');
+    if (price) setValue(price, '350');
   };
 
   /**
@@ -141,8 +148,96 @@ describe('CreateTenantForm', () => {
       adminEmail: 'ana@acme.example',
       planCode: 'PRO',
       billingInterval: 'MONTHLY',
+      billingProvider: 'PADDLE',
+      customPriceUsdCents: 35_000,
     });
     expect(onCreated).toHaveBeenCalledWith(expect.objectContaining({ tenantId: 1 }));
+  });
+
+  it('defaults the billing method to Paddle, with the price field showing', () => {
+    render();
+
+    expect(toggleByText('Automatic — Paddle').getAttribute('aria-pressed')).toBe('true');
+    expect(toggleByText('Manual — transfer').getAttribute('aria-pressed')).toBe('false');
+    expect(inputs()).toHaveLength(6);
+  });
+
+  it('converts a decimal dollar amount to integer cents', async () => {
+    render();
+    fillValid();
+    setValue(inputs()[5], '349.99');
+
+    await act(async () => {
+      buttonByText('Create tenant').click();
+    });
+
+    expect(mocks.createTenant).toHaveBeenCalledWith(
+      expect.objectContaining({ customPriceUsdCents: 34_999 }),
+    );
+  });
+
+  it('switching to Manual omits the price from the payload entirely', async () => {
+    render();
+    fillValid();
+    setValue(inputs()[5], '350'); // typed, then the method changes — must not leak
+
+    act(() => {
+      toggleByText('Manual — transfer').click();
+    });
+    await act(async () => {
+      buttonByText('Create tenant').click();
+    });
+
+    expect(mocks.createTenant).toHaveBeenCalledTimes(1);
+    const body = mocks.createTenant.mock.calls[0][0] as Record<string, unknown>;
+    expect(body.billingProvider).toBe('MANUAL');
+    // The backend 400s a MANUAL request that carries a price — the key must
+    // be absent, not null.
+    expect(Object.keys(body)).not.toContain('customPriceUsdCents');
+  });
+
+  it('requires the negotiated price for Paddle billing', async () => {
+    render();
+    fillValid();
+    setValue(inputs()[5], '');
+
+    await act(async () => {
+      buttonByText('Create tenant').click();
+    });
+
+    expect(mocks.createTenant).not.toHaveBeenCalled();
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('Negotiated price');
+  });
+
+  it('rejects a price outside the $10–$50,000 bounds without calling the API', async () => {
+    render();
+    fillValid();
+    setValue(inputs()[5], '9.99');
+
+    await act(async () => {
+      buttonByText('Create tenant').click();
+    });
+    expect(mocks.createTenant).not.toHaveBeenCalled();
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('$10.00');
+
+    setValue(inputs()[5], '50000.01');
+    await act(async () => {
+      buttonByText('Create tenant').click();
+    });
+    expect(mocks.createTenant).not.toHaveBeenCalled();
+  });
+
+  it('rejects a price that is not a plain amount', async () => {
+    render();
+    fillValid();
+    setValue(inputs()[5], '35o');
+
+    await act(async () => {
+      buttonByText('Create tenant').click();
+    });
+
+    expect(mocks.createTenant).not.toHaveBeenCalled();
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('USD amount');
   });
 
   it('defaults to PRO / MONTHLY and lets staff pick BUSINESS / ANNUAL', async () => {
