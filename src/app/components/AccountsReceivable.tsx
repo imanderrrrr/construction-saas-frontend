@@ -236,7 +236,7 @@ export function AccountsReceivable() {
   const [payMethod, setPayMethod] = useState('Bank transfer');
   const [payRef, setPayRef] = useState('');
 
-  // V84 — edit info dialog (number / client / description / dates / notes)
+  // V88 — edit info dialog (number / client / description / dates / notes)
   const [editInvoice, setEditInvoice] = useState<Invoice | null>(null);
   const [editNumber, setEditNumber] = useState('');
   const [editClient, setEditClient] = useState('');
@@ -246,7 +246,7 @@ export function AccountsReceivable() {
   const [editNotes, setEditNotes] = useState('');
   const [editSubmitting, setEditSubmitting] = useState(false);
 
-  // V84 — delete confirm dialog
+  // V88 — delete confirm dialog
   const [deleteInvoice, setDeleteInvoice] = useState<Invoice | null>(null);
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
 
@@ -581,7 +581,7 @@ export function AccountsReceivable() {
                         : t('finance:receivable.pendingApproval.approve')}
                     </Button>
                   )}
-                  {/* V84 — a pending CO created by mistake can be removed (it never counted against the contract headroom). */}
+                  {/* V88 — a pending CO created by mistake can be removed (it never counted against the contract headroom). */}
                   <Button
                     variant="outline"
                     size="sm"
@@ -865,7 +865,7 @@ export function AccountsReceivable() {
         </div>
       )}
 
-      {/* V84 — Edit info dialog */}
+      {/* V88 — Edit info dialog */}
       <Dialog open={!!editInvoice} onOpenChange={open => { if (!open) setEditInvoice(null); }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
@@ -918,7 +918,7 @@ export function AccountsReceivable() {
         </DialogContent>
       </Dialog>
 
-      {/* V84 — Delete confirm dialog */}
+      {/* V88 — Delete confirm dialog */}
       <Dialog open={!!deleteInvoice} onOpenChange={open => { if (!open) setDeleteInvoice(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
