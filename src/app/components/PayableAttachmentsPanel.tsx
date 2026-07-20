@@ -9,9 +9,12 @@ import {
   payableAttachmentUrl, type PayableAttachmentResponse,
 } from '../services/finance';
 
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-const MAX_BYTES = 15 * 1024 * 1024; // must match the backend (15 MB)
-const MAX_COUNT = 10;
+// Shared with the create-bill dialog (AccountsPayable), which uploads its
+// queued files right after the bill is created.
+export const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+export const ALLOWED_ACCEPT = ALLOWED_TYPES.join(',');
+export const MAX_BYTES = 15 * 1024 * 1024; // must match the backend (15 MB)
+export const MAX_COUNT = 10;
 
 /**
  * Upload / view (shared Lightbox) / delete photos on an EXISTING payable.

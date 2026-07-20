@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Receipt, DollarSign, Clock, AlertTriangle,
-  ChevronDown, ChevronRight, Filter, Plus, Upload, FileText, CircleX, Trash2,
+  ChevronDown, ChevronRight, Filter, Plus, Upload, FileText, CircleX, Trash2, Pencil,
   Download,
 } from 'lucide-react';
 import { Button } from './ui/button';
@@ -17,9 +17,12 @@ import { EmptyState } from './EmptyState';
 import { toast } from 'sonner';
 import {
   listReceivables, createReceivable, recordReceivablePayment, approveChangeOrder,
+  updateReceivableInfo, deleteReceivable,
   type Receivable, type ReceivablePayment as ApiReceivablePayment, type ReceivableLineItem,
   type DocumentType,
 } from '../services/finance';
+import { ApiError } from '../lib/api';
+import { AuthService } from '../services/auth';
 import { listProjects } from '../services/projects';
 import { listClients, type ClientResponse } from '../services/clients';
 import { generateInvoicePdf, downloadInvoicePdf, type InvoicePdfData } from '../helpers/exportInvoicePdf';
@@ -158,6 +161,9 @@ function StatusBadge({ status }: { status: Invoice['status'] }) {
 // Component
 
 export function AccountsReceivable() {
+  // Approval is an ADMIN act (anti self-billing — the backend enforces it);
+  // FINANCE still sees the queue and can download the PDF or delete (reject).
+  const isAdmin = AuthService.getCanonicalRole() === 'ADMIN';
   const { t, i18n } = useTranslation(['finance', 'common']);
   const dateLocale = i18n.language === 'es' ? 'es' : 'en-US';
   // Current accounting month for the "Collected this month" KPI, formatted locale-aware (e.g. "Jun 2026" / "jun 2026")
@@ -229,6 +235,97 @@ export function AccountsReceivable() {
   const [payDate, setPayDate] = useState(businessToday());
   const [payMethod, setPayMethod] = useState('Bank transfer');
   const [payRef, setPayRef] = useState('');
+
+  // V88 — edit info dialog (number / client / description / dates / notes)
+  const [editInvoice, setEditInvoice] = useState<Invoice | null>(null);
+  const [editNumber, setEditNumber] = useState('');
+  const [editClient, setEditClient] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editIssuedDate, setEditIssuedDate] = useState('');
+  const [editDueDate, setEditDueDate] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const [editSubmitting, setEditSubmitting] = useState(false);
+
+  // V88 — delete confirm dialog
+  const [deleteInvoice, setDeleteInvoice] = useState<Invoice | null>(null);
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+
+  function openEditDialog(inv: Invoice) {
+    setEditInvoice(inv);
+    setEditNumber(inv.invoiceNumber);
+    setEditClient(inv.client);
+    setEditDescription(inv.description ?? '');
+    setEditIssuedDate(inv.issuedDate);
+    setEditDueDate(inv.dueDate);
+    setEditNotes(inv.notes ?? '');
+  }
+
+  async function submitEditInfo() {
+    if (!editInvoice) return;
+    const number = editNumber.trim();
+    const client = editClient.trim();
+    if (!number || !client) {
+      toast.error(t('finance:receivable.edit.requiredFields', 'Number and client are required'));
+      return;
+    }
+    if (editDueDate < editIssuedDate) {
+      toast.error(t('finance:invoice.validation.dueDateAfter'));
+      return;
+    }
+    // Send only what changed (partial PATCH, like the payables info edit).
+    const payload: Parameters<typeof updateReceivableInfo>[1] = {};
+    if (number !== editInvoice.invoiceNumber) payload.invoiceNumber = number;
+    if (client !== editInvoice.client) payload.client = client;
+    const desc = editDescription.trim();
+    if (desc !== (editInvoice.description ?? '')) payload.description = desc || null;
+    const notes = editNotes.trim();
+    if (notes !== (editInvoice.notes ?? '')) payload.notes = notes || null;
+    if (editIssuedDate !== editInvoice.issuedDate) payload.issuedDate = editIssuedDate;
+    if (editDueDate !== editInvoice.dueDate) payload.dueDate = editDueDate;
+    if (Object.keys(payload).length === 0) {
+      setEditInvoice(null);
+      return;
+    }
+    setEditSubmitting(true);
+    try {
+      await updateReceivableInfo(editInvoice.id, payload);
+      toast.success(t('finance:receivable.edit.updated', 'Document updated'));
+      setEditInvoice(null);
+      fetchInvoices();
+      fetchPendingApprovals();
+    } catch (err: unknown) {
+      if (err instanceof ApiError && err.code === 'DUPLICATE_INVOICE_NUMBER') {
+        toast.error(t('finance:receivable.edit.duplicate', 'That number is already in use'), { description: err.message });
+      } else {
+        const message = err instanceof Error ? err.message : undefined;
+        toast.error(t('finance:receivable.edit.failed', 'Could not update the document'), { description: message });
+      }
+    } finally {
+      setEditSubmitting(false);
+    }
+  }
+
+  async function submitDeleteReceivable() {
+    if (!deleteInvoice) return;
+    setDeleteSubmitting(true);
+    try {
+      await deleteReceivable(deleteInvoice.id);
+      toast.success(t('finance:receivable.delete.done', 'Document deleted'), { description: deleteInvoice.invoiceNumber });
+      setDeleteInvoice(null);
+      fetchInvoices();
+      fetchPendingApprovals();
+    } catch (err: unknown) {
+      if (err instanceof ApiError && err.code === 'RECEIVABLE_HAS_PAYMENTS') {
+        toast.error(t('finance:receivable.delete.hasPayments', 'A document with recorded payments cannot be deleted'), { description: err.message });
+      } else {
+        const message = err instanceof Error ? err.message : undefined;
+        toast.error(t('finance:receivable.delete.failed', 'Could not delete the document'), { description: message });
+      }
+      setDeleteInvoice(null);
+    } finally {
+      setDeleteSubmitting(false);
+    }
+  }
 
   // Create invoice dialog
   const [showCreate, setShowCreate] = useState(false);
@@ -473,14 +570,27 @@ export function AccountsReceivable() {
                     <Download className="w-3.5 h-3.5" />
                     {t('finance:receivable.downloadPdf')}
                   </Button>
+                  {isAdmin && (
+                    <Button
+                      onClick={() => handleApproveChangeOrder(inv)}
+                      disabled={approving === inv.id}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8 px-3"
+                    >
+                      {approving === inv.id
+                        ? t('common:buttons.approving')
+                        : t('finance:receivable.pendingApproval.approve')}
+                    </Button>
+                  )}
+                  {/* V88 — a pending CO created by mistake can be removed (it never counted against the contract headroom). */}
                   <Button
-                    onClick={() => handleApproveChangeOrder(inv)}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDeleteInvoice(inv)}
                     disabled={approving === inv.id}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8 px-3"
+                    className="h-8 text-xs border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 gap-1.5"
                   >
-                    {approving === inv.id
-                      ? t('common:buttons.approving')
-                      : t('finance:receivable.pendingApproval.approve')}
+                    <Trash2 className="w-3.5 h-3.5" />
+                    {t('finance:receivable.delete.action', 'Delete')}
                   </Button>
                 </div>
               </div>
@@ -617,6 +727,22 @@ export function AccountsReceivable() {
                           >
                             <Download className="w-3.5 h-3.5" />
                           </button>
+                          <button
+                            onClick={() => openEditDialog(inv)}
+                            className="h-7 w-7 flex items-center justify-center rounded-md border border-[#D4D4D8] text-[#71717A] hover:text-[#0A0A0A] hover:border-purple-300 transition-colors"
+                            title={t('finance:receivable.edit.action', 'Edit info')}
+                            aria-label={t('finance:receivable.edit.action', 'Edit info')}
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setDeleteInvoice(inv)}
+                            className="h-7 w-7 flex items-center justify-center rounded-md border border-red-200 text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+                            title={t('finance:receivable.delete.action', 'Delete')}
+                            aria-label={t('finance:receivable.delete.action', 'Delete')}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </td>
                     </tr>,
@@ -738,6 +864,91 @@ export function AccountsReceivable() {
           </div>
         </div>
       )}
+
+      {/* V88 — Edit info dialog */}
+      <Dialog open={!!editInvoice} onOpenChange={open => { if (!open) setEditInvoice(null); }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {t('finance:receivable.edit.title', 'Edit document')} — <span className="font-mono">{editInvoice?.invoiceNumber}</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('finance:receivable.dialog.invoiceNo')}</label>
+                <input type="text" value={editNumber} onChange={e => setEditNumber(e.target.value)}
+                  className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 font-mono text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('finance:receivable.dialog.client')}</label>
+                <input type="text" value={editClient} onChange={e => setEditClient(e.target.value)}
+                  className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('finance:receivable.dialog.issueDate')}</label>
+                <input type="date" value={editIssuedDate} onChange={e => setEditIssuedDate(e.target.value)}
+                  className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('finance:receivable.dialog.dueDate')}</label>
+                <input type="date" value={editDueDate} onChange={e => setEditDueDate(e.target.value)}
+                  className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
+              </div>
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('finance:receivable.dialog.description')}</label>
+              <input type="text" value={editDescription} onChange={e => setEditDescription(e.target.value)}
+                className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('finance:receivable.dialog.notes')}</label>
+              <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} rows={2}
+                className="w-full rounded-md border border-[#D4D4D8] px-3 py-2 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none" />
+            </div>
+            <p className="text-[11px] text-[#71717A]">{t('finance:receivable.edit.amountsHint', 'Amounts are not editable: delete the document and create it again while it has no payments.')}</p>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditInvoice(null)}>{t('common:buttons.cancel')}</Button>
+            <Button onClick={submitEditInfo} disabled={editSubmitting}
+              className="bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-50">
+              {t('common:buttons.save', 'Save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* V88 — Delete confirm dialog */}
+      <Dialog open={!!deleteInvoice} onOpenChange={open => { if (!open) setDeleteInvoice(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-red-600">
+              {t('finance:receivable.delete.title', 'Delete document')} — <span className="font-mono">{deleteInvoice?.invoiceNumber}</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 py-1 text-sm text-[#0A0A0A]">
+            <p>{t('finance:receivable.delete.confirmText', 'The document will disappear from accounts receivable. This cannot be undone from the app.')}</p>
+            {deleteInvoice?.documentType === 'CHANGE_ORDER_REQUEST' && deleteInvoice.status !== 'pending_approval' && (
+              <p className="text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 text-xs">
+                {t('finance:receivable.delete.coHeadroomNote', 'This approved change order occupies contract headroom; deleting it frees that headroom.')}
+              </p>
+            )}
+            {deleteInvoice?.documentType === 'CHANGE_ORDER_REQUEST' && deleteInvoice.status === 'pending_approval' && (
+              <p className="text-[#71717A] text-xs">
+                {t('finance:receivable.delete.coPendingNote', 'This request has not been approved — deleting it acts as a rejection and never counted against the contract.')}
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleteInvoice(null)}>{t('common:buttons.cancel')}</Button>
+            <Button onClick={submitDeleteReceivable} disabled={deleteSubmitting}
+              className="bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 gap-1.5">
+              <Trash2 className="w-3.5 h-3.5" />
+              {t('finance:receivable.delete.action', 'Delete')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Register Payment Dialog */}
       <Dialog open={!!payInvoice} onOpenChange={open => { if (!open) setPayInvoice(null); }}>

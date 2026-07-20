@@ -360,3 +360,32 @@ export function approveChangeOrder(id: number): Promise<Receivable> {
     method: 'POST',
   });
 }
+
+/**
+ * V88 — edit an AR document's info: invoice/CO number, client, description,
+ * dates, notes. Partial: omit a field to leave it unchanged. The number stays
+ * unique among the tenant's active documents. Amounts are not editable —
+ * delete and re-create while the document has no payments.
+ */
+export function updateReceivableInfo(id: number, data: {
+  invoiceNumber?: string;
+  client?: string;
+  description?: string | null;
+  issuedDate?: string;
+  dueDate?: string;
+  notes?: string | null;
+}): Promise<Receivable> {
+  return api<Receivable>(`${RECEIVABLES}/${id}/info`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * V88 — soft-delete an AR document. Blocked (409 RECEIVABLE_HAS_PAYMENTS)
+ * while it has recorded payments. A deleted approved change order frees the
+ * contract headroom it occupied.
+ */
+export function deleteReceivable(id: number): Promise<void> {
+  return api<void>(`${RECEIVABLES}/${id}`, { method: 'DELETE' });
+}

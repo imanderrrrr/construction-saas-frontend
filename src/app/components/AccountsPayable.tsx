@@ -19,8 +19,9 @@ import {
   listPayables, createPayable, recordPayablePayment, listPayableVendors,
   updatePayableAmount, markPayableUnpaid, voidPayablePayment, updatePayablePayment,
   convertPayableToInvoice, updatePayableDates, updatePayableInfo, deletePayable, reassignPayableProject,
-  getPayable, type Payable,
+  getPayable, uploadPayableAttachment, type Payable,
 } from '../services/finance';
+import { ALLOWED_TYPES, ALLOWED_ACCEPT, MAX_BYTES, MAX_COUNT } from './PayableAttachmentsPanel';
 import { listProjects } from '../services/projects';
 import { ApiError } from '../lib/api';
 import { AuthService } from '../services/auth';
@@ -562,6 +563,30 @@ export function AccountsPayable() {
     setShowCreate(true);
   }
 
+  // Files queued in the create dialog: validate on add (same rules as the
+  // attachments panel — images only, 15 MB, 10 max) so nothing is silently
+  // dropped at submit time.
+  function addCreateFiles(files: File[]) {
+    if (!files.length) return;
+    const accepted: File[] = [];
+    for (const f of files) {
+      if (!ALLOWED_TYPES.includes(f.type)) {
+        toast.error(t('payable.attachments.typeNotAllowed', { name: f.name }));
+        continue;
+      }
+      if (f.size > MAX_BYTES) {
+        toast.error(t('payable.attachments.tooLarge', { name: f.name }));
+        continue;
+      }
+      accepted.push(f);
+    }
+    if (newFiles.length + accepted.length > MAX_COUNT) {
+      toast.error(t('payable.attachments.tooMany', { max: MAX_COUNT }));
+      return;
+    }
+    if (accepted.length) setNewFiles(prev => [...prev, ...accepted]);
+  }
+
   async function submitCreate() {
     const vendor = newVendor === 'Other' ? newVendorOther.trim() : newVendor;
     const amt = parseFloat(newAmount);
@@ -574,6 +599,7 @@ export function AccountsPayable() {
       toast.error(t('payable.validation.dueDateAfter'));
       return;
     }
+    setSubmitting(true);
     try {
       const created = await createPayable({
         billNumber: newBillNumber || undefined,
@@ -586,12 +612,32 @@ export function AccountsPayable() {
         amount: amt,
         notes: newCreateNotes.trim() || undefined,
       });
+      // Upload the queued photos right after the bill exists (the dropzone used
+      // to discard them silently). The bill is already created, so a failed
+      // photo must not roll anything back — report it and let the user retry
+      // from the detail view.
+      const failed: string[] = [];
+      for (const f of newFiles) {
+        try {
+          await uploadPayableAttachment(created.id, f);
+        } catch {
+          failed.push(f.name);
+        }
+      }
       setBills(prev => [toVendorBill(created), ...prev]);
       toast.success(t('payable.toast.billRegistered', { bill: created.billNumber }));
+      if (failed.length > 0) {
+        toast.warning(t('payable.dialog.filesUploadFailed', { count: failed.length }), {
+          description: failed.join(', '),
+          duration: 10000,
+        });
+      }
       setShowCreate(false);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : undefined;
       toast.error(t('payable.toast.createFailed'), { description: message });
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -1035,17 +1081,15 @@ export function AccountsPayable() {
                 onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
                 onDrop={e => {
                   e.preventDefault(); e.stopPropagation();
-                  const dropped = Array.from(e.dataTransfer.files);
-                  if (dropped.length) setNewFiles(prev => [...prev, ...dropped]);
+                  addCreateFiles(Array.from(e.dataTransfer.files));
                 }}
               >
                 <Upload className="w-5 h-5 text-[#71717A]" />
                 <span className="text-xs text-[#71717A]">{t('payable.dialog.dropFiles')}</span>
                 <span className="text-[10px] text-[#D4D4D8]">{t('payable.dialog.fileFormats')}</span>
-                <input type="file" multiple className="hidden" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx"
+                <input type="file" multiple className="hidden" accept={ALLOWED_ACCEPT}
                   onChange={e => {
-                    const files = Array.from(e.target.files ?? []);
-                    if (files.length) setNewFiles(prev => [...prev, ...files]);
+                    addCreateFiles(Array.from(e.target.files ?? []));
                     e.target.value = '';
                   }} />
               </label>
@@ -1070,7 +1114,7 @@ export function AccountsPayable() {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setShowCreate(false)}>{t('buttons.cancel', { ns: 'common' })}</Button>
-            <Button onClick={submitCreate} className="bg-purple-600 hover:bg-purple-700 text-white">{t('payable.dialog.submit')}</Button>
+            <Button onClick={submitCreate} disabled={submitting} className="bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-50">{t('payable.dialog.submit')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

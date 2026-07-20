@@ -2,11 +2,12 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Wallet, DollarSign, TrendingDown, Percent, Plus,
-  Pencil, Clock, Lock, MoreHorizontal,
+  Pencil, Clock, Lock, MoreHorizontal, Trash2,
   AlertTriangle, AlertCircle, XCircle,
   Loader2, ArrowLeft, Receipt, Users,
   CreditCard, PieChart,
 } from 'lucide-react';
+import { DeleteProjectModal } from './projects/DeleteProjectModal';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -253,12 +254,13 @@ function MiniDonut({ segments, size = 80 }: { segments: DonutSegment[]; size?: n
 
 // ── Project Bento Card ─────────────────────────────────
 
-function BudgetCard({ budget, onSelect, onEdit, onHistory, onClose }: {
+function BudgetCard({ budget, onSelect, onEdit, onHistory, onClose, onDelete }: {
   budget: Budget;
   onSelect: () => void;
   onEdit: () => void;
   onHistory: () => void;
   onClose: () => void;
+  onDelete: () => void;
 }) {
   const { t } = useTranslation(['admin', 'common']);
   const alertCfg = getAlertConfig(budget.alertLevel);
@@ -332,6 +334,15 @@ function BudgetCard({ budget, onSelect, onEdit, onHistory, onClose }: {
                 </DropdownMenuItem>
               </>
             )}
+            {/* Pilot-client request (ported from OFJR): delete a project (its
+                budget) from the Budgets screen. Same guarded flow as the
+                Projects screen — the backend refuses while any financial or
+                operational history exists. */}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onDelete}
+              className="gap-2 text-sm cursor-pointer text-[#d4183d] focus:text-[#d4183d]">
+              <Trash2 className="w-4 h-4" />{t('admin:projectMgmt.deleteProject')}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -708,6 +719,10 @@ export function BudgetManagement() {
   }, [t]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Delete a project (its budget) straight from this screen — reuses the
+  // guarded type-the-name modal from the Projects screen.
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
 
   // Derived KPIs
   const totalAssigned = useMemo(() => budgets.reduce((s, b) => s + b.totalBudget, 0), [budgets]);
@@ -1205,6 +1220,7 @@ export function BudgetManagement() {
                 onEdit={() => openEdit(budget)}
                 onHistory={() => openHistory(budget)}
                 onClose={() => openClose(budget)}
+                onDelete={() => setDeleteTarget({ id: budget.projectId, name: budget.project })}
               />
             ))}
           </div>
@@ -1212,6 +1228,17 @@ export function BudgetManagement() {
       )}
 
       {renderModals()}
+
+      <DeleteProjectModal
+        project={deleteTarget}
+        open={deleteTarget != null}
+        onClose={() => setDeleteTarget(null)}
+        onDeleted={deletedId => {
+          setDeleteTarget(null);
+          setSelectedBudget(prev => (prev && prev.projectId === deletedId ? null : prev));
+          fetchData();
+        }}
+      />
     </div>
   );
 }
