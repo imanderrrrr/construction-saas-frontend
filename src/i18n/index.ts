@@ -16,12 +16,15 @@ import enDashboard from './locales/en/dashboard.json';
 import enWorker from './locales/en/worker.json';
 import enSupervisor from './locales/en/supervisor.json';
 import enSubcontractors from './locales/en/subcontractors.json';
-import enPricing from './locales/en/pricing.json';
 import enLanding from './locales/en/landing.json';
 import enBilling from './locales/en/billing.json';
 import enSiteLog from './locales/en/siteLog.json';
 import enClientView from './locales/en/clientView.json';
 import enPunchList from './locales/en/punchList.json';
+import enRfi from './locales/en/rfi.json';
+import enDocs from './locales/en/docs.json';
+import enStatus from './locales/en/status.json';
+import enPay from './locales/en/pay.json';
 
 // Spanish
 import esCommon from './locales/es/common.json';
@@ -37,14 +40,17 @@ import esDashboard from './locales/es/dashboard.json';
 import esWorker from './locales/es/worker.json';
 import esSupervisor from './locales/es/supervisor.json';
 import esSubcontractors from './locales/es/subcontractors.json';
-import esPricing from './locales/es/pricing.json';
 import esLanding from './locales/es/landing.json';
 import esBilling from './locales/es/billing.json';
 import esSiteLog from './locales/es/siteLog.json';
 import esClientView from './locales/es/clientView.json';
 import esPunchList from './locales/es/punchList.json';
+import esRfi from './locales/es/rfi.json';
+import esDocs from './locales/es/docs.json';
+import esStatus from './locales/es/status.json';
+import esPay from './locales/es/pay.json';
 
-const ns = ['common', 'auth', 'admin', 'expenses', 'finance', 'projects', 'time', 'inventory', 'users', 'dashboard', 'worker', 'supervisor', 'subcontractors', 'pricing', 'landing', 'billing', 'siteLog', 'clientView', 'punchList'] as const;
+const ns = ['common', 'auth', 'admin', 'expenses', 'finance', 'projects', 'time', 'inventory', 'users', 'dashboard', 'worker', 'supervisor', 'subcontractors', 'landing', 'billing', 'siteLog', 'clientView', 'punchList', 'rfi', 'docs', 'status', 'pay'] as const;
 
 i18n
   .use(LanguageDetector)
@@ -65,12 +71,15 @@ i18n
         worker: enWorker,
         supervisor: enSupervisor,
         subcontractors: enSubcontractors,
-        pricing: enPricing,
         landing: enLanding,
         billing: enBilling,
         siteLog: enSiteLog,
         clientView: enClientView,
         punchList: enPunchList,
+        rfi: enRfi,
+        docs: enDocs,
+        status: enStatus,
+        pay: enPay,
       },
       es: {
         common: esCommon,
@@ -86,12 +95,15 @@ i18n
         worker: esWorker,
         supervisor: esSupervisor,
         subcontractors: esSubcontractors,
-        pricing: esPricing,
         landing: esLanding,
         billing: esBilling,
         siteLog: esSiteLog,
         clientView: esClientView,
         punchList: esPunchList,
+        rfi: esRfi,
+        docs: esDocs,
+        status: esStatus,
+        pay: esPay,
       },
     },
     fallbackLng: 'es',

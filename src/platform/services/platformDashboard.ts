@@ -1,10 +1,15 @@
 import { platformApi } from '../lib/platformApi';
 import type {
+  CreateTenantRequest,
+  CreateTenantResponse,
   FleetOverview,
   Page,
   PlatformAuditEntry,
+  PlatformCheckoutLinkResponse,
   PlatformMe,
+  RecordPaymentRequest,
   TenantDetail,
+  TenantPayments,
   TenantSummary,
   TenantUserSummary,
 } from '../types';
@@ -25,6 +30,36 @@ export async function getTenant(id: number): Promise<TenantDetail> {
   return platformApi<TenantDetail>(`/platform/tenants/${id}`);
 }
 
+/**
+ * Provision a customer workspace: tenant + admin + a billing row carrying the
+ * plan (PADDLE mints a checkout link at the negotiated price and leaves the
+ * tenant pending; MANUAL grants an ACTIVE out-of-band account), then the
+ * backend emails the admin a set-your-password link. OWNER / SUPPORT only.
+ *
+ * `planCode` / `billingInterval` / `billingProvider` are sent explicitly
+ * rather than relying on the backend defaults, because the form always has a
+ * value for them — the defaults exist for API callers, not for this UI.
+ */
+export async function createTenant(request: CreateTenantRequest): Promise<CreateTenantResponse> {
+  return platformApi<CreateTenantResponse>('/platform/tenants', {
+    method: 'POST',
+    body: request,
+  });
+}
+
+/**
+ * Mint a fresh Paddle checkout link at the account's negotiated price. The
+ * backend supersedes any previous link, emails the new one to the tenant's
+ * admin, re-arms the 7-day pending-suspension window, and returns the link
+ * for staff to copy. OWNER / SUPPORT only; 409 unless the account is a
+ * PADDLE one still awaiting its first payment.
+ */
+export async function issueCheckoutLink(id: number): Promise<PlatformCheckoutLinkResponse> {
+  return platformApi<PlatformCheckoutLinkResponse>(`/platform/tenants/${id}/billing/checkout-link`, {
+    method: 'POST',
+  });
+}
+
 export async function listTenantUsers(
   id: number,
   page = 0,
@@ -43,6 +78,31 @@ export async function getTenantAudit(
   return platformApi<Page<PlatformAuditEntry>>(
     `/platform/tenants/${id}/audit?page=${page}&size=${size}`,
   );
+}
+
+/**
+ * Billing summary + manual payment history for the tenant-detail Payments
+ * panel. OWNER / BILLING only. Returns the whole panel in one round-trip.
+ */
+export async function getTenantPayments(id: number): Promise<TenantPayments> {
+  return platformApi<TenantPayments>(`/platform/tenants/${id}/payments`);
+}
+
+/**
+ * Record an out-of-band payment (wire/Wise/PayPal/transfer — never Paddle),
+ * which also sets `current_period_ends_at = coversUntil` and reactivates the
+ * account to ACTIVE. OWNER / BILLING only. Returns the updated panel (new
+ * status + period + history) so the caller can re-render without a refetch.
+ * Rejected with 409 BILLING_ACCOUNT_NOT_MANUAL for a Paddle account.
+ */
+export async function recordTenantPayment(
+  id: number,
+  body: RecordPaymentRequest,
+): Promise<TenantPayments> {
+  return platformApi<TenantPayments>(`/platform/tenants/${id}/payments`, {
+    method: 'POST',
+    body,
+  });
 }
 
 export async function suspendTenant(id: number, reason: string): Promise<TenantSummary> {

@@ -4,12 +4,13 @@
 import React from 'react';
 import { createBrowserRouter, Navigate } from 'react-router';
 import { Landing }             from './pages/Landing';
-import { ChoosePlan }          from './pages/landing/ChoosePlan';
+import { Docs }                from './pages/Docs';
+import { Status }              from './pages/Status';
 import { Login }               from './pages/Login';
-import { Signup }              from './pages/Signup';
 import { AcceptInvite }        from './pages/AcceptInvite';
 import { ForgotPassword }      from './pages/ForgotPassword';
 import { ResetPassword }       from './pages/ResetPassword';
+import { Pay }                 from './pages/Pay';
 import { PrivacyPolicy }       from './pages/PrivacyPolicy';
 import { TermsOfService }      from './pages/TermsOfService';
 import { Support }             from './pages/Support';
@@ -22,8 +23,6 @@ import { FinanceDashboard }    from './pages/FinanceDashboard';
 import { WarehouseDashboard }  from './pages/WarehouseDashboard';
 import { SubcontractorWebInfo } from './pages/SubcontractorWebInfo';
 import { BillingPage }         from './pages/admin/BillingPage';
-import { CheckoutSuccess }     from './pages/CheckoutSuccess';
-import { CheckoutCancel }      from './pages/CheckoutCancel';
 import { ClientView }          from './pages/ClientView';
 import { AuthService }         from './services/auth';
 import { BillingGuard }        from './components/BillingGuard';
@@ -33,9 +32,11 @@ import { CanonicalRole, ROLE_DASHBOARD_ROUTES } from './types';
 // separate context, separate shell. Lives at /platform/<...>.
 import { PlatformAuthProvider } from '../platform/context/PlatformAuthContext';
 import { ProtectedPlatformRoute } from '../platform/components/ProtectedPlatformRoute';
+import { PlatformShell } from '../platform/components/PlatformShell';
 import { PlatformLogin } from '../platform/pages/PlatformLogin';
 import { PlatformOverview } from '../platform/pages/PlatformOverview';
 import { PlatformTenants } from '../platform/pages/PlatformTenants';
+import { PlatformTenantCreate } from '../platform/pages/PlatformTenantCreate';
 import { PlatformTenantDetailPage } from '../platform/pages/PlatformTenantDetail';
 import { PlatformAudit } from '../platform/pages/PlatformAudit';
 
@@ -76,10 +77,20 @@ export const routes = [
 
   // Public
   { path: '/',                       element: <Landing /> },
+  // Public marketing site alongside the landing — linked from its nav/footer.
+  { path: '/docs',                   element: <Docs /> },
+  { path: '/status',                 element: <Status /> },
   { path: '/login',                  element: <Login /> },
-  { path: '/choose-plan',            element: <ChoosePlan /> },
-  { path: '/signup',                 element: <Signup /> },
+  // No public self-serve signup: accounts are provisioned by us after the
+  // customer asks for one on the demo call, so there is no /signup and no
+  // plan chooser on the public site.
   { path: '/accept-invite/:token',   element: <AcceptInvite /> },
+  // Paddle default-payment-link target — NOT a signup. The backend mints a
+  // checkout for a console-provisioned tenant and Paddle builds the emailed
+  // URL as this page + `?_ptxn=<transaction>`; Paddle.js reads the param and
+  // opens its overlay. Session-free on purpose (the payer has no password
+  // yet) and it never mutates billing state — activation is webhook-driven.
+  { path: '/pay',                    element: <Pay /> },
   // Client portal — public read-only site-log view. Auth is the signed token
   // in the URL (exchanged in-page), NOT a user session: no guards on purpose.
   { path: '/client-view/:token',     element: <ClientView /> },
@@ -91,13 +102,6 @@ export const routes = [
   { path: '/terms',         element: <TermsOfService /> },
   { path: '/support',       element: <Support /> },
   { path: '/dashboard',    element: <ProtectedRoute><BillingGuard><RoleRedirect /></BillingGuard></ProtectedRoute> },
-
-  // Paddle return pages — public on purpose. Activation lives on the
-  // backend webhook, NOT on these pages, so they need no auth and never
-  // mutate state. They MUST stay outside BillingGuard so the user can
-  // land here right after checkout while billingStatus is still pending.
-  { path: '/checkout/success', element: <CheckoutSuccess /> },
-  { path: '/checkout/cancel',  element: <CheckoutCancel /> },
 
   // ADMIN
   {
@@ -111,8 +115,8 @@ export const routes = [
     ),
   },
   // Admin time-approvals is a section inside AdminDashboard (no separate route needed)
-  // Billing page is deliberately OUTSIDE BillingGuard — it's the activation
-  // surface that admins are sent to when their tenant is locked.
+  // Billing page is deliberately OUTSIDE BillingGuard — it's where admins
+  // land when their tenant is locked, so it has to render while blocked.
   {
     path: '/admin/billing',
     element: (
@@ -241,7 +245,9 @@ export const routes = [
   // ── Platform (super-admin) console ──────────────────────────
   // Separate auth (Bearer + TOTP MFA) from the tenant cookie flow.
   // Wrapped in PlatformAuthProvider so all sub-routes share one
-  // session context.
+  // session context. The authenticated pages hang off one layout
+  // route: PlatformShell renders the chrome once and cross-fades
+  // page changes through its router outlet.
   {
     path: '/platform/login',
     element: (
@@ -254,49 +260,19 @@ export const routes = [
     path: '/platform',
     element: (
       <PlatformAuthProvider>
-        <Navigate to="/platform/overview" replace />
-      </PlatformAuthProvider>
-    ),
-  },
-  {
-    path: '/platform/overview',
-    element: (
-      <PlatformAuthProvider>
         <ProtectedPlatformRoute>
-          <PlatformOverview />
+          <PlatformShell />
         </ProtectedPlatformRoute>
       </PlatformAuthProvider>
     ),
-  },
-  {
-    path: '/platform/tenants',
-    element: (
-      <PlatformAuthProvider>
-        <ProtectedPlatformRoute>
-          <PlatformTenants />
-        </ProtectedPlatformRoute>
-      </PlatformAuthProvider>
-    ),
-  },
-  {
-    path: '/platform/tenants/:id',
-    element: (
-      <PlatformAuthProvider>
-        <ProtectedPlatformRoute>
-          <PlatformTenantDetailPage />
-        </ProtectedPlatformRoute>
-      </PlatformAuthProvider>
-    ),
-  },
-  {
-    path: '/platform/audit',
-    element: (
-      <PlatformAuthProvider>
-        <ProtectedPlatformRoute>
-          <PlatformAudit />
-        </ProtectedPlatformRoute>
-      </PlatformAuthProvider>
-    ),
+    children: [
+      { index: true, element: <Navigate to="/platform/overview" replace /> },
+      { path: 'overview', element: <PlatformOverview /> },
+      { path: 'tenants', element: <PlatformTenants /> },
+      { path: 'tenants/new', element: <PlatformTenantCreate /> },
+      { path: 'tenants/:id', element: <PlatformTenantDetailPage /> },
+      { path: 'audit', element: <PlatformAudit /> },
+    ],
   },
 
   // Catch-all

@@ -5,7 +5,17 @@ import { readPlatformSession, clearPlatformSession } from './platformAuthStorage
 // we keep the platform fetch wrapper separate to avoid an `if (platform)`
 // branch on every call.
 
-const BASE_URL = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_URL ?? '');
+// The platform console runs on the Vercel SPA origin, but its API lives on the
+// Render backend at /platform/*. Unlike the tenant app (relative /api/* URLs that
+// vercel.json proxies to the backend), the platform paths can't ride that rewrite:
+// /platform/* both collides with this SPA's own /platform/* page routes AND isn't
+// matched by the /api/* rewrite — so a relative URL in prod hits Vercel's static
+// host and 405s. We therefore call the backend origin directly. Platform auth is
+// bearer-only (no cookies), and the backend already returns CORS
+// Access-Control-Allow-Origin for the kappa origin on /platform/*, so cross-origin
+// is safe. Keep this host in sync with the /api rewrite target in vercel.json.
+const PROD_API_ORIGIN = 'https://construction-saas-backend-b00g.onrender.com';
+const BASE_URL = import.meta.env.PROD ? PROD_API_ORIGIN : (import.meta.env.VITE_API_URL ?? '');
 
 export interface PlatformApiError extends Error {
   status: number;

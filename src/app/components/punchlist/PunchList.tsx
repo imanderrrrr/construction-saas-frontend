@@ -99,8 +99,11 @@ export function PunchList({ projects }: { projects: PunchProject[] }) {
     void load();
   }, [load]);
 
+  // Handles both timestamps (createdAt) and date-only strings (dueDate).
+  // Date-only must parse as LOCAL midnight: new Date('YYYY-MM-DD') is UTC
+  // midnight, which renders as the previous day west of Greenwich (UTC-6).
   const fmtDate = (iso: string): string =>
-    new Date(iso).toLocaleDateString(
+    (iso.includes('T') ? new Date(iso) : new Date(`${iso}T00:00:00`)).toLocaleDateString(
       i18n.language.startsWith('en') ? 'en-US' : 'es',
       { day: 'numeric', month: 'short', year: 'numeric' },
     );

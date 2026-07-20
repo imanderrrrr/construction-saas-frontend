@@ -9,6 +9,7 @@ import {
   Clock, Receipt, Users, Bell, Activity,
   Building2, Loader2, Inbox, CheckCheck, Mail, MailOpen,
   MapPin, ChevronRight, AlertCircle, RefreshCw, NotebookPen, ClipboardList,
+  HelpCircle,
 } from 'lucide-react';
 import { AppShell, AppShellNavItem } from '../components/AppShell';
 import { AuthService } from '../services/auth';
@@ -43,6 +44,9 @@ const SupervisorSiteLog = lazy(() =>
 const SupervisorPunchList = lazy(() =>
   import('../components/punchlist/SupervisorPunchListSection').then(m => ({ default: m.SupervisorPunchListSection }))
 );
+const SupervisorRfi = lazy(() =>
+  import('../components/rfi/SupervisorRfiSection').then(m => ({ default: m.SupervisorRfiSection }))
+);
 // Supervisors are hourly field staff too: they punch their own time through
 // the same worker component/endpoints (backend already authorizes SUPERVISOR
 // on /api/v1/worker/**). Their records are approvable only by admins.
@@ -52,7 +56,7 @@ const WorkerTime = lazy(() =>
 
 // ——— Types & config ——————————————————————————————————————————————————
 
-type Section = 'dashboard' | 'projects' | 'task-board' | 'site-log' | 'punch-list' | 'my-time' | 'time-approvals' | 'expense-reviews' | 'team-tools';
+type Section = 'dashboard' | 'projects' | 'task-board' | 'site-log' | 'punch-list' | 'rfi' | 'my-time' | 'time-approvals' | 'expense-reviews' | 'team-tools';
 
 const SECTION_META_KEYS: Record<Section, { titleKey: string; subtitleKey: string }> = {
   'dashboard':       { titleKey: 'supervisor:section.dashboard.title',       subtitleKey: 'supervisor:section.dashboard.subtitle'       },
@@ -60,6 +64,7 @@ const SECTION_META_KEYS: Record<Section, { titleKey: string; subtitleKey: string
   'task-board':      { titleKey: 'supervisor:section.taskBoard.title',       subtitleKey: 'supervisor:section.taskBoard.subtitle'       },
   'site-log':        { titleKey: 'siteLog:section.title',                    subtitleKey: 'siteLog:section.subtitle'                    },
   'punch-list':      { titleKey: 'punchList:internal.title',                  subtitleKey: 'punchList:internal.subtitle'                 },
+  'rfi':             { titleKey: 'rfi:internal.title',                        subtitleKey: 'rfi:internal.subtitle'                       },
   'my-time':         { titleKey: 'supervisor:section.myTime.title',          subtitleKey: 'supervisor:section.myTime.subtitle'          },
   'time-approvals':  { titleKey: 'supervisor:section.timeApprovals.title',   subtitleKey: 'supervisor:section.timeApprovals.subtitle'   },
   'expense-reviews': { titleKey: 'supervisor:section.expenseReviews.title',  subtitleKey: 'supervisor:section.expenseReviews.subtitle'  },
@@ -86,7 +91,7 @@ function SectionSpinner() {
 
 export function SupervisorDashboard() {
   const navigate = useNavigate();
-  const { t } = useTranslation(['supervisor', 'common', 'siteLog', 'punchList']);
+  const { t } = useTranslation(['supervisor', 'common', 'siteLog', 'punchList', 'rfi']);
   const username = AuthService.getUsername() ?? 'supervisor1';
   const [active, setActive] = useState<Section>('dashboard');
   // Bitácora de obra is gated behind the `bitacora` plan feature — hide its nav
@@ -105,6 +110,8 @@ export function SupervisorDashboard() {
       items.push({ key: 'site-log', label: t('siteLog:nav.bitacora'), icon: NotebookPen, group: 'general' });
       // Punch list rides the same plan feature as the client portal (D8).
       items.push({ key: 'punch-list', label: t('punchList:internal.title'), icon: ClipboardList, group: 'general' });
+      // RFIs live on the same portal → same plan feature.
+      items.push({ key: 'rfi', label: t('rfi:internal.title'), icon: HelpCircle, group: 'general' });
     }
     items.push(
       { key: 'my-time',         label: t('supervisor:nav.myTime'),          icon: Clock,           group: 'time'     },
@@ -144,6 +151,7 @@ export function SupervisorDashboard() {
           {active === 'task-board'      && <SupervisorTaskBoard />}
           {active === 'site-log'        && siteLogEnabled && <SupervisorSiteLog />}
           {active === 'punch-list'      && siteLogEnabled && <SupervisorPunchList />}
+          {active === 'rfi'             && siteLogEnabled && <SupervisorRfi />}
           {active === 'my-time'         && <WorkerTime username={username} />}
           {active === 'time-approvals'  && <SupervisorApprovals mode="supervisor" />}
           {active === 'expense-reviews' && <ExpenseReviews />}
@@ -162,7 +170,7 @@ export function SupervisorDashboard() {
 // ——— SupervisorDashboardContent ———————————————————————————————————————
 
 function SupervisorDashboardContent({ username, onNavigate }: { username: string; onNavigate: (s: string) => void }) {
-  const { t } = useTranslation(['supervisor', 'common', 'siteLog', 'punchList']);
+  const { t } = useTranslation(['supervisor', 'common', 'siteLog', 'punchList', 'rfi']);
 
   // Out-of-range alerts (live data)
   const [oorAlerts, setOorAlerts] = useState<OutOfRangeAlertResponse[]>([]);

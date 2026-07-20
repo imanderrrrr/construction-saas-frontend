@@ -1,593 +1,662 @@
-import { useState, type ComponentType, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import {
-  HardHat,
-  ArrowRight,
-  ShieldCheck,
-  Zap,
-  Globe,
-  WifiOff,
-  FolderKanban,
-  Timer,
-  Wallet,
-  Smartphone,
-  Package,
-  Star,
-  Menu,
-  X,
-  FlaskConical,
-  Bug,
-  MessageSquareText,
-  BadgeDollarSign,
-  Headset,
-  Mail,
-} from 'lucide-react';
 
-import { Button } from '../components/ui/button';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
-import { Pricing } from './landing/Pricing';
-import { BETA_CONTACT_EMAIL } from '../components/landing/BetaPlanCard';
-import { AppSection } from '../components/landing/AppSection';
-import { BlueprintGridSection } from '../components/landing/BlueprintGrid';
-import { ProductWindow } from '../components/landing/ProductWindow';
+import { BlueprintGrid } from '../components/landing/BlueprintGrid';
+import { BuildTrackLogo } from '../components/landing/BuildTrackLogo';
+import { DemoVideos } from '../components/landing/DemoVideos';
+import { PhoneMock } from '../components/landing/PhoneMock';
+import { DashboardSheet, PayablesSheet, DailyLogSheet } from '../components/landing/PlatformSheets';
+import { BETA_EMAIL, DEMO_EMAIL, mailtoWithSubject } from '../components/landing/contact';
+import { usePublicPageTitle } from '../hooks/usePublicPageTitle';
 
-type IconType = ComponentType<{ className?: string }>;
+/**
+ * The public landing page.
+ *
+ * Ported from the approved Claude Design project "BuildTrack para
+ * constructoras" (sheet: BuildTrack Landing v2), which draws the site as a set
+ * of construction drawings: blueprint grid, sheet numbers, title blocks.
+ *
+ * No prices anywhere, by design — the primary CTA books a live demo and the
+ * secondary joins the free 2-month beta, both by email. Nothing on this page
+ * links into the /choose-plan billing flow.
+ */
 
-// Brand wordmark
-function BuildTrackLogo({ className = '' }: { className?: string }) {
-  return (
-    <span className={`inline-flex items-center gap-2 font-bold tracking-tight ${className}`}>
-      <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#F97316] text-white">
-        <HardHat className="h-5 w-5" />
-      </span>
-      <span>
-        Build<span className="text-[#F97316]">Track</span>
-      </span>
-    </span>
-  );
-}
-
-// Bento module cards
-function ModCard({ icon: Icon, title, body }: { icon: IconType; title: string; body: string }) {
-  return (
-    <div className="rounded-2xl border border-[#D4D4D8] bg-white p-6 transition-colors duration-200 hover:border-[#F97316]">
-      <div className="mb-3.5 flex h-11 w-11 items-center justify-center rounded-xl bg-[#F97316]/10">
-        <Icon className="h-5 w-5 text-[#F97316]" />
-      </div>
-      <h3 className="text-[17px] font-bold text-[#0A0A0A]">{title}</h3>
-      <p className="mt-1.5 text-sm leading-relaxed text-[#71717A]">{body}</p>
-    </div>
-  );
-}
-
-function ModCardBig({
-  icon: Icon,
-  title,
-  body,
-  children,
-}: {
-  icon: IconType;
-  title: string;
-  body: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="flex flex-col justify-between rounded-2xl border border-[#D4D4D8] bg-white p-6 transition-colors duration-200 hover:border-[#F97316] sm:p-7">
-      <div>
-        <div className="mb-3.5 flex h-11 w-11 items-center justify-center rounded-xl bg-[#F97316]/10">
-          <Icon className="h-5 w-5 text-[#F97316]" />
-        </div>
-        <h3 className="text-xl font-bold text-[#0A0A0A]">{title}</h3>
-        <p className="mt-2 max-w-[480px] text-[15px] leading-relaxed text-[#71717A]">{body}</p>
-      </div>
-      <div className="mt-6">{children}</div>
-    </div>
-  );
-}
-
-function MiniProg({ label, value, pct, color }: { label: string; value: string; pct: number; color: string }) {
-  return (
-    <div className="flex-1 rounded-lg bg-[#F4F4F5] p-3.5">
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-[#71717A]">{label}</span>
-        <span className="text-sm font-bold text-[#0A0A0A]">{value}</span>
-      </div>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#D4D4D8]">
-        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
-      </div>
-    </div>
-  );
-}
-
-function JobRow({ name, status, tone }: { name: string; status: string; tone: 'green' | 'orange' }) {
-  const c = tone === 'green' ? { dot: '#16A34A', text: '#16A34A', bg: '#E7F6EC' } : { dot: '#C2410C', text: '#C2410C', bg: '#FDEBDD' };
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 rounded-lg bg-[#F4F4F5] px-3.5 py-2.5">
-      <span className="flex items-center gap-2.5">
-        <HardHat className="h-4 w-4 text-[#71717A]" />
-        <span className="text-sm font-medium text-[#0A0A0A]">{name}</span>
-      </span>
-      <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1" style={{ background: c.bg }}>
-        <span className="h-1.5 w-1.5 rounded-full" style={{ background: c.dot }} />
-        <span className="text-xs font-semibold" style={{ color: c.text }}>
-          {status}
-        </span>
-      </span>
-    </div>
-  );
-}
+// Shared type scales, so a heading tweak happens once.
+const SECTION = 'mx-auto max-w-[1400px] px-[clamp(22px,5vw,64px)]';
+const LABEL = 'font-bt-mono text-[11px] tracking-[0.12em] text-bt-muted';
+const H2 =
+  'font-bt-heading text-[clamp(32px,3.9vw,52px)] font-bold leading-[1.04] tracking-[-0.015em] text-bt-ink';
+const H2_DARK =
+  'font-bt-heading text-[clamp(30px,3.6vw,48px)] font-bold leading-[1.06] tracking-[-0.015em] text-bt-bone text-balance';
+const CTA_PRIMARY =
+  'inline-block rounded-[2px] bg-bt-orange px-[30px] py-4 text-base font-bold tracking-[-0.01em] text-bt-ink transition-colors hover:bg-bt-orange-hover';
+const CTA_GHOST =
+  'border-b border-[rgba(248,243,235,0.35)] pb-[3px] text-base font-medium text-bt-bone transition-colors hover:border-bt-orange hover:text-bt-orange';
+const NAV_LINK = 'text-sm font-medium text-bt-muted-2 transition-colors hover:text-bt-bone';
 
 export function Landing() {
   const { t } = useTranslation('landing');
-  const whyPoints = [0, 1, 2].map((i) => t(`why.point.${i}`));
-  const [menuOpen, setMenuOpen] = useState(false);
-  const closeMenu = () => setMenuOpen(false);
+  usePublicPageTitle(t('meta.title'));
 
-  const sectionLinks = [
-    { href: '#features', label: t('nav.features') },
-    { href: '#why', label: t('nav.why') },
-    { href: '#app', label: t('nav.app') },
-    { href: '#beta', label: t('nav.beta') },
-    { href: '#pricing', label: t('nav.pricing') },
-  ];
-
-  // Joining the beta is a conversation, not a checkout: the CTA opens the
-  // visitor's mail client with a prefilled message to the founder.
-  const betaMailto =
-    `mailto:${BETA_CONTACT_EMAIL}?subject=` +
-    encodeURIComponent(t('beta.emailSubject')) +
-    '&body=' +
-    encodeURIComponent(t('beta.emailBody'));
+  const mailtoDemo = mailtoWithSubject(DEMO_EMAIL, t('demo.emailSubject'));
+  const mailtoBeta = mailtoWithSubject(BETA_EMAIL, t('beta.emailSubject'));
 
   return (
-    <div className="min-h-screen bg-white font-sans text-[#0A0A0A]">
-      {/* Nav */}
-      <header className="sticky top-0 z-30 border-b border-[#F4F4F5] bg-white/90 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <BuildTrackLogo className="text-lg" />
+    <div className="bt-public bg-bt-paper font-bt-body text-base text-bt-ink">
+      {/* ── Hero ─────────────────────────────────────────────────────── */}
+      <header className="relative flex min-h-[100svh] flex-col overflow-hidden bg-bt-ink">
+        <BlueprintGrid fade="hero" lineOpacity={0.05} />
 
-          {/* Desktop nav — the App link only fits from lg up */}
-          <nav className="hidden items-center gap-5 md:flex">
-            {sectionLinks.map((l) => (
-              <a
-                key={l.href}
-                href={l.href}
-                className={`text-sm font-medium text-[#71717A] transition hover:text-[#0A0A0A] ${
-                  l.href === '#app' ? 'hidden lg:inline' : ''
-                }`}
-              >
-                {l.label}
-              </a>
-            ))}
-            <LanguageSwitcher />
-            <Link to="/login">
-              <Button variant="ghost" className="text-sm text-[#0A0A0A] hover:bg-[#F4F4F5]">
-                {t('nav.signIn')}
-              </Button>
+        <nav
+          aria-label={t('nav.menu')}
+          className={`${SECTION} relative z-[2] flex w-full flex-wrap items-center justify-between gap-6 pb-3.5 pt-[clamp(18px,2.6vh,30px)]`}
+        >
+          <Link to="/" aria-label="BuildTrack">
+            <BuildTrackLogo boxPx={32} textPx={20} />
+          </Link>
+          <div className="flex flex-wrap items-center gap-[clamp(14px,2.2vw,30px)]">
+            <LanguageSwitcher variant="public" />
+            <a href="#plataforma" className={NAV_LINK}>
+              {t('nav.platform')}
+            </a>
+            <a href="#app" className={NAV_LINK}>
+              {t('nav.app')}
+            </a>
+            <Link to="/docs" className={NAV_LINK}>
+              {t('nav.docs')}
             </Link>
-            <Link to="/choose-plan">
-              <Button className="bg-[#F97316] text-sm text-white hover:bg-[#C2410C]">{t('nav.start')}</Button>
-            </Link>
-          </nav>
-
-          {/* Mobile: primary CTA + hamburger */}
-          <div className="flex items-center gap-2 md:hidden">
-            <Link to="/choose-plan">
-              <Button className="h-9 bg-[#F97316] px-3.5 text-sm text-white hover:bg-[#C2410C]">{t('nav.start')}</Button>
-            </Link>
-            <button
-              type="button"
-              aria-label={t('nav.menu')}
-              aria-expanded={menuOpen}
-              onClick={() => setMenuOpen((o) => !o)}
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#D4D4D8] text-[#0A0A0A] transition hover:bg-[#F4F4F5]"
-            >
-              {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
-          </div>
-        </div>
-
-        {/* Mobile menu */}
-        {menuOpen && (
-          <nav className="border-t border-[#F4F4F5] bg-white px-4 pb-4 pt-2 md:hidden">
-            {sectionLinks.map((l) => (
-              <a
-                key={l.href}
-                href={l.href}
-                onClick={closeMenu}
-                className="block rounded-lg px-3 py-2.5 text-[15px] font-medium text-[#0A0A0A] transition hover:bg-[#F4F4F5]"
-              >
-                {l.label}
-              </a>
-            ))}
+            {/* "Precios" goes to the demo section — there is no price list */}
+            <a href="#demo" className={NAV_LINK}>
+              {t('nav.pricing')}
+            </a>
             <Link
               to="/login"
-              onClick={closeMenu}
-              className="block rounded-lg px-3 py-2.5 text-[15px] font-medium text-[#0A0A0A] transition hover:bg-[#F4F4F5]"
+              className="rounded-[2px] border border-[rgba(168,154,135,0.45)] px-[18px] py-2 text-sm font-medium text-bt-bone transition-colors hover:border-bt-orange hover:text-bt-orange"
             >
               {t('nav.signIn')}
             </Link>
-            <div className="mt-2 border-t border-[#F4F4F5] px-3 pt-3">
-              <LanguageSwitcher />
+          </div>
+        </nav>
+
+        <div
+          className={`${SECTION} relative z-[1] flex w-full flex-1 flex-col pt-[clamp(44px,8vh,110px)]`}
+        >
+          <h1 className="font-bt-display text-[clamp(60px,11vw,168px)] font-extrabold uppercase leading-[0.88] tracking-[0.01em] text-bt-bone">
+            <span data-anim style={{ animationDelay: '0.05s' }} className="block">
+              {t('hero.line1')}
+            </span>
+            <span data-anim style={{ animationDelay: '0.15s' }} className="block text-bt-orange">
+              {t('hero.line2')}
+            </span>
+          </h1>
+
+          <p
+            data-anim
+            style={{ animationDelay: '0.26s' }}
+            className="mt-[clamp(28px,4vh,44px)] max-w-[34ch] text-pretty text-[clamp(17px,1.5vw,20px)] leading-[1.55] text-bt-muted-2"
+          >
+            {t('hero.subtitle')}
+          </p>
+
+          <div
+            data-anim
+            style={{ animationDelay: '0.36s' }}
+            className="mt-[clamp(28px,4.5vh,48px)] flex flex-wrap items-center gap-[clamp(18px,2.5vw,32px)]"
+          >
+            <a href="#demo" className={CTA_PRIMARY}>
+              {t('cta.demo')}
+            </a>
+            <a href="#beta" className={CTA_GHOST}>
+              {t('cta.beta')}
+            </a>
+          </div>
+
+          <p
+            data-anim
+            style={{ animationDelay: '0.46s' }}
+            className="mt-[clamp(20px,3vh,30px)] font-bt-mono text-xs tracking-[0.08em] text-bt-muted"
+          >
+            {t('hero.note')}
+          </p>
+
+          {/* Drawing rule along the foot of the sheet */}
+          <div
+            data-anim
+            style={{ animationDelay: '0.58s', animationDuration: '0.9s' }}
+            className="mt-auto pt-[clamp(40px,7vh,90px)]"
+          >
+            <div className="flex flex-wrap justify-between gap-4 border-t border-[rgba(168,154,135,0.28)] py-4 font-bt-mono text-[11px] tracking-[0.1em] text-bt-muted-2">
+              <span>{t('hero.coord')}</span>
+              <span className="text-bt-muted">{t('hero.rev')}</span>
             </div>
-          </nav>
-        )}
+          </div>
+        </div>
       </header>
 
-      {/* Hero */}
-      <BlueprintGridSection className="bg-white">
-        <div className="mx-auto flex max-w-6xl flex-col items-center px-6 pb-12 pt-14 text-center sm:pb-16 sm:pt-20">
-          <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#D4D4D8] bg-[#F4F4F5] px-3.5 py-1.5 text-[13px] font-medium text-[#71717A]">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#F97316]" />
-            {t('hero.eyebrow')}
-            {/* Beta pill: the whole site is honest about the product stage */}
-            <a
-              href="#beta"
-              className="ml-1 rounded-full bg-[#F97316] px-2 py-0.5 text-[11px] font-bold tracking-wide text-white transition hover:bg-[#C2410C]"
-            >
-              {t('hero.betaPill')}
-            </a>
-          </span>
-          <h1 className="max-w-3xl text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl md:text-[56px]">
-            {t('hero.title.line1')} <span className="text-[#F97316]">{t('hero.title.highlight')}</span>.{' '}
-            <br className="hidden sm:block" />
-            {t('hero.title.line2')}
-          </h1>
-          <p className="mt-6 max-w-2xl text-lg leading-relaxed text-[#71717A]">{t('hero.subtitle')}</p>
-          <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
-            <Link to="/choose-plan">
-              <Button className="h-12 bg-[#F97316] px-6 text-base text-white hover:bg-[#C2410C]">
-                {t('hero.ctaPrimary')}
-                <ArrowRight className="ml-1 h-4 w-4" />
-              </Button>
-            </Link>
-            <Link to="/login">
-              <Button variant="outline" className="h-12 border-[#0A0A0A] px-6 text-base text-[#0A0A0A] hover:bg-[#0A0A0A] hover:text-white">
-                {t('hero.ctaSecondary')}
-              </Button>
-            </Link>
-          </div>
-          <p className="mt-5 text-[13px] text-[#71717A]">{t('hero.note')}</p>
-          <div className="mt-10 flex w-full justify-center sm:mt-14">
-            <ProductWindow />
-          </div>
-        </div>
-      </BlueprintGridSection>
+      {/* ── The problem ──────────────────────────────────────────────── */}
+      <section id="problema" className="scroll-mt-6 bg-bt-paper">
+        <div className={`${SECTION} py-[clamp(72px,10vw,128px)]`}>
+          <p className={`${LABEL} mb-5`}>{t('problem.label')}</p>
+          <h2 className={`${H2} max-w-[22ch] text-balance`}>{t('problem.title')}</h2>
+          <p className="mt-[18px] max-w-[52ch] text-pretty text-[clamp(15px,1.3vw,17px)] leading-[1.55] text-bt-muted">
+            {t('problem.subtitle')}
+          </p>
 
-      {/* Trust strip */}
-      <div className="border-y border-[#D4D4D8] bg-[#F4F4F5]">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-8 gap-y-3 px-6 py-5 sm:justify-between">
-          {(
-            [
-              [ShieldCheck, 'Multi-empresa, datos aislados'],
-              [Zap, 'Productivo en 1 semana'],
-              [Globe, 'Bilingüe es / en'],
-              [WifiOff, 'App de obra sin señal'],
-            ] as [IconType, string][]
-          ).map(([Icon, label]) => (
-            <span key={label} className="flex items-center gap-2.5">
-              <Icon className="h-[18px] w-[18px] text-[#F97316]" />
-              <span className="text-sm font-medium text-[#0A0A0A]">{label}</span>
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* Modules — bento */}
-      <section id="features" className="scroll-mt-20 bg-white py-16 sm:py-24">
-        <div className="mx-auto max-w-6xl px-6">
-          <div className="mx-auto mb-12 max-w-xl text-center">
-            <p className="mb-3 text-[13px] font-semibold tracking-wide text-[#F97316]">MÓDULOS</p>
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">{t('features.title')}</h2>
-            <p className="mt-4 leading-relaxed text-[#71717A]">{t('features.subtitle')}</p>
-          </div>
-
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-            <ModCardBig icon={FolderKanban} title={t('features.projects.title')} body={t('features.projects.body')}>
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <MiniProg label="Avance de obra" value="68%" pct={68} color="#F97316" />
-                <MiniProg label="Presupuesto" value="62%" pct={62} color="#0A0A0A" />
-              </div>
-            </ModCardBig>
-            <div className="grid gap-5">
-              <ModCard icon={Timer} title={t('features.time.title')} body={t('features.time.body')} />
-              <ModCard icon={Wallet} title={t('features.finance.title')} body={t('features.finance.body')} />
-            </div>
-          </div>
-
-          <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
-            <div className="grid gap-5">
-              <ModCard icon={Smartphone} title={t('features.mobile.title')} body={t('features.mobile.body')} />
-              <ModCard icon={ShieldCheck} title={t('features.audit.title')} body={t('features.audit.body')} />
-            </div>
-            <ModCardBig icon={Package} title={t('features.subcontractors.title')} body={t('features.subcontractors.body')}>
-              <div className="space-y-2">
-                <JobRow name="Cuadrilla eléctrica" status="Aprobado" tone="green" />
-                <JobRow name="Plomería — Torre A" status="En revisión" tone="orange" />
-              </div>
-            </ModCardBig>
-          </div>
-        </div>
-      </section>
-
-      {/* Videos */}
-      <section id="demos" className="scroll-mt-20 border-t border-[#D4D4D8] bg-[#F4F4F5] py-16 sm:py-24">
-        <div className="mx-auto flex max-w-6xl flex-col items-center px-6">
-          <div className="mb-10 max-w-xl text-center">
-            <p className="mb-3 text-[13px] font-semibold tracking-wide text-[#F97316]">EN ACCIÓN</p>
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Míralo funcionando</h2>
-            <p className="mt-4 leading-relaxed text-[#71717A]">
-              Recorridos cortos por cada módulo. Iremos sumando más con cada actualización.
-            </p>
-          </div>
-          <div className="grid w-full max-w-5xl grid-cols-1 gap-5 sm:grid-cols-2">
-            {(
-              [
-                ['bitacora', 'Bitácora de obra', 'Asistencia auto-sugerida desde el reloj, clima, tareas del día, notas y fotos con visor.'],
-                ['tiempo', 'Control de tiempo', 'Filtra por rol y aprueba marcajes con ubicación GPS, distancia y enlaces a Google Maps.'],
-                ['kanban', 'Tablero de tareas', 'Kanban por proyecto: arrastra tarjetas entre columnas, con comentarios y adjuntos.'],
-                ['finanzas', 'Finanzas', 'Seguimiento de contrato por proyecto: presupuesto vs. gastado, con desglose de costos.'],
-                ['punch-list', 'Punch list', 'El cliente reporta pendientes con foto desde su portal; el equipo asigna, comenta y cierra al confirmar.'],
-                ['cuentas-por-pagar', 'Cuentas por pagar', 'Facturas de proveedores con detalle completo: pagos, saldos y la factura escaneada en el visor.'],
-              ] as [string, string, string][]
-            ).map(([key, title, caption]) => (
-              <figure
-                key={key}
-                className="overflow-hidden rounded-2xl border border-[#D4D4D8] bg-white shadow-[0_12px_34px_rgba(10,10,10,0.06)] transition-colors duration-200 hover:border-[#F97316]"
+          <div className="mt-[clamp(36px,4.5vw,56px)] grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] border-y border-bt-rule">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className={`border-l border-bt-rule px-[26px] pb-9 pt-7 ${i === 3 ? 'border-r' : ''}`}
               >
-                <div className="aspect-video overflow-hidden bg-[#0A0A0A]">
-                  <video
-                    className="h-full w-full object-cover"
-                    autoPlay
-                    muted
-                    loop
-                    playsInline
-                    preload="metadata"
-                    poster={`/demos/${key}.jpg`}
-                    aria-label={`Demo: ${title}`}
-                  >
-                    <source src={`/demos/${key}.webm`} type="video/webm" />
-                    <source src={`/demos/${key}.mp4`} type="video/mp4" />
-                  </video>
-                </div>
-                <figcaption className="p-5">
-                  <p className="text-[15px] font-bold text-[#0A0A0A]">{title}</p>
-                  <p className="mt-1.5 text-[13px] leading-relaxed text-[#71717A]">{caption}</p>
-                </figcaption>
-              </figure>
+                <p className="font-bt-mono text-[10.5px] tracking-[0.14em] text-bt-orange">
+                  {t(`problem.${i}.label`)}
+                </p>
+                <h3 className="mt-3.5 text-balance font-bt-heading text-xl font-bold tracking-[-0.01em] text-bt-ink">
+                  {t(`problem.${i}.title`)}
+                </h3>
+                <p className="mt-3 text-pretty text-[14.5px] leading-[1.6] text-bt-muted">
+                  {t(`problem.${i}.body`)}
+                </p>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Why */}
-      <section id="why" className="scroll-mt-20 bg-white py-16 sm:py-24">
-        <div className="mx-auto grid max-w-5xl items-center gap-10 px-6 md:grid-cols-2 md:gap-16">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-[#F97316]">{t('why.eyebrow')}</p>
-            <h2 className="mt-3 text-3xl font-bold leading-tight tracking-tight sm:text-4xl">{t('why.title')}</h2>
-            <p className="mt-5 leading-relaxed text-[#71717A]">{t('why.body')}</p>
-            <ul className="mt-6 space-y-3.5">
-              {whyPoints.map((line) => (
-                <li key={line} className="flex items-start gap-3 text-[15px]">
-                  <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[#F97316]/15">
-                    <span className="block h-1.5 w-1.5 rounded-full bg-[#F97316]" />
-                  </span>
-                  <span className="text-[#0A0A0A]">{line}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="rounded-3xl bg-[#0A0A0A] p-6 text-white shadow-[0_24px_60px_rgba(10,10,10,0.2)] sm:p-8">
-            <div className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-[#F97316]" />
-              <span className="h-2.5 w-2.5 rounded-full bg-white/25" />
-              <span className="h-2.5 w-2.5 rounded-full bg-white/25" />
+      {/* ── The system: five modules ─────────────────────────────────── */}
+      <section id="sistema" className="scroll-mt-6 border-t border-bt-rule bg-bt-paper">
+        <div className={`${SECTION} py-[clamp(72px,10vw,128px)]`}>
+          <div className="mb-[clamp(40px,5vw,64px)] flex flex-wrap items-end justify-between gap-6">
+            <div>
+              <p className={`${LABEL} mb-5`}>{t('system.label')}</p>
+              <h2 className={H2}>{t('system.title')}</h2>
+              <p className="mt-[18px] max-w-[46ch] text-pretty text-[clamp(15px,1.3vw,17px)] leading-[1.55] text-bt-muted">
+                {t('system.subtitle')}
+              </p>
             </div>
-            <p className="mt-6 text-xs tracking-wide text-white/50">{t('mock.label')}</p>
-            <p className="text-2xl font-bold">{t('mock.projectName')}</p>
-            <p className="mt-1 text-[13px] text-white/50">{t('mock.subtitle')}</p>
-            <div className="mt-6 space-y-5">
-              {(
-                [
-                  [t('mock.progress'), '68%', 68, '#F97316'],
-                  [t('mock.budget'), '62%', 62, '#FFFFFF'],
-                ] as [string, string, number, string][]
-              ).map(([label, value, pct, color]) => (
-                <div key={label} className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-white/60">{label}</span>
-                    <span className="font-bold">{value}</span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-white/10">
-                    <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* App móvil */}
-      <AppSection />
-
-      {/* Value statement — our promise, in our own voice. Intentionally NOT a
-          customer testimonial (no fabricated person/rating). */}
-      <section className="bg-white py-16 sm:py-24">
-        <div className="mx-auto flex max-w-3xl flex-col items-center px-6 text-center">
-          <span className="h-1 w-12 rounded-full bg-[#F97316]" />
-          <p className="mt-7 text-[22px] font-semibold leading-snug tracking-tight text-[#0A0A0A] sm:text-[28px]">
-            Deja atrás las hojas de cálculo y los grupos de WhatsApp. Ve el avance y el presupuesto de cada obra en un solo lugar, en tiempo real.
-          </p>
-          <p className="mt-6 text-sm font-semibold uppercase tracking-wide text-[#F97316]">
-            BuildTrack
-          </p>
-        </div>
-      </section>
-
-      {/* Beta program — sets expectations honestly BEFORE the visitor sees
-          the beta offer below: the product works and is in real use, but it
-          is a beta (bugs possible, they help report, feedback loop). Joining
-          is by email (no automatic billing): $350 for 2 months of full
-          access, arranged personally with the founder. */}
-      <section id="beta" className="scroll-mt-20 border-y border-[#D4D4D8] bg-[#F4F4F5] py-16 sm:py-24">
-        <div className="mx-auto max-w-6xl px-6">
-          <div className="mx-auto mb-12 max-w-2xl text-center">
-            <span className="mb-4 inline-flex items-center gap-2 rounded-full bg-[#F97316] px-3.5 py-1.5 text-[12px] font-bold tracking-wide text-white">
-              <FlaskConical className="h-3.5 w-3.5" aria-hidden="true" />
-              {t('beta.eyebrow')}
-            </span>
-            <h2 className="text-3xl font-semibold tracking-tight text-[#0A0A0A] sm:text-4xl">
-              {t('beta.title')}
-            </h2>
-            <p className="mt-4 leading-relaxed text-[#71717A]">{t('beta.body')}</p>
+            <p className={`${LABEL} pb-1.5`}>{t('system.mono')}</p>
           </div>
 
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {(
-              [
-                [Bug, 0],
-                [MessageSquareText, 1],
-                [Star, 2],
-                [BadgeDollarSign, 3],
-                [Headset, 4],
-                [ShieldCheck, 5],
-              ] as const
-            ).map(([Icon, i]) => (
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] border-y border-bt-rule">
+            {[1, 2, 3, 4, 5].map((i) => (
               <div
                 key={i}
-                className="rounded-2xl border border-[#D4D4D8] bg-white p-6 transition hover:border-[#F97316]"
+                className={`flex flex-col gap-3.5 border-l border-bt-rule px-[22px] pb-[34px] pt-[26px] ${
+                  i === 5 ? 'border-r' : ''
+                }`}
               >
-                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-[#F97316]/10">
-                  <Icon className="h-5 w-5 text-[#F97316]" aria-hidden="true" />
-                </div>
-                <h3 className="mb-1.5 text-[15px] font-semibold text-[#0A0A0A]">
-                  {t(`beta.item.${i}.title`)}
+                <p
+                  className={`font-bt-mono text-[10.5px] tracking-[0.14em] ${
+                    i === 5 ? 'text-bt-orange' : 'text-bt-muted'
+                  }`}
+                >
+                  {t(`system.${i}.label`)}
+                </p>
+                <h3 className="font-bt-heading text-[19px] font-bold tracking-[-0.01em] text-bt-ink">
+                  {t(`system.${i}.title`)}
                 </h3>
-                <p className="text-sm leading-relaxed text-[#71717A]">
-                  {t(`beta.item.${i}.body`)}
+                <p className="text-pretty text-[14.5px] leading-[1.6] text-bt-muted">
+                  {t(`system.${i}.body`)}
                 </p>
               </div>
             ))}
           </div>
 
-          <div className="mt-10 flex flex-col items-center gap-3 text-center">
-            <Button
-              asChild
-              className="h-12 bg-[#F97316] px-6 text-base text-white hover:bg-[#C2410C]"
-            >
-              <a href={betaMailto}>
-                <Mail className="mr-1 h-4 w-4" aria-hidden="true" />
-                {t('beta.cta')}
-              </a>
-            </Button>
-            <p className="text-[13px] text-[#71717A]">{t('beta.note')}</p>
+          <p className="mt-[18px] font-bt-mono text-[10.5px] tracking-[0.1em] text-bt-muted">
+            {t('system.portal')}{' '}
+            <a href="#confianza" className="text-bt-orange">
+              {t('system.portalLink')}
+            </a>
+          </p>
+        </div>
+      </section>
+
+      {/* ── Platform: drawing sheets + real footage ──────────────────── */}
+      <section id="plataforma" className="scroll-mt-6 bg-bt-paper-2">
+        <div className={`${SECTION} py-[clamp(72px,10vw,128px)]`}>
+          <p className={`${LABEL} mb-5`}>{t('sheets.label')}</p>
+          <h2 className={H2}>{t('sheets.title')}</h2>
+          <p className="mb-[clamp(40px,5vw,60px)] mt-[18px] max-w-[52ch] text-pretty text-[clamp(15px,1.3vw,17px)] leading-[1.55] text-bt-muted">
+            {t('sheets.subtitle')}
+          </p>
+
+          <DashboardSheet />
+
+          <div className="mt-[clamp(28px,3.5vw,44px)] grid max-w-[1120px] grid-cols-[repeat(auto-fit,minmax(320px,1fr))] items-stretch gap-[clamp(20px,2.5vw,28px)]">
+            <PayablesSheet />
+            <DailyLogSheet />
+          </div>
+
+          <DemoVideos />
+        </div>
+      </section>
+
+      {/* ── Field app ────────────────────────────────────────────────── */}
+      <section id="app" className="relative scroll-mt-6 overflow-hidden bg-bt-ink">
+        <BlueprintGrid fade="bottom" lineOpacity={0.04} />
+        <div
+          className={`${SECTION} relative flex flex-wrap items-center gap-[clamp(40px,6vw,100px)] py-[clamp(72px,10vw,128px)]`}
+        >
+          <div className="min-w-[300px] flex-[1.2]">
+            <p className="mb-5 font-bt-mono text-[11px] tracking-[0.12em] text-bt-muted-2">
+              {t('app.label')}
+            </p>
+            <h2 className="max-w-[18ch] text-balance font-bt-heading text-[clamp(32px,3.9vw,52px)] font-bold leading-[1.04] tracking-[-0.015em] text-bt-bone">
+              {t('app.title1')} <span className="text-bt-orange">{t('app.title2')}</span>
+            </h2>
+            <p className="mt-5 max-w-[48ch] text-pretty text-[clamp(15px,1.35vw,17.5px)] leading-[1.6] text-bt-muted-2">
+              {t('app.subtitle')}
+            </p>
+
+            <div className="mt-8 border-t border-[rgba(248,243,235,0.16)]">
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="flex items-baseline gap-[18px] border-b border-[rgba(248,243,235,0.16)] py-[15px]"
+                >
+                  <span className="w-8 flex-none font-bt-mono text-[10.5px] tracking-[0.12em] text-bt-orange">
+                    A-0{i}
+                  </span>
+                  <p className="text-pretty text-[15px] leading-[1.55] text-bt-bone">
+                    <strong className="font-semibold">{t(`app.${i}.bold`)}</strong>{' '}
+                    <span className="text-bt-muted-2">{t(`app.${i}.rest`)}</span>
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-8 flex flex-wrap items-center gap-[22px]">
+              {/* A badge, not a link: the design left this href="#" and there is
+                  no Play Store listing URL in the repo yet. Swap it for an <a>
+                  once the store link exists — rather than shipping a control
+                  that looks like it goes to Google Play and doesn't. */}
+              <span className="inline-flex items-center gap-3 rounded-[2px] border border-[rgba(248,243,235,0.4)] px-[22px] py-3">
+                <svg width="18" height="20" viewBox="0 0 18 20" aria-hidden="true">
+                  <path
+                    d="M1.5 1 L13 10 L1.5 19 Z"
+                    fill="none"
+                    stroke="#F97316"
+                    strokeWidth="1.6"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M13 6.8 L16.5 10 L13 13.2"
+                    fill="none"
+                    stroke="#F97316"
+                    strokeWidth="1.6"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                <span className="flex flex-col">
+                  <span className="font-bt-mono text-[8.5px] tracking-[0.12em] text-bt-muted-2">
+                    {t('app.playStore')}
+                  </span>
+                  <span className="mt-0.5 text-[15px] font-semibold text-bt-bone">Google Play</span>
+                </span>
+              </span>
+              <span className="font-bt-mono text-[11px] tracking-[0.1em] text-bt-muted">
+                {t('app.iphone')}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex min-w-[280px] flex-1 justify-center">
+            <PhoneMock />
           </div>
         </div>
       </section>
 
-      {/* Pricing (existing component) */}
-      <div id="pricing" className="scroll-mt-20">
-        <Pricing />
-      </div>
+      {/* ── What changes ─────────────────────────────────────────────── */}
+      <section id="resultados" className="scroll-mt-6 bg-bt-paper">
+        <div className={`${SECTION} py-[clamp(72px,10vw,120px)]`}>
+          <p className={`${LABEL} mb-5`}>{t('results.label')}</p>
+          <h2 className={`${H2} max-w-[24ch] text-balance`}>{t('results.title')}</h2>
 
-      {/* Final CTA */}
-      <BlueprintGridSection dark className="bg-[#0A0A0A] text-white">
-        <div className="mx-auto flex max-w-4xl flex-col items-center px-6 py-16 text-center sm:py-24">
-          <h2 className="text-3xl font-bold tracking-tight sm:text-[44px]">
-            {t('cta.title.line1')} <span className="text-[#F97316]">{t('cta.title.highlight')}</span>.
-          </h2>
-          <p className="mt-5 max-w-xl text-lg text-white/60">{t('cta.subtitle')}</p>
-          <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
-            <Link to="/choose-plan">
-              <Button className="h-12 bg-[#F97316] px-6 text-base text-white hover:bg-[#C2410C]">
-                {t('cta.primary')}
-                <ArrowRight className="ml-1 h-4 w-4" />
-              </Button>
-            </Link>
-            <Link to="/support">
-              <Button variant="outline" className="h-12 border-white/30 bg-transparent px-6 text-base text-white hover:bg-white hover:text-[#0A0A0A]">
-                {t('cta.secondary')}
-              </Button>
-            </Link>
+          <div className="mt-[clamp(36px,4.5vw,56px)] grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] border-y border-bt-rule">
+            {[1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className={`border-l border-bt-rule px-6 pb-9 pt-7 ${i === 4 ? 'border-r' : ''}`}
+              >
+                <p className="font-bt-mono text-[22px] text-bt-orange">R-0{i}</p>
+                <h3 className="mt-4 font-bt-heading text-[19px] font-bold tracking-[-0.01em] text-bt-ink">
+                  {t(`results.${i}.title`)}
+                </h3>
+                <p className="mt-2.5 text-pretty text-[14.5px] leading-[1.6] text-bt-muted">
+                  {t(`results.${i}.body`)}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
-      </BlueprintGridSection>
+      </section>
 
-      {/* Footer */}
-      <footer className="border-t border-[#D4D4D8] bg-white">
-        <div className="mx-auto max-w-6xl px-6 py-12 sm:py-16">
-          <div className="flex flex-col justify-between gap-10 md:flex-row">
-            <div className="max-w-xs">
-              <BuildTrackLogo className="text-lg" />
-              <p className="mt-4 text-sm leading-relaxed text-[#71717A]">
-                La plataforma de gestión para constructoras en crecimiento.
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-8 sm:flex sm:gap-16">
-              <FooterCol
-                title="Producto"
-                items={[
-                  { label: 'Módulos', href: '#features' },
-                  { label: 'Planes', href: '#pricing' },
-                  { label: 'Demos', href: '#demos' },
-                  { label: 'App móvil', href: '#app' },
-                ]}
-              />
-              <FooterCol
-                title="Empresa"
-                items={[
-                  { label: 'Por qué BuildTrack', href: '#why' },
-                  { label: 'Contacto', to: '/support' },
-                  { label: 'Soporte', to: '/support' },
-                ]}
-              />
-              <FooterCol
-                title="Legal"
-                items={[
-                  { label: t('footer.privacy'), to: '/privacy' },
-                  { label: t('footer.terms'), to: '/terms' },
-                ]}
-              />
+      {/* ── Who it's for ─────────────────────────────────────────────── */}
+      <section id="para-quien" className="scroll-mt-6 border-t border-bt-rule bg-bt-paper">
+        <div
+          className={`${SECTION} flex flex-wrap items-start gap-[clamp(36px,6vw,96px)] py-[clamp(64px,8vw,104px)]`}
+        >
+          <div className="min-w-[280px] flex-1">
+            <p className={`${LABEL} mb-5`}>{t('who.label')}</p>
+            <h2 className="text-balance font-bt-heading text-[clamp(30px,3.5vw,46px)] font-bold leading-[1.06] tracking-[-0.015em] text-bt-ink">
+              {t('who.title')}
+            </h2>
+          </div>
+          <div className="min-w-[300px] max-w-[640px] flex-[1.2]">
+            <p className="mb-1.5 font-bt-mono text-[10.5px] tracking-[0.12em] text-bt-orange">
+              {t('who.forYou')}
+            </p>
+            <div className="border-t border-bt-rule">
+              {[1, 2, 3, 4].map((i) => (
+                <p
+                  key={i}
+                  className="border-b border-bt-rule-2 py-3.5 text-[15px] leading-[1.55] text-bt-brown"
+                >
+                  {t(`who.${i}`)}
+                </p>
+              ))}
             </div>
           </div>
-          <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-[#D4D4D8] pt-6 sm:flex-row">
-            <p className="text-[13px] text-[#71717A]">© {new Date().getFullYear()} BuildTrack. Todos los derechos reservados.</p>
-            <span className="inline-flex items-center gap-1.5 rounded-md border border-[#D4D4D8] px-2.5 py-1.5">
-              <Globe className="h-3.5 w-3.5 text-[#71717A]" />
-              <span className="text-[13px] font-medium text-[#0A0A0A]">Español</span>
-            </span>
+        </div>
+      </section>
+
+      {/* ── Trust ────────────────────────────────────────────────────── */}
+      <section id="confianza" className="scroll-mt-6 bg-bt-paper-2">
+        <div className={`${SECTION} py-[clamp(64px,8vw,104px)]`}>
+          <p className={`${LABEL} mb-5`}>{t('trust.label')}</p>
+          <h2 className={`${H2} max-w-[26ch] text-balance`}>{t('trust.title')}</h2>
+
+          <div className="mt-[clamp(36px,4.5vw,52px)] grid grid-cols-[repeat(auto-fit,minmax(270px,1fr))] border-y border-bt-rule-4">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className={`border-l border-bt-rule-4 px-6 pb-[34px] pt-7 ${i === 3 ? 'border-r' : ''}`}
+              >
+                <p className="font-bt-mono text-[10.5px] tracking-[0.14em] text-bt-orange">
+                  {t(`trust.${i}.label`)}
+                </p>
+                <p className="mt-3.5 text-pretty text-[15px] leading-[1.6] text-bt-brown">
+                  {t(`trust.${i}.body`)}
+                  {i === 3 && (
+                    <>
+                      {' '}
+                      <Link
+                        to="/status"
+                        className="border-b border-bt-muted-2 font-semibold text-bt-ink transition-colors hover:border-bt-orange hover:text-bt-orange"
+                      >
+                        {t('trust.3.link')}
+                      </Link>
+                    </>
+                  )}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Demo (the "pricing" destination) ─────────────────────────── */}
+      <section id="demo" className="scroll-mt-6 bg-bt-ink">
+        <div
+          className={`${SECTION} flex flex-wrap items-start gap-[clamp(40px,6vw,96px)] py-[clamp(72px,10vw,120px)]`}
+        >
+          <div className="min-w-[300px] flex-[1.2]">
+            <p className="mb-[22px] font-bt-mono text-[11px] tracking-[0.12em] text-bt-muted-2">
+              {t('demo.label')}
+            </p>
+            <h2 className={H2_DARK}>{t('demo.title')}</h2>
+            <p className="mt-[22px] max-w-[52ch] text-pretty text-[clamp(15px,1.35vw,17.5px)] leading-[1.6] text-bt-muted-2">
+              {t('demo.subtitle')}
+            </p>
+            <div className="mt-[34px] flex flex-wrap items-center gap-[26px]">
+              <a href={mailtoDemo} className={CTA_PRIMARY}>
+                {t('cta.demo')}
+              </a>
+              <a
+                href={mailtoDemo}
+                className="border-b border-[rgba(168,154,135,0.4)] pb-0.5 font-bt-mono text-xs tracking-[0.06em] text-bt-muted-2 transition-colors hover:border-bt-orange hover:text-bt-orange"
+              >
+                {DEMO_EMAIL}
+              </a>
+            </div>
+            <p className="mt-[22px] font-bt-mono text-[11px] tracking-[0.08em] text-bt-muted">
+              {t('demo.note')}
+            </p>
+          </div>
+
+          <div className="min-w-[280px] max-w-[520px] flex-1">
+            <div className="border-t border-[rgba(248,243,235,0.16)]">
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="flex items-baseline justify-between gap-[18px] border-b border-[rgba(248,243,235,0.16)] py-4"
+                >
+                  <span className="font-bt-mono text-[10.5px] tracking-[0.14em] text-bt-muted-2">
+                    D-0{i}
+                  </span>
+                  <span className="text-pretty text-right text-[15.5px] text-bt-bone">
+                    {t(`demo.${i}`)}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-[18px] text-pretty text-sm leading-[1.6] text-bt-muted-2">
+              {t('demo.alt')}{' '}
+              <a
+                href="#beta"
+                className="border-b border-[rgba(168,154,135,0.4)] font-semibold text-bt-bone transition-colors hover:border-bt-orange hover:text-bt-orange"
+              >
+                {t('demo.altLink')}
+              </a>
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Beta ─────────────────────────────────────────────────────── */}
+      <section id="beta" className="scroll-mt-6 bg-bt-brown">
+        <div
+          className={`${SECTION} flex flex-wrap items-start gap-[clamp(40px,6vw,96px)] py-[clamp(72px,10vw,120px)]`}
+        >
+          <div className="min-w-[300px] flex-[1.2]">
+            <p className="mb-[22px] font-bt-mono text-[11px] tracking-[0.12em] text-bt-muted-2">
+              {t('beta.label')}
+            </p>
+            <h2 className={H2_DARK}>{t('beta.title')}</h2>
+            <p className="mt-[22px] max-w-[52ch] text-pretty text-[clamp(15px,1.35vw,17.5px)] leading-[1.6] text-bt-muted-2">
+              {t('beta.subtitle')}
+            </p>
+            <div className="mt-[34px] flex flex-wrap items-center gap-[26px]">
+              <a href={mailtoBeta} className={CTA_PRIMARY}>
+                {t('beta.cta')}
+              </a>
+              <a
+                href={mailtoBeta}
+                className="border-b border-[rgba(168,154,135,0.4)] pb-0.5 font-bt-mono text-xs tracking-[0.06em] text-bt-muted-2 transition-colors hover:border-bt-orange hover:text-bt-orange"
+              >
+                {BETA_EMAIL}
+              </a>
+            </div>
+          </div>
+
+          <div className="min-w-[280px] max-w-[520px] flex-1">
+            <div className="border-t border-[rgba(248,243,235,0.16)]">
+              {[1, 2, 3, 4].map((i) => (
+                <div
+                  key={i}
+                  className="flex items-baseline justify-between gap-[18px] border-b border-[rgba(248,243,235,0.16)] py-4"
+                >
+                  <span className="font-bt-mono text-[10.5px] tracking-[0.14em] text-bt-muted-2">
+                    {t(`beta.${i}.key`)}
+                  </span>
+                  <span className="text-pretty text-right text-[15.5px] text-bt-bone">
+                    {t(`beta.${i}.value`)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── About ────────────────────────────────────────────────────── */}
+      <section id="nosotros" className="scroll-mt-6 bg-bt-paper">
+        <div
+          className={`${SECTION} flex flex-wrap items-start gap-[clamp(36px,6vw,96px)] py-[clamp(64px,8vw,104px)]`}
+        >
+          <div className="min-w-[280px] flex-1">
+            <p className={`${LABEL} mb-5`}>{t('about.label')}</p>
+            <h2 className="text-balance font-bt-heading text-[clamp(30px,3.5vw,46px)] font-bold leading-[1.06] tracking-[-0.015em] text-bt-ink">
+              {t('about.title')}
+            </h2>
+          </div>
+          <div className="min-w-[300px] max-w-[640px] flex-[1.2]">
+            <p className="text-pretty text-[clamp(15px,1.35vw,17.5px)] leading-[1.65] text-bt-brown">
+              {t('about.p1a')}
+              <strong className="font-semibold">Archlogic</strong>
+              {t('about.p1b')}
+            </p>
+            <p className="mt-4 text-pretty text-[clamp(15px,1.35vw,17.5px)] leading-[1.65] text-bt-brown">
+              {t('about.p2')}
+            </p>
+            <div className="mt-7 flex flex-wrap justify-between gap-3.5 border-t border-bt-rule pt-3.5 font-bt-mono text-[10.5px] tracking-[0.12em] text-bt-muted">
+              <span>{t('about.location')}</span>
+              <span className="text-bt-orange">{t('about.today')}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── FAQ ──────────────────────────────────────────────────────── */}
+      <section id="faq" className="scroll-mt-6 border-t border-bt-rule bg-bt-paper">
+        <div
+          className={`${SECTION} flex flex-wrap items-start gap-[clamp(36px,6vw,96px)] py-[clamp(64px,8vw,104px)]`}
+        >
+          <div className="min-w-[260px] flex-1">
+            <p className={`${LABEL} mb-5`}>{t('faq.label')}</p>
+            <h2 className="text-balance font-bt-heading text-[clamp(30px,3.5vw,46px)] font-bold leading-[1.06] tracking-[-0.015em] text-bt-ink">
+              {t('faq.title')}
+            </h2>
+            <p className="mt-[18px] max-w-[36ch] text-pretty text-[15px] leading-[1.6] text-bt-muted">
+              {t('faq.other')}{' '}
+              <a
+                href={mailtoBeta}
+                className="border-b border-bt-muted-2 font-semibold text-bt-ink transition-colors hover:border-bt-orange hover:text-bt-orange"
+              >
+                {BETA_EMAIL}
+              </a>
+            </p>
+          </div>
+          <div className="min-w-[300px] max-w-[720px] flex-[1.4]">
+            <div className="border-t border-bt-rule">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="border-b border-bt-rule-2 py-[22px]">
+                  <div className="flex items-baseline gap-4">
+                    <span className="w-[34px] flex-none font-bt-mono text-[10.5px] tracking-[0.1em] text-bt-orange">
+                      P-0{i}
+                    </span>
+                    <h3 className="text-[16.5px] font-semibold text-bt-ink">{t(`faq.${i}.q`)}</h3>
+                  </div>
+                  <p className="mt-2.5 text-pretty pl-[50px] text-[14.5px] leading-[1.6] text-bt-muted">
+                    {t(`faq.${i}.a`)}
+                    {i === 4 && (
+                      <>
+                        {' '}
+                        <Link
+                          to="/status"
+                          className="border-b border-bt-muted-2 font-semibold text-bt-ink transition-colors hover:border-bt-orange hover:text-bt-orange"
+                        >
+                          {t('faq.4.link')}
+                        </Link>
+                      </>
+                    )}
+                    {i === 5 && (
+                      <>
+                        {' '}
+                        <a
+                          href="#demo"
+                          className="border-b border-bt-muted-2 font-semibold text-bt-ink transition-colors hover:border-bt-orange hover:text-bt-orange"
+                        >
+                          {t('faq.5.link')}
+                        </a>
+                      </>
+                    )}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Final CTA ────────────────────────────────────────────────── */}
+      <section id="cta-final" className="relative overflow-hidden bg-bt-ink">
+        <BlueprintGrid fade="top" lineOpacity={0.04} />
+        <div className={`${SECTION} relative py-[clamp(80px,11vw,140px)]`}>
+          <h2 className="max-w-[16ch] font-bt-display text-[clamp(44px,7.5vw,110px)] font-extrabold uppercase leading-[0.9] tracking-[0.01em] text-bt-bone">
+            {t('ctaFinal.line1')} <span className="text-bt-orange">{t('ctaFinal.line2')}</span>
+          </h2>
+          <div className="mt-[clamp(30px,4vw,44px)] flex flex-wrap items-center gap-[clamp(18px,2.5vw,32px)]">
+            <a href={mailtoDemo} className={CTA_PRIMARY}>
+              {t('cta.demo')}
+            </a>
+            <a href="#beta" className={CTA_GHOST}>
+              {t('cta.beta')}
+            </a>
+          </div>
+          <p className="mt-6 font-bt-mono text-xs tracking-[0.08em] text-bt-muted">{t('ctaFinal.note')}</p>
+        </div>
+      </section>
+
+      {/* ── Footer ───────────────────────────────────────────────────── */}
+      <footer className="border-t-2 border-bt-orange bg-bt-ink">
+        <div className={`${SECTION} py-[clamp(48px,6vw,72px)]`}>
+          <div className="flex flex-wrap items-start justify-between gap-9">
+            <div>
+              <Link to="/" aria-label="BuildTrack">
+                <BuildTrackLogo boxPx={32} textPx={20} />
+              </Link>
+              <p className="mt-4 font-bt-mono text-[10.5px] tracking-[0.12em] text-bt-muted">
+                {t('footer.motto')}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-[clamp(24px,3.5vw,48px)]">
+              <a href="#plataforma" className={NAV_LINK}>
+                {t('nav.platform')}
+              </a>
+              <a href="#app" className={NAV_LINK}>
+                {t('nav.app')}
+              </a>
+              <a href="#demo" className={NAV_LINK}>
+                {t('cta.demo')}
+              </a>
+              <a href="#beta" className={NAV_LINK}>
+                {t('footer.beta')}
+              </a>
+              <Link to="/docs" className={NAV_LINK}>
+                {t('nav.docs')}
+              </Link>
+              <Link to="/status" className={NAV_LINK}>
+                {t('footer.status')}
+              </Link>
+              <Link to="/privacy" className={NAV_LINK}>
+                {t('footer.privacy')}
+              </Link>
+              <Link to="/terms" className={NAV_LINK}>
+                {t('footer.terms')}
+              </Link>
+              <a href={mailtoBeta} className={NAV_LINK}>
+                {BETA_EMAIL}
+              </a>
+            </div>
+          </div>
+          <div className="mt-[clamp(40px,5vw,56px)] flex flex-wrap justify-between gap-3.5 border-t border-[rgba(168,154,135,0.2)] pt-[18px] font-bt-mono text-[10.5px] tracking-[0.1em] text-bt-muted">
+            <span>{t('footer.copy')}</span>
+            <span>{t('footer.coord')}</span>
           </div>
         </div>
       </footer>
-    </div>
-  );
-}
-
-function FooterCol({
-  title,
-  items,
-}: {
-  title: string;
-  items: { label: string; to?: string; href?: string }[];
-}) {
-  const linkClass = 'text-sm text-[#71717A] transition hover:text-[#0A0A0A]';
-  return (
-    <div className="flex flex-col gap-3">
-      <p className="text-[13px] font-bold text-[#0A0A0A]">{title}</p>
-      {items.map((it) =>
-        it.to ? (
-          <Link key={it.label} to={it.to} className={linkClass}>
-            {it.label}
-          </Link>
-        ) : (
-          <a key={it.label} href={it.href} className={linkClass}>
-            {it.label}
-          </a>
-        ),
-      )}
     </div>
   );
 }

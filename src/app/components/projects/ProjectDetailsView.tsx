@@ -26,6 +26,7 @@ import {
   listChangeOrders, createChangeOrder, updateChangeOrder, deleteChangeOrder, type ChangeOrderEntry,
 } from '../../services/projects';
 import { PunchList } from '../punchlist/PunchList';
+import { RfiList } from '../rfi/RfiList';
 import { useSiteLogFeature } from '../../hooks/useSiteLogFeature';
 
 export function ProjectDetailsView({ project, allUsers, usersLoading, onBack, onAssign, onToggleStatus, onCloseProject, onEdit }: {
@@ -564,6 +565,11 @@ export function ProjectDetailsView({ project, allUsers, usersLoading, onBack, on
       {/* Punch list (client portal fase 2) — hidden when the plan lacks the feature */}
       {punchEnabled && (
         <PunchList projects={[{ id: project.id, name: project.name, assignees: punchAssignees }]} />
+      )}
+
+      {/* RFIs / consultas de obra — same portal, same plan feature */}
+      {punchEnabled && (
+        <RfiList projects={[{ id: project.id, name: project.name }]} />
       )}
 
       <ShareSiteLogModal

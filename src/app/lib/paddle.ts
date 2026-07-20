@@ -40,11 +40,28 @@ interface PaddleCheckoutOpenOptions {
   customer?: { email?: string };
 }
 
+/** A Paddle.js event as delivered to `Initialize`'s eventCallback. */
+interface PaddleEvent {
+  name: string;
+  data?: unknown;
+}
+
+/**
+ * One-time initialisation knobs for [getPaddle]. Applied ONLY by the first
+ * caller — the SDK is a memoised singleton, so later callers share whatever
+ * the first registered. Today the only page that needs events (/pay, the
+ * default-payment-link target) is also always the first Paddle caller on its
+ * document, so this stays a simple parameter instead of a listener registry.
+ */
+interface PaddleInitOptions {
+  eventCallback?: (event: PaddleEvent) => void;
+}
+
 interface PaddleGlobal {
   Environment: { set: (env: PaddleEnvironment) => void };
   Initialize: (opts: {
     token: string;
-    eventCallback?: (event: { name: string; data?: unknown }) => void;
+    eventCallback?: (event: PaddleEvent) => void;
   }) => void;
   Checkout: {
     open: (opts: PaddleCheckoutOpenOptions) => void;
@@ -118,7 +135,7 @@ function injectScript(): Promise<void> {
  *
  * Safe to call repeatedly — load + init only run once.
  */
-export async function getPaddle(): Promise<PaddleGlobal> {
+export async function getPaddle(init?: PaddleInitOptions): Promise<PaddleGlobal> {
   if (paddlePromise) return paddlePromise;
 
   paddlePromise = (async () => {
@@ -135,7 +152,9 @@ export async function getPaddle(): Promise<PaddleGlobal> {
     // Environment must be set BEFORE Initialize per Paddle docs; setting it
     // after has no effect on overlay routing.
     paddle.Environment.set(environment);
-    paddle.Initialize({ token });
+    // Initialize is also the moment Paddle.js reads `?_ptxn=` off the URL
+    // and auto-opens the checkout for it (the default-payment-link flow).
+    paddle.Initialize({ token, eventCallback: init?.eventCallback });
 
     return paddle;
   })();
@@ -165,4 +184,6 @@ export type {
   PaddleEnvironment,
   PaddleCheckoutSettings,
   PaddleCheckoutOpenOptions,
+  PaddleEvent,
+  PaddleInitOptions,
 };
