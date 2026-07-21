@@ -10,8 +10,9 @@ import {
   Clock, CalendarClock, ClipboardList, Receipt, FileBarChart,
   Wallet, PieChart, Wrench, Banknote, HardHat,
   ArrowDownToLine, ArrowUpFromLine, UserRound, FileText, Briefcase,
-  CreditCard, FileSignature,
+  CreditCard, FileSignature, HelpCircle,
 } from 'lucide-react';
+import { OnboardingTour } from '../components/onboarding/OnboardingTour';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -247,6 +248,7 @@ export function AdminDashboard() {
   const username = AuthService.getUsername();
   const [activeSection, setActiveSection] = useState<ActiveSection>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [tourReplay, setTourReplay] = useState(0);
   const navScrollPos = useRef(0);
 
   // Lock body scroll when mobile sidebar is open
@@ -288,6 +290,7 @@ export function AdminDashboard() {
     return (
       <button
         onClick={handleClick}
+        data-tour={item.key}
         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-left group ${
           isActive
             ? 'bg-[#F97316]/10 text-[#F97316]'
@@ -446,6 +449,14 @@ export function AdminDashboard() {
           </div>
 
           <div className="flex items-center gap-2">
+          <button
+            data-tour="help"
+            onClick={() => setTourReplay(n => n + 1)}
+            title={t('admin:tour.helpButton')}
+            className="w-9 h-9 flex items-center justify-center rounded-lg text-[#71717A] hover:text-[#F97316] hover:bg-[#FAFAFA] transition-colors"
+          >
+            <HelpCircle className="w-4 h-4" />
+          </button>
           <LanguageSwitcher />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -574,6 +585,7 @@ export function AdminDashboard() {
       </div>
 
       <Toaster position="top-right" richColors />
+      <OnboardingTour username={username} replayNonce={tourReplay} />
     </div>
   );
 }
