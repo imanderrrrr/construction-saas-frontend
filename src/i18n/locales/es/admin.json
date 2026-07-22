@@ -1671,5 +1671,7 @@
   "sec.audit.title": "Bitácora — todo queda registrado",
   "sec.audit.body": "Cada acción importante del sistema: quién hizo qué, cuándo y desde dónde. Tu respaldo ante cualquier duda.",
   "sec.audit.b1": "Filtra por persona o acción para reconstruir qué pasó.",
-  "sec.audit.b2": "Nadie puede borrar el historial — ni el administrador."
+  "sec.audit.b2": "Nadie puede borrar el historial — ni el administrador.",
+  "dash.pulse.noProjects": "Cuando crees tu primera obra, aquí verás su última bitácora, sus pendientes, su dinero y quién trabajó hoy — sin entrar a ningún detalle.",
+  "dash.pulse.noProjectsCta": "Crear mi primera obra"
 }

@@ -455,7 +455,32 @@ function PulseSection({
     return () => { cancelled = true; };
   }, [selected, storageKey]);
 
-  if (obras.length === 0) return null;
+  // No jobsites yet: keep the module VISIBLE with an inviting empty state.
+  // Hiding it entirely reads as "feature missing" to a brand-new admin.
+  if (obras.length === 0) {
+    return (
+      <section data-tour="pulse" className="rounded-xl overflow-hidden border border-[#E4E4E7]">
+        <div className="relative bg-[#0A0A0A] text-white">
+          <div className="absolute inset-0 pointer-events-none" style={GRID_BG} />
+          <div className="relative px-5 py-4">
+            <MonoLabel className="text-white/90">
+              <span className="text-[#F97316] mr-2">■</span>{t('admin:dash.pulse.label')}
+            </MonoLabel>
+            <h3 className="font-bt-heading font-semibold text-lg md:text-xl mt-1">
+              {t('admin:dash.pulse.title')}
+            </h3>
+          </div>
+        </div>
+        <div className="bg-[#EDE5D6]/60 p-6 text-center">
+          <p className="text-sm text-[#3F3F46]">{t('admin:dash.pulse.noProjects')}</p>
+          <button onClick={() => onNavigate('projects')}
+            className="mt-3 inline-flex items-center gap-2 bg-[#F97316] hover:bg-[#EA580C] text-white font-bt-mono text-[11px] uppercase tracking-[0.1em] px-4 py-2.5 transition-colors">
+            {t('admin:dash.pulse.noProjectsCta')} <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </section>
+    );
+  }
 
   const fin = pulse.data?.financial ?? null;
 
