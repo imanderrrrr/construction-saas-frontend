@@ -56,6 +56,9 @@ vi.mock('../components/ProjectManagement', () => ({
 vi.mock('../components/AuditLog', () => ({
   AuditLog: () => <div data-testid="audit-log" />,
 }));
+vi.mock('../components/BillingSection', () => ({
+  BillingSection: () => <div data-testid="billing-section" />,
+}));
 vi.mock('../components/SupervisorApprovals', () => ({
   SupervisorApprovals: () => <div data-testid="supervisor-approvals" />,
 }));
@@ -148,7 +151,7 @@ describe('AdminDashboard – billing entry points', () => {
     expect(sidebarBilling).toHaveLength(1);
   });
 
-  it('navigates to /admin/billing when the sidebar billing item is clicked', async () => {
+  it('opens the billing section in-shell (does not leave the panel) when clicked', async () => {
     await renderDashboard(root);
     const sidebarBilling = buttonsWithText(container, 'admin:nav.billing').filter(
       btn => btn.getAttribute('data-testid') !== 'dropdown-item',
@@ -159,8 +162,10 @@ describe('AdminDashboard – billing entry points', () => {
       sidebarBilling[0].click();
     });
 
-    expect(mocks.navigate).toHaveBeenCalledTimes(1);
-    expect(mocks.navigate).toHaveBeenCalledWith('/admin/billing');
+    // Billing is now an internal section, not a route: the panel stays put
+    // and the BillingSection renders in place.
+    expect(mocks.navigate).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-testid="billing-section"]')).not.toBeNull();
   });
 
   it('does not call navigate when clicking an internal section item (Users)', async () => {
@@ -188,7 +193,7 @@ describe('AdminDashboard – billing entry points', () => {
     expect(billingDropdownItem).toBeTruthy();
   });
 
-  it('navigates to /admin/billing when the dropdown billing item is clicked', async () => {
+  it('opens the billing section in-shell from the dropdown item too', async () => {
     await renderDashboard(root);
     const dropdownItems = Array.from(
       container.querySelectorAll('[data-testid="dropdown-item"]'),
@@ -202,7 +207,8 @@ describe('AdminDashboard – billing entry points', () => {
       billingDropdownItem!.click();
     });
 
-    expect(mocks.navigate).toHaveBeenCalledTimes(1);
-    expect(mocks.navigate).toHaveBeenCalledWith('/admin/billing');
+    // Consistent with the sidebar: opens the section in place, no route change.
+    expect(mocks.navigate).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-testid="billing-section"]')).not.toBeNull();
   });
 });

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { OnboardingTour } from '../components/onboarding/OnboardingTour';
 import { SectionIntro } from '../components/onboarding/SectionIntro';
+import { BillingSection } from '../components/BillingSection';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -166,7 +167,8 @@ type ActiveSection =
   | 'invoices' | 'invoice-branding'
   | 'accounts-receivable' | 'accounts-payable'
   | 'office-expenses'
-  | 'subcontractors';
+  | 'subcontractors'
+  | 'billing';
 
 // Nav items are either internal sections (clicking sets `activeSection`) or
 // route links (clicking calls `navigate(to)`). Route-link items use a string
@@ -183,7 +185,7 @@ type NavItem = {
 const NAV_GENERAL: NavItem[] = [
   { key: 'dashboard', labelKey: 'admin:nav.dashboard', icon: LayoutDashboard },
   { key: 'audit',     labelKey: 'admin:nav.auditLogs', icon: Shield          },
-  { key: 'billing',   labelKey: 'admin:nav.billing',   icon: CreditCard, to: '/admin/billing' },
+  { key: 'billing',   labelKey: 'admin:nav.billing',   icon: CreditCard },
 ];
 
 const NAV_PERSONNEL: NavItem[] = [
@@ -241,6 +243,7 @@ const SECTION_META: Record<ActiveSection, { titleKey: string; subtitleKey: strin
   'time-approvals':       { titleKey: 'admin:section.timeApprovals.title',       subtitleKey: 'admin:section.timeApprovals.subtitle'       },
   'clients':              { titleKey: 'admin:section.clients.title',              subtitleKey: 'admin:section.clients.subtitle'              },
   'subcontractors':       { titleKey: 'admin:section.subcontractors.title',       subtitleKey: 'admin:section.subcontractors.subtitle'       },
+  'billing':              { titleKey: 'admin:section.billing.title',              subtitleKey: 'admin:section.billing.subtitle'              },
 };
 
 export function AdminDashboard() {
@@ -534,7 +537,7 @@ export function AdminDashboard() {
                 <User className="w-4 h-4" />{t('common:profile')}
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => navigate('/admin/billing')}
+                onClick={() => handleNavigate('billing')}
                 className="gap-2 text-sm cursor-pointer"
               >
                 <CreditCard className="w-4 h-4" />{t('admin:nav.billing')}
@@ -552,6 +555,7 @@ export function AdminDashboard() {
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
           <SectionIntro section={activeSection} username={username} replayNonce={introReplay} />
           {activeSection === 'dashboard'    && <DashboardContent onNavigate={handleNavigate} />}
+          {activeSection === 'billing'      && <BillingSection />}
           {activeSection === 'users'        && <UserManagement />}
           {activeSection === 'schedules'    && (
             <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>

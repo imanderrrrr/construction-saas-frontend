@@ -12,6 +12,20 @@ vi.mock('../services/platformDashboard', () => ({
 
 import { RecordPaymentDialog, defaultCoversUntil } from './RecordPaymentDialog';
 
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+// The dialog derives its date pre-fills via helpers/dateTime.businessToday(),
+// which reads localStorage — not backed by jsdom here. Null-returning stub →
+// the helpers fall back to the default business timezone.
+vi.stubGlobal('localStorage', {
+  getItem: () => null,
+  setItem: () => {},
+  removeItem: () => {},
+  clear: () => {},
+  key: () => null,
+  length: 0,
+});
+
 describe('RecordPaymentDialog', () => {
   let container: HTMLDivElement;
   let root: Root;
