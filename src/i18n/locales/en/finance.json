@@ -109,6 +109,7 @@
   "expenses.viewReceipt": "View receipt",
   "expenses.workerNotes": "Worker notes",
   "expenses.approvedBy": "Approved by",
+  "expenses.approvalNote": "Approval note",
   "expenses.noReceipt": "No receipt uploaded",
   "expenses.receipt": "Receipt",
   "expenses.total": "Total:",

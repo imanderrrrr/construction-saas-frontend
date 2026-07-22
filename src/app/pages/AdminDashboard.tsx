@@ -10,8 +10,9 @@ import {
   Clock, CalendarClock, ClipboardList, Receipt, FileBarChart,
   Wallet, PieChart, Wrench, Banknote, HardHat,
   ArrowDownToLine, ArrowUpFromLine, UserRound, FileText, Briefcase,
-  CreditCard, FileSignature,
+  CreditCard, FileSignature, HelpCircle, Star,
 } from 'lucide-react';
+import { OnboardingTour } from '../components/onboarding/OnboardingTour';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -247,6 +248,27 @@ export function AdminDashboard() {
   const username = AuthService.getUsername();
   const [activeSection, setActiveSection] = useState<ActiveSection>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [tourReplay, setTourReplay] = useState(0);
+
+  // Pinned nav sections, per user, first-pinned first. They render in a
+  // FAVORITES group on top of the menu and stay in their original group too.
+  const favStorageKey = `bt.navfavs.${username ?? 'anon'}`;
+  const [favorites, setFavorites] = useState<string[]>(() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem(favStorageKey) ?? '[]');
+      return Array.isArray(raw) ? raw.filter((k): k is string => typeof k === 'string') : [];
+    } catch { return []; }
+  });
+  const toggleFavorite = (key: string) => {
+    setFavorites(prev => {
+      const next = prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key];
+      try { localStorage.setItem(favStorageKey, JSON.stringify(next)); } catch { /* private mode */ }
+      return next;
+    });
+  };
+  const favoriteItems = favorites
+    .map(key => NAV_ITEMS.find(i => i.key === key))
+    .filter((i): i is NavItem => Boolean(i));
   const navScrollPos = useRef(0);
 
   // Lock body scroll when mobile sidebar is open
@@ -288,6 +310,7 @@ export function AdminDashboard() {
     return (
       <button
         onClick={handleClick}
+        data-tour={item.key}
         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-left group ${
           isActive
             ? 'bg-[#F97316]/10 text-[#F97316]'
@@ -303,6 +326,21 @@ export function AdminDashboard() {
             {t(item.badgeKey)}
           </span>
         )}
+        {/* Favorite pin: hover-revealed; filled + always visible when pinned.
+            A span (not a nested button) — the row itself is already a button. */}
+        <span
+          role="button"
+          aria-label={t(favorites.includes(item.key) ? 'admin:nav.unpinFavorite' : 'admin:nav.pinFavorite')}
+          title={t(favorites.includes(item.key) ? 'admin:nav.unpinFavorite' : 'admin:nav.pinFavorite')}
+          onClick={(e) => { e.stopPropagation(); toggleFavorite(item.key); }}
+          className={`flex-shrink-0 transition-opacity ${
+            favorites.includes(item.key)
+              ? 'opacity-100 text-[#F97316]'
+              : 'opacity-0 group-hover:opacity-100 text-[#A1A1AA] hover:text-[#F97316]'
+          }`}
+        >
+          <Star className="w-3.5 h-3.5" fill={favorites.includes(item.key) ? 'currentColor' : 'none'} />
+        </span>
         {isActive && (
           <span className="w-1.5 h-1.5 rounded-full bg-[#F97316] flex-shrink-0" />
         )}
@@ -329,10 +367,24 @@ export function AdminDashboard() {
 
         {/* Navigation */}
         <nav
+          data-tour="favorites"
           className="flex-1 p-3 space-y-0.5 overflow-y-auto min-h-0"
           ref={(el) => { if (el) el.scrollTop = navScrollPos.current; }}
           onScroll={(e) => { navScrollPos.current = e.currentTarget.scrollTop; }}
         >
+          {/* Favorites — pinned on top, in pin order. Hidden while empty. */}
+          {favoriteItems.length > 0 && (
+            <>
+              <p className="text-[10px] font-semibold text-[#71717A] uppercase tracking-wider px-3 py-2">
+                {t('admin:group.favorites')}
+              </p>
+              {favoriteItems.map(item => (
+                <NavItem key={`fav-${item.key}`} item={item} />
+              ))}
+              <div className="my-3 border-t border-[#D4D4D8]" />
+            </>
+          )}
+
           {/* General */}
           <p className="text-[10px] font-semibold text-[#71717A] uppercase tracking-wider px-3 py-2">
             {t('admin:group.general')}
@@ -446,6 +498,14 @@ export function AdminDashboard() {
           </div>
 
           <div className="flex items-center gap-2">
+          <button
+            data-tour="help"
+            onClick={() => setTourReplay(n => n + 1)}
+            title={t('admin:tour.helpButton')}
+            className="w-9 h-9 flex items-center justify-center rounded-lg text-[#71717A] hover:text-[#F97316] hover:bg-[#FAFAFA] transition-colors"
+          >
+            <HelpCircle className="w-4 h-4" />
+          </button>
           <LanguageSwitcher />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -574,6 +634,7 @@ export function AdminDashboard() {
       </div>
 
       <Toaster position="top-right" richColors />
+      <OnboardingTour username={username} replayNonce={tourReplay} />
     </div>
   );
 }

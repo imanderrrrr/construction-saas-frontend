@@ -40,6 +40,7 @@ interface ApprovedExpense {
   amount: number;
   workerComment?: string;
   reviewerName?: string;
+  reviewerComment?: string;
   receiptUrl?: string;
 }
 
@@ -63,6 +64,7 @@ function mapExpense(e: ExpenseResponse): ApprovedExpense {
     amount: e.amountCents / 100,
     workerComment: e.description ?? undefined,
     reviewerName: e.reviewerName ?? undefined,
+    reviewerComment: e.reviewerComment ?? undefined,
     receiptUrl: e.receiptUrl ? receiptUrl(e.id) : undefined,
   };
 }
@@ -539,6 +541,12 @@ export function FinanceExpenses() {
                             <div>
                               <p className="text-[10px] font-semibold text-[#71717A] uppercase tracking-wide mb-0.5">{t('finance:expenses.workerNotes')}</p>
                               <p className="text-sm text-[#0A0A0A]">{expense.workerComment}</p>
+                            </div>
+                          )}
+                          {expense.reviewerComment && (
+                            <div>
+                              <p className="text-[10px] font-semibold text-[#71717A] uppercase tracking-wide mb-0.5">{t('finance:expenses.approvalNote')}</p>
+                              <p className="text-sm text-[#0A0A0A]">{expense.reviewerComment}</p>
                             </div>
                           )}
                           <div className="flex items-center gap-2 pt-2 border-t border-[#D4D4D8]">
