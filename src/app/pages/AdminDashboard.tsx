@@ -20,10 +20,10 @@ import {
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '../components/ui/dropdown-menu';
 import { DashboardContent } from '../components/DashboardContent';
-import { UserManagement } from '../components/UserManagement';
+import { UsersRoster } from '../components/users/UsersRoster';
 import { ProjectManagement } from '../components/ProjectManagement';
 import { AuditLog } from '../components/AuditLog';
-import { SupervisorApprovals } from '../components/SupervisorApprovals';
+import { ApprovalsInbox } from '../components/approvals/ApprovalsInbox';
 import { ClientManagement } from '../components/ClientManagement';
 import { Toaster } from '../components/ui/sonner';
 import { TimezoneSwitcher } from '../components/TimezoneSwitcher';
@@ -556,7 +556,7 @@ export function AdminDashboard() {
           <SectionIntro section={activeSection} username={username} replayNonce={introReplay} />
           {activeSection === 'dashboard'    && <DashboardContent onNavigate={handleNavigate} />}
           {activeSection === 'billing'      && <BillingSection />}
-          {activeSection === 'users'        && <UserManagement />}
+          {activeSection === 'users'        && <UsersRoster />}
           {activeSection === 'schedules'    && (
             <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
               <KanbanBoard />
@@ -640,7 +640,7 @@ export function AdminDashboard() {
           {activeSection === 'projects'     && <ProjectManagement />}
           {activeSection === 'clients'      && <ClientManagement />}
           {activeSection === 'audit'        && <AuditLog />}
-          {activeSection === 'time-approvals'&& <SupervisorApprovals />}
+          {activeSection === 'time-approvals'&& <ApprovalsInbox />}
         </main>
       </div>
 

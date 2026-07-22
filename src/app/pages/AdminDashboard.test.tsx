@@ -47,8 +47,8 @@ vi.mock('../components/TimezoneSwitcher', () => ({
 vi.mock('../components/DashboardContent', () => ({
   DashboardContent: () => <div data-testid="dashboard-content" />,
 }));
-vi.mock('../components/UserManagement', () => ({
-  UserManagement: () => <div data-testid="user-mgmt" />,
+vi.mock('../components/users/UsersRoster', () => ({
+  UsersRoster: () => <div data-testid="user-mgmt" />,
 }));
 vi.mock('../components/ProjectManagement', () => ({
   ProjectManagement: () => <div data-testid="project-mgmt" />,
@@ -59,8 +59,8 @@ vi.mock('../components/AuditLog', () => ({
 vi.mock('../components/BillingSection', () => ({
   BillingSection: () => <div data-testid="billing-section" />,
 }));
-vi.mock('../components/SupervisorApprovals', () => ({
-  SupervisorApprovals: () => <div data-testid="supervisor-approvals" />,
+vi.mock('../components/approvals/ApprovalsInbox', () => ({
+  ApprovalsInbox: () => <div data-testid="supervisor-approvals" />,
 }));
 vi.mock('../components/ClientManagement', () => ({
   ClientManagement: () => <div data-testid="client-mgmt" />,
