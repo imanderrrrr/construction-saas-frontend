@@ -1671,5 +1671,7 @@
   "sec.audit.title": "Audit Log — everything on record",
   "sec.audit.body": "Every important action in the system: who did what, when, and from where. Your backup whenever questions come up.",
   "sec.audit.b1": "Filter by person or action to reconstruct what happened.",
-  "sec.audit.b2": "No one can erase history — not even the admin."
+  "sec.audit.b2": "No one can erase history — not even the admin.",
+  "dash.pulse.noProjects": "Once you create your first jobsite, you'll see its latest site log, open items, money and who worked today — without opening any detail page.",
+  "dash.pulse.noProjectsCta": "Create my first jobsite"
 }
