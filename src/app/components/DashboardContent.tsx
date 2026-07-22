@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  AlertTriangle, ArrowRight, CalendarPlus, CheckCircle2, ChevronRight,
-  Clock, HandCoins, ListChecks, RefreshCw, Wallet,
+  AlertTriangle, ArrowRight, CalendarPlus, CheckCircle2, ChevronLeft,
+  ChevronRight, Clock, HandCoins, ListChecks, RefreshCw, Wallet,
 } from 'lucide-react';
 import { Skeleton } from './ui/skeleton';
 import { searchAuditLogs, type AuditLogDTO } from '../services/audit';
+import { getBranding } from '../services/branding';
 import { listProjects } from '../services/projects';
 import {
   getBudgetBlock, getMoneyBlock, getProjectPulse, getTodayBlock,
@@ -51,6 +52,14 @@ function MonoLabel({ children, className = '' }: { children: React.ReactNode; cl
   );
 }
 
+/** "21 JUL 2026" — the design's stamp style for the business date. */
+function prettyDate(iso: string, lang: string): string {
+  return new Date(`${iso}T00:00:00`)
+    .toLocaleDateString(lang.startsWith('es') ? 'es-GT' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' })
+    .replace(/\./g, '')
+    .toUpperCase();
+}
+
 /** Blueprint grid backdrop for ink blocks — same motif as the landing hero. */
 const GRID_BG: React.CSSProperties = {
   backgroundImage:
@@ -68,6 +77,13 @@ export function DashboardContent({ onNavigate }: { onNavigate: (section: string)
   const [activity, setActivity] = useState<BlockState<AuditLogDTO[]>>(loading);
   const [obras, setObras] = useState<{ id: number; name: string }[]>([]);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [orgName, setOrgName] = useState<string | null>(null);
+
+  // Company name for the kicker (white-label, like the mobile app). Decorative:
+  // failures just leave the generic kicker.
+  useEffect(() => {
+    getBranding().then(b => setOrgName(b.organizationName)).catch(() => {});
+  }, []);
 
   const load = useCallback(async () => {
     const date = businessToday();
@@ -87,7 +103,8 @@ export function DashboardContent({ onNavigate }: { onNavigate: (section: string)
     if (p.status === 'fulfilled') {
       setObras(p.value.content.map(pr => ({ id: pr.id, name: pr.name })));
     }
-    setLastUpdated(fmtDateTime(new Date().toISOString(), i18n.language));
+    // Time only — the business date already stamps the header's first line.
+    setLastUpdated(fmtDateTime(new Date().toISOString(), i18n.language).split(',').pop()?.trim() ?? null);
   }, [i18n.language]);
 
   useEffect(() => { load(); }, [load]);
@@ -100,7 +117,10 @@ export function DashboardContent({ onNavigate }: { onNavigate: (section: string)
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <MonoLabel className="text-[#71717A] mb-1">{t('admin:dash.kicker')}</MonoLabel>
+          <MonoLabel className="text-[#71717A] mb-1">
+            {t('admin:dash.kicker')}
+            {orgName && <span className="text-[#3F3F46]"> · {orgName}</span>}
+          </MonoLabel>
           <h2 className="font-bt-display font-bold uppercase text-4xl md:text-5xl leading-none text-[#0A0A0A]">
             {t('admin:dash.title')}
           </h2>
@@ -108,14 +128,13 @@ export function DashboardContent({ onNavigate }: { onNavigate: (section: string)
         </div>
         <div className="text-right">
           <MonoLabel className="text-[#71717A]">
-            {t('admin:dash.todayStamp', { date: businessToday() })}
+            {t('admin:dash.todayStamp', { date: prettyDate(businessToday(), i18n.language) })}
           </MonoLabel>
-          {lastUpdated && (
-            <button onClick={load}
-              className="mt-1 inline-flex items-center gap-1.5 font-bt-mono text-[10px] uppercase tracking-[0.1em] text-[#71717A] hover:text-[#F97316] transition-colors">
-              <RefreshCw className="w-3 h-3" />{t('admin:dash.refreshed', { time: lastUpdated })}
-            </button>
-          )}
+          <button onClick={load}
+            className="mt-1 inline-flex items-center gap-1.5 font-bt-mono text-[10px] uppercase tracking-[0.1em] text-[#A1A1AA] hover:text-[#F97316] transition-colors">
+            <RefreshCw className="w-3 h-3" />
+            {t('admin:dash.liveStamp')}{lastUpdated ? ` · ${lastUpdated}` : ''}
+          </button>
         </div>
       </div>
 
@@ -336,18 +355,30 @@ export function DashboardContent({ onNavigate }: { onNavigate: (section: string)
             <p className="text-sm text-[#71717A] py-4 text-center">{t('admin:dash.activity.empty')}</p>
           ) : (
             <ul className="divide-y divide-[#F4F4F5]">
-              {activity.data!.map(ev => (
-                <li key={ev.id} className="py-2 flex items-center gap-3 text-xs">
-                  <span className="font-bt-mono text-[#A1A1AA] w-14 flex-shrink-0">
-                    {ev.occurredAt ? fmtDateTime(ev.occurredAt, i18n.language).split(',').pop()?.trim() : '—'}
-                  </span>
-                  <span className="text-[#0A0A0A] font-medium truncate">{ev.actorUsername || '—'}</span>
-                  <span className="font-bt-mono text-[10px] uppercase tracking-[0.06em] text-[#3F3F46] bg-[#F4F4F5] px-1.5 py-0.5 flex-shrink-0">
-                    {ev.action}
-                  </span>
-                  <span className="text-[#A1A1AA] truncate hidden sm:inline">{ev.entityType ?? ''}</span>
-                </li>
-              ))}
+              {activity.data!.map(ev => {
+                // Humanized phrase when we know the action; raw code chip otherwise.
+                const known = i18n.exists(`admin:dash.act.${ev.action}`);
+                return (
+                  <li key={ev.id} className="py-2 flex items-start gap-3 text-xs">
+                    <span className="font-bt-mono text-[#A1A1AA] w-14 flex-shrink-0 pt-0.5">
+                      {ev.occurredAt ? fmtDateTime(ev.occurredAt, i18n.language).split(',').pop()?.trim() : '—'}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[#0A0A0A] truncate">
+                        <b>{ev.actorUsername || '—'}</b>{' '}
+                        {known
+                          ? t(`admin:dash.act.${ev.action}`)
+                          : <span className="font-bt-mono text-[10px] uppercase tracking-[0.06em] text-[#3F3F46] bg-[#F4F4F5] px-1.5 py-0.5">{ev.action}</span>}
+                      </span>
+                      {(ev.entityType || ev.message) && (
+                        <span className="block font-bt-mono text-[9px] uppercase tracking-[0.1em] text-[#A1A1AA] truncate mt-0.5">
+                          {ev.message ?? ev.entityType}
+                        </span>
+                      )}
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>
@@ -442,10 +473,16 @@ function PulseSection({
               {t('admin:dash.pulse.title')}
             </h3>
           </div>
-          {/* Rail: ONE row, right-anchored, self-contained scroll */}
-          <div className="relative min-w-0 w-full md:w-auto md:flex-1 md:max-w-[52%]">
+          {/* Rail: ONE row, right-anchored, self-contained scroll + edge arrows */}
+          <div className="relative min-w-0 w-full md:w-auto md:flex-1 md:max-w-[52%] flex items-center gap-1.5">
+            <button
+              aria-label="◀"
+              onClick={() => railRef.current?.scrollBy({ left: -240, behavior: 'smooth' })}
+              className="hidden md:flex flex-shrink-0 w-6 h-6 items-center justify-center border border-white/20 text-white/60 hover:text-white hover:border-white/50 transition-colors">
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
             <div ref={railRef}
-              className="flex gap-2 overflow-x-auto md:justify-end [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              className="flex gap-2 overflow-x-auto md:justify-end [scrollbar-width:none] [&::-webkit-scrollbar]:hidden min-w-0 flex-1"
               style={{ maskImage: 'linear-gradient(90deg, transparent, black 20px, black calc(100% - 20px), transparent)', WebkitMaskImage: 'linear-gradient(90deg, transparent, black 20px, black calc(100% - 20px), transparent)' }}>
               {obras.map((o, i) => (
                 <button key={o.id} data-obra={o.id} onClick={() => setSelected(o.id)}
@@ -461,6 +498,12 @@ function PulseSection({
                 </button>
               ))}
             </div>
+            <button
+              aria-label="▶"
+              onClick={() => railRef.current?.scrollBy({ left: 240, behavior: 'smooth' })}
+              className="hidden md:flex flex-shrink-0 w-6 h-6 items-center justify-center border border-white/20 text-white/60 hover:text-white hover:border-white/50 transition-colors">
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       </div>

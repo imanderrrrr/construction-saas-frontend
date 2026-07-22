@@ -13,6 +13,7 @@ import {
   CreditCard, FileSignature, HelpCircle, Star,
 } from 'lucide-react';
 import { OnboardingTour } from '../components/onboarding/OnboardingTour';
+import { SectionIntro } from '../components/onboarding/SectionIntro';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -249,6 +250,7 @@ export function AdminDashboard() {
   const [activeSection, setActiveSection] = useState<ActiveSection>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [tourReplay, setTourReplay] = useState(0);
+  const [introReplay, setIntroReplay] = useState(0);
 
   // Pinned nav sections, per user, first-pinned first. They render in a
   // FAVORITES group on top of the menu and stay in their original group too.
@@ -500,7 +502,11 @@ export function AdminDashboard() {
           <div className="flex items-center gap-2">
           <button
             data-tour="help"
-            onClick={() => setTourReplay(n => n + 1)}
+            onClick={() =>
+              activeSection === 'dashboard'
+                ? setTourReplay(n => n + 1)
+                : setIntroReplay(n => n + 1)
+            }
             title={t('admin:tour.helpButton')}
             className="w-9 h-9 flex items-center justify-center rounded-lg text-[#71717A] hover:text-[#F97316] hover:bg-[#FAFAFA] transition-colors"
           >
@@ -544,6 +550,7 @@ export function AdminDashboard() {
 
         {/* Content area */}
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
+          <SectionIntro section={activeSection} username={username} replayNonce={introReplay} />
           {activeSection === 'dashboard'    && <DashboardContent onNavigate={handleNavigate} />}
           {activeSection === 'users'        && <UserManagement />}
           {activeSection === 'schedules'    && (
