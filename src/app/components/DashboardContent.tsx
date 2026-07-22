@@ -1,383 +1,576 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Users, UserMinus, FolderOpen, Folder, UserPlus, Plus,
-  Activity, AlertCircle, RefreshCw,
-  ChevronRight, Clock, ShieldCheck, Wrench, Receipt, Wallet, Shield,
+  AlertTriangle, ArrowRight, CalendarPlus, CheckCircle2, ChevronRight,
+  Clock, HandCoins, ListChecks, RefreshCw, Wallet,
 } from 'lucide-react';
-import { Button } from './ui/button';
 import { Skeleton } from './ui/skeleton';
-import { StatCard } from './StatCard';
-import {
-  Table, TableBody, TableCell, TableHead,
-  TableHeader, TableRow,
-} from './ui/table';
-import { listUsers } from '../services/users';
-import { listProjects, type ProjectResponse } from '../services/projects';
 import { searchAuditLogs, type AuditLogDTO } from '../services/audit';
-import { getAdminHoursReport } from '../services/time';
-import { getAdminSummary } from '../services/expenses';
-import { getAdminToolSummary } from '../services/warehouse';
+import { listProjects } from '../services/projects';
+import {
+  getBudgetBlock, getMoneyBlock, getProjectPulse, getTodayBlock,
+  type BudgetBlock, type MoneyBlock, type ProjectPulse, type TodayBlock,
+} from '../services/dashboard';
+import { businessToday, fmtDateTime } from '../helpers/dateTime';
+import { AuthService } from '../services/auth';
 
-// Types
+/**
+ * Redesigned admin dashboard — the landing's industrial language brought into
+ * the panel: Big Shoulders display numerals, IBM Plex Mono micro-labels, ink
+ * hero blocks with a blueprint grid, bone-paper surfaces, orange only where it
+ * asks for attention.
+ *
+ * Blocks fail independently: each renders data, its skeleton, or a quiet
+ * fallback, so one broken aggregate never blanks the screen.
+ */
 
-type ViewState = 'loading' | 'ok' | 'empty' | 'error';
+type BlockState<T> = { state: 'loading' | 'ok' | 'error'; data: T | null };
 
-interface KpiData {
-  activeUsers: number;
-  inactiveUsers: number;
-  activeProjects: number;
-  totalProjects: number;
+const loading = { state: 'loading' as const, data: null };
+
+/** "$18,450" — cents → whole dollars, no decimals (the design's marker style). */
+function money(cents: number): string {
+  return Math.round(cents / 100).toLocaleString('en-US');
 }
 
-interface SystemKpis {
-  activeWorkersToday: number;
-  hoursThisWeek: number;
-  pendingExpenses: number;
-  budgetCriticalProjects: number;
-  toolsAssigned: number;
-  auditEventsToday: number;
-}
-
-// Constants
-
-/** Maps real backend action names to badge colors. Fallback style used for unknowns. */
-const ACTION_STYLES: Record<string, { bg: string; text: string }> = {
-  // Auth & Security
-  LOGIN_SUCCESS:               { bg: 'bg-emerald-50',    text: 'text-emerald-700'  },
-  LOGIN_FAILED:                { bg: 'bg-red-50',         text: 'text-red-700'      },
-  ACCESS_DENIED:               { bg: 'bg-red-50',         text: 'text-red-700'      },
-  // Users
-  USER_CREATED:                { bg: 'bg-[#F97316]/10',  text: 'text-[#F97316]'    },
-  USER_UPDATED:                { bg: 'bg-purple-50',      text: 'text-purple-700'   },
-  USER_STATUS_CHANGED:         { bg: 'bg-amber-50',       text: 'text-amber-700'    },
-  PASSWORD_RESET:              { bg: 'bg-amber-50',       text: 'text-amber-700'    },
-  // Projects
-  PROJECT_CREATED:             { bg: 'bg-blue-50',        text: 'text-blue-700'     },
-  PROJECT_UPDATED:             { bg: 'bg-blue-50',        text: 'text-blue-600'     },
-  PROJECT_CLOSED:              { bg: 'bg-slate-100',      text: 'text-slate-700'    },
-  PROJECT_GEOFENCE_UPDATED:    { bg: 'bg-cyan-50',        text: 'text-cyan-700'     },
-  PROJECT_ASSIGNMENTS_UPDATED: { bg: 'bg-indigo-50',      text: 'text-indigo-700'   },
-  // Time
-  TIME_CHECK_IN:               { bg: 'bg-emerald-50',    text: 'text-emerald-700'  },
-  TIME_CHECK_OUT:              { bg: 'bg-orange-50',      text: 'text-orange-700'   },
-  TIME_LUNCH_START:            { bg: 'bg-yellow-50',      text: 'text-yellow-700'   },
-  TIME_LUNCH_END:              { bg: 'bg-yellow-50',      text: 'text-yellow-600'   },
-  TIME_ENTRY_APPROVED:         { bg: 'bg-emerald-50',    text: 'text-emerald-700'  },
-  TIME_ENTRY_REJECTED:         { bg: 'bg-red-50',         text: 'text-red-700'      },
-  TIME_ENTRY_CORRECTED:        { bg: 'bg-amber-50',       text: 'text-amber-700'    },
-  TIME_EVENT_APPROVED:         { bg: 'bg-emerald-50',    text: 'text-emerald-700'  },
-  TIME_EVENT_REJECTED:         { bg: 'bg-red-50',         text: 'text-red-700'      },
-  TIME_EVENT_CORRECTED:        { bg: 'bg-amber-50',       text: 'text-amber-700'    },
-};
-
-const QUICK_ACTIONS = [
-  { icon: UserPlus,    labelKey: 'admin:dashboard.createUser',     descKey: 'admin:dashboard.createUserDesc',     color: 'text-[#F97316]',  bg: 'bg-[#F97316]/10', nav: 'users'    },
-  { icon: Plus,        labelKey: 'admin:dashboard.createProject',  descKey: 'admin:dashboard.createProjectDesc',  color: 'text-emerald-600', bg: 'bg-emerald-50',   nav: 'projects' },
-  { icon: ShieldCheck, labelKey: 'admin:dashboard.viewAuditLogs',  descKey: 'admin:dashboard.viewAuditLogsDesc',  color: 'text-purple-600',  bg: 'bg-purple-50',    nav: 'audit'    },
-];
-
-// Helpers
-
-import { fmtDateTime, businessToday, nDaysAgo, startOfDayISO } from '../helpers/dateTime';
-
-function fmtEntity(dto: AuditLogDTO): string {
-  if (dto.entityType && dto.entityId) return `${dto.entityType} #${dto.entityId}`;
-  if (dto.entityType) return dto.entityType;
-  return '—';
-}
-
-function ActionBadge({ action }: { action: string }) {
-  const s = ACTION_STYLES[action] ?? { bg: 'bg-[#FAFAFA]', text: 'text-[#71717A]' };
+/** Display numeral with the $ deliberately smaller and top-aligned (design fix). */
+function BigMoney({ cents, className = '' }: { cents: number; className?: string }) {
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-mono font-semibold ${s.bg} ${s.text}`}>
-      {action}
+    <span className={`font-bt-display font-bold leading-none tracking-tight ${className}`}>
+      <span className="align-top text-[0.55em] mr-0.5">$</span>
+      {money(cents)}
     </span>
   );
 }
 
-// Dashboard Content
+function MonoLabel({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return (
+    <p className={`font-bt-mono text-[10px] uppercase tracking-[0.12em] ${className}`}>
+      {children}
+    </p>
+  );
+}
+
+/** Blueprint grid backdrop for ink blocks — same motif as the landing hero. */
+const GRID_BG: React.CSSProperties = {
+  backgroundImage:
+    'linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.045) 1px, transparent 1px)',
+  backgroundSize: '28px 28px',
+};
 
 export function DashboardContent({ onNavigate }: { onNavigate: (section: string) => void }) {
   const { t, i18n } = useTranslation(['admin', 'common']);
-  const [viewState, setViewState]       = useState<ViewState>('loading');
-  const [kpi, setKpi]                   = useState<KpiData | null>(null);
-  const [systemKpis, setSystemKpis]     = useState<SystemKpis | null>(null);
-  const [recentActivity, setRecent]     = useState<AuditLogDTO[]>([]);
-  const [lastUpdated, setLastUpdated]   = useState<string | null>(null);
+  const username = AuthService.getUsername();
+
+  const [moneyB, setMoneyB] = useState<BlockState<MoneyBlock>>(loading);
+  const [todayB, setTodayB] = useState<BlockState<TodayBlock>>(loading);
+  const [budgetB, setBudgetB] = useState<BlockState<BudgetBlock>>(loading);
+  const [activity, setActivity] = useState<BlockState<AuditLogDTO[]>>(loading);
+  const [obras, setObras] = useState<{ id: number; name: string }[]>([]);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    setViewState('loading');
-    try {
-      const today = businessToday();
-      const weekAgo = nDaysAgo(7);
-      const todayStartISO = startOfDayISO(today);
+    const date = businessToday();
+    setMoneyB(loading); setTodayB(loading); setBudgetB(loading); setActivity(loading);
 
-      const [activeUsersPage, inactiveUsersPage, activeProjectsPage, allProjectsPage, auditPage] =
-        await Promise.all([
-          listUsers({ status: 'ACTIVE',   page: 0, size: 1 }),
-          listUsers({ status: 'INACTIVE', page: 0, size: 1 }),
-          listProjects({ status: 'ACTIVE', page: 0, size: 1 }),
-          listProjects({ page: 0, size: 1 }),
-          searchAuditLogs({ page: 0, size: 6 }),
-        ]);
-
-      setKpi({
-        activeUsers:    activeUsersPage.totalElements,
-        inactiveUsers:  inactiveUsersPage.totalElements,
-        activeProjects: activeProjectsPage.totalElements,
-        totalProjects:  allProjectsPage.totalElements,
-      });
-      setRecent(auditPage.content);
-
-      // Fetch system KPIs in parallel (non-blocking — failures show '—')
-      const sysPromises = await Promise.allSettled([
-        getAdminHoursReport({ dateFrom: weekAgo, dateTo: today }),
-        getAdminSummary(),
-        getAdminToolSummary(),
-        listProjects({ status: 'ACTIVE', page: 0, size: 500 }),
-        searchAuditLogs({ page: 0, size: 1, dateFrom: todayStartISO }),
-      ]);
-
-      const hoursReport  = sysPromises[0].status === 'fulfilled' ? sysPromises[0].value : null;
-      const expSummary   = sysPromises[1].status === 'fulfilled' ? sysPromises[1].value : null;
-      const toolSummary  = sysPromises[2].status === 'fulfilled' ? sysPromises[2].value : null;
-      const budgetProjects = sysPromises[3].status === 'fulfilled' ? sysPromises[3].value : null;
-      const todayAudit   = sysPromises[4].status === 'fulfilled' ? sysPromises[4].value : null;
-
-      // Count active workers (workers with time entries this week)
-      const activeWorkersToday = hoursReport?.workers?.length ?? 0;
-      const hoursThisWeek = hoursReport?.kpis?.totalApprovedHours ?? 0;
-      const pendingExpenses = expSummary?.pendingCount ?? 0;
-      const toolsAssigned = toolSummary?.assigned ?? 0;
-      const auditEventsToday = todayAudit?.totalElements ?? 0;
-
-      // Budget critical = projects with >90% consumption
-      let budgetCriticalProjects = 0;
-      if (budgetProjects) {
-        budgetCriticalProjects = budgetProjects.content.filter((p: ProjectResponse) => {
-          const budget = p.revisedContractCents ?? p.originalContractCents ?? 0;
-          const consumed = p.totalConsumedCents ?? 0;
-          return budget > 0 && (consumed / budget) >= 0.9;
-        }).length;
-      }
-
-      setSystemKpis({ activeWorkersToday, hoursThisWeek, pendingExpenses, budgetCriticalProjects, toolsAssigned, auditEventsToday });
-
-      setLastUpdated(fmtDateTime(new Date().toISOString(), i18n.language));
-      setViewState(
-        allProjectsPage.totalElements === 0 && auditPage.totalElements === 0
-          ? 'empty'
-          : 'ok'
-      );
-    } catch (err) {
-      setViewState('error');
+    const [m, td, b, a, p] = await Promise.allSettled([
+      getMoneyBlock(date),
+      getTodayBlock(date),
+      getBudgetBlock(),
+      searchAuditLogs({ page: 0, size: 5 }),
+      listProjects({ status: 'ACTIVE', page: 0, size: 100 }),
+    ]);
+    setMoneyB(m.status === 'fulfilled' ? { state: 'ok', data: m.value } : { state: 'error', data: null });
+    setTodayB(td.status === 'fulfilled' ? { state: 'ok', data: td.value } : { state: 'error', data: null });
+    setBudgetB(b.status === 'fulfilled' ? { state: 'ok', data: b.value } : { state: 'error', data: null });
+    setActivity(a.status === 'fulfilled' ? { state: 'ok', data: a.value.content } : { state: 'error', data: null });
+    if (p.status === 'fulfilled') {
+      setObras(p.value.content.map(pr => ({ id: pr.id, name: pr.name })));
     }
-  }, []);
+    setLastUpdated(fmtDateTime(new Date().toISOString(), i18n.language));
+  }, [i18n.language]);
 
   useEffect(() => { load(); }, [load]);
 
-  const isLoading = viewState === 'loading';
-  const isError   = viewState === 'error';
-  const isEmpty   = viewState === 'empty';
-  const isOk      = viewState === 'ok' || viewState === 'empty';
+  const anyError = [moneyB, todayB, budgetB].some(b => b.state === 'error');
 
   return (
-    <div className="space-y-6">
+    <div className="p-4 md:p-6 max-w-[1400px] mx-auto space-y-5">
 
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-2xl font-bold text-[#0A0A0A]">{t('admin:dashboard.title')}</h2>
-          <p className="text-sm text-[#71717A] mt-1">{t('admin:dashboard.subtitle')}</p>
+          <MonoLabel className="text-[#71717A] mb-1">{t('admin:dash.kicker')}</MonoLabel>
+          <h2 className="font-bt-display font-bold uppercase text-4xl md:text-5xl leading-none text-[#0A0A0A]">
+            {t('admin:dash.title')}
+          </h2>
+          <p className="text-sm text-[#52525B] mt-1.5">{t('admin:dash.subtitle')}</p>
         </div>
-        {lastUpdated && (
-          <div className="flex items-center gap-2 text-xs text-[#71717A]">
-            <Clock className="w-3.5 h-3.5" />
-            <span>{t('admin:dashboard.lastUpdated', { timestamp: lastUpdated })}</span>
-          </div>
-        )}
-
-      </div>
-
-      {/* Error Banner */}
-      {isError && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
-              <AlertCircle className="w-5 h-5 text-red-600" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-red-900">{t('admin:dashboard.errorTitle')}</p>
-              <p className="text-xs text-red-600 mt-0.5">{t('admin:dashboard.errorDesc')}</p>
-            </div>
-          </div>
-          <Button variant="outline" size="sm"
-            onClick={load}
-            className="gap-2 border-red-200 text-red-700 hover:bg-red-50 shrink-0">
-            <RefreshCw className="w-3.5 h-3.5" />{t('common:buttons.retry')}
-          </Button>
-        </div>
-      )}
-
-      {/* KPI Cards */}
-      <div>
-        <p className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-4">{t('admin:dashboard.keyMetrics')}</p>
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-          <StatCard
-            icon={Users}
-            title={t('admin:dashboard.activeUsers')}
-            value={kpi?.activeUsers ?? 0}
-            subtitle={t('admin:dashboard.activeUsersDesc')}
-            iconBgColor="bg-[#F97316]/10"
-            iconColor="text-[#F97316]"
-            isLoading={isLoading} isError={isError}
-          />
-          <StatCard
-            icon={UserMinus}
-            title={t('admin:dashboard.inactiveUsers')}
-            value={kpi?.inactiveUsers ?? 0}
-            subtitle={t('admin:dashboard.inactiveUsersDesc')}
-            iconBgColor="bg-[#71717A]/10"
-            iconColor="text-[#71717A]"
-            isLoading={isLoading} isError={isError}
-          />
-          <StatCard
-            icon={FolderOpen}
-            title={t('admin:dashboard.activeProjects')}
-            value={kpi?.activeProjects ?? 0}
-            subtitle={t('admin:dashboard.activeProjectsDesc')}
-            iconBgColor="bg-emerald-100"
-            iconColor="text-emerald-600"
-            isLoading={isLoading} isError={isError}
-          />
-          <StatCard
-            icon={Folder}
-            title={t('admin:dashboard.totalProjects')}
-            value={kpi?.totalProjects ?? 0}
-            subtitle={t('admin:dashboard.totalProjectsDesc')}
-            iconBgColor="bg-amber-100"
-            iconColor="text-amber-600"
-            isLoading={isLoading} isError={isError}
-          />
-        </div>
-      </div>
-
-      {/* Recent Activity */}
-      <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden">
-        <div className="px-6 py-4 border-b border-[#D4D4D8] flex items-center justify-between">
-          <div>
-            <h3 className="text-sm font-semibold text-[#0A0A0A]">{t('admin:dashboard.recentActivity')}</h3>
-            <p className="text-xs text-[#71717A] mt-0.5">{t('admin:dashboard.recentActivityDesc')}</p>
-          </div>
-          {isOk && (
-            <button onClick={() => onNavigate('audit')}
-              className="flex items-center gap-1 text-xs font-medium text-[#F97316] hover:text-[#C2410C] transition-colors">
-              {t('admin:dashboard.viewAllAuditLogs')} <ChevronRight className="w-3.5 h-3.5" />
+        <div className="text-right">
+          <MonoLabel className="text-[#71717A]">
+            {t('admin:dash.todayStamp', { date: businessToday() })}
+          </MonoLabel>
+          {lastUpdated && (
+            <button onClick={load}
+              className="mt-1 inline-flex items-center gap-1.5 font-bt-mono text-[10px] uppercase tracking-[0.1em] text-[#71717A] hover:text-[#F97316] transition-colors">
+              <RefreshCw className="w-3 h-3" />{t('admin:dash.refreshed', { time: lastUpdated })}
             </button>
           )}
         </div>
+      </div>
 
-        {/* Loading */}
-        {isLoading && (
-          <div className="p-6 space-y-4">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="flex items-center gap-4">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-4 w-16" />
-                <Skeleton className="h-6 w-40 rounded-full" />
-                <Skeleton className="h-4 w-16" />
+      {anyError && (
+        <div className="flex items-center justify-between border border-red-200 bg-red-50 px-4 py-2.5 rounded-lg">
+          <p className="text-xs text-red-700">{t('admin:dash.partialError')}</p>
+          <button onClick={load} className="text-xs font-semibold text-red-700 underline">
+            {t('common:buttons.retry')}
+          </button>
+        </div>
+      )}
+
+      {/* ── DINERO (hero) ──────────────────────────────────────────────── */}
+      <section data-tour="money" aria-label={t('admin:dash.money.label')}
+        className="relative bg-[#0A0A0A] text-white rounded-xl overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none" style={GRID_BG} />
+        <div className="relative p-5 md:p-6">
+          <div className="flex items-center justify-between mb-5">
+            <MonoLabel className="text-white/90">
+              <span className="text-[#F97316] mr-2">■</span>{t('admin:dash.money.label')}
+            </MonoLabel>
+            <MonoLabel className="text-white/25 hidden sm:block">{t('admin:dash.revStamp')}</MonoLabel>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6 md:gap-0 md:divide-x md:divide-white/10">
+            {/* Por cobrar vencido — the number that hurts, in orange */}
+            <div className="md:pr-6">
+              <MonoLabel className="text-[#F97316] mb-2">{t('admin:dash.money.overdue')}</MonoLabel>
+              {moneyB.state === 'loading' ? <Skeleton className="h-14 w-40 bg-white/10" /> : (
+                <>
+                  <BigMoney cents={moneyB.data?.receivablesOverdue.amountCents ?? 0}
+                    className={`text-5xl md:text-6xl ${(moneyB.data?.receivablesOverdue.count ?? 0) > 0 ? 'text-[#F97316]' : 'text-white/40'}`} />
+                  <MonoLabel className="text-white/50 mt-2.5">
+                    {(moneyB.data?.receivablesOverdue.count ?? 0) > 0
+                      ? t('admin:dash.money.overdueMeta', {
+                          count: moneyB.data?.receivablesOverdue.count ?? 0,
+                          days: moneyB.data?.receivablesOverdue.oldestDays ?? 0,
+                        })
+                      : t('admin:dash.money.overdueZero')}
+                  </MonoLabel>
+                  <button onClick={() => onNavigate('accounts-receivable')}
+                    className="mt-4 inline-flex items-center gap-2 bg-[#F97316] hover:bg-[#EA580C] text-white font-bt-mono text-[11px] uppercase tracking-[0.1em] px-4 py-2.5 transition-colors">
+                    {t('admin:dash.money.overdueCta')} <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Por pagar próximos 7 días */}
+            <div className="md:px-6">
+              <MonoLabel className="text-white/60 mb-2">{t('admin:dash.money.dueSoon')}</MonoLabel>
+              {moneyB.state === 'loading' ? <Skeleton className="h-12 w-32 bg-white/10" /> : (
+                <>
+                  <BigMoney cents={moneyB.data?.payablesDueSoon.amountCents ?? 0} className="text-4xl md:text-5xl text-white" />
+                  <MonoLabel className="text-white/50 mt-2.5">
+                    {t('admin:dash.money.dueSoonMeta', { count: moneyB.data?.payablesDueSoon.count ?? 0 })}
+                  </MonoLabel>
+                  <button onClick={() => onNavigate('accounts-payable')}
+                    className="mt-4 inline-flex items-center gap-2 border border-white/25 hover:border-white/60 text-white font-bt-mono text-[11px] uppercase tracking-[0.1em] px-4 py-2.5 transition-colors">
+                    {t('admin:dash.money.dueSoonCta')} <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Gastos por aprobar */}
+            <div className="md:pl-6">
+              <MonoLabel className="text-white/60 mb-2">{t('admin:dash.money.expenses')}</MonoLabel>
+              {moneyB.state === 'loading' ? <Skeleton className="h-12 w-28 bg-white/10" /> : (
+                <>
+                  <BigMoney cents={moneyB.data?.expensesPending.amountCents ?? 0} className="text-4xl md:text-5xl text-white" />
+                  <MonoLabel className="text-white/50 mt-2.5">
+                    {t('admin:dash.money.expensesMeta', { count: moneyB.data?.expensesPending.count ?? 0 })}
+                  </MonoLabel>
+                  <button onClick={() => onNavigate('expenses')}
+                    className="mt-4 inline-flex items-center gap-2 border border-[#F97316]/60 hover:bg-[#F97316]/10 text-[#F97316] font-bt-mono text-[11px] uppercase tracking-[0.1em] px-4 py-2.5 transition-colors">
+                    {t('admin:dash.money.expensesCta')} <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── HOY EN OBRA + PRESUPUESTO ──────────────────────────────────── */}
+      <div className="grid lg:grid-cols-2 gap-5">
+
+        <section data-tour="today" className="bg-white border border-[#E4E4E7] rounded-xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <MonoLabel className="text-[#0A0A0A]">{t('admin:dash.today.label')}</MonoLabel>
+            <MonoLabel className="text-[#A1A1AA]">{t('admin:dash.today.meta')}</MonoLabel>
+          </div>
+          {todayB.state === 'loading' ? (
+            <div className="space-y-3"><Skeleton className="h-16 w-full" /><Skeleton className="h-8 w-2/3" /></div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 divide-x divide-[#E4E4E7]">
+                <div className="pr-4">
+                  <span className="font-bt-display font-bold text-5xl leading-none text-[#0A0A0A]">
+                    {todayB.data?.workersTotal ?? '—'}
+                  </span>
+                  <MonoLabel className="text-[#71717A] mt-2">{t('admin:dash.today.workers')}</MonoLabel>
+                  <p className="text-xs text-[#71717A] mt-0.5">
+                    {t('admin:dash.today.spread', { count: todayB.data?.byProject.length ?? 0 })}
+                  </p>
+                </div>
+                <div className="pl-4">
+                  <span className="font-bt-display font-bold text-5xl leading-none text-[#0A0A0A]">
+                    {todayB.data?.pendingApprovalRecords ?? '—'}
+                  </span>
+                  <MonoLabel className="text-[#71717A] mt-2">{t('admin:dash.today.pending')}</MonoLabel>
+                  <button onClick={() => onNavigate('time-approvals')}
+                    className="mt-2 inline-flex items-center gap-1.5 bg-[#F97316] hover:bg-[#EA580C] text-white font-bt-mono text-[10px] uppercase tracking-[0.1em] px-3 py-1.5 transition-colors">
+                    {t('admin:dash.today.approveCta')} <ArrowRight className="w-3 h-3" />
+                  </button>
+                </div>
               </div>
+
+              {(todayB.data?.byProject.length ?? 0) > 0 && (
+                <div className="flex flex-wrap gap-2 mt-4">
+                  {todayB.data!.byProject.map(p => (
+                    <span key={p.projectId}
+                      className="font-bt-mono text-[10px] uppercase tracking-[0.08em] border border-[#E4E4E7] bg-[#FAFAFA] text-[#3F3F46] px-2.5 py-1">
+                      {p.projectName} · {p.workers}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {(todayB.data?.idleActiveProjects.length ?? 0) > 0 && (
+                <div className="mt-4 border-l-2 border-[#F97316] bg-[#F97316]/5 px-3 py-2.5 space-y-1">
+                  {todayB.data!.idleActiveProjects.slice(0, 3).map(p => (
+                    <p key={p.id} className="text-xs text-[#3F3F46] flex items-center gap-2">
+                      <AlertTriangle className="w-3.5 h-3.5 text-[#F97316] flex-shrink-0" />
+                      <span className="min-w-0 truncate"><b>{p.name}</b> — {t('admin:dash.today.idle')}</span>
+                      <button onClick={() => onNavigate('projects')}
+                        className="text-[#F97316] font-semibold hover:underline whitespace-nowrap ml-auto">
+                        {t('admin:dash.review')} →
+                      </button>
+                    </p>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </section>
+
+        <section data-tour="budget" className="bg-white border border-[#E4E4E7] rounded-xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <MonoLabel className="text-[#0A0A0A]">{t('admin:dash.budget.label')}</MonoLabel>
+            <MonoLabel className="text-[#A1A1AA]">{t('admin:dash.budget.meta')}</MonoLabel>
+          </div>
+          {budgetB.state === 'loading' ? (
+            <div className="space-y-4">{[0, 1, 2].map(i => <Skeleton key={i} className="h-10 w-full" />)}</div>
+          ) : (budgetB.data?.projects.length ?? 0) === 0 ? (
+            <p className="text-sm text-[#71717A] py-6 text-center">{t('admin:dash.budget.empty')}</p>
+          ) : (
+            <div className="space-y-4">
+              {budgetB.data!.projects.slice(0, 5).map(p => (
+                <div key={p.id}>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="text-sm font-semibold text-[#0A0A0A] truncate">
+                      {p.name}
+                      {p.critical && (
+                        <span className="ml-2 font-bt-mono text-[9px] uppercase tracking-[0.1em] bg-[#F97316] text-white px-1.5 py-0.5">
+                          {t('admin:dash.budget.critical')}
+                        </span>
+                      )}
+                    </p>
+                    <span className={`font-bt-display font-bold text-xl leading-none ${p.critical ? 'text-[#F97316]' : 'text-[#0A0A0A]'}`}>
+                      {p.consumedPct}%
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-[#F4F4F5] mt-1.5">
+                    <div className={p.critical ? 'h-full bg-[#F97316]' : 'h-full bg-[#0A0A0A]'}
+                      style={{ width: `${Math.min(p.consumedPct, 100)}%` }} />
+                  </div>
+                  <MonoLabel className="text-[#A1A1AA] mt-1">
+                    {t('admin:dash.budget.rowMeta', { remaining: money(p.remainingCents), contract: money(p.contractCents) })}
+                  </MonoLabel>
+                </div>
+              ))}
+              {budgetB.data!.recentChangeOrder && (
+                <p className="text-xs text-[#3F3F46] flex items-center gap-2 border-t border-[#E4E4E7] pt-3">
+                  <AlertTriangle className="w-3.5 h-3.5 text-[#F97316] flex-shrink-0" />
+                  <span className="min-w-0 truncate">
+                    <b>{t('admin:dash.budget.coBadge', { count: budgetB.data!.recentChangeOrder.countLast30Days })}</b>
+                    {' · '}{budgetB.data!.recentChangeOrder.projectName} · +${money(budgetB.data!.recentChangeOrder.amountCents)}
+                  </span>
+                  <button onClick={() => onNavigate('projects')}
+                    className="text-[#F97316] font-semibold hover:underline whitespace-nowrap ml-auto">
+                    {t('admin:dash.review')} →
+                  </button>
+                </p>
+              )}
+            </div>
+          )}
+        </section>
+      </div>
+
+      {/* ── PULSO DE OBRA ──────────────────────────────────────────────── */}
+      <PulseSection obras={obras} username={username} onNavigate={onNavigate} />
+
+      {/* ── ACTIVIDAD + ACCESOS ────────────────────────────────────────── */}
+      <div className="grid lg:grid-cols-2 gap-5">
+        <section className="bg-white border border-[#E4E4E7] rounded-xl p-5">
+          <div className="flex items-center justify-between mb-3">
+            <MonoLabel className="text-[#0A0A0A]">{t('admin:dash.activity.label')}</MonoLabel>
+            <button onClick={() => onNavigate('audit')}
+              className="font-bt-mono text-[10px] uppercase tracking-[0.1em] text-[#F97316] hover:underline inline-flex items-center gap-1">
+              {t('admin:dash.activity.all')} <ChevronRight className="w-3 h-3" />
+            </button>
+          </div>
+          {activity.state === 'loading' ? (
+            <div className="space-y-2">{[0, 1, 2].map(i => <Skeleton key={i} className="h-8 w-full" />)}</div>
+          ) : (activity.data?.length ?? 0) === 0 ? (
+            <p className="text-sm text-[#71717A] py-4 text-center">{t('admin:dash.activity.empty')}</p>
+          ) : (
+            <ul className="divide-y divide-[#F4F4F5]">
+              {activity.data!.map(ev => (
+                <li key={ev.id} className="py-2 flex items-center gap-3 text-xs">
+                  <span className="font-bt-mono text-[#A1A1AA] w-14 flex-shrink-0">
+                    {ev.occurredAt ? fmtDateTime(ev.occurredAt, i18n.language).split(',').pop()?.trim() : '—'}
+                  </span>
+                  <span className="text-[#0A0A0A] font-medium truncate">{ev.actorUsername || '—'}</span>
+                  <span className="font-bt-mono text-[10px] uppercase tracking-[0.06em] text-[#3F3F46] bg-[#F4F4F5] px-1.5 py-0.5 flex-shrink-0">
+                    {ev.action}
+                  </span>
+                  <span className="text-[#A1A1AA] truncate hidden sm:inline">{ev.entityType ?? ''}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="bg-white border border-[#E4E4E7] rounded-xl p-5">
+          <MonoLabel className="text-[#0A0A0A] mb-3">{t('admin:dash.quick.label')}</MonoLabel>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+            {([
+              { icon: Clock, key: 'hours', nav: 'time-approvals', sub: todayB.data ? t('admin:dash.quick.hoursSub', { count: todayB.data.pendingApprovalRecords }) : null },
+              { icon: CheckCircle2, key: 'expenses', nav: 'expenses', sub: moneyB.data ? `${moneyB.data.expensesPending.count} · $${money(moneyB.data.expensesPending.amountCents)}` : null },
+              { icon: HandCoins, key: 'collect', nav: 'accounts-receivable', sub: moneyB.data ? t('admin:dash.quick.collectSub', { amount: money(moneyB.data.receivablesOverdue.amountCents) }) : null },
+              { icon: CalendarPlus, key: 'sitelog', nav: 'projects', sub: t('admin:dash.quick.sitelogSub') },
+              { icon: Wallet, key: 'payables', nav: 'accounts-payable', sub: moneyB.data ? `$${money(moneyB.data.payablesDueSoon.amountCents)} / 7d` : null },
+              { icon: ListChecks, key: 'punch', nav: 'projects', sub: t('admin:dash.quick.punchSub') },
+            ] as const).map(a => (
+              <button key={a.key} onClick={() => onNavigate(a.nav)}
+                className="group border border-[#E4E4E7] hover:border-[#F97316] bg-[#FAFAFA] hover:bg-white text-left p-3 transition-colors">
+                <a.icon className="w-4 h-4 text-[#71717A] group-hover:text-[#F97316] transition-colors" />
+                <p className="font-bt-mono text-[10px] uppercase tracking-[0.1em] text-[#0A0A0A] mt-2 leading-snug">
+                  {t(`admin:dash.quick.${a.key}`)}
+                </p>
+                {a.sub && <p className="text-[10px] text-[#A1A1AA] mt-0.5 truncate">{a.sub}</p>}
+              </button>
             ))}
           </div>
-        )}
-
-        {/* Empty */}
-        {isEmpty && (
-          <div className="flex flex-col items-center justify-center py-14">
-            <div className="w-12 h-12 bg-[#FAFAFA] rounded-full flex items-center justify-center mb-3">
-              <Activity className="w-6 h-6 text-[#D4D4D8]" />
-            </div>
-            <p className="text-sm font-medium text-[#0A0A0A]">{t('admin:dashboard.noActivityTitle')}</p>
-            <p className="text-xs text-[#71717A] mt-1 text-center max-w-xs">
-              {t('admin:dashboard.noActivityDesc')}
-            </p>
-          </div>
-        )}
-
-        {/* Data table */}
-        {isOk && recentActivity.length > 0 && (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-[#FAFAFA] border-b border-[#D4D4D8] hover:bg-[#FAFAFA]">
-                  <TableHead className="text-[10px] font-semibold text-[#71717A] uppercase tracking-wider pl-6">{t('admin:dashboard.tableTimestamp')}</TableHead>
-                  <TableHead className="text-[10px] font-semibold text-[#71717A] uppercase tracking-wider">{t('admin:dashboard.tableActor')}</TableHead>
-                  <TableHead className="text-[10px] font-semibold text-[#71717A] uppercase tracking-wider">{t('admin:dashboard.tableAction')}</TableHead>
-                  <TableHead className="text-[10px] font-semibold text-[#71717A] uppercase tracking-wider pr-6">{t('admin:dashboard.tableEntity')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentActivity.map(ev => (
-                  <TableRow key={ev.id} className="border-b border-[#D4D4D8]/40 hover:bg-[#FAFAFA] transition-colors">
-                    <TableCell className="pl-6 py-3.5">
-                      <span className="font-mono text-xs text-[#71717A] whitespace-nowrap">{fmtDateTime(ev.occurredAt, i18n.language)}</span>
-                    </TableCell>
-                    <TableCell className="py-3.5">
-                      <span className="font-mono text-sm font-medium text-[#0A0A0A]">{ev.actorUsername}</span>
-                    </TableCell>
-                    <TableCell className="py-3.5"><ActionBadge action={ev.action} /></TableCell>
-                    <TableCell className="py-3.5 pr-6">
-                      <span className="text-sm text-[#71717A]">{fmtEntity(ev)}</span>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
+        </section>
       </div>
-
-      {/* Quick Actions */}
-      <div>
-        <p className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-4">{t('admin:dashboard.quickActions')}</p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {QUICK_ACTIONS.map(item => (
-            <button key={item.labelKey} onClick={() => onNavigate(item.nav)}
-              className="bg-white rounded-xl border border-[#D4D4D8] p-5 flex items-center gap-4 hover:border-[#F97316] hover:shadow-sm transition-all text-left group">
-              <div className={`w-10 h-10 ${item.bg} rounded-lg flex items-center justify-center flex-shrink-0`}>
-                <item.icon className={`w-5 h-5 ${item.color}`} />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-[#0A0A0A] group-hover:text-[#F97316] transition-colors">
-                  {t(item.labelKey)}
-                </p>
-                <p className="text-xs text-[#71717A] mt-0.5">{t(item.descKey)}</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-[#D4D4D8] group-hover:text-[#F97316] transition-colors flex-shrink-0" />
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* System Overview */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <p className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide">{t('admin:dashboard.systemOverview')}</p>
-            <p className="text-[10px] text-[#71717A] mt-0.5">{t('admin:dashboard.crossModuleMetrics')}</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <StatCard icon={Users}   title={t('admin:dashboard.activeWorkersToday')} value={systemKpis?.activeWorkersToday ?? 0} subtitle={t('admin:dashboard.activeUsersDesc')}   iconBgColor="bg-emerald-50"   iconColor="text-emerald-600"  isLoading={isLoading} isError={isError} />
-          <StatCard icon={Clock}   title={t('admin:dashboard.hoursThisWeek')}      value={`${systemKpis?.hoursThisWeek ?? 0}h`} subtitle={t('admin:dashboard.crossModuleMetrics')} iconBgColor="bg-[#F97316]/10" iconColor="text-[#F97316]"   isLoading={isLoading} isError={isError} />
-          <StatCard icon={Receipt} title={t('admin:dashboard.pendingExpenses')}     value={systemKpis?.pendingExpenses ?? 0}    subtitle={t('admin:dashboard.pendingExpenses')}     iconBgColor="bg-amber-50"     iconColor="text-amber-600"   isLoading={isLoading} isError={isError} />
-          <StatCard icon={Wallet}  title={t('admin:dashboard.budgetHealth')}        value={systemKpis?.budgetCriticalProjects ?? 0} subtitle={t('admin:dashboard.budgetHealth')}  iconBgColor="bg-red-50"       iconColor="text-red-600"     isLoading={isLoading} isError={isError} />
-          <StatCard icon={Wrench}  title={t('admin:dashboard.toolsAssigned')}       value={systemKpis?.toolsAssigned ?? 0}      subtitle={t('admin:dashboard.toolsAssigned')}       iconBgColor="bg-amber-50"     iconColor="text-amber-600"   isLoading={isLoading} isError={isError} />
-          <StatCard icon={Shield}  title={t('admin:dashboard.auditEventsToday')}    value={systemKpis?.auditEventsToday ?? 0}   subtitle={t('admin:dashboard.auditEventsToday')}    iconBgColor="bg-[#C2410C]/10" iconColor="text-[#C2410C]"   isLoading={isLoading} isError={isError} />
-        </div>
-      </div>
-
     </div>
+  );
+}
+
+/**
+ * Pulso de obra: pick a jobsite, answer the client call in five seconds.
+ * The chip rail is ONE row, right-aligned on desktop, with scroll contained to
+ * the rail (never the page) and edge fades; the selection persists per user.
+ */
+function PulseSection({
+  obras, username, onNavigate,
+}: {
+  obras: { id: number; name: string }[];
+  username: string | null;
+  onNavigate: (section: string) => void;
+}) {
+  const { t } = useTranslation(['admin']);
+  const storageKey = `bt.dash.pulse.${username ?? 'anon'}`;
+
+  const [selected, setSelected] = useState<number | null>(null);
+  const [pulse, setPulse] = useState<BlockState<ProjectPulse>>(loading);
+  const railRef = useRef<HTMLDivElement>(null);
+
+  // Default: last choice if still active, else the first obra.
+  useEffect(() => {
+    if (obras.length === 0 || selected !== null) return;
+    let saved: number | null = null;
+    try { saved = Number(localStorage.getItem(storageKey)) || null; } catch { /* private mode */ }
+    setSelected(obras.some(o => o.id === saved) ? saved : obras[0].id);
+  }, [obras, selected, storageKey]);
+
+  useEffect(() => {
+    if (selected === null) return;
+    try { localStorage.setItem(storageKey, String(selected)); } catch { /* private mode */ }
+    let cancelled = false;
+    setPulse(loading);
+    getProjectPulse(selected, businessToday())
+      .then(p => { if (!cancelled) setPulse({ state: 'ok', data: p }); })
+      .catch(() => { if (!cancelled) setPulse({ state: 'error', data: null }); });
+    // Keep the active chip visible INSIDE the rail only — no page scroll.
+    const rail = railRef.current;
+    const el = rail?.querySelector<HTMLElement>(`[data-obra="${selected}"]`);
+    if (rail && el) {
+      const target = el.offsetLeft - rail.clientWidth / 2 + el.clientWidth / 2;
+      rail.scrollTo({ left: Math.max(0, target), behavior: 'smooth' });
+    }
+    return () => { cancelled = true; };
+  }, [selected, storageKey]);
+
+  if (obras.length === 0) return null;
+
+  const fin = pulse.data?.financial ?? null;
+
+  return (
+    <section data-tour="pulse" className="rounded-xl overflow-hidden border border-[#E4E4E7]">
+      {/* Ink header with the rail */}
+      <div className="relative bg-[#0A0A0A] text-white">
+        <div className="absolute inset-0 pointer-events-none" style={GRID_BG} />
+        <div className="relative px-5 py-4 flex items-center justify-between gap-4 flex-wrap md:flex-nowrap">
+          <div className="min-w-0 flex-shrink-0">
+            <MonoLabel className="text-white/90">
+              <span className="text-[#F97316] mr-2">■</span>{t('admin:dash.pulse.label')}
+            </MonoLabel>
+            <h3 className="font-bt-heading font-semibold text-lg md:text-xl mt-1">
+              {t('admin:dash.pulse.title')}
+            </h3>
+          </div>
+          {/* Rail: ONE row, right-anchored, self-contained scroll */}
+          <div className="relative min-w-0 w-full md:w-auto md:flex-1 md:max-w-[52%]">
+            <div ref={railRef}
+              className="flex gap-2 overflow-x-auto md:justify-end [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              style={{ maskImage: 'linear-gradient(90deg, transparent, black 20px, black calc(100% - 20px), transparent)', WebkitMaskImage: 'linear-gradient(90deg, transparent, black 20px, black calc(100% - 20px), transparent)' }}>
+              {obras.map((o, i) => (
+                <button key={o.id} data-obra={o.id} onClick={() => setSelected(o.id)}
+                  className={`flex-shrink-0 font-bt-mono text-[10px] uppercase tracking-[0.08em] px-3 py-1.5 border transition-colors whitespace-nowrap ${
+                    selected === o.id
+                      ? 'bg-[#F97316] border-[#F97316] text-white'
+                      : 'border-white/25 text-white/80 hover:border-white/60'
+                  }`}>
+                  <span className={`mr-1.5 ${selected === o.id ? 'text-white/80' : 'text-white/40'}`}>
+                    OB-{String(i + 1).padStart(2, '0')}
+                  </span>
+                  {o.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Bone-paper body */}
+      <div className="bg-[#EDE5D6]/60">
+        {pulse.state === 'loading' ? (
+          <div className="grid md:grid-cols-4 gap-4 p-5">{[0, 1, 2, 3].map(i => <Skeleton key={i} className="h-28 w-full" />)}</div>
+        ) : pulse.state === 'error' ? (
+          <p className="text-sm text-[#71717A] p-6 text-center">{t('admin:dash.pulse.error')}</p>
+        ) : (
+          <div className="grid md:grid-cols-4 md:divide-x divide-[#D5C9B4]/60">
+            {/* Última bitácora */}
+            <div className="p-5">
+              <MonoLabel className="text-[#3F3F46] mb-2">{t('admin:dash.pulse.sitelog')}</MonoLabel>
+              {pulse.data?.lastSiteLog ? (
+                <>
+                  <MonoLabel className="text-[#F97316] mb-1.5">{pulse.data.lastSiteLog.workDate}</MonoLabel>
+                  <p className="text-sm text-[#0A0A0A] leading-snug line-clamp-3">
+                    {pulse.data.lastSiteLog.notes ?? t('admin:dash.pulse.sitelogNoNotes')}
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-[#71717A]">{t('admin:dash.pulse.sitelogEmpty')}</p>
+              )}
+              <button onClick={() => onNavigate('projects')}
+                className="mt-3 font-bt-mono text-[10px] uppercase tracking-[0.1em] text-[#0A0A0A] hover:text-[#F97316] inline-flex items-center gap-1 transition-colors">
+                {t('admin:dash.pulse.sitelogCta')} <ArrowRight className="w-3 h-3" />
+              </button>
+            </div>
+
+            {/* Pendientes */}
+            <div className="p-5">
+              <MonoLabel className="text-[#3F3F46] mb-2">{t('admin:dash.pulse.pending')}</MonoLabel>
+              <div className="flex items-baseline gap-2">
+                <span className="font-bt-display font-bold text-4xl leading-none text-[#0A0A0A]">
+                  {pulse.data?.openPunchItems ?? 0}
+                </span>
+                <MonoLabel className="text-[#71717A]">{t('admin:dash.pulse.punchOpen')}</MonoLabel>
+              </div>
+              {(pulse.data?.openRfis ?? 0) > 0 && (
+                <p className="mt-3 text-xs text-[#3F3F46] border-l-2 border-[#F97316] bg-white/60 px-2.5 py-2 flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 text-[#F97316] flex-shrink-0" />
+                  {t('admin:dash.pulse.rfiAlert', {
+                    count: pulse.data!.openRfis,
+                    days: pulse.data!.oldestOpenRfiDays ?? 0,
+                  })}
+                </p>
+              )}
+            </div>
+
+            {/* Financiero exprés */}
+            <div className="p-5">
+              <MonoLabel className="text-[#3F3F46] mb-3">{t('admin:dash.pulse.financial')}</MonoLabel>
+              {([
+                { key: 'contract', cents: fin?.contractCents ?? null, pct: 100 },
+                { key: 'invoiced', cents: fin?.invoicedCents ?? 0, pct: fin?.contractCents ? Math.min(100, Math.round(((fin.invoicedCents) * 100) / fin.contractCents)) : 0 },
+                { key: 'collected', cents: fin?.collectedCents ?? 0, pct: fin?.contractCents ? Math.min(100, Math.round(((fin.collectedCents) * 100) / fin.contractCents)) : 0 },
+              ] as const).map(row => (
+                <div key={row.key} className="mb-2.5">
+                  <div className="flex items-baseline justify-between">
+                    <MonoLabel className="text-[#71717A]">{t(`admin:dash.pulse.${row.key}`)}</MonoLabel>
+                    <span className="font-bt-mono text-sm font-semibold text-[#0A0A0A]">
+                      {row.cents !== null ? `$${money(row.cents)}` : '—'}
+                    </span>
+                  </div>
+                  <div className="h-1 bg-[#D5C9B4]/50 mt-1">
+                    <div className="h-full bg-[#0A0A0A]" style={{ width: `${row.pct}%` }} />
+                  </div>
+                </div>
+              ))}
+              <div className="flex items-baseline justify-between mt-3">
+                <MonoLabel className="text-[#71717A]">{t('admin:dash.pulse.budgetPct')}</MonoLabel>
+                <span className="font-bt-display font-bold text-xl leading-none text-[#0A0A0A]">
+                  {fin?.budgetConsumedPct !== null && fin?.budgetConsumedPct !== undefined ? `${fin.budgetConsumedPct}%` : '—'}
+                </span>
+              </div>
+            </div>
+
+            {/* Hoy trabajaron */}
+            <div className="p-5">
+              <div className="flex items-center justify-between mb-2">
+                <MonoLabel className="text-[#3F3F46]">{t('admin:dash.pulse.workers')}</MonoLabel>
+                <MonoLabel className="text-[#A1A1AA]">
+                  {t('admin:dash.pulse.workersCount', { count: pulse.data?.workersToday.length ?? 0 })}
+                </MonoLabel>
+              </div>
+              {(pulse.data?.workersToday.length ?? 0) === 0 ? (
+                <p className="text-sm text-[#71717A]">{t('admin:dash.pulse.workersEmpty')}</p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {pulse.data!.workersToday.slice(0, 6).map(name => (
+                    <li key={name} className="flex items-center gap-2 text-sm text-[#0A0A0A]">
+                      <span className="w-6 h-6 bg-[#0A0A0A] text-white font-bt-mono text-[9px] flex items-center justify-center flex-shrink-0">
+                        {name.split(/\s+/).map(p => p[0]).slice(0, 2).join('').toUpperCase()}
+                      </span>
+                      <span className="truncate">{name}</span>
+                    </li>
+                  ))}
+                  {pulse.data!.workersToday.length > 6 && (
+                    <li className="text-xs text-[#71717A]">
+                      +{pulse.data!.workersToday.length - 6} {t('admin:dash.pulse.workersMore')}
+                    </li>
+                  )}
+                </ul>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }

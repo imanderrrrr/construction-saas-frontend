@@ -20,23 +20,24 @@ import { Button } from '../ui/button';
  * the welcome shows without the tour option.
  */
 
-const SEEN_VERSION = 'v1';
+// v2 — re-anchored to the redesigned dashboard (money-first blocks + pulse +
+// sidebar favorites). Bumping the version re-shows the tour once to users who
+// saw v1: the screen they learned no longer exists.
+const SEEN_VERSION = 'v2';
 const seenKey = (username: string | null) =>
   `bt.onboarding.${SEEN_VERSION}.${username ?? 'anon'}`;
 
 /**
  * Tour stops, in visit order. Each targets `[data-tour="<key>"]` and reads
  * `admin:tour.step.<key>.title|body`. A handful of representative stops beats
- * walking all ~23 nav items — the goal is orientation, not exhaustion.
+ * walking every block — the goal is orientation, not exhaustion.
  */
 const STEP_KEYS = [
-  'dashboard',
-  'users',
-  'time-approvals',
-  'projects',
-  'invoices',
-  'audit',
-  'billing',
+  'money',
+  'today',
+  'budget',
+  'pulse',
+  'favorites',
   'help',
 ] as const;
 
