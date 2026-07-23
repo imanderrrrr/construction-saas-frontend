@@ -9,7 +9,7 @@ import {
 } from './ui/dialog';
 import { fmtDate, fmtDateTime, daysOverdue } from '../helpers/dateTime';
 import {
-  StatusBadge, CategoryBadge, fmtAmount, type VendorBill, type VendorPayment,
+  StatusBadge, CategoryBadge, fmtAmount, paymentMethodLabel, type VendorBill, type VendorPayment,
 } from './PayableCommon';
 import { PayableAttachmentsPanel } from './PayableAttachmentsPanel';
 
@@ -196,7 +196,7 @@ export function PayableDetailModal({
                       <tr key={p.id} className={`border-t border-[#D4D4D8]/30 ${p.voided ? 'opacity-60' : ''}`}>
                         <td className="px-3 py-2 text-sm text-[#0A0A0A] whitespace-nowrap">{fmtDate(p.date, dateLoc)}</td>
                         <td className={`px-3 py-2 font-mono text-sm font-semibold ${p.voided ? 'text-[#71717A] line-through' : 'text-emerald-600'}`}>{fmtAmount(p.amount)}</td>
-                        <td className="px-3 py-2 text-sm text-[#71717A]">{p.method}</td>
+                        <td className="px-3 py-2 text-sm text-[#71717A]">{paymentMethodLabel(p.method, t)}</td>
                         <td className="px-3 py-2 font-mono text-sm text-[#71717A]">{p.reference ?? '—'}</td>
                         <td className="px-3 py-2 text-sm text-[#71717A]">
                           {p.voided
