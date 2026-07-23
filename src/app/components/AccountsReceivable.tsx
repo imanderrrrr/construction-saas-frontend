@@ -65,6 +65,7 @@ interface DraftLineItem {
 // Helpers
 
 import { fmtDate, businessToday, daysOverdue, currentMonth, currentMonthLabel } from '../helpers/dateTime';
+import { paymentMethodLabel } from './PayableCommon';
 
 function fmtAmount(n: number) {
   return `$${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
@@ -799,7 +800,7 @@ export function AccountsReceivable() {
                                     <tr key={p.id} className="border-t border-[#D4D4D8]/30">
                                       <td className="px-3 py-2 text-sm text-[#0A0A0A]">{fmtDate(p.date, dateLocale)}</td>
                                       <td className="px-3 py-2 font-mono text-sm font-semibold text-emerald-600">{fmtAmount(p.amount)}</td>
-                                      <td className="px-3 py-2 text-sm text-[#71717A]">{p.method}</td>
+                                      <td className="px-3 py-2 text-sm text-[#71717A]">{paymentMethodLabel(p.method, t)}</td>
                                       <td className="px-3 py-2 font-mono text-sm text-[#71717A]">{p.reference ?? '—'}</td>
                                     </tr>
                                   ))}
