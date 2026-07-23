@@ -93,7 +93,7 @@ const KanbanBoard = lazyWithRetry(() =>
   import('../components/KanbanBoard').then(m => ({ default: m.KanbanBoard }))
 );
 const HoursReport = lazyWithRetry(() =>
-  import('../components/HoursReport').then(m => ({ default: m.HoursReport }))
+  import('../components/labor/HoursReportScreen').then(m => ({ default: m.HoursReportScreen }))
 );
 
 // Lazy-loaded phase-3 sections
@@ -122,10 +122,10 @@ const ToolReport = lazyWithRetry(() =>
 
 // Lazy-loaded labor cost sections
 const LaborCostReport = lazyWithRetry(() =>
-  import('../components/LaborCostReport').then(m => ({ default: m.LaborCostReport }))
+  import('../components/labor/LaborCostScreen').then(m => ({ default: m.LaborCostScreen }))
 );
 const LaborPayrollReport = lazyWithRetry(() =>
-  import('../components/LaborPayrollReport').then(m => ({ default: m.LaborPayrollReport }))
+  import('../components/labor/LaborPayrollScreen').then(m => ({ default: m.LaborPayrollScreen }))
 );
 
 // Lazy-loaded accounting sections
@@ -564,7 +564,7 @@ export function AdminDashboard() {
           )}
           {activeSection === 'hours'        && (
             <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
-              <HoursReport />
+              <HoursReport onNavigate={handleNavigate} />
             </Suspense></SectionErrorBoundary>
           )}
           {activeSection === 'expenses'     && (
@@ -599,12 +599,12 @@ export function AdminDashboard() {
           )}
           {activeSection === 'labor-cost' && (
             <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
-              <LaborCostReport />
+              <LaborCostReport onNavigate={handleNavigate} />
             </Suspense></SectionErrorBoundary>
           )}
           {activeSection === 'labor-payroll' && (
             <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
-              <LaborPayrollReport />
+              <LaborPayrollReport onNavigate={handleNavigate} />
             </Suspense></SectionErrorBoundary>
           )}
           {activeSection === 'invoices' && (
