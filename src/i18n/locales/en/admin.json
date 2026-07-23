@@ -2125,5 +2125,6 @@
   "pay.d.preFix": "The system will reject it. Raise the jobsite contract or pay a shorter period.",
   "hrs.daysWorked": "{{worked}} of {{total}} days worked",
   "hrs.rowPending": "{{hours}} h to approve",
-  "hrs.legendLate": "Arrived late"
+  "hrs.legendLate": "Arrived late",
+  "usr.inviteQr": "Invitar por QR"
 }

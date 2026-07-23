@@ -2125,5 +2125,6 @@
   "pay.d.preFix": "El sistema lo va a rechazar. Amplía el contrato de la obra o paga un período más corto.",
   "hrs.daysWorked": "{{worked}} de {{total}} días trabajados",
   "hrs.rowPending": "{{hours}} h por aprobar",
-  "hrs.legendLate": "Llegó tarde"
+  "hrs.legendLate": "Llegó tarde",
+  "usr.inviteQr": "Invitar por QR"
 }

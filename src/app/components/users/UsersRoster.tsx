@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, ChevronLeft, ChevronRight, Plus, Search } from 'lucide-react';
+import { AlertTriangle, ChevronLeft, ChevronRight, Plus, QrCode, Search } from 'lucide-react';
 import {
   listUsers, getWorkerQr, type UserDTO,
 } from '../../services/users';
 import { AuthService } from '../../services/auth';
 import { UserDrawer } from './UserDrawer';
 import { NewUserFlow } from './NewUserFlow';
+import { InviteUserModal } from '../InviteUserModal';
 import { FIELD_ROLES, isFieldRole, Mono, initials, type AccessKind } from './shared';
 
 /**
@@ -49,6 +50,7 @@ export function UsersRoster() {
   const [pinMap, setPinMap] = useState<Record<number, boolean>>({});
   const [openUser, setOpenUser] = useState<UserDTO | null>(null);
   const [newFlowOpen, setNewFlowOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
@@ -136,10 +138,16 @@ export function UsersRoster() {
             {noPin.length > 0 && <span className="text-[#EA580C]"> · {t('admin:usr.summaryNoPin', { count: noPin.length })}</span>}
           </Mono>
         </div>
-        <button onClick={() => setNewFlowOpen(true)}
-          className="inline-flex items-center gap-2 bg-[#0A0A0A] hover:bg-[#F97316] text-[#F5F1E8] hover:text-[#0A0A0A] font-bt-mono text-[11.5px] font-semibold uppercase tracking-[0.09em] px-4 py-3 transition-colors flex-shrink-0">
-          <Plus className="w-3.5 h-3.5" />{t('admin:usr.newUser')}
-        </button>
+        <div className="flex gap-2 flex-shrink-0">
+          <button onClick={() => setInviteOpen(true)}
+            className="inline-flex items-center gap-2 border border-[#DBD0BB] bg-[#FAF7F0] hover:border-[#F97316] hover:text-[#C2410C] text-[#0A0A0A] font-bt-mono text-[11.5px] font-semibold uppercase tracking-[0.09em] px-4 py-3 transition-colors">
+            <QrCode className="w-3.5 h-3.5" />{t('admin:usr.inviteQr')}
+          </button>
+          <button onClick={() => setNewFlowOpen(true)}
+            className="inline-flex items-center gap-2 bg-[#0A0A0A] hover:bg-[#F97316] text-[#F5F1E8] hover:text-[#0A0A0A] font-bt-mono text-[11.5px] font-semibold uppercase tracking-[0.09em] px-4 py-3 transition-colors">
+            <Plus className="w-3.5 h-3.5" />{t('admin:usr.newUser')}
+          </button>
+        </div>
       </div>
 
       {/* Indicators */}
@@ -390,6 +398,16 @@ export function UsersRoster() {
           onChanged={() => { setOpenUser(null); setReloadKey(k => k + 1); }}
         />
       )}
+      <InviteUserModal
+        open={inviteOpen}
+        onClose={() => setInviteOpen(false)}
+        onChooseManualForSubcontractor={() => {
+          // Subcontractors can't be invited by QR — hand the admin straight to
+          // the manual create flow so the same click keeps going.
+          setInviteOpen(false);
+          setNewFlowOpen(true);
+        }}
+      />
       {newFlowOpen && (
         <NewUserFlow
           existingUsernames={rows.map(u => u.username)}
