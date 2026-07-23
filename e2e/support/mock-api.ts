@@ -63,14 +63,28 @@ export async function setSession(context: BrowserContext, role: string, username
 interface BaseOpts {
   role?: string;
   username?: string;
+  /**
+   * Let the first-run chrome (brand intro overlay + onboarding tour) play.
+   * Off by default: both are full-screen and swallow pointer events, so any
+   * spec that navigates would spend its whole timeout clicking through them.
+   */
+  showFirstRun?: boolean;
 }
 
 /** Install the default hermetic network layer. Call once per test before goto. */
 export async function installHermeticBase(page: Page, opts: BaseOpts = {}) {
   // English UI + a stubbed Paddle that "pays" by redirecting to successUrl.
-  await page.addInitScript(() => {
+  await page.addInitScript(({ username, showFirstRun }) => {
     try {
       localStorage.setItem('ofjr_language', 'en');
+      if (!showFirstRun) {
+        // Mark the one-time overlays as already seen. Keys must track
+        // IntroOverlay.STORAGE_KEY and OnboardingTour.seenKey().
+        localStorage.setItem('buildtrack:intro-v2-seen', '1');
+        const seenAt = '2026-01-01T00:00:00.000Z';
+        localStorage.setItem(`bt.onboarding.v2.${username ?? 'anon'}`, seenAt);
+        localStorage.setItem('bt.onboarding.v2.anon', seenAt);
+      }
     } catch {
       /* ignore */
     }
@@ -86,7 +100,7 @@ export async function installHermeticBase(page: Page, opts: BaseOpts = {}) {
         close() {},
       },
     };
-  });
+  }, { username: opts.username, showFirstRun: opts.showFirstRun === true });
 
   // Paddle.js loader injects this <script>; serve an empty 200 so onload fires
   // and the stub above is used instead of the real SDK.

@@ -426,6 +426,8 @@ export interface DailyEntryDetail {
   entryCost?: number | null;
   /** True if this record has been paid. */
   paid?: boolean;
+  /** True if check-in was after the shift threshold (per-day, unlike lateDays). */
+  isLate?: boolean;
 }
 
 export interface WorkerHoursSummary {
