@@ -1,6 +1,7 @@
 ﻿// OFJR Construction — Time Tracking Service (real API)
 // Worker time events + assigned‑projects endpoints.
 import { api } from '../lib/api';
+import { drainPages } from '../lib/paging';
 import type { WorkerProject, TimeEventType, LocationStatus, WorkerState, BudgetWarning } from '../types';
 
 // Request / Response types
@@ -167,6 +168,24 @@ export function getTimeRecords(params?: {
   return api<PageResponse<TimeRecordResponse>>(`/api/v1/time-records${q ? `?${q}` : ''}`);
 }
 
+/**
+ * Every time record matching the filters, across all pages.
+ *
+ * The review screen counts pending approvals and filters in the browser, so a
+ * single page would let older records — the very ones already overdue — go
+ * unseen with nothing on screen to say so. Always pass a date range: the
+ * caller's filters are what bounds this, not a row cap.
+ */
+export function getAllTimeRecords(params?: {
+  status?: string;
+  projectId?: number;
+  role?: 'WORKER' | 'SUPERVISOR';
+  dateFrom?: string;
+  dateTo?: string;
+}): Promise<TimeRecordResponse[]> {
+  return drainPages((page, size) => getTimeRecords({ ...params, page, size }));
+}
+
 /** Get full detail of a single time record. */
 export function getTimeRecord(id: number): Promise<TimeRecordResponse> {
   return api<TimeRecordResponse>(`/api/v1/time-records/${id}`);
@@ -235,6 +254,15 @@ export function getSupervisorTimeRecords(params?: {
   if (params?.size != null) qs.set('size', String(params.size));
   const q = qs.toString();
   return api<PageResponse<TimeRecordResponse>>(`/api/v1/time-records/supervisor${q ? `?${q}` : ''}`);
+}
+
+/** Every supervisor-scoped time record matching the filters. See getAllTimeRecords. */
+export function getAllSupervisorTimeRecords(params?: {
+  status?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}): Promise<TimeRecordResponse[]> {
+  return drainPages((page, size) => getSupervisorTimeRecords({ ...params, page, size }));
 }
 
 // Out-of-range alerts (supervisor)
