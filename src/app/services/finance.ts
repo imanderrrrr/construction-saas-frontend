@@ -22,6 +22,34 @@ function qs(params: Record<string, string | number | null | undefined>): string 
   return s ? `?${s}` : '';
 }
 
+/** Page size used when sweeping every page of a paged endpoint. */
+const SWEEP_PAGE_SIZE = 200;
+
+/**
+ * Collect every page of a paged endpoint into one array.
+ *
+ * The finance screens filter, total and paginate in the browser, so fetching
+ * a single page does not merely hide rows — every KPI derived from them
+ * silently understates, and the budget's labor residual absorbs the gap. That
+ * is exactly how a tenant's 201st bill turned seven paid invoices into a
+ * phantom "labor" figure on a finished project.
+ *
+ * Stops on the server's reported page count; an empty page is the backstop so
+ * a bad totalPages can never spin this forever.
+ */
+export async function drainPages<T>(
+  fetchPage: (page: number, size: number) => Promise<PageResponse<T>>,
+): Promise<T[]> {
+  const all: T[] = [];
+  let page = 0;
+  for (;;) {
+    const res = await fetchPage(page, SWEEP_PAGE_SIZE);
+    all.push(...res.content);
+    page += 1;
+    if (res.content.length === 0 || page >= res.totalPages) return all;
+  }
+}
+
 // ── Payables (Accounts Payable) ─────────────────────
 
 export interface PayablePayment {
@@ -75,6 +103,22 @@ export function listPayables(params?: {
   size?: number;
 }): Promise<PageResponse<Payable>> {
   return api<PageResponse<Payable>>(`${PAYABLES}${qs({ ...params })}`);
+}
+
+/**
+ * Every payable matching the filters, across all pages.
+ *
+ * Use this instead of listPayables wherever the caller totals or filters the
+ * result in the browser. Pass whatever the server can filter on — projectId
+ * above all — so the sweep stays to a single request.
+ */
+export function listAllPayables(params?: {
+  vendor?: string;
+  status?: string;
+  category?: string;
+  projectId?: number;
+}): Promise<Payable[]> {
+  return drainPages((page, size) => listPayables({ ...params, page, size }));
 }
 
 export function getPayable(id: number): Promise<Payable> {
@@ -309,6 +353,17 @@ export function listReceivables(params?: {
   size?: number;
 }): Promise<PageResponse<Receivable>> {
   return api<PageResponse<Receivable>>(`${RECEIVABLES}${qs({ ...params })}`);
+}
+
+/** Every receivable matching the filters, across all pages. See drainPages. */
+export function listAllReceivables(params?: {
+  projectId?: number;
+  status?: string;
+  documentType?: string;
+  issuedFrom?: string;
+  issuedTo?: string;
+}): Promise<Receivable[]> {
+  return drainPages((page, size) => listReceivables({ ...params, page, size }));
 }
 
 export function getReceivable(id: number): Promise<Receivable> {
