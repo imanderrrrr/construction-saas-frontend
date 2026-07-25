@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, Check, ChevronRight, Loader2, Search } from 'lucide-react';
+import { AlertTriangle, CalendarPlus, Check, ChevronRight, Loader2, Search } from 'lucide-react';
 import {
   approveRecord, getAllTimeRecords, type TimeRecordResponse,
 } from '../../services/time';
 import { RecordDrawer } from './RecordDrawer';
+import { ModalCreateDay } from '../phase2/ModalCreateDay';
 import {
   Mono, alertsFor, dayHours, initials, sequenceOf, statusPillClass,
 } from './shared';
@@ -48,6 +49,7 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
   const [cursor, setCursor] = useState(0);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [rowBusy, setRowBusy] = useState<number | null>(null);
+  const [createDayOpen, setCreateDayOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true); setError(false);
@@ -175,7 +177,21 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
             {withAlerts.length > 0 && <span className="text-[#EA580C]"> · {t('admin:apr.summaryAlerts', { count: withAlerts.length })}</span>}
           </Mono>
         </div>
-        <Mono className="text-[10px] tracking-[0.1em] text-[#A69C8D] flex-shrink-0">{t('admin:apr.motto')}</Mono>
+        <div className="flex flex-col items-end gap-2 flex-shrink-0">
+          <Mono className="text-[10px] tracking-[0.1em] text-[#A69C8D]">{t('admin:apr.motto')}</Mono>
+          {/* Manual day creation — a crew that could not punch (dead phone, no
+              signal) still has to get paid, so ADMIN/FINANCE enter the day by
+              hand. Supervisors review; they do not author records. */}
+          {mode !== 'supervisor' && (
+            <button
+              onClick={() => setCreateDayOpen(true)}
+              data-testid="create-day-button"
+              className="inline-flex items-center gap-2 border border-[#DBD0BB] bg-white px-3 py-1.5 font-bt-mono text-[10px] uppercase tracking-[0.06em] font-semibold text-[#0A0A0A] hover:border-[#F97316] hover:text-[#C2410C]"
+            >
+              <CalendarPlus className="w-3 h-3" />{t('admin:approvals.createDay')}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Indicators */}
@@ -389,6 +405,14 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
           recordId={openId}
           onClose={() => setOpenId(null)}
           onChanged={() => { setOpenId(null); load(); }}
+        />
+      )}
+
+      {mode !== 'supervisor' && (
+        <ModalCreateDay
+          open={createDayOpen}
+          onClose={() => setCreateDayOpen(false)}
+          onCreated={load}
         />
       )}
     </div>
