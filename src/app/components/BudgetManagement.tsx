@@ -33,7 +33,7 @@ import {
   type ProjectResponse, type ContractHistoryEntry,
 } from '../services/projects';
 import { getExpenseReport } from '../services/expenses';
-import { listPayables } from '../services/finance';
+import { listAllPayables } from '../services/finance';
 
 // Types
 
@@ -430,9 +430,12 @@ function ProjectDetail({ budget, onBack }: { budget: Budget; onBack: () => void 
     async function load() {
       setLoading(true);
       try {
-        const [expReport, payablesPage] = await Promise.all([
+        // Let the server do the project filter — a browser-side filter over a
+        // single page silently drops this project's older bills once the tenant
+        // outgrows one page, and the labor residual then absorbs them.
+        const [expReport, projectBills] = await Promise.all([
           getExpenseReport(),
-          listPayables({ size: 200 }),
+          listAllPayables({ projectId: budget.projectId }),
         ]);
 
         const projectExpRow = expReport.byProject.find(r => r.projectId === budget.projectId);
@@ -451,9 +454,8 @@ function ProjectDetail({ budget, onBack }: { budget: Budget; onBack: () => void 
           };
         }).sort((a, b) => b.amount - a.amount);
 
-        // Payables for this project
-        const projectPayables = payablesPage.content
-          .filter(p => p.projectId === budget.projectId)
+        // Payables for this project (already scoped server-side)
+        const projectPayables = projectBills
           .map(p => ({ vendor: p.vendor, amount: p.amount, paidAmount: p.paidAmount, status: p.status }));
 
         // AP consumes the budget by what has been PAID, not the outstanding

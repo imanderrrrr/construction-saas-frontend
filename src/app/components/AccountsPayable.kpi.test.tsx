@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Payable, PayablePayment } from '../services/finance';
 
 const mocks = vi.hoisted(() => ({
-  listPayables: vi.fn(),
+  listAllPayables: vi.fn(),
 }));
 
 // Stable t/i18n references — AccountsPayable's fetchBills is a useCallback
@@ -24,7 +24,7 @@ vi.mock('react-i18next', () => {
 });
 
 vi.mock('../services/finance', () => ({
-  listPayables: mocks.listPayables,
+  listAllPayables: mocks.listAllPayables,
   listPayableVendors: vi.fn(() => Promise.resolve([])),
   createPayable: vi.fn(),
   recordPayablePayment: vi.fn(),
@@ -139,7 +139,7 @@ async function renderPayables(root: Root) {
   await act(async () => {
     root.render(<AccountsPayable />);
   });
-  // Drain the listPayables promise + the state update out of loading.
+  // Drain the listAllPayables promise + the state update out of loading.
   await act(async () => {
     await new Promise(resolve => setTimeout(resolve, 0));
   });
@@ -155,8 +155,9 @@ describe('AccountsPayable — "Paid this month" KPI card', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
-    mocks.listPayables.mockReset();
-    mocks.listPayables.mockResolvedValue({ content: BILLS });
+    mocks.listAllPayables.mockReset();
+    // listAllPayables drains every page and resolves the rows themselves.
+    mocks.listAllPayables.mockResolvedValue(BILLS);
   });
 
   afterEach(async () => {

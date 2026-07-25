@@ -16,7 +16,7 @@ import {
 import { EmptyState } from './EmptyState';
 import { toast } from 'sonner';
 import {
-  listPayables, createPayable, recordPayablePayment, listPayableVendors,
+  listAllPayables, createPayable, recordPayablePayment, listPayableVendors,
   updatePayableAmount, markPayableUnpaid, voidPayablePayment, updatePayablePayment,
   convertPayableToInvoice, updatePayableDates, updatePayableInfo, deletePayable, reassignPayableProject,
   getPayable, uploadPayableAttachment, type Payable,
@@ -57,8 +57,10 @@ export function AccountsPayable() {
 
   const fetchBills = useCallback(() => {
     setLoading(true);
-    listPayables({ size: 200 })
-      .then(res => setBills(res.content.map(toVendorBill)))
+    // Every bill, not just the first page: this screen filters, totals and
+    // paginates client-side, so a partial fetch would understate every KPI.
+    listAllPayables()
+      .then(rows => setBills(rows.map(toVendorBill)))
       .catch(err => toast.error(t('payable.toast.loadFailed'), { description: err?.message }))
       .finally(() => setLoading(false));
   }, [t]);

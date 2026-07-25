@@ -16,7 +16,7 @@ import {
 import { EmptyState } from './EmptyState';
 import { toast } from 'sonner';
 import {
-  listReceivables, createReceivable, recordReceivablePayment, approveChangeOrder,
+  listAllReceivables, createReceivable, recordReceivablePayment, approveChangeOrder,
   updateReceivableInfo, deleteReceivable,
   type Receivable, type ReceivablePayment as ApiReceivablePayment, type ReceivableLineItem,
   type DocumentType,
@@ -181,15 +181,17 @@ export function AccountsReceivable() {
   const [approving, setApproving] = useState<number | null>(null);
 
   const fetchPendingApprovals = useCallback(() => {
-    listReceivables({ size: 200, status: 'pending_approval' })
-      .then(res => setPendingApprovals(res.content.map(toInvoice)))
+    listAllReceivables({ status: 'pending_approval' })
+      .then(rows => setPendingApprovals(rows.map(toInvoice)))
       .catch(err => toast.error(err?.message));
   }, []);
 
   const fetchInvoices = useCallback(() => {
     setLoading(true);
-    listReceivables({ size: 200 })
-      .then(res => setInvoices(res.content.map(toInvoice)))
+    // Same reason as Accounts Payable: this list is filtered and totalled in
+    // the browser, so it needs every row, not the first page.
+    listAllReceivables()
+      .then(rows => setInvoices(rows.map(toInvoice)))
       .catch(err => toast.error(t('finance:receivable.toast.loadFailed'), { description: err?.message }))
       .finally(() => setLoading(false));
   }, [t]);
