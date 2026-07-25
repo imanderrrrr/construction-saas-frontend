@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, Check, ChevronRight, Loader2, Search } from 'lucide-react';
 import {
-  approveRecord, getTimeRecords, type TimeRecordResponse,
+  approveRecord, getAllTimeRecords, type TimeRecordResponse,
 } from '../../services/time';
 import { RecordDrawer } from './RecordDrawer';
 import {
@@ -52,15 +52,17 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
   const load = useCallback(async () => {
     setLoading(true); setError(false);
     try {
-      const res = await getTimeRecords({
+      // Every record in the selected range. The text search below runs in the
+      // browser over whatever landed here, so one page would quietly drop
+      // records from the search — and from the counts built off this list.
+      // The range (today / this week) is what bounds the sweep.
+      const rows = await getAllTimeRecords({
         status: filters.status || undefined,
         role: filters.role || undefined,
         dateFrom: filters.range === 'today' ? today() : mondayOfWeek(),
         dateTo: today(),
-        page: 0,
-        size: 100,
       });
-      setRecords(res.content);
+      setRecords(rows);
     } catch {
       setError(true); setRecords([]);
     } finally {
