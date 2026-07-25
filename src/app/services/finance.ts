@@ -1,6 +1,7 @@
 // OFJR Construction — Finance API Service (Payables & Receivables)
 
 import { api, apiMultipart, getBaseUrl } from '../lib/api';
+import { drainPages } from '../lib/paging';
 import type { BudgetWarning } from '../types';
 
 // ── Shared ────���─────────────────────────────────────
@@ -22,33 +23,6 @@ function qs(params: Record<string, string | number | null | undefined>): string 
   return s ? `?${s}` : '';
 }
 
-/** Page size used when sweeping every page of a paged endpoint. */
-const SWEEP_PAGE_SIZE = 200;
-
-/**
- * Collect every page of a paged endpoint into one array.
- *
- * The finance screens filter, total and paginate in the browser, so fetching
- * a single page does not merely hide rows — every KPI derived from them
- * silently understates, and the budget's labor residual absorbs the gap. That
- * is exactly how a tenant's 201st bill turned seven paid invoices into a
- * phantom "labor" figure on a finished project.
- *
- * Stops on the server's reported page count; an empty page is the backstop so
- * a bad totalPages can never spin this forever.
- */
-export async function drainPages<T>(
-  fetchPage: (page: number, size: number) => Promise<PageResponse<T>>,
-): Promise<T[]> {
-  const all: T[] = [];
-  let page = 0;
-  for (;;) {
-    const res = await fetchPage(page, SWEEP_PAGE_SIZE);
-    all.push(...res.content);
-    page += 1;
-    if (res.content.length === 0 || page >= res.totalPages) return all;
-  }
-}
 
 // ── Payables (Accounts Payable) ─────────────────────
 

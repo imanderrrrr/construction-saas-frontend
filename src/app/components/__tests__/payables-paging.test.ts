@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { drainPages } from '../../services/finance';
+import { drainPages } from '../../lib/paging';
 import { computeCostDistribution } from '../BudgetManagement';
 
 // ════════════════════════════════════════════════════════════════════════
