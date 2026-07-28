@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from './ui/select';
@@ -115,6 +116,30 @@ export function splitMethod(method: string): { method: string; otherText: string
   return (PAYMENT_METHOD_PRESETS as readonly string[]).includes(method)
     ? { method, otherText: '' }
     : { method: OTHER_METHOD, otherText: method };
+}
+
+/**
+ * i18n key for each preset — the picker stores these values language-independently
+ * (so the data doesn't drift when the UI language changes) but the payment-history
+ * tables were rendering them RAW, so a payment made by picking "Transferencia
+ * bancaria" showed back as "Bank transfer".
+ */
+const PRESET_LABEL_KEYS: Record<(typeof PAYMENT_METHOD_PRESETS)[number], string> = {
+  'Bank transfer': 'finance:paymentMethod.bankTransfer',
+  'Check': 'finance:paymentMethod.check',
+  'Cash': 'finance:paymentMethod.cash',
+  'Wire transfer': 'finance:paymentMethod.wireTransfer',
+  'Credit card': 'finance:paymentMethod.creditCard',
+};
+
+/**
+ * Localize a stored payment method for display. Presets map to the current UI
+ * language; a typed-in custom ("Other") method — or any unknown value — is
+ * returned verbatim rather than blanked.
+ */
+export function paymentMethodLabel(method: string, t: TFunction): string {
+  const key = PRESET_LABEL_KEYS[method as (typeof PAYMENT_METHOD_PRESETS)[number]];
+  return key ? t(key, method) : method;
 }
 
 export function PaymentMethodField({
