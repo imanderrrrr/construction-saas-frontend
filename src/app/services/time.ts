@@ -283,6 +283,25 @@ export interface OutOfRangeFlaggedEvent {
   distanceMeters: number | null;
 }
 
+/**
+ * Whether a location alert is an ADMIN setup problem rather than something the
+ * worker did.
+ *
+ * The alerts feed carries every mark whose location was not verified, for three
+ * different reasons. Two of them point at the worker (punched outside the area,
+ * or punched with GPS suppressed). The third — the project having no work area
+ * configured — points at whoever set the project up: the worker punched
+ * normally and there was simply nothing to check against.
+ *
+ * The distinction is strict on purpose. If ANY out-of-range or GPS-less mark is
+ * present, the alert stays a worker alert: the serious signal must not be
+ * softened into "just a configuration detail" because an unconfigured mark
+ * happened to land in the same group.
+ */
+export function isUnconfiguredAreaAlert(alert: OutOfRangeAlertResponse): boolean {
+  return alert.noGeofenceCount > 0 && alert.eventCount === 0 && alert.unavailableCount === 0;
+}
+
 export interface OutOfRangeAlertResponse {
   workerId: number;
   workerUsername: string;
@@ -296,6 +315,12 @@ export interface OutOfRangeAlertResponse {
   eventCount: number;
   /** Marks that claimed GPS permission but carried no coordinates (possible GPS suppression). */
   unavailableCount: number;
+  /**
+   * Marks that could not be checked at all because the project has no work
+   * area configured. Separate axis on purpose: the admin fixes this by
+   * configuring the project — it is not the worker punching somewhere wrong.
+   */
+  noGeofenceCount: number;
   /** Geofence center of the project; null when the project has no coordinates configured. */
   projectLatitude: number | null;
   projectLongitude: number | null;

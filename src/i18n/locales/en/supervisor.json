@@ -65,6 +65,9 @@
   "dash.eventCount": "· {{count}} events",
   "dash.unavailableCount": "· {{count}} without GPS",
   "dash.punchedWithoutGps": "punched without GPS signal",
+  "dash.projectWithoutWorkArea": "punched on a project with no work area",
+  "dash.noGeofenceCount": "· {{count}} unverified",
+  "dash.setUpProjectArea": "Set up the project's work area so marks can be verified.",
   "dash.viewInMaps": "Open in Google Maps",
 
   "dash.notificationInbox": "Notification Inbox",

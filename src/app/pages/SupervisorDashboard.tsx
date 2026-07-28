@@ -16,7 +16,7 @@ import { AuthService } from '../services/auth';
 import { useSiteLogFeature } from '../hooks/useSiteLogFeature';
 import { Toaster } from '../components/ui/sonner';
 import { toast } from 'sonner';
-import { getSupervisorOutOfRangeAlerts, getSupervisorDashboard, getSupervisorTimeRecords, type OutOfRangeAlertResponse, type SupervisorDashboardResponse, type TimeRecordResponse } from '../services/time';
+import { getSupervisorOutOfRangeAlerts, isUnconfiguredAreaAlert, getSupervisorDashboard, getSupervisorTimeRecords, type OutOfRangeAlertResponse, type SupervisorDashboardResponse, type TimeRecordResponse } from '../services/time';
 import { getSupervisorSummary, getSupervisorExpenses, type ExpenseSummaryResponse, type ExpenseResponse } from '../services/expenses';
 import { getSupervisorNotifications, getSupervisorUnreadCount, markNotificationRead, markAllNotificationsRead, type NotificationResponse } from '../services/notifications';
 import { businessToday, nDaysAgo } from '../helpers/dateTime';
@@ -540,29 +540,47 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
               <p className="text-[11px] text-[#71717A] mt-0.5">{t('dash.allWithinArea')}</p>
             </div>
           ) : (
-            oorAlerts.map((alert) => (
+            oorAlerts.map((alert) => {
+              // An alert made up ONLY of NO_GEOFENCE marks is not a worker
+              // problem: the project has no work area, so nothing could be
+              // checked. Rendering it in the same red as "punched outside the
+              // site" would accuse the worker of something the admin has to
+              // fix — so it gets amber and its own wording.
+              const setupOnly = isUnconfiguredAreaAlert(alert);
+              const tone = setupOnly
+                ? { hover: 'hover:bg-amber-50/40', chipBg: 'bg-amber-100', icon: 'text-amber-600', text: 'text-amber-700', meta: 'text-amber-600' }
+                : { hover: 'hover:bg-red-50/40', chipBg: 'bg-red-100', icon: 'text-red-600', text: 'text-red-600', meta: 'text-red-500' };
+              return (
               <div
                 key={`oor-${alert.workerId}-${alert.projectId}`}
-                className="flex gap-3 py-2.5 border-b border-[#D4D4D8]/50 last:border-b-0 cursor-pointer hover:bg-red-50/40 rounded-lg px-1 -mx-1 transition-colors"
+                className={`flex gap-3 py-2.5 border-b border-[#D4D4D8]/50 last:border-b-0 cursor-pointer ${tone.hover} rounded-lg px-1 -mx-1 transition-colors`}
                 onClick={() => onNavigate('time-approvals')}
                 title={t('supervisor:section.timeApprovals.title')}
               >
-                <div className="bg-red-100 rounded-lg w-7 h-7 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <MapPin className="w-4 h-4 text-red-600" />
+                <div className={`${tone.chipBg} rounded-lg w-7 h-7 flex items-center justify-center flex-shrink-0 mt-0.5`}>
+                  <MapPin className={`w-4 h-4 ${tone.icon}`} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-[#0A0A0A] font-medium">
                     {alert.workerName ?? alert.workerUsername}{' '}
-                    <span className="font-normal text-red-600">
-                      {alert.eventCount > 0 ? t('dash.outsideWorkArea') : t('dash.punchedWithoutGps')}
+                    <span className={`font-normal ${tone.text}`}>
+                      {setupOnly
+                        ? t('dash.projectWithoutWorkArea')
+                        : alert.eventCount > 0
+                          ? t('dash.outsideWorkArea')
+                          : t('dash.punchedWithoutGps')}
                     </span>
                   </p>
                   <p className="text-[11px] text-[#71717A] truncate">{alert.projectName}</p>
-                  <p className="text-[11px] text-red-500 font-medium">
+                  <p className={`text-[11px] ${tone.meta} font-medium`}>
                     {t('dash.firstReported', { time: relativeTime(alert.firstOccurredAt) })}
                     {alert.eventCount > 1 && ` ${t('dash.eventCount', { count: alert.eventCount })}`}
                     {alert.unavailableCount > 0 && ` ${t('dash.unavailableCount', { count: alert.unavailableCount })}`}
+                    {alert.noGeofenceCount > 0 && ` ${t('dash.noGeofenceCount', { count: alert.noGeofenceCount })}`}
                   </p>
+                  {setupOnly && (
+                    <p className="text-[11px] text-[#71717A] mt-0.5">{t('dash.setUpProjectArea')}</p>
+                  )}
                   {/* Exact punch locations — one Google Maps deep-link per flagged mark */}
                   {(alert.events ?? []).some(ev => ev.lat != null && ev.lng != null) && (
                     <div className="flex flex-wrap gap-1.5 mt-1.5">
@@ -589,7 +607,8 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
                   )}
                 </div>
               </div>
-            ))
+            );
+            })
           )}
         </div>
       </div>
