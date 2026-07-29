@@ -10,17 +10,20 @@ import {
   Clock, CalendarClock, ClipboardList, Receipt, FileBarChart,
   Wallet, PieChart, Wrench, Banknote, HardHat,
   ArrowDownToLine, ArrowUpFromLine, UserRound, FileText, Briefcase,
-  CreditCard, FileSignature,
+  CreditCard, FileSignature, HelpCircle, Star,
 } from 'lucide-react';
+import { OnboardingTour } from '../components/onboarding/OnboardingTour';
+import { SectionIntro } from '../components/onboarding/SectionIntro';
+import { BillingSection } from '../components/BillingSection';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '../components/ui/dropdown-menu';
 import { DashboardContent } from '../components/DashboardContent';
-import { UserManagement } from '../components/UserManagement';
+import { UsersRoster } from '../components/users/UsersRoster';
 import { ProjectManagement } from '../components/ProjectManagement';
 import { AuditLog } from '../components/AuditLog';
-import { SupervisorApprovals } from '../components/SupervisorApprovals';
+import { ApprovalsInbox } from '../components/approvals/ApprovalsInbox';
 import { ClientManagement } from '../components/ClientManagement';
 import { Toaster } from '../components/ui/sonner';
 import { TimezoneSwitcher } from '../components/TimezoneSwitcher';
@@ -90,7 +93,7 @@ const KanbanBoard = lazyWithRetry(() =>
   import('../components/KanbanBoard').then(m => ({ default: m.KanbanBoard }))
 );
 const HoursReport = lazyWithRetry(() =>
-  import('../components/HoursReport').then(m => ({ default: m.HoursReport }))
+  import('../components/labor/HoursReportScreen').then(m => ({ default: m.HoursReportScreen }))
 );
 
 // Lazy-loaded phase-3 sections
@@ -119,10 +122,10 @@ const ToolReport = lazyWithRetry(() =>
 
 // Lazy-loaded labor cost sections
 const LaborCostReport = lazyWithRetry(() =>
-  import('../components/LaborCostReport').then(m => ({ default: m.LaborCostReport }))
+  import('../components/labor/LaborCostScreen').then(m => ({ default: m.LaborCostScreen }))
 );
 const LaborPayrollReport = lazyWithRetry(() =>
-  import('../components/LaborPayrollReport').then(m => ({ default: m.LaborPayrollReport }))
+  import('../components/labor/LaborPayrollScreen').then(m => ({ default: m.LaborPayrollScreen }))
 );
 
 // Lazy-loaded accounting sections
@@ -164,7 +167,8 @@ type ActiveSection =
   | 'invoices' | 'invoice-branding'
   | 'accounts-receivable' | 'accounts-payable'
   | 'office-expenses'
-  | 'subcontractors';
+  | 'subcontractors'
+  | 'billing';
 
 // Nav items are either internal sections (clicking sets `activeSection`) or
 // route links (clicking calls `navigate(to)`). Route-link items use a string
@@ -181,7 +185,7 @@ type NavItem = {
 const NAV_GENERAL: NavItem[] = [
   { key: 'dashboard', labelKey: 'admin:nav.dashboard', icon: LayoutDashboard },
   { key: 'audit',     labelKey: 'admin:nav.auditLogs', icon: Shield          },
-  { key: 'billing',   labelKey: 'admin:nav.billing',   icon: CreditCard, to: '/admin/billing' },
+  { key: 'billing',   labelKey: 'admin:nav.billing',   icon: CreditCard },
 ];
 
 const NAV_PERSONNEL: NavItem[] = [
@@ -239,6 +243,7 @@ const SECTION_META: Record<ActiveSection, { titleKey: string; subtitleKey: strin
   'time-approvals':       { titleKey: 'admin:section.timeApprovals.title',       subtitleKey: 'admin:section.timeApprovals.subtitle'       },
   'clients':              { titleKey: 'admin:section.clients.title',              subtitleKey: 'admin:section.clients.subtitle'              },
   'subcontractors':       { titleKey: 'admin:section.subcontractors.title',       subtitleKey: 'admin:section.subcontractors.subtitle'       },
+  'billing':              { titleKey: 'admin:section.billing.title',              subtitleKey: 'admin:section.billing.subtitle'              },
 };
 
 export function AdminDashboard() {
@@ -247,6 +252,28 @@ export function AdminDashboard() {
   const username = AuthService.getUsername();
   const [activeSection, setActiveSection] = useState<ActiveSection>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [tourReplay, setTourReplay] = useState(0);
+  const [introReplay, setIntroReplay] = useState(0);
+
+  // Pinned nav sections, per user, first-pinned first. They render in a
+  // FAVORITES group on top of the menu and stay in their original group too.
+  const favStorageKey = `bt.navfavs.${username ?? 'anon'}`;
+  const [favorites, setFavorites] = useState<string[]>(() => {
+    try {
+      const raw = JSON.parse(localStorage.getItem(favStorageKey) ?? '[]');
+      return Array.isArray(raw) ? raw.filter((k): k is string => typeof k === 'string') : [];
+    } catch { return []; }
+  });
+  const toggleFavorite = (key: string) => {
+    setFavorites(prev => {
+      const next = prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key];
+      try { localStorage.setItem(favStorageKey, JSON.stringify(next)); } catch { /* private mode */ }
+      return next;
+    });
+  };
+  const favoriteItems = favorites
+    .map(key => NAV_ITEMS.find(i => i.key === key))
+    .filter((i): i is NavItem => Boolean(i));
   const navScrollPos = useRef(0);
 
   // Lock body scroll when mobile sidebar is open
@@ -288,6 +315,7 @@ export function AdminDashboard() {
     return (
       <button
         onClick={handleClick}
+        data-tour={item.key}
         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-left group ${
           isActive
             ? 'bg-[#F97316]/10 text-[#F97316]'
@@ -303,6 +331,21 @@ export function AdminDashboard() {
             {t(item.badgeKey)}
           </span>
         )}
+        {/* Favorite pin: hover-revealed; filled + always visible when pinned.
+            A span (not a nested button) — the row itself is already a button. */}
+        <span
+          role="button"
+          aria-label={t(favorites.includes(item.key) ? 'admin:nav.unpinFavorite' : 'admin:nav.pinFavorite')}
+          title={t(favorites.includes(item.key) ? 'admin:nav.unpinFavorite' : 'admin:nav.pinFavorite')}
+          onClick={(e) => { e.stopPropagation(); toggleFavorite(item.key); }}
+          className={`flex-shrink-0 transition-opacity ${
+            favorites.includes(item.key)
+              ? 'opacity-100 text-[#F97316]'
+              : 'opacity-0 group-hover:opacity-100 text-[#A1A1AA] hover:text-[#F97316]'
+          }`}
+        >
+          <Star className="w-3.5 h-3.5" fill={favorites.includes(item.key) ? 'currentColor' : 'none'} />
+        </span>
         {isActive && (
           <span className="w-1.5 h-1.5 rounded-full bg-[#F97316] flex-shrink-0" />
         )}
@@ -329,10 +372,24 @@ export function AdminDashboard() {
 
         {/* Navigation */}
         <nav
+          data-tour="favorites"
           className="flex-1 p-3 space-y-0.5 overflow-y-auto min-h-0"
           ref={(el) => { if (el) el.scrollTop = navScrollPos.current; }}
           onScroll={(e) => { navScrollPos.current = e.currentTarget.scrollTop; }}
         >
+          {/* Favorites — pinned on top, in pin order. Hidden while empty. */}
+          {favoriteItems.length > 0 && (
+            <>
+              <p className="text-[10px] font-semibold text-[#71717A] uppercase tracking-wider px-3 py-2">
+                {t('admin:group.favorites')}
+              </p>
+              {favoriteItems.map(item => (
+                <NavItem key={`fav-${item.key}`} item={item} />
+              ))}
+              <div className="my-3 border-t border-[#D4D4D8]" />
+            </>
+          )}
+
           {/* General */}
           <p className="text-[10px] font-semibold text-[#71717A] uppercase tracking-wider px-3 py-2">
             {t('admin:group.general')}
@@ -446,6 +503,18 @@ export function AdminDashboard() {
           </div>
 
           <div className="flex items-center gap-2">
+          <button
+            data-tour="help"
+            onClick={() =>
+              activeSection === 'dashboard'
+                ? setTourReplay(n => n + 1)
+                : setIntroReplay(n => n + 1)
+            }
+            title={t('admin:tour.helpButton')}
+            className="w-9 h-9 flex items-center justify-center rounded-lg text-[#71717A] hover:text-[#F97316] hover:bg-[#FAFAFA] transition-colors"
+          >
+            <HelpCircle className="w-4 h-4" />
+          </button>
           <LanguageSwitcher />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -468,7 +537,7 @@ export function AdminDashboard() {
                 <User className="w-4 h-4" />{t('common:profile')}
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => navigate('/admin/billing')}
+                onClick={() => handleNavigate('billing')}
                 className="gap-2 text-sm cursor-pointer"
               >
                 <CreditCard className="w-4 h-4" />{t('admin:nav.billing')}
@@ -484,8 +553,10 @@ export function AdminDashboard() {
 
         {/* Content area */}
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
+          <SectionIntro section={activeSection} username={username} replayNonce={introReplay} />
           {activeSection === 'dashboard'    && <DashboardContent onNavigate={handleNavigate} />}
-          {activeSection === 'users'        && <UserManagement />}
+          {activeSection === 'billing'      && <BillingSection />}
+          {activeSection === 'users'        && <UsersRoster />}
           {activeSection === 'schedules'    && (
             <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
               <KanbanBoard />
@@ -493,7 +564,7 @@ export function AdminDashboard() {
           )}
           {activeSection === 'hours'        && (
             <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
-              <HoursReport />
+              <HoursReport onNavigate={handleNavigate} />
             </Suspense></SectionErrorBoundary>
           )}
           {activeSection === 'expenses'     && (
@@ -528,12 +599,12 @@ export function AdminDashboard() {
           )}
           {activeSection === 'labor-cost' && (
             <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
-              <LaborCostReport />
+              <LaborCostReport onNavigate={handleNavigate} />
             </Suspense></SectionErrorBoundary>
           )}
           {activeSection === 'labor-payroll' && (
             <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
-              <LaborPayrollReport />
+              <LaborPayrollReport onNavigate={handleNavigate} />
             </Suspense></SectionErrorBoundary>
           )}
           {activeSection === 'invoices' && (
@@ -569,11 +640,12 @@ export function AdminDashboard() {
           {activeSection === 'projects'     && <ProjectManagement />}
           {activeSection === 'clients'      && <ClientManagement />}
           {activeSection === 'audit'        && <AuditLog />}
-          {activeSection === 'time-approvals'&& <SupervisorApprovals />}
+          {activeSection === 'time-approvals'&& <ApprovalsInbox />}
         </main>
       </div>
 
       <Toaster position="top-right" richColors />
+      <OnboardingTour username={username} replayNonce={tourReplay} />
     </div>
   );
 }

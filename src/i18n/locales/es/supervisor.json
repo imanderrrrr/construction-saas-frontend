@@ -65,6 +65,9 @@
   "dash.eventCount": "· {{count}} eventos",
   "dash.unavailableCount": "· {{count}} sin GPS",
   "dash.punchedWithoutGps": "marcó sin señal GPS",
+  "dash.projectWithoutWorkArea": "marcó en un proyecto sin área definida",
+  "dash.noGeofenceCount": "· {{count}} sin verificar",
+  "dash.setUpProjectArea": "Configurá el área del proyecto para poder verificar las marcas.",
   "dash.viewInMaps": "Ver en Google Maps",
 
   "dash.notificationInbox": "Bandeja de Notificaciones",

@@ -84,12 +84,18 @@ export function PlatformTenants() {
           </span>
           <div className="text-sm leading-relaxed text-bt-muted">
             <p className="font-semibold text-bt-ink">
-              Created {created.companyName} ({created.tenantSlug}) on a manual {created.planCode} plan.
+              {created.billingProvider === 'PADDLE'
+                ? `Created ${created.companyName} (${created.tenantSlug}) on a Paddle-billed ${created.planCode} plan — pending its first payment.`
+                : `Created ${created.companyName} (${created.tenantSlug}) on a manual ${created.planCode} plan.`}
             </p>
             <p className="mt-0.5">
               {created.setupLinkSent
                 ? `${created.adminUsername} was emailed a link at ${created.adminEmail} to set their password.`
                 : `Heads up: the set-up email to ${created.adminEmail} could not be sent. Ask ${created.adminUsername} to use “Forgot password” on the login screen with the identifier ${created.tenantSlug}.`}
+              {created.billingProvider === 'PADDLE' &&
+                (created.checkoutUrl
+                  ? ' The payment link is on the tenant page if you need to re-copy it.'
+                  : ' No payment link could be issued — open the tenant page to issue one.')}
             </p>
           </div>
         </div>

@@ -10,6 +10,7 @@ import { Login }               from './pages/Login';
 import { AcceptInvite }        from './pages/AcceptInvite';
 import { ForgotPassword }      from './pages/ForgotPassword';
 import { ResetPassword }       from './pages/ResetPassword';
+import { Pay }                 from './pages/Pay';
 import { PrivacyPolicy }       from './pages/PrivacyPolicy';
 import { TermsOfService }      from './pages/TermsOfService';
 import { Support }             from './pages/Support';
@@ -81,9 +82,15 @@ export const routes = [
   { path: '/status',                 element: <Status /> },
   { path: '/login',                  element: <Login /> },
   // No public self-serve signup: accounts are provisioned by us after the
-  // customer asks for one on the demo call, so there is no /signup, no
-  // plan chooser and no Paddle return page on the public site.
+  // customer asks for one on the demo call, so there is no /signup and no
+  // plan chooser on the public site.
   { path: '/accept-invite/:token',   element: <AcceptInvite /> },
+  // Paddle default-payment-link target — NOT a signup. The backend mints a
+  // checkout for a console-provisioned tenant and Paddle builds the emailed
+  // URL as this page + `?_ptxn=<transaction>`; Paddle.js reads the param and
+  // opens its overlay. Session-free on purpose (the payer has no password
+  // yet) and it never mutates billing state — activation is webhook-driven.
+  { path: '/pay',                    element: <Pay /> },
   // Client portal — public read-only site-log view. Auth is the signed token
   // in the URL (exchanged in-page), NOT a user session: no guards on purpose.
   { path: '/client-view/:token',     element: <ClientView /> },

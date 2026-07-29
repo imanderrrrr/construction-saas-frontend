@@ -1,0 +1,29 @@
+{
+  "meta.title": "Secure payment — BuildTrack",
+
+  "topbar.label": "SECURE PAYMENT",
+  "topbar.back": "← Back to site",
+
+  "opening.title": "Opening your secure payment…",
+  "opening.body": "Paddle, our payment processor, is about to open its payment window. Your card details go there — they never pass through BuildTrack.",
+  "opening.manual": "Didn't open? Open the payment",
+
+  "missing.title": "This payment link is incomplete",
+  "missing.body": "The link you opened is missing its payment reference. That usually happens when it gets cut while copying — ask your BuildTrack contact to resend it.",
+
+  "closed.title": "Your payment is still pending",
+  "closed.body": "You closed the window before finishing the payment. Nothing was charged — you can pick it up again whenever you like.",
+  "closed.reopen": "Reopen the payment",
+
+  "completed.title": "Payment received!",
+  "completed.body": "Your workspace activates automatically within a few minutes. We also sent you an email with a link to set your password — that's all you need to get in.",
+  "completed.note": "You can close this tab now. If you can't get in after a few minutes, let us know.",
+
+  "error.title": "We couldn't open the payment",
+  "error.body": "This link may have expired, or it may have been replaced by a newer one. Try again — and if it keeps failing, ask your BuildTrack contact to issue you a fresh link.",
+  "error.retry": "Try again",
+
+  "contact.lead": "Need help? Write to us at",
+
+  "secure.note": "Payments are processed by Paddle, our billing provider. Your card details never touch BuildTrack's servers."
+}

@@ -10,7 +10,6 @@ import {
 import { toast } from 'sonner';
 import { deleteProject as apiDeleteProject } from '../../services/projects';
 import { ApiError } from '../../lib/api';
-import type { Project } from './types';
 import { apiErrorMsg } from './helpers';
 import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 
@@ -21,8 +20,10 @@ import { FIELD_LIMITS } from '../../../shared/fieldLimits';
  * time records or any other financial/operational history — that message
  * lists what is blocking and is surfaced verbatim.
  */
+// Only id + name are needed, so the Budgets screen (which works with its own
+// Budget shape) can reuse this modal alongside ProjectManagement.
 export function DeleteProjectModal({ project, open, onClose, onDeleted }: {
-  project: Project | null; open: boolean; onClose: () => void;
+  project: { id: number; name: string } | null; open: boolean; onClose: () => void;
   onDeleted: (projectId: number) => void;
 }) {
   const { t } = useTranslation(['admin', 'common']);

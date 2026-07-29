@@ -2,11 +2,12 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Wallet, DollarSign, TrendingDown, Percent, Plus,
-  Pencil, Clock, Lock, MoreHorizontal,
+  Pencil, Clock, Lock, MoreHorizontal, Trash2,
   AlertTriangle, AlertCircle, XCircle,
   Loader2, ArrowLeft, Receipt, Users,
   CreditCard, PieChart,
 } from 'lucide-react';
+import { DeleteProjectModal } from './projects/DeleteProjectModal';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -32,8 +33,7 @@ import {
   type ProjectResponse, type ContractHistoryEntry,
 } from '../services/projects';
 import { getExpenseReport } from '../services/expenses';
-import { listPayables } from '../services/finance';
-import { FIELD_LIMITS } from '../../shared/fieldLimits';
+import { listAllPayables } from '../services/finance';
 
 // Types
 
@@ -91,6 +91,7 @@ function fmtAmountCompact(n: number): string {
 }
 
 import { fmtDate } from '../helpers/dateTime';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 function getPct(consumed: number, total: number): number {
   if (total === 0) return 0;
@@ -254,12 +255,13 @@ function MiniDonut({ segments, size = 80 }: { segments: DonutSegment[]; size?: n
 
 // ── Project Bento Card ─────────────────────────────────
 
-function BudgetCard({ budget, onSelect, onEdit, onHistory, onClose }: {
+function BudgetCard({ budget, onSelect, onEdit, onHistory, onClose, onDelete }: {
   budget: Budget;
   onSelect: () => void;
   onEdit: () => void;
   onHistory: () => void;
   onClose: () => void;
+  onDelete: () => void;
 }) {
   const { t } = useTranslation(['admin', 'common']);
   const alertCfg = getAlertConfig(budget.alertLevel);
@@ -333,6 +335,15 @@ function BudgetCard({ budget, onSelect, onEdit, onHistory, onClose }: {
                 </DropdownMenuItem>
               </>
             )}
+            {/* Pilot-client request (ported from OFJR): delete a project (its
+                budget) from the Budgets screen. Same guarded flow as the
+                Projects screen — the backend refuses while any financial or
+                operational history exists. */}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onDelete}
+              className="gap-2 text-sm cursor-pointer text-[#d4183d] focus:text-[#d4183d]">
+              <Trash2 className="w-4 h-4" />{t('admin:projectMgmt.deleteProject')}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -420,9 +431,12 @@ function ProjectDetail({ budget, onBack }: { budget: Budget; onBack: () => void 
     async function load() {
       setLoading(true);
       try {
-        const [expReport, payablesPage] = await Promise.all([
+        // Let the server do the project filter — a browser-side filter over a
+        // single page silently drops this project's older bills once the tenant
+        // outgrows one page, and the labor residual then absorbs them.
+        const [expReport, projectBills] = await Promise.all([
           getExpenseReport(),
-          listPayables({ size: 200 }),
+          listAllPayables({ projectId: budget.projectId }),
         ]);
 
         const projectExpRow = expReport.byProject.find(r => r.projectId === budget.projectId);
@@ -441,9 +455,8 @@ function ProjectDetail({ budget, onBack }: { budget: Budget; onBack: () => void 
           };
         }).sort((a, b) => b.amount - a.amount);
 
-        // Payables for this project
-        const projectPayables = payablesPage.content
-          .filter(p => p.projectId === budget.projectId)
+        // Payables for this project (already scoped server-side)
+        const projectPayables = projectBills
           .map(p => ({ vendor: p.vendor, amount: p.amount, paidAmount: p.paidAmount, status: p.status }));
 
         // AP consumes the budget by what has been PAID, not the outstanding
@@ -709,6 +722,10 @@ export function BudgetManagement() {
   }, [t]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Delete a project (its budget) straight from this screen — reuses the
+  // guarded type-the-name modal from the Projects screen.
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
 
   // Derived KPIs
   const totalAssigned = useMemo(() => budgets.reduce((s, b) => s + b.totalBudget, 0), [budgets]);
@@ -1005,7 +1022,7 @@ export function BudgetManagement() {
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-[#0A0A0A]">{t('admin:budgetMgmt.edit.notes')}</label>
                   <Textarea value={editNotes} onChange={e => setEditNotes(e.target.value)}
-                    maxLength={FIELD_LIMITS.LONG_TEXT}
+                  maxLength={FIELD_LIMITS.LONG_TEXT}
                     placeholder={t('admin:budgetMgmt.edit.notesPlaceholder')}
                     className="resize-none text-sm border-[#D4D4D8] min-h-[56px]" rows={2} />
                 </div>
@@ -1014,8 +1031,8 @@ export function BudgetManagement() {
                     {t('admin:budgetMgmt.edit.reasonLabel')} <span className="text-red-500">*</span>
                   </label>
                   <Textarea value={editReason} onChange={e => setEditReason(e.target.value)}
+                  maxLength={FIELD_LIMITS.LONG_TEXT}
                     onBlur={() => setEditReasonTouched(true)}
-                    maxLength={FIELD_LIMITS.LONG_TEXT}
                     placeholder={t('admin:budgetMgmt.edit.reasonPlaceholder')}
                     className={`resize-none text-sm min-h-[80px] transition-colors ${editReasonTouched && !editReasonValid ? 'border-red-400' : 'border-[#D4D4D8]'}`}
                     rows={3} />
@@ -1130,8 +1147,8 @@ export function BudgetManagement() {
                     {t('admin:budgetMgmt.close.reasonLabel')} <span className="text-red-500">*</span>
                   </label>
                   <Textarea value={closeReason} onChange={e => setCloseReason(e.target.value)}
+                  maxLength={FIELD_LIMITS.LONG_TEXT}
                     onBlur={() => setCloseReasonTouched(true)}
-                    maxLength={FIELD_LIMITS.LONG_TEXT}
                     placeholder={t('admin:budgetMgmt.close.reasonPlaceholder')}
                     className={`resize-none text-sm min-h-[80px] transition-colors ${closeReasonTouched && !closeReasonValid ? 'border-red-400' : 'border-[#D4D4D8]'}`}
                     rows={3} />
@@ -1210,6 +1227,7 @@ export function BudgetManagement() {
                 onEdit={() => openEdit(budget)}
                 onHistory={() => openHistory(budget)}
                 onClose={() => openClose(budget)}
+                onDelete={() => setDeleteTarget({ id: budget.projectId, name: budget.project })}
               />
             ))}
           </div>
@@ -1217,6 +1235,17 @@ export function BudgetManagement() {
       )}
 
       {renderModals()}
+
+      <DeleteProjectModal
+        project={deleteTarget}
+        open={deleteTarget != null}
+        onClose={() => setDeleteTarget(null)}
+        onDeleted={deletedId => {
+          setDeleteTarget(null);
+          setSelectedBudget(prev => (prev && prev.projectId === deletedId ? null : prev));
+          fetchData();
+        }}
+      />
     </div>
   );
 }

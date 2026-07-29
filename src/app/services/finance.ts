@@ -1,6 +1,7 @@
 // OFJR Construction — Finance API Service (Payables & Receivables)
 
 import { api, apiMultipart, getBaseUrl } from '../lib/api';
+import { drainPages } from '../lib/paging';
 import type { BudgetWarning } from '../types';
 
 // ── Shared ────���─────────────────────────────────────
@@ -21,6 +22,7 @@ function qs(params: Record<string, string | number | null | undefined>): string 
   const s = p.toString();
   return s ? `?${s}` : '';
 }
+
 
 // ── Payables (Accounts Payable) ─────────────────────
 
@@ -75,6 +77,22 @@ export function listPayables(params?: {
   size?: number;
 }): Promise<PageResponse<Payable>> {
   return api<PageResponse<Payable>>(`${PAYABLES}${qs({ ...params })}`);
+}
+
+/**
+ * Every payable matching the filters, across all pages.
+ *
+ * Use this instead of listPayables wherever the caller totals or filters the
+ * result in the browser. Pass whatever the server can filter on — projectId
+ * above all — so the sweep stays to a single request.
+ */
+export function listAllPayables(params?: {
+  vendor?: string;
+  status?: string;
+  category?: string;
+  projectId?: number;
+}): Promise<Payable[]> {
+  return drainPages((page, size) => listPayables({ ...params, page, size }));
 }
 
 export function getPayable(id: number): Promise<Payable> {
@@ -311,6 +329,17 @@ export function listReceivables(params?: {
   return api<PageResponse<Receivable>>(`${RECEIVABLES}${qs({ ...params })}`);
 }
 
+/** Every receivable matching the filters, across all pages. See drainPages. */
+export function listAllReceivables(params?: {
+  projectId?: number;
+  status?: string;
+  documentType?: string;
+  issuedFrom?: string;
+  issuedTo?: string;
+}): Promise<Receivable[]> {
+  return drainPages((page, size) => listReceivables({ ...params, page, size }));
+}
+
 export function getReceivable(id: number): Promise<Receivable> {
   return api<Receivable>(`${RECEIVABLES}/${id}`);
 }
@@ -359,4 +388,33 @@ export function approveChangeOrder(id: number): Promise<Receivable> {
   return api<Receivable>(`${RECEIVABLES}/${id}/approve`, {
     method: 'POST',
   });
+}
+
+/**
+ * V88 — edit an AR document's info: invoice/CO number, client, description,
+ * dates, notes. Partial: omit a field to leave it unchanged. The number stays
+ * unique among the tenant's active documents. Amounts are not editable —
+ * delete and re-create while the document has no payments.
+ */
+export function updateReceivableInfo(id: number, data: {
+  invoiceNumber?: string;
+  client?: string;
+  description?: string | null;
+  issuedDate?: string;
+  dueDate?: string;
+  notes?: string | null;
+}): Promise<Receivable> {
+  return api<Receivable>(`${RECEIVABLES}/${id}/info`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * V88 — soft-delete an AR document. Blocked (409 RECEIVABLE_HAS_PAYMENTS)
+ * while it has recorded payments. A deleted approved change order frees the
+ * contract headroom it occupied.
+ */
+export function deleteReceivable(id: number): Promise<void> {
+  return api<void>(`${RECEIVABLES}/${id}`, { method: 'DELETE' });
 }

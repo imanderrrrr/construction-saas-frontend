@@ -97,6 +97,15 @@ const STATUS_CFG: Record<ExpenseStatus, { bg: string; text: string; border: stri
   Rejected: { bg: 'bg-red-50',       text: 'text-red-700',    border: 'border-red-200',      dot: 'bg-red-500'    },
 };
 
+// Styling for the reviewer's note, per status. Pending is absent: it has no
+// reviewer yet. Approved carries the optional note from the approve dialog,
+// which is why it reads emerald rather than the amber/red of a problem.
+const REVIEW_NOTE_CFG: Partial<Record<ExpenseStatus, { box: string; title: string; body: string; labelKey: string }>> = {
+  Approved: { box: 'bg-emerald-50 border-emerald-200', title: 'text-emerald-800', body: 'text-emerald-700', labelKey: 'review.detail.approvalNote'    },
+  Observed: { box: 'bg-amber-50 border-amber-200',     title: 'text-amber-800',   body: 'text-amber-700',   labelKey: 'review.detail.observation'     },
+  Rejected: { box: 'bg-red-50 border-red-200',         title: 'text-red-800',     body: 'text-red-700',     labelKey: 'review.detail.rejectionReason' },
+};
+
 // Helpers
 
 function fmtDate(iso: string): string {
@@ -219,6 +228,7 @@ function ExpenseDetailPanel({
   onViewReceipt: () => void;
 }) {
   const { t } = useTranslation('expenses');
+  const noteCfg = REVIEW_NOTE_CFG[expense.status];
   return (
     <div className="bg-[#FAFAFA] rounded-xl border border-[#D4D4D8] p-4 space-y-4">
       {/* Detail grid */}
@@ -255,17 +265,13 @@ function ExpenseDetailPanel({
         {t('review.detail.viewReceipt')}
       </button>
 
-      {/* Previous review feedback */}
-      {(expense.status === 'Observed' || expense.status === 'Rejected') && expense.reviewerComment && (
-        <div className={`rounded-xl border p-3 ${
-          expense.status === 'Observed'
-            ? 'bg-amber-50 border-amber-200'
-            : 'bg-red-50 border-red-200'
-        }`}>
-          <p className={`text-xs font-semibold mb-0.5 ${expense.status === 'Observed' ? 'text-amber-800' : 'text-red-800'}`}>
-            {expense.status === 'Observed' ? t('review.detail.observation') : t('review.detail.rejectionReason')} — {expense.reviewerName}
+      {/* Reviewer's note (observation, rejection reason, or approval note) */}
+      {noteCfg && expense.reviewerComment && (
+        <div className={`rounded-xl border p-3 ${noteCfg.box}`}>
+          <p className={`text-xs font-semibold mb-0.5 ${noteCfg.title}`}>
+            {t(noteCfg.labelKey)} — {expense.reviewerName}
           </p>
-          <p className={`text-[11px] ${expense.status === 'Observed' ? 'text-amber-700' : 'text-red-700'}`}>
+          <p className={`text-[11px] ${noteCfg.body}`}>
             {expense.reviewerComment}
           </p>
         </div>
@@ -452,7 +458,7 @@ export function ExpenseReviews() {
   async function handleApproveConfirm() {
     if (!approveTarget) return;
     try {
-      const result = await approveExpense(Number(approveTarget.id), 'supervisor');
+      const result = await approveExpense(Number(approveTarget.id), 'supervisor', approveNote);
       toast.success(t('review.toast.approved', { amount: fmtAmount(approveTarget.amount), worker: approveTarget.workerName }));
       if (result.budgetWarning) {
         const w = result.budgetWarning;

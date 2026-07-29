@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { CircleAlert } from 'lucide-react';
+import { useState } from 'react';
+import { Check, CircleAlert, Copy } from 'lucide-react';
 
 /**
  * Shared vocabulary for the platform console's BuildTrack skin: the class
@@ -122,5 +123,39 @@ export function ButtonSpinner() {
       aria-hidden="true"
       className="inline-block size-3.5 flex-none animate-spin rounded-full border-2 border-bt-ink/30 border-t-bt-ink"
     />
+  );
+}
+
+/**
+ * Compact copy-to-clipboard button (checkout links, identifiers). Flips to a
+ * green "Copied" state for 2s. If the clipboard is unavailable it stays
+ * quiet — the value is always rendered next to it for manual copy.
+ */
+export function CopyButton({ value, label = 'Copy link' }: { value: string; label?: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* clipboard not allowed — the value stays visible for manual copy */
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      className={`inline-flex h-8 flex-none cursor-pointer items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition-colors ${
+        copied
+          ? 'border-[#CFDEAF] bg-[#EDF3DC] text-[#3D6112]'
+          : 'border-bt-rule bg-white text-bt-ink hover:bg-bt-paper'
+      }`}
+    >
+      {copied ? <Check size={13} strokeWidth={2.2} /> : <Copy size={13} strokeWidth={1.8} />}
+      <span>{copied ? 'Copied' : label}</span>
+    </button>
   );
 }

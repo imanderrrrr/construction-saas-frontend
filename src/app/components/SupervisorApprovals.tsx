@@ -25,7 +25,7 @@ import { ModalAddMark } from './phase2/ModalAddMark';
 import { ModalCreateDay } from './phase2/ModalCreateDay';
 import { TimeRecord, TimeEvent, ApprovalStatus, TIME_EVENT_SEQUENCE, LocationStatus, TimeEventType } from '../types';
 import {
-  getTimeRecords, getSupervisorTimeRecords, getTimeRecord,
+  getAllTimeRecords, getAllSupervisorTimeRecords, getTimeRecord,
   approveEvent, correctEvent, rejectEvent, editEventTime,
   resolveTransitDispute, addManualMarks,
   type TimeRecordResponse, type ManualMarkInput,
@@ -519,25 +519,28 @@ export function SupervisorApprovals({ mode = 'admin' }: { mode?: 'admin' | 'supe
     setLoading(true);
     setError(null);
     try {
-      const page = mode === 'supervisor'
-        ? await getSupervisorTimeRecords({
+      // Every record in the chosen date range, not the first page of it. The
+      // PENDING filter and the pending counter are both computed here in the
+      // browser, so a partial fetch would hide records awaiting review — and
+      // the oldest, most overdue ones are exactly the ones a page cut off.
+      // The date range (this week by default) is what keeps this bounded.
+      const rows = mode === 'supervisor'
+        ? await getAllSupervisorTimeRecords({
             // When the user selects "PENDING", skip the server-side status filter and rely on
             // pendingEventCount for client-side filtering — this catches records that were
             // approved at record-level via the legacy endpoint but still have pending events.
             status:   appliedStatus !== 'all' && appliedStatus !== 'PENDING' ? appliedStatus : undefined,
             dateFrom: appliedFrom || undefined,
             dateTo:   appliedTo   || undefined,
-            size: 100,
           })
-        : await getTimeRecords({
+        : await getAllTimeRecords({
             // Same logic: bypass server status filter for PENDING — use pendingEventCount client-side.
             status:   appliedStatus !== 'all' && appliedStatus !== 'PENDING' ? appliedStatus : undefined,
             role:     roleParam(appliedRole),
             dateFrom: appliedFrom || undefined,
             dateTo:   appliedTo   || undefined,
-            size: 100,
           });
-      setRecords(page.content.map(toTimeRecord));
+      setRecords(rows.map(toTimeRecord));
     } catch (err) {
       setError(err instanceof Error ? err.message : t('admin:approvals.failedLoadFallback'));
     } finally {
@@ -579,10 +582,13 @@ export function SupervisorApprovals({ mode = 'admin' }: { mode?: 'admin' | 'supe
       const yesterdayStr = nDaysAgo(1);
       const fromStr = nDaysAgo(30);
 
-      const page = mode === 'supervisor'
-        ? await getSupervisorTimeRecords({ dateFrom: fromStr, dateTo: yesterdayStr, size: 100 })
-        : await getTimeRecords({ role: roleParam(appliedRole), dateFrom: fromStr, dateTo: yesterdayStr, size: 100 });
-      const mapped = page.content.map(toTimeRecord);
+      // This alert exists to surface approvals that slipped past. Reading one
+      // page of the 30-day window would let it miss the oldest ones — the alert
+      // failing at the single job it has — so sweep the whole window.
+      const rows = mode === 'supervisor'
+        ? await getAllSupervisorTimeRecords({ dateFrom: fromStr, dateTo: yesterdayStr })
+        : await getAllTimeRecords({ role: roleParam(appliedRole), dateFrom: fromStr, dateTo: yesterdayStr });
+      const mapped = rows.map(toTimeRecord);
       setOverdueRecords(mapped.filter(r => r.pendingEventCount > 0));
     } catch { /* silent — alert degrades gracefully */ }
   }, [mode, appliedRole]);

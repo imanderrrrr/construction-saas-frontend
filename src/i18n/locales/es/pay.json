@@ -1,0 +1,29 @@
+{
+  "meta.title": "Pago seguro — BuildTrack",
+
+  "topbar.label": "PAGO SEGURO",
+  "topbar.back": "← Volver al sitio",
+
+  "opening.title": "Abriendo tu pago seguro…",
+  "opening.body": "En un momento se abre la ventana de pago de Paddle, nuestro procesador. Ahí completás los datos de tu tarjeta — nunca pasan por BuildTrack.",
+  "opening.manual": "¿No se abrió? Abrir el pago",
+
+  "missing.title": "Este link de pago está incompleto",
+  "missing.body": "Al link que abriste le falta la referencia del pago. Suele pasar si se cortó al copiarlo — pedile a tu contacto de BuildTrack que te lo reenvíe.",
+
+  "closed.title": "El pago quedó pendiente",
+  "closed.body": "Cerraste la ventana antes de completar el pago. No se cobró nada — podés retomarlo cuando quieras.",
+  "closed.reopen": "Reabrir el pago",
+
+  "completed.title": "¡Pago recibido!",
+  "completed.body": "Tu espacio de trabajo se activa automáticamente en unos minutos. Te enviamos también un correo con el link para crear tu contraseña — con eso ya podés entrar.",
+  "completed.note": "Ya podés cerrar esta pestaña. Si en unos minutos no podés entrar, avisanos.",
+
+  "error.title": "No pudimos abrir el pago",
+  "error.body": "Puede que este link haya vencido o que lo hayamos reemplazado por uno nuevo. Probá de nuevo, y si sigue igual, pedile a tu contacto de BuildTrack que te genere un link fresco.",
+  "error.retry": "Probar de nuevo",
+
+  "contact.lead": "¿Necesitás ayuda? Escribinos a",
+
+  "secure.note": "El pago lo procesa Paddle, nuestro proveedor de cobros. Los datos de tu tarjeta nunca tocan los servidores de BuildTrack."
+}
