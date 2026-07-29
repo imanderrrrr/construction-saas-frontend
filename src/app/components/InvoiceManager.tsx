@@ -168,7 +168,7 @@ export function InvoiceManager() {
     }
     if (!issuerReady) return; // avoid a legacy-header flash before the template loads
     const handle = setTimeout(() => {
-      let url: string | null = null;
+      let url: string | null;
       try {
         url = invoicePdfPreviewUrl(previewData, issuer);
       } catch {

@@ -510,7 +510,7 @@ function exportCsv(
     w.lastPaymentDate ?? '', paidAmount(w).toFixed(2),
   ]);
   const csv = [header, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
-  const url = URL.createObjectURL(new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8;' }));
+  const url = URL.createObjectURL(new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8;' }));
   const a = document.createElement('a');
   a.href = url; a.download = `nomina-${from}-${to}.csv`;
   a.click();

@@ -121,7 +121,7 @@ export function InvoiceBrandingSettings() {
   useEffect(() => {
     if (loading) return;
     const handle = setTimeout(() => {
-      let url: string | null = null;
+      let url: string | null;
       try {
         url = invoicePdfPreviewUrl(SAMPLE_PDF_DATA, previewIssuer);
       } catch {
