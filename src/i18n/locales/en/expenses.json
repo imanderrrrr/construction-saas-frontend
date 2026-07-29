@@ -132,6 +132,7 @@
   "status.rejected": "Rejected",
 
   "my.expenseHistory": "Expense History",
+  "my.loadFailed": "Could not load your expenses. The list below may be incomplete — retry.",
   "my.noExpensesFound": "No expenses found",
   "my.noExpensesHint": "Try adjusting the filters or resetting.",
   "my.viewDetails": "View details",

@@ -27,6 +27,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from './ui/select';
 import { EXPENSE_TYPES } from './NewExpense';
+import { ErrorBanner } from './ErrorBanner';
 import {
   getAdminExpenses, getAdminSummary, adminBatchApprove,
   approveExpense, observeExpense, rejectExpense,
@@ -472,6 +473,7 @@ export function ExpenseManagement() {
   const [totalElements, setTotalElements] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [summary, setSummary] = useState<ExpenseSummaryResponse | null>(null);
   const [workers, setWorkers] = useState<UserDTO[]>([]);
   const [projects, setProjects] = useState<ProjectResponse[]>([]);
@@ -532,7 +534,12 @@ export function ExpenseManagement() {
       setExpenses(res.content.map(mapExpense));
       setTotalElements(res.totalElements);
       setTotalPages(res.totalPages || 1);
-    } catch { /* silent */ } finally { setLoading(false); }
+      setLoadError(false);
+    } catch {
+      // A failed load must NOT collapse into the "no expenses" empty state —
+      // an admin approves money off this list. Show the banner and offer retry.
+      setLoadError(true);
+    } finally { setLoading(false); }
   }, [appliedFrom, appliedTo, appliedWorker, appliedProject, appliedType, appliedStatus, currentPage]);
 
   useEffect(() => { fetchExpenses(); }, [fetchExpenses]);
@@ -748,7 +755,13 @@ export function ExpenseManagement() {
           <span className="ml-1 text-xs text-[#71717A]">· {t('admin:expenseMgmt.table.records', { count: totalElements })}</span>
         </div>
 
-        {totalElements === 0 && (
+        {loadError && (
+          <div className="px-4 py-4" data-testid="admin-expenses-load-error">
+            <ErrorBanner message={t('admin:expenseMgmt.table.loadFailed')} onRetry={fetchExpenses} />
+          </div>
+        )}
+
+        {!loadError && totalElements === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-center px-4">
             <div className="w-14 h-14 bg-[#FAFAFA] rounded-full flex items-center justify-center mb-3">
               <Receipt className="w-7 h-7 text-[#D4D4D8]" />

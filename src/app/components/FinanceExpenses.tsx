@@ -21,6 +21,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from './ui/dialog';
 import { EXPENSE_TYPES } from './NewExpense';
+import { ErrorBanner } from './ErrorBanner';
 import {
   getFinanceExpenses, receiptUrl,
   type ExpenseResponse,
@@ -335,6 +336,7 @@ export function FinanceExpenses() {
   const [currentPage,   setCurrentPage]   = useState(1);
   const [receiptTarget, setReceiptTarget] = useState<ApprovedExpense | null>(null);
   const [loading,       setLoading]       = useState(false);
+  const [loadError,     setLoadError]     = useState(false);
 
   // Data from API
   const [expenses,      setExpenses]      = useState<ApprovedExpense[]>([]);
@@ -363,7 +365,12 @@ export function FinanceExpenses() {
       setExpenses(res.content.map(mapExpense));
       setTotalElements(res.totalElements);
       setTotalValue(res.content.reduce((s, e) => s + e.amountCents, 0) / 100);
-    } catch { /* silent */ } finally { setLoading(false); }
+      setLoadError(false);
+    } catch {
+      // A failed load must NOT collapse into the "no expenses" empty state —
+      // finance reads totals off this screen. Show the banner and offer retry.
+      setLoadError(true);
+    } finally { setLoading(false); }
   }, [dateFrom, dateTo, workerFilter, projectFilter, typeFilter]);
 
   useEffect(() => { fetchExpenses(currentPage); }, [fetchExpenses, currentPage]);
@@ -471,7 +478,13 @@ export function FinanceExpenses() {
           <span className="ml-1 text-xs text-[#71717A]">· {totalElements} {t('finance:expenses.recordCount', { count: totalElements })}</span>
         </div>
 
-        {!loading && expenses.length === 0 && (
+        {loadError && (
+          <div className="px-4 py-4" data-testid="finance-expenses-load-error">
+            <ErrorBanner message={t('finance:expenses.loadFailed')} onRetry={() => fetchExpenses(currentPage)} />
+          </div>
+        )}
+
+        {!loadError && !loading && expenses.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-center px-4">
             <div className="w-14 h-14 bg-[#FAFAFA] rounded-full flex items-center justify-center mb-3">
               <CheckCircle className="w-7 h-7 text-[#D4D4D8]" />

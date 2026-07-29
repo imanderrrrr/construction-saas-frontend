@@ -82,6 +82,7 @@
   "detail.evidence": "Evidencia",
   "detail.images": "Imágenes",
   "detail.documents": "Documentos",
+  "detail.loadFailed": "No se pudo cargar esta sección — reintenta.",
   "detail.noObservations": "No hay observaciones aún. Inicia la conversación.",
 
   "modal.createJob.title": "Asignar Nuevo Trabajo",
@@ -139,6 +140,8 @@
   "toast.paymentRegistered": "Pago registrado",
   "toast.error": "Ocurrió un error",
 
+  "empty.jobsLoadFailed": "No se pudieron cargar los trabajos — reintenta.",
+  "empty.invoicesLoadFailed": "No se pudieron cargar las facturas — reintenta.",
   "empty.jobs": "No hay trabajos registrados.",
   "empty.invoices": "No hay facturas registradas.",
   "empty.createFirst": "Asigne un trabajo para comenzar.",

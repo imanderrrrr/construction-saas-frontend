@@ -132,6 +132,7 @@
   "status.rejected": "Rechazado",
 
   "my.expenseHistory": "Historial de Gastos",
+  "my.loadFailed": "No se pudieron cargar tus gastos. La lista puede estar incompleta — reintenta.",
   "my.noExpensesFound": "No se encontraron gastos",
   "my.noExpensesHint": "Intenta ajustar los filtros o restablecerlos.",
   "my.viewDetails": "Ver detalles",

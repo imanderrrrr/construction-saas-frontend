@@ -1072,6 +1072,7 @@
   "expenseMgmt.table.title": "All Company Expenses",
   "expenseMgmt.table.records_one": "{{count}} record",
   "expenseMgmt.table.records_other": "{{count}} records",
+  "expenseMgmt.table.loadFailed": "Could not load expenses. The list below may be incomplete — retry before reviewing.",
   "expenseMgmt.table.emptyTitle": "No expenses found",
   "expenseMgmt.table.emptyHint": "Try adjusting the filters.",
   "expenseMgmt.table.worker": "Worker",

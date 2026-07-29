@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { AppShell, type AppShellNavItem } from '../components/AppShell';
 import { StatCard } from '../components/StatCard';
+import { ErrorBanner } from '../components/ErrorBanner';
 import { Toaster } from '../components/ui/sonner';
 import {
   getFinanceExpenses, getFinanceExpenseReport,
@@ -108,6 +109,7 @@ function LoadingSkeleton() {
 function DashboardView({ username, onNavigate }: { username: string; onNavigate: (s: string) => void }) {
   const { t } = useTranslation('finance');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [recentExpenses, setRecentExpenses] = useState<ExpenseResponse[]>([]);
   const [report, setReport] = useState<ExpenseReportResponse | null>(null);
 
@@ -120,8 +122,11 @@ function DashboardView({ username, onNavigate }: { username: string; onNavigate:
       ]);
       setRecentExpenses(expensesRes.content);
       setReport(reportRes);
+      setLoadError(false);
     } catch {
-      /* degrade gracefully — cards show "—" */
+      // Cards still degrade to "—", but say WHY and offer a retry — a silent
+      // dashboard of dashes is indistinguishable from "no data yet".
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -150,6 +155,12 @@ function DashboardView({ username, onNavigate }: { username: string; onNavigate:
         <p className="text-sm text-[#71717A] mt-1">{t('dash.financialOverview')}</p>
       </div>
 
+      {loadError && (
+        <div data-testid="finance-dash-load-error">
+          <ErrorBanner message={t('dash.loadFailed')} onRetry={fetchDashboard} />
+        </div>
+      )}
+
       {/* KPI cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={DollarSign}   title={t('dash.totalApproved')}  value={loading ? '...' : totalApproved}  subtitle={t('dash.allApprovedExpenses')}   iconBgColor="bg-purple-50"  iconColor="text-purple-600"  />
@@ -175,6 +186,10 @@ function DashboardView({ username, onNavigate }: { username: string; onNavigate:
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-5 h-5 animate-spin text-purple-500" />
           </div>
+        ) : loadError ? (
+          // The banner above already explains; never show the innocent
+          // "no approved expenses" empty state for a failed load.
+          null
         ) : recentExpenses.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center px-4">
             <CheckCircle className="w-8 h-8 text-[#D4D4D8] mb-2" />
