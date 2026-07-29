@@ -24,12 +24,13 @@ jobs:
       - name: Typecheck (tsc --noEmit)
         run: npm run typecheck
 
+      # Errors gate the build; the legacy backlog is tracked as warnings with
+      # per-rule counts in eslint.config.js — tighten rule by rule, not here.
+      - name: Lint
+        run: npm run lint
+
       - name: Run tests
         run: npm test
 
       - name: Build production bundle
         run: npm run build
-
-      # TODO (follow-up): add a minimal ESLint config + `npm run lint` step as a
-      # required check. Typecheck (tsc --noEmit) is now wired above alongside
-      # test + build.

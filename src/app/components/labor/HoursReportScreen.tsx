@@ -395,7 +395,7 @@ function exportCsv(workers: WorkerHoursSummary[], from: string, to: string) {
     w.avgHoursPerDay.toFixed(1), String(w.lateDays), String(w.absences),
   ]);
   const csv = [header, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
-  const url = URL.createObjectURL(new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8;' }));
+  const url = URL.createObjectURL(new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8;' }));
   const a = document.createElement('a');
   a.href = url; a.download = `horas-${from}-${to}.csv`;
   a.click();
