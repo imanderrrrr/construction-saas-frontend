@@ -22,6 +22,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { HardHat, Loader2, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 export function ForgotPassword() {
   const { t } = useTranslation('auth');
@@ -118,6 +119,7 @@ export function ForgotPassword() {
                   placeholder={t('login.tenantSlug.placeholder')}
                   disabled={isLoading}
                   {...register('tenantSlug', { required: t('forgotPassword.tenantSlug.required') })}
+                  maxLength={FIELD_LIMITS.LEGACY_WORKSPACE_SLUG}
                   aria-invalid={errors.tenantSlug ? 'true' : 'false'}
                   className={inputCls(!!errors.tenantSlug, isLoading)}
                 />
@@ -135,6 +137,7 @@ export function ForgotPassword() {
                   type="email"
                   autoComplete="email"
                   placeholder={t('forgotPassword.email.placeholder')}
+                  maxLength={FIELD_LIMITS.EMAIL}
                   disabled={isLoading}
                   {...register('email', {
                     required: t('forgotPassword.email.required'),

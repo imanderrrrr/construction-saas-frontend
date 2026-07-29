@@ -23,6 +23,7 @@ import {
   EyeOff,
   Mail,
 } from 'lucide-react';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 function AlertDestructive({ title, message }: { title: string; message: string }) {
   return (
@@ -194,6 +195,7 @@ export function AcceptInvite() {
                 type="text"
                 autoComplete="name"
                 placeholder={t('acceptInvite.fullName.placeholder')}
+                maxLength={FIELD_LIMITS.PERSON_NAME}
                 disabled={isLoading}
                 {...register('fullName', {
                   required: t('acceptInvite.fullName.required'),
@@ -215,6 +217,7 @@ export function AcceptInvite() {
                 type="text"
                 autoComplete="username"
                 placeholder={t('acceptInvite.username.placeholder')}
+                maxLength={FIELD_LIMITS.USERNAME}
                 disabled={isLoading}
                 {...register('username', {
                   required: t('acceptInvite.username.required'),

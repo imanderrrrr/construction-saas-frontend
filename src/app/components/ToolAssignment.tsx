@@ -28,6 +28,7 @@ import {
   type WorkerProjectOption,
 } from '../services/warehouse';
 import { listActiveUsers, type UserDTO } from '../services/users';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 // Types
 
@@ -206,6 +207,7 @@ function AssignModal({ open, availableTools, workers, onClose, onAssign }: {
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-[#71717A] uppercase tracking-wide">{t('assignment.dialog.notes')}</label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
+              maxLength={FIELD_LIMITS.LONG_TEXT}
               placeholder={t('assignment.dialog.assignmentNotes')}
               className="w-full rounded-md border border-[#D4D4D8] bg-white px-3 py-2 text-sm placeholder:text-[#71717A] focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none" />
           </div>
@@ -276,6 +278,7 @@ function ReturnModal({ open, activeAssignments, onClose, onReturn }: {
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-[#71717A] uppercase tracking-wide">{t('assignment.dialog.notes')}</label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
+              maxLength={FIELD_LIMITS.LONG_TEXT}
               placeholder={t('assignment.dialog.returnObservations')}
               className="w-full rounded-md border border-[#D4D4D8] bg-white px-3 py-2 text-sm placeholder:text-[#71717A] focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none" />
           </div>

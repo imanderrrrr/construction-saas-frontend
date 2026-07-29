@@ -20,6 +20,7 @@ import {
 import { InvitationsService, AdminInvitation } from '../services/invitations';
 import { ApiError } from '../lib/api';
 import type { CanonicalRole } from '../types';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 interface InviteUserModalProps {
   open: boolean;
@@ -197,6 +198,7 @@ export function InviteUserModal({
                     value={email}
                     onChange={(e) => { setEmail(e.target.value); setEmailError(null); }}
                     placeholder={t('invite.modal.email.placeholder')}
+                    maxLength={FIELD_LIMITS.EMAIL}
                     className="h-11"
                     aria-invalid={!!emailError}
                   />

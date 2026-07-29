@@ -22,6 +22,7 @@ import {
 } from '../services/warehouse';
 import { listProjects, type ProjectResponse } from '../services/projects';
 import { listActiveUsers, type UserDTO } from '../services/users';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 // Types
 
@@ -402,7 +403,7 @@ function DispatchModal({
             <textarea
               value={notes} onChange={e => setNotes(e.target.value)}
               className="mt-1 w-full border border-[#D4D4D8] rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/30 resize-none"
-              rows={2} placeholder={t('dispatch.dialog.notesPlaceholder')}
+              rows={2} maxLength={FIELD_LIMITS.LONG_TEXT} placeholder={t('dispatch.dialog.notesPlaceholder')}
             />
           </div>
         </div>

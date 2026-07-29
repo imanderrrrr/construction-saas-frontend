@@ -24,6 +24,7 @@ import {
   listConsumables, createConsumable, updateConsumable, getConsumableDispatches,
   type ConsumableResponse, type DispatchResponse,
 } from '../services/warehouse';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 // Types
 
@@ -212,6 +213,7 @@ export function ConsumableInventory({ onNavigate }: { onNavigate?: (section: str
               placeholder={t('consumables.search')}
               value={search}
               onChange={e => { setSearch(e.target.value); setPage(1); }}
+              maxLength={FIELD_LIMITS.SEARCH}
               className="pl-9 h-9 border-[#D4D4D8] text-sm"
             />
           </div>
@@ -441,7 +443,7 @@ function AddConsumableModal({ open, onClose, onAdd }: {
         <div className="space-y-4 py-2">
           <div>
             <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide">{t('consumables.dialog.name')} *</label>
-            <Input value={name} onChange={e => setName(e.target.value)} className="mt-1 h-9 border-[#D4D4D8] text-sm" placeholder={t('consumables.dialog.namePlaceholder')} />
+            <Input value={name} onChange={e => setName(e.target.value)} maxLength={FIELD_LIMITS.SHORT_NAME} className="mt-1 h-9 border-[#D4D4D8] text-sm" placeholder={t('consumables.dialog.namePlaceholder')} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -478,7 +480,7 @@ function AddConsumableModal({ open, onClose, onAdd }: {
             <textarea
               value={notes} onChange={e => setNotes(e.target.value)}
               className="mt-1 w-full border border-[#D4D4D8] rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/30 resize-none"
-              rows={2} placeholder={t('consumables.dialog.notesPlaceholder')}
+              rows={2} maxLength={FIELD_LIMITS.LONG_TEXT} placeholder={t('consumables.dialog.notesPlaceholder')}
             />
           </div>
         </div>
@@ -522,11 +524,11 @@ function EditConsumableModal({ item, onClose, onSave }: {
         <div className="space-y-4 py-2">
           <div>
             <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide">{t('consumables.dialog.code')}</label>
-            <Input value={item.code} disabled className="mt-1 h-9 bg-[#FAFAFA] text-sm" />
+            <Input value={item.code} disabled maxLength={FIELD_LIMITS.CODE} className="mt-1 h-9 bg-[#FAFAFA] text-sm" />
           </div>
           <div>
             <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide">{t('consumables.dialog.name')} *</label>
-            <Input value={name} onChange={e => setName(e.target.value)} className="mt-1 h-9 border-[#D4D4D8] text-sm" />
+            <Input value={name} onChange={e => setName(e.target.value)} maxLength={FIELD_LIMITS.SHORT_NAME} className="mt-1 h-9 border-[#D4D4D8] text-sm" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -557,7 +559,7 @@ function EditConsumableModal({ item, onClose, onSave }: {
             <textarea
               value={notes} onChange={e => setNotes(e.target.value)}
               className="mt-1 w-full border border-[#D4D4D8] rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/30 resize-none"
-              rows={2}
+              rows={2} maxLength={FIELD_LIMITS.LONG_TEXT}
             />
           </div>
         </div>

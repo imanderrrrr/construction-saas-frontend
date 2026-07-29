@@ -18,6 +18,7 @@ import {
   listOfficeExpenses, createOfficeExpense, updateOfficeExpense, deleteOfficeExpense,
   type OfficeExpense,
 } from '../services/officeExpenses';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 // Helpers
 
@@ -214,6 +215,7 @@ export function OfficeExpenses() {
             type="text"
             value={formDesc}
             onChange={e => setFormDesc(e.target.value)}
+            maxLength={FIELD_LIMITS.NOTE}
             placeholder={t('admin:officeExpense.form.descriptionPlaceholder')}
             className="w-full h-9 px-3 text-sm border border-[#D4D4D8] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F97316]/30"
           />
@@ -275,6 +277,7 @@ export function OfficeExpenses() {
               type="text"
               value={formPurchasedBy}
               onChange={e => setFormPurchasedBy(e.target.value)}
+              maxLength={FIELD_LIMITS.LEGACY_PERSON_NAME}
               placeholder={t('admin:officeExpense.form.purchasedByPlaceholder')}
               className="w-full h-9 px-3 text-sm border border-[#D4D4D8] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F97316]/30"
             />
@@ -290,6 +293,7 @@ export function OfficeExpenses() {
             value={formNotes}
             onChange={e => setFormNotes(e.target.value)}
             rows={2}
+            maxLength={FIELD_LIMITS.EXTENDED_NOTE}
             placeholder={t('admin:officeExpense.form.notesPlaceholder')}
             className="w-full px-3 py-2 text-sm border border-[#D4D4D8] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F97316]/30 resize-none"
           />
@@ -359,6 +363,7 @@ export function OfficeExpenses() {
             <input
               type="text"
               placeholder={t('admin:officeExpense.searchPlaceholder')}
+              maxLength={FIELD_LIMITS.SEARCH}
               value={filterSearch}
               onChange={e => setFilterSearch(e.target.value)}
               className="w-full h-8 pl-8 pr-3 text-xs border border-[#D4D4D8] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F97316]/30"

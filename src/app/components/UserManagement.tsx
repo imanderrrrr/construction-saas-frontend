@@ -49,6 +49,7 @@ import type { UserDTO, SessionDTO, AuditEntryDTO } from '../services/users';
 import { InviteUserModal } from './InviteUserModal';
 import { WorkerQrModal } from './WorkerQrModal';
 import { ApiError } from '../lib/api';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 // TYPES
 
@@ -322,6 +323,7 @@ function CreateUserModal({ open, onClose, onCreated, existingUsernames }: Create
             <Label className="text-sm font-medium text-[#0A0A0A]">{t('users:form.username')} <span className="text-red-500">*</span></Label>
             <Input value={form.username} onChange={e => { setForm(f => ({ ...f, username: e.target.value })); setErrors(prev => { const { username: _, ...rest } = prev; return rest; }); }}
               placeholder={t('users:form.placeholderUsername')}
+              maxLength={FIELD_LIMITS.USERNAME}
               className={`h-10 ${errors.username ? 'border-red-400 focus:ring-red-400/20' : 'border-[#D4D4D8]'} ${(isLoading) ? 'opacity-50 bg-[#FAFAFA]' : ''}`}
               disabled={isLoading} />
             <p className="text-[10px] text-[#71717A]">{t('users:form.usernameHint')}</p>
@@ -333,6 +335,7 @@ function CreateUserModal({ open, onClose, onCreated, existingUsernames }: Create
             <Label className="text-sm font-medium text-[#0A0A0A]">{t('users:form.fullName')}</Label>
             <Input value={form.fullName} onChange={e => setForm(f => ({ ...f, fullName: e.target.value }))}
               placeholder={t('users:form.placeholderName')}
+              maxLength={FIELD_LIMITS.PERSON_NAME}
               className={`h-10 border-[#D4D4D8] ${(isLoading) ? 'opacity-50 bg-[#FAFAFA]' : ''}`}
               disabled={isLoading} />
             <p className="text-xs text-[#71717A]">{t('users:form.optional')}</p>
@@ -494,6 +497,7 @@ function EditUserModal({ user, open, onClose, onSaved, isLastAdmin }: EditUserMo
             <Label className="text-sm font-medium text-[#0A0A0A]">{t('users:form.fullName')}</Label>
             <Input value={form.fullName} onChange={e => setForm(f => ({ ...f, fullName: e.target.value }))}
               placeholder={t('users:form.placeholderName')}
+              maxLength={FIELD_LIMITS.PERSON_NAME}
               className={`h-10 border-[#D4D4D8] ${displayLoading ? 'opacity-50 bg-[#FAFAFA]' : ''}`}
               disabled={displayLoading} />
           </div>
@@ -1084,6 +1088,7 @@ export function UserManagement() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#71717A]" />
             <Input value={search} onChange={e => { setSearch(e.target.value); }}
               placeholder={t('users:list.searchPlaceholder')}
+              maxLength={FIELD_LIMITS.SEARCH}
               className="pl-10 h-10 border-[#D4D4D8] w-full" />
           </div>
           <Select value={roleFilter} onValueChange={v => { setRoleFilter(v); setCurrentPage(1); }}>

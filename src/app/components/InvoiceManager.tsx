@@ -16,6 +16,7 @@ import {
   invoicePdfPreviewUrl, downloadInvoicePdf, type InvoicePdfData, type InvoiceIssuerPdf,
 } from '../helpers/exportInvoicePdf';
 import { loadInvoiceIssuer } from '../services/invoiceBranding';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 // ── Types ───────────────────────────────────────────
 
@@ -369,6 +370,7 @@ export function InvoiceManager() {
               <input
                 className="w-full h-10 rounded-lg border border-[#D4D4D8] px-3 text-sm bg-white placeholder:text-[#71717A]/50 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 transition-all"
                 placeholder={t('invoice.dialog.autoGenerate')}
+                maxLength={FIELD_LIMITS.IDENTIFIER}
                 value={invoiceNumber}
                 onChange={e => setInvoiceNumber(e.target.value)}
               />
@@ -415,6 +417,7 @@ export function InvoiceManager() {
                 <input
                   className="w-full h-10 rounded-lg border border-[#D4D4D8] px-3 text-sm mt-2 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 transition-all"
                   placeholder={t('invoice.dialog.clientPlaceholder')}
+                  maxLength={FIELD_LIMITS.SHORT_NAME}
                   value={clientCustom}
                   onChange={e => setClientCustom(e.target.value)}
                 />
@@ -441,6 +444,7 @@ export function InvoiceManager() {
             <input
               className="w-full h-10 rounded-lg border border-[#D4D4D8] px-3 text-sm focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 transition-all"
               placeholder={t('invoice.dialog.descriptionPlaceholder')}
+              maxLength={FIELD_LIMITS.NOTE}
               value={description}
               onChange={e => setDescription(e.target.value)}
             />
@@ -472,6 +476,7 @@ export function InvoiceManager() {
                     <input
                       className="h-9 rounded-md border border-[#D4D4D8] px-3 text-sm mr-2"
                       placeholder={t('invoice.dialog.itemDescPlaceholder')}
+                      maxLength={FIELD_LIMITS.LINE_ITEM}
                       value={li.description}
                       onChange={e => updateLineItem(idx, 'description', e.target.value)}
                     />
@@ -555,6 +560,7 @@ export function InvoiceManager() {
             <textarea
               className="w-full h-24 rounded-lg border border-[#D4D4D8] px-3 py-2.5 text-sm resize-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 transition-all"
               placeholder={t('invoice.dialog.notesPlaceholder')}
+              maxLength={FIELD_LIMITS.EXTENDED_NOTE}
               value={notes}
               onChange={e => setNotes(e.target.value)}
             />

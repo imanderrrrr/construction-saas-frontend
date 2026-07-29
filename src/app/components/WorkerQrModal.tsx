@@ -28,6 +28,7 @@ import {
 import * as UsersApi from '../services/users';
 import type { WorkerQrDTO } from '../services/users';
 import { ApiError } from '../lib/api';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 /** Minimal worker shape the modal needs — a subset of the list/detail user. */
 export interface WorkerQrTarget {
@@ -256,6 +257,7 @@ export function WorkerQrModal({ user, open, onClose }: WorkerQrModalProps) {
                     onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     inputMode="numeric"
                     autoComplete="off"
+                    maxLength={FIELD_LIMITS.PIN}
                     placeholder="••••••"
                     aria-invalid={pinTouched && !pinValid}
                     className={`h-10 font-mono tracking-[0.4em] text-center ${pinTouched && !pinValid ? 'border-red-400' : 'border-[#D4D4D8]'}`}

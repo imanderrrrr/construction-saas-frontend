@@ -43,6 +43,7 @@ import {
   isImageAttachment,
   formatFileSize,
 } from '../services/tasks';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 const STATUS_BADGE: Record<TaskStatus, string> = {
   TODO: 'bg-[#F4F4F5] text-[#71717A]',
@@ -466,6 +467,7 @@ export function TaskDetailModal({
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
                   rows={3}
+                  maxLength={FIELD_LIMITS.LONG_TEXT}
                   placeholder="Escribe un comentario…"
                   className="w-full resize-y rounded-xl border border-[#D4D4D8] bg-white px-3.5 py-2.5 text-sm text-[#0A0A0A] placeholder:text-[#A1A1AA] focus:border-[#F97316] focus:outline-none focus:ring-1 focus:ring-[#F97316]"
                 />

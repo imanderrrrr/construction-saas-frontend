@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { PublicTopbar, TopbarBackLink, TopbarLink } from '../components/landing/PublicTopbar';
 import { BETA_EMAIL } from '../components/landing/contact';
 import { usePublicPageTitle } from '../hooks/usePublicPageTitle';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 /**
  * Public documentation — one short guide per module, in the order they're used
@@ -112,6 +113,7 @@ export function Docs() {
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t('search.placeholder')}
             aria-label={t('search.placeholder')}
+            maxLength={FIELD_LIMITS.SEARCH}
             className="w-full rounded-[2px] border border-bt-rule bg-bt-sheet px-3.5 py-[11px] font-bt-mono text-[11px] tracking-[0.06em] text-bt-ink outline-offset-2 placeholder:text-bt-muted-2"
           />
           {noResults && (

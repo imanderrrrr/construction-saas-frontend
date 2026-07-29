@@ -34,6 +34,7 @@ import {
   type VendorBill, type BillCategory, type VendorPayment,
 } from './PayableCommon';
 import { PayableDetailModal } from './PayableDetailModal';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -955,7 +956,7 @@ export function AccountsPayable() {
             </div>
             <div>
               <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.reference')}</label>
-              <input type="text" value={payRef} onChange={e => setPayRef(e.target.value)} placeholder={t('payable.dialog.referencePlaceholder')}
+              <input type="text" value={payRef} onChange={e => setPayRef(e.target.value)} placeholder={t('payable.dialog.referencePlaceholder')} maxLength={FIELD_LIMITS.REFERENCE}
                 className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
             </div>
           </div>
@@ -1009,7 +1010,7 @@ export function AccountsPayable() {
           <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto pr-1">
             <div>
               <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.billNo')}</label>
-              <input type="text" value={newBillNumber} onChange={e => setNewBillNumber(e.target.value)}
+              <input type="text" value={newBillNumber} onChange={e => setNewBillNumber(e.target.value)} maxLength={FIELD_LIMITS.IDENTIFIER}
                 className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] font-mono focus:outline-none focus:ring-2 focus:ring-purple-400" />
             </div>
             <div>
@@ -1022,7 +1023,7 @@ export function AccountsPayable() {
                 </SelectContent>
               </Select>
               {newVendor === 'Other' && (
-                <input type="text" value={newVendorOther} onChange={e => setNewVendorOther(e.target.value)}
+                <input type="text" value={newVendorOther} onChange={e => setNewVendorOther(e.target.value)} maxLength={FIELD_LIMITS.SHORT_NAME}
                   placeholder={t('payable.dialog.vendorPlaceholder')} className="mt-2 h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
               )}
             </div>
@@ -1046,7 +1047,7 @@ export function AccountsPayable() {
             </div>
             <div>
               <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.description')}</label>
-              <textarea value={newDesc} onChange={e => setNewDesc(e.target.value)} rows={2} placeholder={t('payable.dialog.descriptionPlaceholder')}
+              <textarea value={newDesc} onChange={e => setNewDesc(e.target.value)} rows={2} maxLength={FIELD_LIMITS.NOTE} placeholder={t('payable.dialog.descriptionPlaceholder')}
                 className="w-full rounded-md border border-[#D4D4D8] px-3 py-2 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none" />
             </div>
             <div>
@@ -1072,7 +1073,7 @@ export function AccountsPayable() {
             </div>
             <div>
               <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.notes')}</label>
-              <textarea value={newCreateNotes} onChange={e => setNewCreateNotes(e.target.value)} rows={2} placeholder={t('payable.dialog.notesPlaceholder')}
+              <textarea value={newCreateNotes} onChange={e => setNewCreateNotes(e.target.value)} rows={2} maxLength={FIELD_LIMITS.EXTENDED_NOTE} placeholder={t('payable.dialog.notesPlaceholder')}
                 className="w-full rounded-md border border-[#D4D4D8] px-3 py-2 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none" />
             </div>
             {/* Document upload (optional) */}
@@ -1152,7 +1153,7 @@ export function AccountsPayable() {
             </div>
             <div>
               <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.edit.reason')}</label>
-              <textarea value={editReason} onChange={e => setEditReason(e.target.value)} rows={2} placeholder={t('payable.edit.reasonPlaceholder')}
+              <textarea value={editReason} onChange={e => setEditReason(e.target.value)} rows={2} maxLength={FIELD_LIMITS.NOTE} placeholder={t('payable.edit.reasonPlaceholder')}
                 className="w-full rounded-md border border-[#D4D4D8] px-3 py-2 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none" />
             </div>
           </div>
@@ -1175,7 +1176,7 @@ export function AccountsPayable() {
             </div>
             <div>
               <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.unpay.reason')}</label>
-              <textarea value={unpayReason} onChange={e => setUnpayReason(e.target.value)} rows={2} placeholder={t('payable.unpay.reasonPlaceholder')}
+              <textarea value={unpayReason} onChange={e => setUnpayReason(e.target.value)} rows={2} maxLength={FIELD_LIMITS.NOTE} placeholder={t('payable.unpay.reasonPlaceholder')}
                 className="w-full rounded-md border border-[#D4D4D8] px-3 py-2 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none" />
             </div>
           </div>
@@ -1200,7 +1201,7 @@ export function AccountsPayable() {
             </div>
             <div>
               <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.convert.number')}</label>
-              <input type="text" value={convertNumber} onChange={e => setConvertNumber(e.target.value)}
+              <input type="text" value={convertNumber} onChange={e => setConvertNumber(e.target.value)} maxLength={FIELD_LIMITS.DOCUMENT_NUMBER}
                 placeholder={t('payable.convert.numberPlaceholder')}
                 className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] font-mono focus:outline-none focus:ring-2 focus:ring-purple-400" />
             </div>

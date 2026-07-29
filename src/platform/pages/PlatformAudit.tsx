@@ -15,6 +15,7 @@ import {
   secondaryBtnCx,
   Skeleton,
 } from '../components/console';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 const PAGE_SIZE = 100;
 
@@ -61,18 +62,21 @@ export function PlatformAudit() {
           value={actionFilter}
           onChange={e => { setActionFilter(e.target.value); setPage(0); }}
           placeholder="Action (e.g. SUSPEND_TENANT)"
+          maxLength={FIELD_LIMITS.SEARCH}
           className={inputCx}
         />
         <input
           value={tenantIdFilter}
           onChange={e => { setTenantIdFilter(e.target.value.replace(/\D/g, '')); setPage(0); }}
           placeholder="Target tenant id"
+          maxLength={FIELD_LIMITS.CODE}
           className={monoInputCx}
         />
         <input
           value={actorIdFilter}
           onChange={e => { setActorIdFilter(e.target.value.replace(/\D/g, '')); setPage(0); }}
           placeholder="Actor platform user id"
+          maxLength={FIELD_LIMITS.CODE}
           className={monoInputCx}
         />
       </section>

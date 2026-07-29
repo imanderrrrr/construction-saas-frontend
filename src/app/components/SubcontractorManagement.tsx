@@ -25,6 +25,7 @@ import {
 } from '../services/subcontractors';
 import { listUsers, type UserDTO } from '../services/users';
 import { api } from '../lib/api';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 // ── Helpers ────────────────────────────────────────
 
@@ -326,6 +327,7 @@ export function SubcontractorManagement() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#71717A]" />
                   <input value={jobSearch} onChange={e => setJobSearch(e.target.value)}
+                    maxLength={FIELD_LIMITS.SEARCH}
                     className="w-full pl-9 pr-3 py-2 text-sm border border-[#D4D4D8] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F97316]/30 focus:border-[#F97316]"
                     placeholder={t('subcontractors:filter.search')} />
                 </div>
@@ -816,6 +818,7 @@ function JobDetailView({ job, t, onBack, onChangeStatus, onStatusUpdated, showCh
                       onChange={e => setObsBody(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendObservation(); } }}
                       placeholder={t('subcontractors:modal.observation.placeholder')}
+                      maxLength={FIELD_LIMITS.LONG_TEXT}
                       className="flex-1 px-4 py-2.5 text-sm border border-[#D4D4D8] rounded-full focus:outline-none focus:ring-2 focus:ring-[#F97316]/30"
                       disabled={obsSending}
                     />
@@ -1034,12 +1037,14 @@ function CreateJobModal({ open, onClose, subcontractors, projects, t, onCreated,
         <div>
           <label className="block text-xs font-semibold text-[#0A0A0A] mb-1">{t('subcontractors:modal.createJob.jobTitle')}</label>
           <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
+            maxLength={FIELD_LIMITS.SHORT_NAME}
             className="w-full px-3 py-2 text-sm border border-[#D4D4D8] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F97316]/30"
             placeholder={t('subcontractors:modal.createJob.jobTitlePlaceholder')} />
         </div>
         <div>
           <label className="block text-xs font-semibold text-[#0A0A0A] mb-1">{t('subcontractors:modal.createJob.description')}</label>
           <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={3}
+            maxLength={FIELD_LIMITS.LONG_TEXT}
             className="w-full px-3 py-2 text-sm border border-[#D4D4D8] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F97316]/30 resize-none"
             placeholder={t('subcontractors:modal.createJob.descriptionPlaceholder')} />
         </div>
@@ -1111,6 +1116,7 @@ function ChangeStatusModal({ open, job, onClose, t, onUpdated }: {
             <div>
               <label className="block text-xs font-semibold text-[#0A0A0A] mb-1">{t('subcontractors:modal.changeStatus.comment')}</label>
               <textarea value={comment} onChange={e => setComment(e.target.value)} rows={3}
+                maxLength={FIELD_LIMITS.NOTE}
                 className="w-full px-3 py-2 text-sm border border-[#D4D4D8] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F97316]/30 resize-none"
                 placeholder={t('subcontractors:modal.changeStatus.commentPlaceholder')} />
             </div>
@@ -1264,6 +1270,7 @@ function ReviewInvoiceModal({ open, invoice, onClose, t, onReviewed }: {
           <div>
             <label className="block text-xs font-semibold text-[#0A0A0A] mb-1">{t('subcontractors:modal.reviewInvoice.comment')}</label>
             <textarea value={comment} onChange={e => setComment(e.target.value)} rows={4}
+              maxLength={FIELD_LIMITS.NOTE}
               className="w-full px-3 py-2 text-sm border border-[#D4D4D8] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F97316]/30 resize-none"
               placeholder={t('subcontractors:modal.reviewInvoice.commentPlaceholder')} />
           </div>
@@ -1318,6 +1325,7 @@ function PaymentModal({ open, invoice, onClose, t, onPaid }: {
         <div>
           <label className="block text-xs font-semibold text-[#0A0A0A] mb-1">{t('subcontractors:modal.payment.reference')}</label>
           <input value={reference} onChange={e => setReference(e.target.value)}
+            maxLength={FIELD_LIMITS.REFERENCE}
             className="w-full px-3 py-2 text-sm border border-[#D4D4D8] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F97316]/30"
             placeholder={t('subcontractors:modal.payment.referencePlaceholder')} />
         </div>

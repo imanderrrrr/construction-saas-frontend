@@ -13,6 +13,7 @@ import { businessToday } from '../../helpers/dateTime';
 import { ApiError } from '../../lib/api';
 import { AuthImage } from './AuthImage';
 import { PhotoLightbox } from './PhotoLightbox';
+import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 import {
   deleteSiteLogPhoto, getSiteLogByDate, getSiteLogHistory, getSiteLogSuggestion, saveSiteLog,
   uploadSiteLogPhoto,
@@ -549,6 +550,7 @@ export function SiteLog({ projects, canEdit }: SiteLogProps) {
                   className={inputCls}
                   value={manualName}
                   placeholder={t('siteLog:attendance.namePlaceholder')}
+                  maxLength={FIELD_LIMITS.LEGACY_PERSON_NAME}
                   onChange={(e) => setManualName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addManualAttendance(); } }}
                 />
@@ -612,6 +614,7 @@ export function SiteLog({ projects, canEdit }: SiteLogProps) {
                   className={inputCls}
                   value={freeTask}
                   placeholder={t('siteLog:tasks.freePlaceholder')}
+                  maxLength={FIELD_LIMITS.NOTE}
                   onChange={(e) => setFreeTask(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addFreeTask(); } }}
                 />
@@ -630,6 +633,7 @@ export function SiteLog({ projects, canEdit }: SiteLogProps) {
                 className="w-full min-h-[120px] rounded-lg border border-[#D4D4D8] bg-white p-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[#F97316]/25 focus:border-[#F97316] transition-colors placeholder:text-[#71717A] resize-y"
                 value={draft.notes}
                 placeholder={t('siteLog:notes.placeholder')}
+                maxLength={FIELD_LIMITS.EXTENDED_TEXT}
                 onChange={(e) => patchDraft({ notes: e.target.value })}
               />
             ) : (

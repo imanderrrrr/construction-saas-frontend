@@ -39,6 +39,7 @@ import { ToggleStatusModal } from './ToggleStatusModal';
 import { CloseProjectModal } from './CloseProjectModal';
 import { DeleteProjectModal } from './DeleteProjectModal';
 import { ProjectDetailsView } from './ProjectDetailsView';
+import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 
 // MAIN PROJECT MANAGEMENT
 
@@ -227,6 +228,7 @@ export function ProjectManagement() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#71717A]" />
             <Input value={search} onChange={e => { setSearch(e.target.value); }}
               placeholder={t('admin:projectMgmt.searchPlaceholder')}
+              maxLength={FIELD_LIMITS.SEARCH}
               className="pl-10 h-10 border-[#D4D4D8] w-full" />
           </div>
           <Select value={statusFilter} onValueChange={v => { setStatusFilter(v); setCurrentPage(0); }}>

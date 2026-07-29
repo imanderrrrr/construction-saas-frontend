@@ -19,6 +19,7 @@ import {
   Skeleton,
 } from '../components/console';
 import '../platform.css';
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 type Stage =
   | { kind: 'CREDENTIALS' }
@@ -186,6 +187,7 @@ export function PlatformLogin() {
                         autoComplete="email"
                         spellCheck={false}
                         placeholder="you@buildtrack.example"
+                        maxLength={FIELD_LIMITS.PLATFORM_EMAIL}
                         value={email}
                         onChange={e => setEmail(e.target.value)}
                         className={inputCx}
