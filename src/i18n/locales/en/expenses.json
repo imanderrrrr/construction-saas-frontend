@@ -188,6 +188,7 @@
   "review.teamExpenses": "Team Expenses",
   "review.record_one": "{{count}} record",
   "review.record_other": "{{count}} records",
+  "review.loadFailed": "Could not load expenses. The list below may be incomplete — retry before reviewing.",
   "review.noExpenses": "No expenses found",
   "review.noExpensesHint": "Try adjusting the filters or resetting.",
   "review.table.worker": "Worker",
