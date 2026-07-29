@@ -140,8 +140,8 @@
   "toast.paymentRegistered": "Pago registrado",
   "toast.error": "Ocurrió un error",
 
-  "empty.jobsLoadFailed": "No se pudieron cargar los trabajos. La lista puede estar incompleta — reintenta.",
-  "empty.invoicesLoadFailed": "No se pudieron cargar las facturas. La lista puede estar incompleta — reintenta.",
+  "empty.jobsLoadFailed": "No se pudieron cargar los trabajos — reintenta.",
+  "empty.invoicesLoadFailed": "No se pudieron cargar las facturas — reintenta.",
   "empty.jobs": "No hay trabajos registrados.",
   "empty.invoices": "No hay facturas registradas.",
   "empty.createFirst": "Asigne un trabajo para comenzar.",
