@@ -188,6 +188,7 @@
   "review.teamExpenses": "Gastos del Equipo",
   "review.record_one": "{{count}} registro",
   "review.record_other": "{{count}} registros",
+  "review.loadFailed": "No se pudieron cargar los gastos. La lista puede estar incompleta — reintenta antes de revisar.",
   "review.noExpenses": "No se encontraron gastos",
   "review.noExpensesHint": "Intenta ajustar los filtros o restablecerlos.",
   "review.table.worker": "Trabajador",
