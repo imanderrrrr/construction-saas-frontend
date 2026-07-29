@@ -20,7 +20,6 @@ export default tseslint.config(
       'test-results/**',
       // Dead scaffolding, already excluded from tsconfig (see its comment).
       'src/imports/**',
-      'src/app/components/projects/CreateProjectModal.tsx',
       // Generated/vendored shadcn primitives — not hand-maintained style.
       'src/app/components/ui/**',
     ],
