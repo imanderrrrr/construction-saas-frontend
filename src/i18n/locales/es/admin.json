@@ -1072,6 +1072,7 @@
   "expenseMgmt.table.title": "Todos los Gastos de la Empresa",
   "expenseMgmt.table.records_one": "{{count}} registro",
   "expenseMgmt.table.records_other": "{{count}} registros",
+  "expenseMgmt.table.loadFailed": "No se pudieron cargar los gastos. La lista puede estar incompleta — reintenta antes de revisar.",
   "expenseMgmt.table.emptyTitle": "No se encontraron gastos",
   "expenseMgmt.table.emptyHint": "Intenta ajustar los filtros.",
   "expenseMgmt.table.worker": "Trabajador",

@@ -82,6 +82,7 @@
   "detail.evidence": "Evidence",
   "detail.images": "Images",
   "detail.documents": "Documents",
+  "detail.loadFailed": "Could not load this section — retry.",
   "detail.noObservations": "No observations yet. Start the conversation.",
 
   "modal.createJob.title": "Assign New Job",
@@ -139,6 +140,8 @@
   "toast.paymentRegistered": "Payment registered",
   "toast.error": "An error occurred",
 
+  "empty.jobsLoadFailed": "Could not load jobs. The list may be incomplete — retry.",
+  "empty.invoicesLoadFailed": "Could not load invoices. The list may be incomplete — retry.",
   "empty.jobs": "No jobs found.",
   "empty.invoices": "No invoices found.",
   "empty.createFirst": "Assign a job to get started.",

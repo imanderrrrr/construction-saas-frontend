@@ -20,6 +20,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from './ui/dialog';
 import { EXPENSE_TYPE_KEYS } from './NewExpense';
+import { ErrorBanner } from './ErrorBanner';
 import { businessToday, nDaysAgo } from '../helpers/dateTime';
 import {
   getMyExpenses, getMySummary, receiptUrl,
@@ -499,6 +500,7 @@ export function MyExpenses() {
   const [totalElements, setTotalElements] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [summary, setSummary] = useState<ExpenseSummaryResponse | null>(null);
 
   const fetchData = useCallback(async () => {
@@ -517,7 +519,12 @@ export function MyExpenses() {
       setExpenses(res.content.map(mapExpense));
       setTotalElements(res.totalElements);
       setTotalPages(res.totalPages || 1);
-    } catch { /* silent */ } finally { setLoading(false); }
+      setLoadError(false);
+    } catch {
+      // A failed load must NOT collapse into the "no expenses" empty state —
+      // a worker checking reimbursements would read it as "nothing pending".
+      setLoadError(true);
+    } finally { setLoading(false); }
   }, [appliedFrom, appliedTo, appliedType, appliedStatus, currentPage]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -663,8 +670,14 @@ export function MyExpenses() {
           <span className="ml-1 text-xs text-[#71717A]">· {t('my.record', { count: totalElements })}</span>
         </div>
 
+        {loadError && (
+          <div className="px-4 py-4" data-testid="my-expenses-load-error">
+            <ErrorBanner message={t('my.loadFailed')} onRetry={fetchData} />
+          </div>
+        )}
+
         {/* Empty state */}
-        {totalElements === 0 && (
+        {!loadError && totalElements === 0 && (
           <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
             <div className="w-14 h-14 bg-[#FAFAFA] rounded-full flex items-center justify-center mb-3">
               <Receipt className="w-7 h-7 text-[#D4D4D8]" />

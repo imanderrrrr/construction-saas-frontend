@@ -6,9 +6,9 @@ import {
   ChevronDown, ChevronRight, Filter as FilterIcon,
   Loader2,
 } from 'lucide-react';
-import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { StatCard } from './StatCard';
+import { ErrorBanner } from './ErrorBanner';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from './ui/table';
@@ -53,6 +53,7 @@ interface FinanceBudgetRow {
   endDate?: string;
   notes?: string;
   history: HistoryEntry[];
+  historyError?: boolean;
   breakdown: TypeBreakdown[];
 }
 
@@ -244,6 +245,7 @@ export function FinanceBudgets() {
   // Data state
   const [budgetRows, setBudgetRows]   = useState<FinanceBudgetRow[]>([]);
   const [loading, setLoading]         = useState(true);
+  const [loadError, setLoadError]     = useState(false);
 
   // Filter state
   const [projectFilter,  setProjectFilter]  = useState('all');
@@ -303,8 +305,11 @@ export function FinanceBudgets() {
         });
 
       setBudgetRows(rows);
+      setLoadError(false);
     } catch {
-      toast.error(t('finance:budget.errorLoading'));
+      // A toast fades and leaves the "no budgets" empty state behind — show a
+      // persistent banner with retry so finance never trusts a half-loaded view.
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -312,8 +317,23 @@ export function FinanceBudgets() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // Fetch contract history for one row; a failure marks the row instead of
+  // being swallowed (an empty history section reads as "no changes ever").
+  const loadHistory = useCallback(async (row: FinanceBudgetRow) => {
+    setBudgetRows(prev => prev.map(r => r.id === row.id ? { ...r, historyError: false } : r));
+    try {
+      const entries = await getFinanceContractHistory(row.projectId);
+      const mapped = entries.map(mapHistoryEntry);
+      setBudgetRows(prev => prev.map(r =>
+        r.id === row.id ? { ...r, history: mapped } : r
+      ));
+    } catch {
+      setBudgetRows(prev => prev.map(r => r.id === row.id ? { ...r, historyError: true } : r));
+    }
+  }, []);
+
   // Load history when expanding a row
-  async function handleExpand(row: FinanceBudgetRow) {
+  function handleExpand(row: FinanceBudgetRow) {
     if (expandedId === row.id) {
       setExpandedId(null);
       return;
@@ -322,15 +342,7 @@ export function FinanceBudgets() {
 
     // Fetch contract history if not already loaded
     if (row.history.length === 0) {
-      try {
-        const entries = await getFinanceContractHistory(row.projectId);
-        const mapped = entries.map(mapHistoryEntry);
-        setBudgetRows(prev => prev.map(r =>
-          r.id === row.id ? { ...r, history: mapped } : r
-        ));
-      } catch {
-        // Silently ignore — history section will show empty
-      }
+      loadHistory(row);
     }
   }
 
@@ -468,6 +480,12 @@ export function FinanceBudgets() {
           <span className="hidden sm:inline text-[11px] text-[#71717A] ml-1">— {t('finance:budget.clickToExpand')}</span>
         </div>
 
+        {loadError && (
+          <div className="px-4 py-4" data-testid="finance-budgets-load-error">
+            <ErrorBanner message={t('finance:budget.loadFailed')} onRetry={fetchData} />
+          </div>
+        )}
+
         {/* Desktop table */}
         <div className="hidden md:block overflow-x-auto">
           <Table>
@@ -562,7 +580,7 @@ export function FinanceBudgets() {
                         <div>
                           <p className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-2">
                             {t('finance:budget.budgetHistory')} <span className="font-normal lowercase">
-                              {row.history.length > 0 ? `(${t('finance:budget.lastEntries', { count: Math.min(row.history.length, 3) })})` : `(${t('finance:budget.loadingHistory')})`}
+                              {row.history.length > 0 ? `(${t('finance:budget.lastEntries', { count: Math.min(row.history.length, 3) })})` : row.historyError ? null : `(${t('finance:budget.loadingHistory')})`}
                             </span>
                           </p>
                           {row.history.length > 0 ? (
@@ -570,6 +588,10 @@ export function FinanceBudgets() {
                               {row.history.slice(0, 3).map(entry => (
                                 <HistoryMiniEntry key={entry.id} entry={entry} />
                               ))}
+                            </div>
+                          ) : row.historyError ? (
+                            <div data-testid="budget-history-load-error">
+                              <ErrorBanner message={t('finance:budget.historyLoadFailed')} onRetry={() => loadHistory(row)} />
                             </div>
                           ) : (
                             <p className="text-sm text-[#71717A]">{t('finance:budget.noHistory')}</p>
@@ -627,7 +649,7 @@ export function FinanceBudgets() {
               })}
             </TableBody>
           </Table>
-          {filteredRows.length === 0 && (
+          {!loadError && filteredRows.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="w-14 h-14 bg-[#FAFAFA] rounded-full flex items-center justify-center mb-3">
                 <Wallet className="w-7 h-7 text-[#D4D4D8]" />

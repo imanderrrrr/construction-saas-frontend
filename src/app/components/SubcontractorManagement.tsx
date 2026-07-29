@@ -12,6 +12,7 @@ import {
   Download, ExternalLink,
 } from 'lucide-react';
 import { StatCard } from './StatCard';
+import { ErrorBanner } from './ErrorBanner';
 import {
   listJobs, createJob, updateJobStatus, getJob, getJobTimeline,
   getJobEvidence, getJobObservations, addJobObservation,
@@ -171,6 +172,7 @@ export function SubcontractorManagement() {
   const [jobsPage, setJobsPage] = useState(0);
   const [jobsTotalPages, setJobsTotalPages] = useState(0);
   const [jobsLoading, setJobsLoading] = useState(true);
+  const [jobsLoadError, setJobsLoadError] = useState(false);
   const [jobSearch, setJobSearch] = useState('');
   const [jobStatusFilter, setJobStatusFilter] = useState('');
 
@@ -182,6 +184,7 @@ export function SubcontractorManagement() {
   const [invoicesPage, setInvoicesPage] = useState(0);
   const [invoicesTotalPages, setInvoicesTotalPages] = useState(0);
   const [invoicesLoading, setInvoicesLoading] = useState(false);
+  const [invoicesLoadError, setInvoicesLoadError] = useState(false);
   const [invoiceStatusFilter, setInvoiceStatusFilter] = useState('');
 
   // Dropdown data
@@ -202,12 +205,15 @@ export function SubcontractorManagement() {
       const data = await listJobs({ status: jobStatusFilter || undefined, page: jobsPage, size: 10 });
       setJobs(data.content);
       setJobsTotalPages(data.totalPages);
+      setJobsLoadError(false);
     } catch {
-      toast.error(t('subcontractors:toast.error'));
+      // A toast fades in seconds and leaves the "no jobs" empty state behind —
+      // show a persistent banner with retry instead.
+      setJobsLoadError(true);
     } finally {
       setJobsLoading(false);
     }
-  }, [jobStatusFilter, jobsPage, t]);
+  }, [jobStatusFilter, jobsPage]);
 
   const loadInvoices = useCallback(async () => {
     setInvoicesLoading(true);
@@ -215,12 +221,14 @@ export function SubcontractorManagement() {
       const data = await listInvoices({ status: invoiceStatusFilter || undefined, page: invoicesPage, size: 10 });
       setInvoices(data.content);
       setInvoicesTotalPages(data.totalPages);
+      setInvoicesLoadError(false);
     } catch {
-      toast.error(t('subcontractors:toast.error'));
+      // Same as jobs: never let a failed load pass for "no invoices".
+      setInvoicesLoadError(true);
     } finally {
       setInvoicesLoading(false);
     }
-  }, [invoiceStatusFilter, invoicesPage, t]);
+  }, [invoiceStatusFilter, invoicesPage]);
 
   useEffect(() => { loadJobs(); }, [loadJobs]);
   useEffect(() => { if (activeTab === 'invoices') loadInvoices(); }, [activeTab, loadInvoices]);
@@ -356,6 +364,10 @@ export function SubcontractorManagement() {
           <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden">
             {jobsLoading ? (
               <div className="animate-pulse h-64" />
+            ) : jobsLoadError ? (
+              <div className="px-4 py-4" data-testid="subcontractor-jobs-load-error">
+                <ErrorBanner message={t('subcontractors:empty.jobsLoadFailed')} onRetry={loadJobs} />
+              </div>
             ) : filteredJobs.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 gap-3">
                 <Briefcase className="w-10 h-10 text-[#D4D4D8]" />
@@ -477,6 +489,10 @@ export function SubcontractorManagement() {
           <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden">
             {invoicesLoading ? (
               <div className="animate-pulse h-64" />
+            ) : invoicesLoadError ? (
+              <div className="px-4 py-4" data-testid="subcontractor-invoices-load-error">
+                <ErrorBanner message={t('subcontractors:empty.invoicesLoadFailed')} onRetry={loadInvoices} />
+              </div>
             ) : invoices.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 gap-3">
                 <FileText className="w-10 h-10 text-[#D4D4D8]" />
@@ -629,6 +645,7 @@ function JobDetailView({ job, t, onBack, onChangeStatus, onStatusUpdated, showCh
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
   const [evidence, setEvidence] = useState<EvidenceEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   // Observation input
   const [obsBody, setObsBody] = useState('');
@@ -637,26 +654,22 @@ function JobDetailView({ job, t, onBack, onChangeStatus, onStatusUpdated, showCh
   // Lightbox
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
-  // Load data when tab changes
-  useEffect(() => {
+  // Load data when tab changes. A failed load flips loadError instead of a
+  // transient toast — an empty chat/timeline/evidence panel after a fade-out
+  // toast is indistinguishable from "there is nothing here".
+  const loadActiveTab = useCallback(() => {
     setLoading(true);
-    if (activeDetailTab === 'observations') {
-      getJobObservations(job.id)
-        .then(setObservations)
-        .catch(() => toast.error(t('subcontractors:toast.error')))
-        .finally(() => setLoading(false));
-    } else if (activeDetailTab === 'timeline') {
-      getJobTimeline(job.id)
-        .then(setTimeline)
-        .catch(() => toast.error(t('subcontractors:toast.error')))
-        .finally(() => setLoading(false));
-    } else {
-      getJobEvidence(job.id)
-        .then(setEvidence)
-        .catch(() => toast.error(t('subcontractors:toast.error')))
-        .finally(() => setLoading(false));
-    }
-  }, [activeDetailTab, job.id, t]);
+    setLoadError(false);
+    const request =
+      activeDetailTab === 'observations' ? getJobObservations(job.id).then(setObservations)
+      : activeDetailTab === 'timeline'   ? getJobTimeline(job.id).then(setTimeline)
+      : getJobEvidence(job.id).then(setEvidence);
+    request
+      .catch(() => setLoadError(true))
+      .finally(() => setLoading(false));
+  }, [activeDetailTab, job.id]);
+
+  useEffect(() => { loadActiveTab(); }, [loadActiveTab]);
 
   // Poll for new observations when chat tab is active
   useEffect(() => {
@@ -667,7 +680,9 @@ function JobDetailView({ job, t, onBack, onChangeStatus, onStatusUpdated, showCh
         setObservations(prev =>
           latest.length !== prev.length ? latest : prev
         );
-      } catch { /* silent */ }
+        // A successful poll also recovers from an earlier failed load.
+        setLoadError(false);
+      } catch { /* transient poll failure — stale chat stays visible, next tick retries */ }
     }, 5000);
     return () => clearInterval(interval);
   }, [activeDetailTab, job.id]);
@@ -776,6 +791,10 @@ function JobDetailView({ job, t, onBack, onChangeStatus, onStatusUpdated, showCh
         {loading ? (
           <div className="flex justify-center py-12">
             <Loader2 className="w-6 h-6 animate-spin text-[#F97316]" />
+          </div>
+        ) : loadError ? (
+          <div className="px-4 py-4" data-testid="subcontractor-detail-load-error">
+            <ErrorBanner message={t('subcontractors:detail.loadFailed')} onRetry={loadActiveTab} />
           </div>
         ) : (
           <>
