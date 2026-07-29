@@ -44,6 +44,20 @@ export interface ResetPasswordPayload {
   newPassword: string;
 }
 
+// Worker QR + PIN access (field roles only)
+
+/**
+ * QR + PIN access descriptor for a field-role worker.
+ * `qrToken` is a signed string that must be rendered as a QR code for the
+ * worker to scan on the mobile app. `hasPin` reports whether a PIN is set.
+ */
+export interface WorkerQrDTO {
+  qrToken: string;
+  username: string;
+  tenant: string;
+  hasPin: boolean;
+}
+
 // Session types
 
 export interface SessionDTO {
@@ -131,6 +145,38 @@ export async function resetPassword(id: number, payload: ResetPasswordPayload): 
   return api<void>(`/api/v1/admin/users/${id}/reset-password`, {
     method: 'POST',
     body: JSON.stringify(payload),
+  });
+}
+
+/**
+ * Fetch the worker's current QR access token + PIN state.
+ * Field roles only (WORKER / SUPERVISOR / SUBCONTRACTOR); office roles return
+ * 400 USER_NOT_FIELD_ROLE.
+ */
+export async function getWorkerQr(id: number): Promise<WorkerQrDTO> {
+  return api<WorkerQrDTO>(`/api/v1/admin/users/${id}/qr`);
+}
+
+/**
+ * Regenerate the worker's QR token, invalidating any previously issued QR.
+ * Returns the new token (same shape as getWorkerQr). Confirm before calling —
+ * it breaks every QR already handed out to the worker.
+ */
+export async function regenerateWorkerQr(id: number): Promise<WorkerQrDTO> {
+  return api<WorkerQrDTO>(`/api/v1/admin/users/${id}/qr/regenerate`, {
+    method: 'POST',
+  });
+}
+
+/**
+ * Set or reset the worker's initial 6-digit PIN. The PIN must be exactly 6
+ * digits (the backend rejects anything else with 400). The plaintext PIN is
+ * never retrievable afterwards — it can only be reset.
+ */
+export async function setWorkerPin(id: number, pin: string): Promise<void> {
+  return api<void>(`/api/v1/admin/users/${id}/pin`, {
+    method: 'POST',
+    body: JSON.stringify({ pin }),
   });
 }
 

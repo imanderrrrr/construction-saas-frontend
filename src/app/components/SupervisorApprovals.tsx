@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
   Search, Filter, ChevronLeft, AlertCircle, RefreshCw,
   Calendar, Clock, CalendarDays, ChevronRight, AlertTriangle, Loader2,
+  CalendarPlus, UserCog,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -20,12 +21,14 @@ import { ApprovalStatusBadge } from './phase2/ApprovalStatusBadge';
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
 import { TimelineItem, TimelineItemMissing } from './phase2/TimelineItem';
 import { ModalCorrect } from './phase2/ModalCorrect';
+import { ModalAddMark } from './phase2/ModalAddMark';
+import { ModalCreateDay } from './phase2/ModalCreateDay';
 import { TimeRecord, TimeEvent, ApprovalStatus, TIME_EVENT_SEQUENCE, LocationStatus, TimeEventType } from '../types';
 import {
-  getTimeRecords, getSupervisorTimeRecords, getTimeRecord,
+  getAllTimeRecords, getAllSupervisorTimeRecords, getTimeRecord,
   approveEvent, correctEvent, rejectEvent, editEventTime,
-  resolveTransitDispute,
-  type TimeRecordResponse,
+  resolveTransitDispute, addManualMarks,
+  type TimeRecordResponse, type ManualMarkInput,
 } from '../services/time';
 import { toast } from 'sonner';
 import { businessToday, nDaysAgo } from '../helpers/dateTime';
@@ -73,6 +76,9 @@ function toTimeRecord(r: TimeRecordResponse): TimeRecord {
         type: e.type,
         capturedAt: e.capturedAtClient,
         locationStatus: (e.locationStatus ?? 'OK') as LocationStatus,
+        lat: e.lat ?? null,
+        lng: e.lng ?? null,
+        distanceMeters: e.distanceMeters ?? null,
         approvalStatus: (e.eventApprovalStatus ?? 'PENDING') as ApprovalStatus,
         reviewComment: e.eventReviewComment ?? null,
         reviewerUsername: e.eventReviewerUsername ?? null,
@@ -84,6 +90,7 @@ function toTimeRecord(r: TimeRecordResponse): TimeRecord {
         awardedTransitMinutes: e.awardedTransitMinutes ?? null,
         disputeResolvedBy: e.disputeResolvedBy ?? null,
         disputeResolvedAt: e.disputeResolvedAt ?? null,
+        manualCreatorUsername: e.manualCreatorUsername ?? null,
       }));
     })(),
     approvalStatus: r.approvalStatus,
@@ -177,6 +184,7 @@ function ApprovalDetail({
   record, onBack,
   onEventApprove, onEventCorrect, onEventReject, eventActionLoading,
   onResolveDispute, disputeResolving,
+  onAddMarks,
 }: {
   record: TimeRecord; onBack: () => void;
   /** Per-event callbacks */
@@ -188,6 +196,8 @@ function ApprovalDetail({
   /** Resolve a transit dispute */
   onResolveDispute: (eventId: number, awardedMinutes: number, comment?: string) => void;
   disputeResolving: boolean;
+  /** ADMIN/FINANCE: opens the manual "add missing marks" modal. Absent for supervisors. */
+  onAddMarks?: () => void;
 }) {
   const { t, i18n } = useTranslation(['admin', 'common', 'time']);
   const hasIssues = hasLocationIssue(record);
@@ -249,9 +259,22 @@ function ApprovalDetail({
 
       {/* Timeline */}
       <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden">
-        <div className="px-5 py-4 border-b border-[#D4D4D8] bg-[#FAFAFA]/50">
-          <h3 className="text-sm font-semibold text-[#0A0A0A]">{t('admin:approvals.eventTimeline')}</h3>
-          <p className="text-xs text-[#71717A] mt-0.5">{t('admin:approvals.eventTimelineDesc')}</p>
+        <div className="px-5 py-4 border-b border-[#D4D4D8] bg-[#FAFAFA]/50 flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-[#0A0A0A]">{t('admin:approvals.eventTimeline')}</h3>
+            <p className="text-xs text-[#71717A] mt-0.5">{t('admin:approvals.eventTimelineDesc')}</p>
+          </div>
+          {onAddMarks && (
+            <Button
+              size="sm" variant="outline"
+              onClick={onAddMarks}
+              data-testid="add-marks-button"
+              className="gap-1.5 h-8 text-xs border-violet-200 text-violet-700 hover:bg-violet-50 flex-shrink-0"
+            >
+              <UserCog className="w-3.5 h-3.5" />
+              {t('admin:approvals.addMark')}
+            </Button>
+          )}
         </div>
         <div className="p-5">
           {/* IN_TRANSIT event (if present) shown before the standard sequence */}
@@ -446,7 +469,11 @@ function ApprovalDetail({
 
 // â”€â”€â”€ Main component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-export function SupervisorApprovals({ mode = 'admin' }: { mode?: 'admin' | 'supervisor' } = {}) {
+// mode: 'admin' reviews everyone (with a role filter to narrow the single
+// window to workers or supervisors); 'supervisor' is scoped server-side to
+// WORKER records on assigned projects; 'finance' reviews supervisor hours
+// only (the backend forces the SUPERVISOR scope for finance callers).
+export function SupervisorApprovals({ mode = 'admin' }: { mode?: 'admin' | 'supervisor' | 'finance' } = {}) {
 
   const { t, i18n } = useTranslation(['admin', 'common', 'time']);
 
@@ -461,14 +488,25 @@ export function SupervisorApprovals({ mode = 'admin' }: { mode?: 'admin' | 'supe
   const [eventActionLoading, setEventActionLoading] = useState<number | null>(null);
   const [eventModalAction, setEventModalAction] = useState<{ eventId: number; action: 'correct' | 'reject'; eventType: TimeEventType; currentTime: string } | null>(null);
   const [disputeResolving, setDisputeResolving] = useState(false);
+  // Manual time marks (ADMIN/FINANCE only)
+  const [addMarkOpen, setAddMarkOpen]     = useState(false);
+  const [createDayOpen, setCreateDayOpen] = useState(false);
 
   // â”€â”€ Server-side filter state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [statusFilter, setStatusFilter]   = useState('all');
+  const [roleFilter, setRoleFilter]       = useState('all'); // admin only: all | WORKER | SUPERVISOR
   const [dateFrom, setDateFrom]           = useState(getMondayOfWeek);
   const [dateTo, setDateTo]               = useState(getToday);
   const [appliedStatus, setAppliedStatus] = useState('all');
+  const [appliedRole, setAppliedRole]     = useState('all');
   const [appliedFrom, setAppliedFrom]     = useState(getMondayOfWeek);
   const [appliedTo, setAppliedTo]         = useState(getToday);
+
+  /** Server-side role scope for the current fetch (undefined = no filter). */
+  const roleParam = (applied: string): 'WORKER' | 'SUPERVISOR' | undefined =>
+    mode === 'finance' ? 'SUPERVISOR'
+    : applied === 'WORKER' || applied === 'SUPERVISOR' ? applied
+    : undefined;
 
   // â”€â”€ Client-side filter state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [search, setSearch]           = useState('');
@@ -479,30 +517,34 @@ export function SupervisorApprovals({ mode = 'admin' }: { mode?: 'admin' | 'supe
     setLoading(true);
     setError(null);
     try {
-      const page = mode === 'supervisor'
-        ? await getSupervisorTimeRecords({
+      // Every record in the chosen date range, not the first page of it. The
+      // PENDING filter and the pending counter are both computed here in the
+      // browser, so a partial fetch would hide records awaiting review — and
+      // the oldest, most overdue ones are exactly the ones a page cut off.
+      // The date range (this week by default) is what keeps this bounded.
+      const rows = mode === 'supervisor'
+        ? await getAllSupervisorTimeRecords({
             // When the user selects "PENDING", skip the server-side status filter and rely on
             // pendingEventCount for client-side filtering — this catches records that were
             // approved at record-level via the legacy endpoint but still have pending events.
             status:   appliedStatus !== 'all' && appliedStatus !== 'PENDING' ? appliedStatus : undefined,
             dateFrom: appliedFrom || undefined,
             dateTo:   appliedTo   || undefined,
-            size: 100,
           })
-        : await getTimeRecords({
+        : await getAllTimeRecords({
             // Same logic: bypass server status filter for PENDING — use pendingEventCount client-side.
             status:   appliedStatus !== 'all' && appliedStatus !== 'PENDING' ? appliedStatus : undefined,
+            role:     roleParam(appliedRole),
             dateFrom: appliedFrom || undefined,
             dateTo:   appliedTo   || undefined,
-            size: 100,
           });
-      setRecords(page.content.map(toTimeRecord));
+      setRecords(rows.map(toTimeRecord));
     } catch (err) {
       setError(err instanceof Error ? err.message : t('admin:approvals.failedLoadFallback'));
     } finally {
       setLoading(false);
     }
-  }, [mode, appliedStatus, appliedFrom, appliedTo]);
+  }, [mode, appliedStatus, appliedRole, appliedFrom, appliedTo]);
 
   useEffect(() => { fetchRecords(); }, [fetchRecords]);
 
@@ -538,13 +580,16 @@ export function SupervisorApprovals({ mode = 'admin' }: { mode?: 'admin' | 'supe
       const yesterdayStr = nDaysAgo(1);
       const fromStr = nDaysAgo(30);
 
-      const page = mode === 'supervisor'
-        ? await getSupervisorTimeRecords({ dateFrom: fromStr, dateTo: yesterdayStr, size: 100 })
-        : await getTimeRecords({ dateFrom: fromStr, dateTo: yesterdayStr, size: 100 });
-      const mapped = page.content.map(toTimeRecord);
+      // This alert exists to surface approvals that slipped past. Reading one
+      // page of the 30-day window would let it miss the oldest ones — the alert
+      // failing at the single job it has — so sweep the whole window.
+      const rows = mode === 'supervisor'
+        ? await getAllSupervisorTimeRecords({ dateFrom: fromStr, dateTo: yesterdayStr })
+        : await getAllTimeRecords({ role: roleParam(appliedRole), dateFrom: fromStr, dateTo: yesterdayStr });
+      const mapped = rows.map(toTimeRecord);
       setOverdueRecords(mapped.filter(r => r.pendingEventCount > 0));
     } catch { /* silent — alert degrades gracefully */ }
-  }, [mode]);
+  }, [mode, appliedRole]);
 
   useEffect(() => { fetchOverdue(); }, [fetchOverdue]);
 
@@ -580,6 +625,7 @@ export function SupervisorApprovals({ mode = 'admin' }: { mode?: 'admin' | 'supe
   // â”€â”€ Apply / Reset â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function handleApply() {
     setAppliedStatus(statusFilter);
+    setAppliedRole(roleFilter);
     setAppliedFrom(dateFrom);
     setAppliedTo(dateTo);
     setSearch('');
@@ -589,6 +635,8 @@ export function SupervisorApprovals({ mode = 'admin' }: { mode?: 'admin' | 'supe
   function handleReset() {
     const mon = getMondayOfWeek(), tod = getToday();
     setStatusFilter('all');
+    setRoleFilter('all');
+    setAppliedRole('all');
     setDateFrom(mon); setDateTo(tod);
     setAppliedStatus('all');
     setAppliedFrom(mon); setAppliedTo(tod);
@@ -696,8 +744,25 @@ export function SupervisorApprovals({ mode = 'admin' }: { mode?: 'admin' | 'supe
     }
   }
 
+  /** ADMIN/FINANCE creates missing marks on the open record. Errors propagate
+   * to the modal (it stays open and shows the backend message). */
+  async function doAddMarks(marks: ManualMarkInput[]) {
+    if (!selected) return;
+    await addManualMarks(selected.id, marks);
+    toast.success(t('admin:approvals.marksAdded'));
+    try {
+      updateRecord(toTimeRecord(await getTimeRecord(selected.id)));
+    } catch {
+      fetchRecords(); // marks were created; fall back to a list refresh
+    }
+  }
+
   // â”€â”€ Detail view â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (view === 'detail' && selected) {
+    // ADMIN/FINANCE may backfill missing punches. A human-REJECTED record is
+    // final (the backend refuses it too); AUTO_REJECTED/OBSERVED reopen.
+    const missingTypes = TIME_EVENT_SEQUENCE.filter(type => !selected.events.some(e => e.type === type));
+    const canAddMarks = mode !== 'supervisor' && missingTypes.length > 0 && selected.approvalStatus !== 'REJECTED';
     return (
       <>
         <ApprovalDetail
@@ -717,6 +782,7 @@ export function SupervisorApprovals({ mode = 'admin' }: { mode?: 'admin' | 'supe
           eventActionLoading={eventActionLoading}
           onResolveDispute={doResolveDispute}
           disputeResolving={disputeResolving}
+          onAddMarks={canAddMarks ? () => setAddMarkOpen(true) : undefined}
         />
         {eventModalAction && (
           <ModalCorrect
@@ -732,6 +798,18 @@ export function SupervisorApprovals({ mode = 'admin' }: { mode?: 'admin' | 'supe
             onSubmit={eventModalAction.action === 'correct' ? doEventCorrect : doEventReject}
           />
         )}
+        <ModalAddMark
+          open={addMarkOpen}
+          recordId={selected.id}
+          workerId={selected.worker.id}
+          workerName={selected.worker.fullName ?? selected.worker.username}
+          projectName={selected.project.name}
+          date={fmtDate(selected.date, i18n.language)}
+          workDate={selected.date}
+          missingTypes={missingTypes}
+          onClose={() => setAddMarkOpen(false)}
+          onSubmit={doAddMarks}
+        />
       </>
     );
   }
@@ -751,13 +829,25 @@ export function SupervisorApprovals({ mode = 'admin' }: { mode?: 'admin' | 'supe
             )}
           </p>
         </div>
-        <Button
-          variant="outline" size="sm"
-          onClick={fetchRecords} disabled={loading}
-          className="gap-2 text-xs h-9 border-[#D4D4D8] text-[#71717A] hover:text-[#0A0A0A]"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> {t('common:buttons.refresh')}
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {mode !== 'supervisor' && (
+            <Button
+              size="sm"
+              onClick={() => setCreateDayOpen(true)}
+              data-testid="create-day-button"
+              className="gap-2 text-xs h-9 bg-violet-600 hover:bg-violet-700 text-white"
+            >
+              <CalendarPlus className="w-3.5 h-3.5" /> {t('admin:approvals.createDay')}
+            </Button>
+          )}
+          <Button
+            variant="outline" size="sm"
+            onClick={fetchRecords} disabled={loading}
+            className="gap-2 text-xs h-9 border-[#D4D4D8] text-[#71717A] hover:text-[#0A0A0A]"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> {t('common:buttons.refresh')}
+          </Button>
+        </div>
       </div>
 
       {/* â”€â”€ Filter bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
@@ -807,6 +897,25 @@ export function SupervisorApprovals({ mode = 'admin' }: { mode?: 'admin' | 'supe
               </SelectContent>
             </Select>
           </div>
+
+          {/* Role scope — the same window reviews workers and supervisors; this
+              narrows which population the admin is approving. Hidden for
+              supervisors (workers-only) and finance (supervisors-only). */}
+          {mode === 'admin' && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[11px] font-medium text-[#71717A] uppercase tracking-wide">{t('admin:approvals.roleFilterLabel')}</label>
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger className="h-9 border-[#D4D4D8] w-40" data-testid="role-filter">
+                  <SelectValue placeholder={t('admin:approvals.roleFilterLabel')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('admin:approvals.roleFilterAll')}</SelectItem>
+                  <SelectItem value="WORKER">{t('admin:approvals.roleFilterWorkers')}</SelectItem>
+                  <SelectItem value="SUPERVISOR">{t('admin:approvals.roleFilterSupervisors')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="flex-1" />
 
@@ -1133,6 +1242,15 @@ export function SupervisorApprovals({ mode = 'admin' }: { mode?: 'admin' | 'supe
         )}
 
       </div>
+
+      {/* Manual day creation (ADMIN/FINANCE) */}
+      {mode !== 'supervisor' && (
+        <ModalCreateDay
+          open={createDayOpen}
+          onClose={() => setCreateDayOpen(false)}
+          onCreated={fetchRecords}
+        />
+      )}
 
     </div>
   );

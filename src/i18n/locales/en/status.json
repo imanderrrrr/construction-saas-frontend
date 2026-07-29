@@ -1,0 +1,45 @@
+{
+  "meta.title": "System status — BuildTrack",
+
+  "topbar.label": "SYSTEM STATUS",
+  "topbar.docs": "Documentation",
+  "topbar.back": "← Back to site",
+
+  "overall.checking": "Checking status…",
+  "overall.operational": "All systems operational",
+  "overall.degraded": "A service is having problems",
+  "overall.unknown": "We can't check the status from here",
+  "checkedAt": "CHECKED {{time}}",
+  "checking": "CHECKING…",
+  "recheck": "Check again",
+
+  "service.web.name": "Web app",
+  "service.web.note": "YOU'RE LOOKING AT IT: IF THIS PAGE LOADS, IT'S OPERATIONAL",
+  "service.api.name": "API",
+  "service.api.note": "LIVE CHECK AGAINST THE BACKEND HEALTH ENDPOINT",
+  "service.db.name": "Database",
+  "service.db.note": "COVERED BY THAT SAME BACKEND HEALTH CHECK",
+
+  "state.operational": "OPERATIONAL",
+  "state.degraded": "DEGRADED",
+  "state.down": "OUTAGE",
+  "state.unknown": "NOT CHECKED",
+  "state.checking": "CHECKING",
+
+  "legend.operational": "OPERATIONAL",
+  "legend.degraded": "DEGRADED",
+  "legend.down": "OUTAGE",
+  "legend.unknown": "NOT CHECKED",
+
+  "noHistory": "WE DON'T PUBLISH UPTIME OR A 90-DAY HISTORY YET — WE START RECORDING IT FROM NOW. WHAT YOU SEE ABOVE IS A LIVE CHECK, RUN WHEN THIS PAGE OPENED.",
+  "degradedNote": "THE CHECK IS AGGREGATE: IT REPORTS THAT SOMETHING IS FAILING, BUT NOT WHICH COMPONENT.",
+  "unknownNote": "THIS CHECK ONLY RUNS FROM THE PUBLISHED SITE. FROM A LOCAL ENVIRONMENT OR A PREVIEW, THE BACKEND REJECTS THE ORIGIN AND WE CAN'T CLAIM ANYTHING — THIS IS NOT AN OUTAGE.",
+
+  "incidents.title": "Incident history",
+  "incidents.subtitle": "We report everything, including what went wrong. That's how we run the beta.",
+  "incidents.empty": "No incidents published yet. We start keeping this history today: when something goes wrong, you'll see it here — with its date, how long it lasted and what we did.",
+  "incidents.report": "SOMETHING BROKEN BUT GREEN HERE? LET US KNOW:",
+
+  "footer.copy": "© 2026 BUILDTRACK · A PRODUCT OF ARCHLOGIC",
+  "footer.coord": "14.6349° N · 90.5069° W"
+}

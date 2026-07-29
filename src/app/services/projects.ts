@@ -112,6 +112,15 @@ export async function updateProject(id: number, payload: UpdateProjectPayload): 
   });
 }
 
+/**
+ * AP Block 4 — soft-delete a project (ADMIN only). Blocked by the backend
+ * (409 PROJECT_HAS_ACTIVE_RECORDS) while the project still has payables,
+ * expenses, time records or any other financial/operational history.
+ */
+export async function deleteProject(id: number): Promise<void> {
+  return api<void>(`/api/v1/admin/projects/${id}`, { method: 'DELETE' });
+}
+
 export async function setAssignments(projectId: number, userIds: number[]): Promise<ProjectResponse> {
   return api<ProjectResponse>(`/api/v1/admin/projects/${projectId}/assignments`, {
     method: 'PUT',
@@ -160,6 +169,8 @@ export async function getFinanceContractHistory(projectId: number): Promise<Cont
 
 export interface ChangeOrderEntry {
   id: number;
+  /** AP Block 5 — the client's change-order reference; null if unset. */
+  number: string | null;
   description: string;
   amountCents: number;
   createdBy: string | null;
@@ -169,6 +180,15 @@ export interface ChangeOrderEntry {
 export interface CreateChangeOrderPayload {
   description: string;
   amountCents: number;
+  /** AP Block 5 — optional change-order reference. */
+  number?: string | null;
+}
+
+/** AP Block 5 — partial edit; omitted fields are left unchanged. */
+export interface UpdateChangeOrderPayload {
+  description?: string;
+  amountCents?: number;
+  number?: string | null;
 }
 
 export async function listChangeOrders(projectId: number): Promise<ChangeOrderEntry[]> {
@@ -178,6 +198,13 @@ export async function listChangeOrders(projectId: number): Promise<ChangeOrderEn
 export async function createChangeOrder(projectId: number, payload: CreateChangeOrderPayload): Promise<ChangeOrderEntry> {
   return api<ChangeOrderEntry>(`/api/v1/admin/projects/${projectId}/change-orders`, {
     method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateChangeOrder(projectId: number, changeOrderId: number, payload: UpdateChangeOrderPayload): Promise<ChangeOrderEntry> {
+  return api<ChangeOrderEntry>(`/api/v1/admin/projects/${projectId}/change-orders/${changeOrderId}`, {
+    method: 'PATCH',
     body: JSON.stringify(payload),
   });
 }

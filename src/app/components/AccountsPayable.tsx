@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import {
   Wallet, DollarSign, Clock, AlertTriangle,
   ChevronDown, ChevronRight, Filter, Plus, Upload, FileText, CircleX,
+  RotateCcw, Receipt, Trash2, ArrowRightLeft, Eye,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { StatCard } from './StatCard';
@@ -15,105 +16,40 @@ import {
 import { EmptyState } from './EmptyState';
 import { toast } from 'sonner';
 import {
-  listPayables, createPayable, recordPayablePayment, listPayableVendors,
-  type Payable, type PayablePayment as ApiPayablePayment,
+  listAllPayables, createPayable, recordPayablePayment, listPayableVendors,
+  updatePayableAmount, markPayableUnpaid, voidPayablePayment, updatePayablePayment,
+  convertPayableToInvoice, updatePayableDates, updatePayableInfo, deletePayable, reassignPayableProject,
+  getPayable, uploadPayableAttachment, type Payable,
 } from '../services/finance';
+import { ALLOWED_TYPES, ALLOWED_ACCEPT, MAX_BYTES, MAX_COUNT } from './PayableAttachmentsPanel';
 import { listProjects } from '../services/projects';
 import { ApiError } from '../lib/api';
-
-// Types — aligned with API response
-
-type VendorPayment = ApiPayablePayment;
-
-type BillCategory = 'materials' | 'equipment-rental' | 'subcontractor' | 'services' | 'other';
-
-interface VendorBill {
-  id: number;
-  billNumber: string;
-  vendor: string;
-  category: BillCategory;
-  project: string;
-  projectId: number;
-  description: string | null;
-  receivedDate: string;
-  dueDate: string;
-  amount: number;
-  paidAmount: number;
-  status: 'paid' | 'pending' | 'partial' | 'overdue';
-  payments: VendorPayment[];
-}
-
-// Helpers
-
-import { fmtDate, businessToday, daysOverdue, currentMonth } from '../helpers/dateTime';
-
-function fmtAmount(n: number) {
-  return `$${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
-}
-
-const CATEGORY_KEY_MAP: Record<BillCategory, string> = {
-  materials: 'payable.category.materials',
-  'equipment-rental': 'payable.category.equipmentRental',
-  subcontractor: 'payable.category.subcontractor',
-  services: 'payable.category.services',
-  other: 'payable.category.other',
-};
-
-function toVendorBill(p: Payable): VendorBill {
-  return {
-    id: p.id,
-    billNumber: p.billNumber,
-    vendor: p.vendor,
-    category: p.category as BillCategory,
-    project: p.project,
-    projectId: p.projectId,
-    description: p.description,
-    receivedDate: p.receivedDate,
-    dueDate: p.dueDate,
-    amount: p.amount,
-    paidAmount: p.paidAmount,
-    status: p.status as VendorBill['status'],
-    payments: p.payments,
-  };
-}
+import { AuthService } from '../services/auth';
+import { fmtDate, businessToday, daysOverdue, currentMonth, currentMonthLabel } from '../helpers/dateTime';
+// AP Block 6 — types/badges/helpers shared with the detail modal.
+// AP Block 3 — PaymentMethodField (Credit card + typed-in Other) + resolve/split helpers.
+import {
+  StatusBadge, CategoryBadge, fmtAmount, toVendorBill, CATEGORY_KEY_MAP,
+  PaymentMethodField, resolveMethod, splitMethod,
+  type VendorBill, type BillCategory, type VendorPayment,
+} from './PayableCommon';
+import { PayableDetailModal } from './PayableDetailModal';
 
 const ITEMS_PER_PAGE = 10;
-
-// Badges
-
-function StatusBadge({ status }: { status: VendorBill['status'] }) {
-  const { t } = useTranslation('common');
-  const map: Record<string, string> = {
-    paid:    'bg-emerald-50 text-emerald-700 border-emerald-200',
-    pending: 'bg-amber-50 text-amber-700 border-amber-200',
-    partial: 'bg-blue-50 text-blue-700 border-blue-200',
-    overdue: 'bg-red-50 text-red-700 border-red-200',
-  };
-  return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${map[status]}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${status === 'paid' ? 'bg-emerald-500' : status === 'partial' ? 'bg-blue-500' : status === 'pending' ? 'bg-amber-500' : 'bg-red-500'}`} />
-      {t('status.' + status)}
-    </span>
-  );
-}
-
-function CategoryBadge({ category }: { category: BillCategory }) {
-  const { t } = useTranslation('finance');
-  return (
-    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#FAFAFA] text-[#0A0A0A] border border-[#D4D4D8]">
-      {t(CATEGORY_KEY_MAP[category])}
-    </span>
-  );
-}
 
 // Component
 
 export function AccountsPayable() {
   const { t, i18n } = useTranslation('finance');
   const dateLoc = i18n.language === 'es' ? 'es' : 'en-US';
+  // Current accounting month for the "Paid this month" KPI, locale-aware (e.g. "Jul 2026" / "jul 2026").
+  const paidMonthLabel = currentMonthLabel(dateLoc);
+  const canManage = ['ADMIN', 'FINANCE'].includes(AuthService.getCanonicalRole() ?? '');
   const [bills, setBills] = useState<VendorBill[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedId, setExpandedId] = useState<number | null>(null);
+  // AP Block 6 — clicking a row opens the full detail modal; the bill shown is
+  // derived from [bills] by id so every action keeps the detail fresh.
+  const [detailId, setDetailId] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [showVendorSummary, setShowVendorSummary] = useState(false);
   const [vendors, setVendors] = useState<string[]>([]);
@@ -121,8 +57,10 @@ export function AccountsPayable() {
 
   const fetchBills = useCallback(() => {
     setLoading(true);
-    listPayables({ size: 200 })
-      .then(res => setBills(res.content.map(toVendorBill)))
+    // Every bill, not just the first page: this screen filters, totals and
+    // paginates client-side, so a partial fetch would understate every KPI.
+    listAllPayables()
+      .then(rows => setBills(rows.map(toVendorBill)))
       .catch(err => toast.error(t('payable.toast.loadFailed'), { description: err?.message }))
       .finally(() => setLoading(false));
   }, [t]);
@@ -143,6 +81,7 @@ export function AccountsPayable() {
   const [filterVendor, setFilterVendor] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
+  const [filterProject, setFilterProject] = useState('all'); // AP Block 4 — project id as string
 
   // Submitting state
   const [submitting, setSubmitting] = useState(false);
@@ -152,8 +91,15 @@ export function AccountsPayable() {
   const [payAmount, setPayAmount] = useState('');
   const [payDate, setPayDate] = useState(businessToday());
   const [payMethod, setPayMethod] = useState('Bank transfer');
+  // AP Block 3 — free text shown when method === 'Other'.
+  const [payMethodOther, setPayMethodOther] = useState('');
   const [payRef, setPayRef] = useState('');
-  const [payNotes, setPayNotes] = useState('');
+
+  // AP Block 3 — edit an existing payment's method + date.
+  const [editPayment, setEditPayment] = useState<{ bill: VendorBill; payment: VendorPayment } | null>(null);
+  const [epMethod, setEpMethod] = useState('Bank transfer');
+  const [epMethodOther, setEpMethodOther] = useState('');
+  const [epDate, setEpDate] = useState('');
 
   // Create bill dialog
   const [showCreate, setShowCreate] = useState(false);
@@ -169,7 +115,38 @@ export function AccountsPayable() {
   const [newCreateNotes, setNewCreateNotes] = useState('');
   const [newFiles, setNewFiles] = useState<File[]>([]);
 
-  const hasFilters = filterVendor !== 'all' || filterStatus !== 'all' || filterCategory !== 'all';
+  // Edit dialog — amount + dates (Block 1 amount, Block 2 dates)
+  const [editBill, setEditBill] = useState<VendorBill | null>(null);
+  const [editAmount, setEditAmount] = useState('');
+  const [editReceivedDate, setEditReceivedDate] = useState('');
+  const [editDueDate, setEditDueDate] = useState('');
+  const [editReason, setEditReason] = useState('');
+
+  // Mark-unpaid confirm dialog
+  const [unpayBill, setUnpayBill] = useState<VendorBill | null>(null);
+  const [unpayReason, setUnpayReason] = useState('');
+
+  // Convert-to-invoice dialog (Block 2)
+  const [convertBill, setConvertBill] = useState<VendorBill | null>(null);
+  const [convertNumber, setConvertNumber] = useState('');
+
+  // AP Block 5 — edit general info (vendor/category/description/notes/invoice #)
+  const [infoBill, setInfoBill] = useState<VendorBill | null>(null);
+  const [infoVendor, setInfoVendor] = useState('');
+  const [infoCategory, setInfoCategory] = useState<string>('');
+  const [infoDescription, setInfoDescription] = useState('');
+  const [infoNotes, setInfoNotes] = useState('');
+  const [infoInvoiceNumber, setInfoInvoiceNumber] = useState('');
+
+  // Delete dialog — two-step confirmation (Block 2)
+  const [deleteBill, setDeleteBill] = useState<VendorBill | null>(null);
+  const [deleteStep, setDeleteStep] = useState<1 | 2>(1);
+
+  // Reassign-project dialog (Block 4)
+  const [reassignBill, setReassignBill] = useState<VendorBill | null>(null);
+  const [reassignTarget, setReassignTarget] = useState('');
+
+  const hasFilters = filterVendor !== 'all' || filterStatus !== 'all' || filterCategory !== 'all' || filterProject !== 'all';
   const uniqueVendors = useMemo(() => {
     const fromBills = bills.map(b => b.vendor);
     return [...new Set([...vendors, ...fromBills])].sort();
@@ -180,8 +157,10 @@ export function AccountsPayable() {
     const nonPaid = bills.filter(b => b.status !== 'paid');
     const totalPayable = nonPaid.reduce((s, b) => s + (b.amount - b.paidAmount), 0);
     const cm = currentMonth();
+    // Voided payments stay listed for audit but no longer count as paid
+    // (mirrors the backend's paidCents).
     const paidThisMonth = bills.reduce((s, b) => {
-      return s + b.payments.filter(p => p.date.startsWith(cm)).reduce((ps, p) => ps + p.amount, 0);
+      return s + b.payments.filter(p => !p.voided && p.date.startsWith(cm)).reduce((ps, p) => ps + p.amount, 0);
     }, 0);
     const pending = bills.filter(b => b.status === 'pending');
     const pendingTotal = pending.reduce((s, b) => s + (b.amount - b.paidAmount), 0);
@@ -195,9 +174,10 @@ export function AccountsPayable() {
       if (filterVendor !== 'all' && b.vendor !== filterVendor) return false;
       if (filterStatus !== 'all' && b.status !== filterStatus) return false;
       if (filterCategory !== 'all' && b.category !== filterCategory) return false;
+      if (filterProject !== 'all' && String(b.projectId) !== filterProject) return false;
       return true;
     });
-  }, [bills, filterVendor, filterStatus, filterCategory]);
+  }, [bills, filterVendor, filterStatus, filterCategory, filterProject]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -220,8 +200,17 @@ export function AccountsPayable() {
   }, [bills]);
 
   function clearFilters() {
-    setFilterVendor('all'); setFilterStatus('all'); setFilterCategory('all');
+    setFilterVendor('all'); setFilterStatus('all'); setFilterCategory('all'); setFilterProject('all');
     setCurrentPage(1);
+  }
+
+  // AP Block 6 — open the full detail view; refresh the bill from the server
+  // (GET /payables/{id}) so concurrent edits by another session show up.
+  function openDetail(bill: VendorBill) {
+    setDetailId(bill.id);
+    getPayable(bill.id)
+      .then(fresh => setBills(prev => prev.map(b => b.id === fresh.id ? toVendorBill(fresh) : b)))
+      .catch(err => toast.error(t('payable.toast.loadFailed'), { description: err?.message }));
   }
 
   // Payment dialog
@@ -231,8 +220,8 @@ export function AccountsPayable() {
     setPayAmount(balance.toFixed(2));
     setPayDate(businessToday());
     setPayMethod('Bank transfer');
+    setPayMethodOther('');
     setPayRef('');
-    setPayNotes('');
   }
 
   async function submitPayment() {
@@ -243,11 +232,17 @@ export function AccountsPayable() {
       toast.error(t('payable.validation.checkFields'));
       return;
     }
+    // AP Block 3 — collapse the method picker; a "Other" choice must carry text.
+    const method = resolveMethod(payMethod, payMethodOther);
+    if (!method) {
+      toast.error(t('payable.validation.methodRequired'));
+      return;
+    }
     try {
       const updated = await recordPayablePayment(payBill.id, {
         amount: amt,
         date: payDate,
-        method: payMethod,
+        method,
         reference: payRef || undefined,
         approvedBy: 'finance',
       });
@@ -275,6 +270,281 @@ export function AccountsPayable() {
     }
   }
 
+  // Edit amount + dates
+  function openEditDialog(bill: VendorBill) {
+    setEditBill(bill);
+    setEditAmount(bill.amount.toFixed(2));
+    setEditReceivedDate(bill.receivedDate);
+    setEditDueDate(bill.dueDate);
+    setEditReason('');
+  }
+
+  async function submitEdit() {
+    if (!editBill) return;
+    const amt = parseFloat(editAmount);
+    if (!amt || amt <= 0) {
+      toast.error(t('payable.validation.amountPositive'));
+      return;
+    }
+    if (amt < editBill.paidAmount) {
+      toast.error(t('payable.edit.belowPaid', { paid: fmtAmount(editBill.paidAmount) }));
+      return;
+    }
+    if (!editReceivedDate || !editDueDate) {
+      toast.error(t('payable.validation.requiredFields'));
+      return;
+    }
+    if (editDueDate < editReceivedDate) {
+      toast.error(t('payable.validation.dueDateAfter'));
+      return;
+    }
+
+    const amountChanged = Math.round(amt * 100) !== Math.round(editBill.amount * 100);
+    const datesChanged = editReceivedDate !== editBill.receivedDate || editDueDate !== editBill.dueDate;
+    if (!amountChanged && !datesChanged) {
+      setEditBill(null);
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      let updated: Payable | undefined;
+      // Amount and dates are separate endpoints (Block 1 / Block 2); each
+      // returns the full bill, so the last call reflects both changes.
+      if (amountChanged) {
+        updated = await updatePayableAmount(editBill.id, { amount: amt, reason: editReason.trim() || undefined });
+      }
+      if (datesChanged) {
+        updated = await updatePayableDates(editBill.id, { receivedDate: editReceivedDate, dueDate: editDueDate });
+      }
+      if (updated) {
+        const settled = updated;
+        setBills(prev => prev.map(b => b.id === editBill.id ? toVendorBill(settled) : b));
+      }
+      toast.success(t('payable.edit.updated', { bill: editBill.billNumber }));
+      setEditBill(null);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : undefined;
+      toast.error(t('payable.edit.failed'), { description: message });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // Convert a bill (cuenta) into an invoice (factura)
+  function openConvertDialog(bill: VendorBill) {
+    setConvertBill(bill);
+    setConvertNumber(bill.invoiceNumber ?? '');
+  }
+
+  async function submitConvert() {
+    if (!convertBill) return;
+    const number = convertNumber.trim();
+    if (!number) {
+      toast.error(t('payable.convert.numberRequired'));
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const updated = await convertPayableToInvoice(convertBill.id, number);
+      setBills(prev => prev.map(b => b.id === convertBill.id ? toVendorBill(updated) : b));
+      toast.success(t('payable.convert.done', { number }));
+      setConvertBill(null);
+    } catch (err: unknown) {
+      if (err instanceof ApiError && err.code === 'DUPLICATE_INVOICE_NUMBER') {
+        toast.error(t('payable.convert.duplicate'), { description: err.message });
+      } else {
+        const message = err instanceof Error ? err.message : undefined;
+        toast.error(t('payable.convert.failed'), { description: message });
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // AP Block 5 — edit general info (vendor / category / description / notes /
+  // invoice number). Sends only the changed fields.
+  function openInfoDialog(bill: VendorBill) {
+    setInfoBill(bill);
+    setInfoVendor(bill.vendor);
+    setInfoCategory(bill.category);
+    setInfoDescription(bill.description ?? '');
+    setInfoNotes(bill.notes ?? '');
+    setInfoInvoiceNumber(bill.invoiceNumber ?? '');
+  }
+
+  async function submitInfo() {
+    if (!infoBill) return;
+    const vendor = infoVendor.trim();
+    if (!vendor) {
+      toast.error(t('payable.info.vendorRequired'));
+      return;
+    }
+    const payload: { vendor?: string; category?: string; description?: string | null; notes?: string | null; invoiceNumber?: string } = {};
+    if (vendor !== infoBill.vendor) payload.vendor = vendor;
+    if (infoCategory && infoCategory !== infoBill.category) payload.category = infoCategory;
+    const desc = infoDescription.trim();
+    if (desc !== (infoBill.description ?? '')) payload.description = desc || null;
+    const notes = infoNotes.trim();
+    if (notes !== (infoBill.notes ?? '')) payload.notes = notes || null;
+    if (infoBill.documentType === 'INVOICE') {
+      const inv = infoInvoiceNumber.trim();
+      if (inv && inv !== (infoBill.invoiceNumber ?? '')) payload.invoiceNumber = inv;
+    }
+    if (Object.keys(payload).length === 0) {
+      setInfoBill(null);
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const updated = await updatePayableInfo(infoBill.id, payload);
+      setBills(prev => prev.map(b => b.id === infoBill.id ? toVendorBill(updated) : b));
+      toast.success(t('payable.info.updated', { bill: infoBill.billNumber }));
+      setInfoBill(null);
+    } catch (err: unknown) {
+      if (err instanceof ApiError && err.code === 'DUPLICATE_INVOICE_NUMBER') {
+        toast.error(t('payable.convert.duplicate'), { description: err.message });
+      } else if (err instanceof ApiError && err.code === 'NOT_AN_INVOICE') {
+        toast.error(t('payable.info.notAnInvoice'), { description: err.message });
+      } else {
+        const message = err instanceof Error ? err.message : undefined;
+        toast.error(t('payable.info.failed'), { description: message });
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // Delete (soft) — two-step confirmation
+  function openDeleteDialog(bill: VendorBill) {
+    setDeleteBill(bill);
+    setDeleteStep(1);
+  }
+
+  async function submitDelete() {
+    if (!deleteBill) return;
+    setSubmitting(true);
+    try {
+      await deletePayable(deleteBill.id);
+      setBills(prev => prev.filter(b => b.id !== deleteBill.id));
+      if (detailId === deleteBill.id) setDetailId(null);
+      toast.success(t('payable.delete.done', { bill: deleteBill.billNumber }));
+      setDeleteBill(null);
+    } catch (err: unknown) {
+      if (err instanceof ApiError && err.code === 'PAYABLE_HAS_ACTIVE_PAYMENTS') {
+        toast.error(t('payable.delete.hasPayments'), { description: err.message });
+      } else {
+        const message = err instanceof Error ? err.message : undefined;
+        toast.error(t('payable.delete.failed'), { description: message });
+      }
+      setDeleteBill(null);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // Reassign to another project (Block 4)
+  function openReassignDialog(bill: VendorBill) {
+    setReassignBill(bill);
+    setReassignTarget('');
+  }
+
+  async function submitReassign() {
+    if (!reassignBill || !reassignTarget) return;
+    setSubmitting(true);
+    try {
+      const updated = await reassignPayableProject(reassignBill.id, Number(reassignTarget));
+      setBills(prev => prev.map(b => b.id === reassignBill.id ? toVendorBill(updated) : b));
+      toast.success(t('payable.reassign.done', { bill: reassignBill.billNumber, project: toVendorBill(updated).project }));
+      setReassignBill(null);
+    } catch (err: unknown) {
+      if (err instanceof ApiError && err.code === 'PAYABLE_HAS_ACTIVE_PAYMENTS') {
+        toast.error(t('payable.reassign.hasPayments'), { description: err.message });
+      } else if (err instanceof ApiError && err.code === 'PROJECT_NOT_ACTIVE') {
+        toast.error(t('payable.reassign.notActive'), { description: err.message });
+      } else if (err instanceof ApiError && err.code === 'PAYABLE_ALREADY_IN_PROJECT') {
+        toast.error(t('payable.reassign.sameProject'), { description: err.message });
+      } else {
+        const message = err instanceof Error ? err.message : undefined;
+        toast.error(t('payable.reassign.failed'), { description: message });
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // Mark unpaid (void all active payments)
+  function openUnpayDialog(bill: VendorBill) {
+    setUnpayBill(bill);
+    setUnpayReason('');
+  }
+
+  async function submitUnpay() {
+    if (!unpayBill) return;
+    setSubmitting(true);
+    try {
+      const updated = await markPayableUnpaid(unpayBill.id, unpayReason.trim() || undefined);
+      setBills(prev => prev.map(b => b.id === unpayBill.id ? toVendorBill(updated) : b));
+      toast.success(t('payable.unpay.done', { bill: unpayBill.billNumber }));
+      setUnpayBill(null);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : undefined;
+      toast.error(t('payable.unpay.failed'), { description: message });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // Void a single payment
+  async function handleVoidPayment(bill: VendorBill, paymentId: number) {
+    setSubmitting(true);
+    try {
+      const updated = await voidPayablePayment(bill.id, paymentId);
+      setBills(prev => prev.map(b => b.id === bill.id ? toVendorBill(updated) : b));
+      toast.success(t('payable.void.done'));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : undefined;
+      toast.error(t('payable.void.failed'), { description: message });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // AP Block 3 — edit an existing payment's method + date (metadata only)
+  function openEditPaymentDialog(bill: VendorBill, payment: VendorPayment) {
+    const { method, otherText } = splitMethod(payment.method);
+    setEpMethod(method);
+    setEpMethodOther(otherText);
+    setEpDate(payment.date);
+    setEditPayment({ bill, payment });
+  }
+
+  async function submitEditPayment() {
+    if (!editPayment) return;
+    const { bill, payment } = editPayment;
+    const method = resolveMethod(epMethod, epMethodOther);
+    if (!method) {
+      toast.error(t('payable.validation.methodRequired'));
+      return;
+    }
+    if (!epDate) {
+      toast.error(t('payable.validation.checkFields'));
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const updated = await updatePayablePayment(bill.id, payment.id, { method, date: epDate });
+      setBills(prev => prev.map(b => b.id === bill.id ? toVendorBill(updated) : b));
+      toast.success(t('payable.editPayment.done'));
+      setEditPayment(null);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : undefined;
+      toast.error(t('payable.editPayment.failed'), { description: message });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   // Create bill
   function openCreateDialog() {
     const maxNum = bills.reduce((m, b) => {
@@ -295,6 +565,30 @@ export function AccountsPayable() {
     setShowCreate(true);
   }
 
+  // Files queued in the create dialog: validate on add (same rules as the
+  // attachments panel — images only, 15 MB, 10 max) so nothing is silently
+  // dropped at submit time.
+  function addCreateFiles(files: File[]) {
+    if (!files.length) return;
+    const accepted: File[] = [];
+    for (const f of files) {
+      if (!ALLOWED_TYPES.includes(f.type)) {
+        toast.error(t('payable.attachments.typeNotAllowed', { name: f.name }));
+        continue;
+      }
+      if (f.size > MAX_BYTES) {
+        toast.error(t('payable.attachments.tooLarge', { name: f.name }));
+        continue;
+      }
+      accepted.push(f);
+    }
+    if (newFiles.length + accepted.length > MAX_COUNT) {
+      toast.error(t('payable.attachments.tooMany', { max: MAX_COUNT }));
+      return;
+    }
+    if (accepted.length) setNewFiles(prev => [...prev, ...accepted]);
+  }
+
   async function submitCreate() {
     const vendor = newVendor === 'Other' ? newVendorOther.trim() : newVendor;
     const amt = parseFloat(newAmount);
@@ -307,6 +601,7 @@ export function AccountsPayable() {
       toast.error(t('payable.validation.dueDateAfter'));
       return;
     }
+    setSubmitting(true);
     try {
       const created = await createPayable({
         billNumber: newBillNumber || undefined,
@@ -319,12 +614,32 @@ export function AccountsPayable() {
         amount: amt,
         notes: newCreateNotes.trim() || undefined,
       });
+      // Upload the queued photos right after the bill exists (the dropzone used
+      // to discard them silently). The bill is already created, so a failed
+      // photo must not roll anything back — report it and let the user retry
+      // from the detail view.
+      const failed: string[] = [];
+      for (const f of newFiles) {
+        try {
+          await uploadPayableAttachment(created.id, f);
+        } catch {
+          failed.push(f.name);
+        }
+      }
       setBills(prev => [toVendorBill(created), ...prev]);
       toast.success(t('payable.toast.billRegistered', { bill: created.billNumber }));
+      if (failed.length > 0) {
+        toast.warning(t('payable.dialog.filesUploadFailed', { count: failed.length }), {
+          description: failed.join(', '),
+          duration: 10000,
+        });
+      }
       setShowCreate(false);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : undefined;
       toast.error(t('payable.toast.createFailed'), { description: message });
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -341,7 +656,7 @@ export function AccountsPayable() {
       {/* KPI cards — computed from state */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={Wallet}         title={t('payable.kpi.totalPayable')}   value={fmtAmount(kpis.totalPayable)}    subtitle={t('payable.kpi.allInvoices')}                                              iconBgColor="bg-purple-50"  iconColor="text-purple-600" />
-        <StatCard icon={DollarSign}     title={t('payable.kpi.paidThisMonth')}  value={fmtAmount(kpis.paidThisMonth)}   subtitle="Feb 2026"                                                        iconBgColor="bg-emerald-50" iconColor="text-emerald-600" />
+        <StatCard icon={DollarSign}     title={t('payable.kpi.paidThisMonth')}  value={fmtAmount(kpis.paidThisMonth)}   subtitle={paidMonthLabel}                                                  iconBgColor="bg-emerald-50" iconColor="text-emerald-600" />
         <StatCard icon={Clock}          title={t('payable.kpi.pendingPayment')} value={fmtAmount(kpis.pendingTotal)}    subtitle={`${kpis.pendingCount} invoice${kpis.pendingCount !== 1 ? 's' : ''}`} iconBgColor="bg-amber-50" iconColor="text-amber-600" />
         <StatCard icon={AlertTriangle}  title={t('payable.kpi.overdue')}        value={fmtAmount(kpis.overdueTotal)}    subtitle={`${kpis.overdueCount} invoice${kpis.overdueCount !== 1 ? 's' : ''}`} iconBgColor="bg-red-50"   iconColor="text-red-600" />
       </div>
@@ -352,7 +667,7 @@ export function AccountsPayable() {
           <Filter className="w-4 h-4 text-[#71717A]" />
           <span className="text-sm font-semibold text-[#0A0A0A]">{t('buttons.filters', { ns: 'common' })}</span>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div>
             <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.filters.vendor')}</label>
             <Select value={filterVendor} onValueChange={v => { setFilterVendor(v); setCurrentPage(1); }}>
@@ -360,6 +675,16 @@ export function AccountsPayable() {
               <SelectContent>
                 <SelectItem value="all">{t('payable.filters.allVendors')}</SelectItem>
                 {uniqueVendors.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('labels.project', { ns: 'common' })}</label>
+            <Select value={filterProject} onValueChange={v => { setFilterProject(v); setCurrentPage(1); }}>
+              <SelectTrigger className="h-9 text-sm border-[#D4D4D8]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('labels.allProjects', { ns: 'common' })}</SelectItem>
+                {projects.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -447,26 +772,29 @@ export function AccountsPayable() {
             <table className="w-full min-w-[1100px]">
               <thead>
                 <tr className="bg-[#FAFAFA]">
-                  <th className="w-9 px-2" />
                   {[t('payable.table.billNo'), t('payable.table.vendor'), t('payable.table.category'), t('payable.table.project'), t('payable.table.received'), t('payable.table.dueDate'), t('payable.table.amount'), t('payable.table.paid'), t('payable.table.balance'), t('payable.table.status'), t('payable.table.actions')].map(h => (
                     <th key={h} className="text-left text-[11px] font-semibold text-[#71717A] uppercase tracking-wider px-3 py-2.5">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {paginated.flatMap(bill => {
-                  const isExpanded = expandedId === bill.id;
+                {paginated.map(bill => {
                   const balance = bill.amount - bill.paidAmount;
                   const isOverdue = bill.status === 'overdue';
-                  return [
+                  return (
                     <tr key={bill.id}
-                      className={`border-b border-[#D4D4D8]/50 transition-colors ${isExpanded ? 'bg-[#FAFAFA]' : 'hover:bg-[#FAFAFA]/60'}`}>
-                      <td className="py-3 pl-3 pr-0">
-                        <button onClick={() => setExpandedId(isExpanded ? null : bill.id)} className="text-[#71717A] hover:text-[#0A0A0A] transition-colors">
-                          {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-                        </button>
+                      onClick={() => openDetail(bill)}
+                      className="border-b border-[#D4D4D8]/50 transition-colors cursor-pointer hover:bg-[#FAFAFA]/60">
+                      <td className="py-3 px-3 font-mono text-sm text-[#0A0A0A]">
+                        <div className="flex flex-col">
+                          <span>{bill.billNumber}</span>
+                          {bill.documentType === 'INVOICE' && bill.invoiceNumber && (
+                            <span className="mt-0.5 inline-flex w-fit items-center gap-1 rounded-full border border-purple-200 bg-purple-50 px-1.5 py-0.5 font-sans text-[9px] font-semibold text-purple-700">
+                              <Receipt className="h-2.5 w-2.5" /> {bill.invoiceNumber}
+                            </span>
+                          )}
+                        </div>
                       </td>
-                      <td className="py-3 px-3 font-mono text-sm text-[#0A0A0A]">{bill.billNumber}</td>
                       <td className="py-3 px-3 text-sm text-[#0A0A0A]">{bill.vendor}</td>
                       <td className="py-3 px-3"><CategoryBadge category={bill.category} /></td>
                       <td className="py-3 px-3 text-sm text-[#71717A]">{bill.project}</td>
@@ -477,47 +805,23 @@ export function AccountsPayable() {
                       <td className={`py-3 px-3 font-mono text-sm font-semibold ${balance === 0 ? 'text-[#D4D4D8]' : isOverdue ? 'text-red-600' : 'text-amber-600'}`}>{fmtAmount(balance)}</td>
                       <td className="py-3 px-3"><StatusBadge status={bill.status} /></td>
                       <td className="py-3 px-3">
-                        <Button variant="outline" size="sm" disabled={bill.status === 'paid'}
-                          onClick={() => openPayDialog(bill)}
-                          className="h-7 text-[11px] border-purple-300 text-purple-600 hover:bg-purple-50 hover:text-purple-700 disabled:opacity-40">
-                          {t('payable.recordPayment')}
-                        </Button>
+                        {/* Actions live in the detail modal now; the row keeps the
+                            everyday quick action + an explicit "view detail" button. */}
+                        <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                          <Button variant="outline" size="sm" disabled={bill.status === 'paid'}
+                            onClick={() => openPayDialog(bill)}
+                            className="h-7 text-[11px] border-purple-300 text-purple-600 hover:bg-purple-50 hover:text-purple-700 disabled:opacity-40">
+                            {t('payable.recordPayment')}
+                          </Button>
+                          <button title={t('payable.detail.action')} aria-label={t('payable.detail.action')}
+                            onClick={() => openDetail(bill)}
+                            className="h-7 w-7 inline-flex items-center justify-center rounded-md border border-[#D4D4D8] text-[#71717A] hover:text-[#0A0A0A] hover:border-purple-300 transition-colors">
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
-                    </tr>,
-                    ...(isExpanded ? [
-                      <tr key={`${bill.id}-detail`} className="bg-[#FAFAFA]/80">
-                        <td colSpan={12} className="px-6 py-4 border-b border-[#D4D4D8]/50">
-                          <div className="space-y-3">
-                            <p className="text-xs font-semibold text-[#71717A] uppercase tracking-wide">{t('payable.paymentHistory')}</p>
-                            {bill.payments.length === 0 ? (
-                              <p className="text-sm text-[#71717A]">{t('payable.noPayments')}</p>
-                            ) : (
-                              <table className="w-full max-w-2xl">
-                                <thead>
-                                  <tr>
-                                    {[t('payable.paymentHistory.date'), t('labels.amount', { ns: 'common' }), t('payable.paymentHistory.method'), t('payable.paymentHistory.reference'), t('payable.paymentHistory.approvedBy')].map(h => (
-                                      <th key={h} className="text-left text-[10px] font-semibold text-[#71717A] uppercase tracking-wider px-3 py-1.5">{h}</th>
-                                    ))}
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {bill.payments.map(p => (
-                                    <tr key={p.id} className="border-t border-[#D4D4D8]/30">
-                                      <td className="px-3 py-2 text-sm text-[#0A0A0A]">{fmtDate(p.date, dateLoc)}</td>
-                                      <td className="px-3 py-2 font-mono text-sm font-semibold text-emerald-600">{fmtAmount(p.amount)}</td>
-                                      <td className="px-3 py-2 text-sm text-[#71717A]">{p.method}</td>
-                                      <td className="px-3 py-2 font-mono text-sm text-[#71717A]">{p.reference ?? '—'}</td>
-                                      <td className="px-3 py-2 text-sm text-[#71717A]">{p.approvedBy ?? '—'}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            )}
-                          </div>
-                        </td>
-                      </tr>,
-                    ] : []),
-                  ];
+                    </tr>
+                  );
                 })}
               </tbody>
             </table>
@@ -572,6 +876,24 @@ export function AccountsPayable() {
         </div>
       )}
 
+      {/* AP Block 6 — full detail modal (all fields + payments + images + actions).
+          The action dialogs below stack on top of it. */}
+      <PayableDetailModal
+        bill={detailId != null ? bills.find(b => b.id === detailId) ?? null : null}
+        onClose={() => setDetailId(null)}
+        canManage={canManage}
+        submitting={submitting}
+        onRecordPayment={openPayDialog}
+        onEditAmountDates={openEditDialog}
+        onEditInfo={openInfoDialog}
+        onConvert={openConvertDialog}
+        onReassign={openReassignDialog}
+        onMarkUnpaid={openUnpayDialog}
+        onDelete={openDeleteDialog}
+        onVoidPayment={handleVoidPayment}
+        onEditPayment={openEditPaymentDialog}
+      />
+
       {/* Record Payment Dialog */}
       <Dialog open={!!payBill} onOpenChange={open => { if (!open) setPayBill(null); }}>
         <DialogContent className="sm:max-w-md">
@@ -624,33 +946,56 @@ export function AccountsPayable() {
             </div>
             <div>
               <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.method')}</label>
-              <Select value={payMethod} onValueChange={setPayMethod}>
-                <SelectTrigger className="h-9 text-sm border-[#D4D4D8]"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {[
-                    { value: 'Bank transfer', label: t('paymentMethod.bankTransfer') },
-                    { value: 'Check', label: t('paymentMethod.check') },
-                    { value: 'Cash', label: t('paymentMethod.cash') },
-                    { value: 'Wire transfer', label: t('paymentMethod.wireTransfer') },
-                    { value: 'Other', label: t('paymentMethod.other') },
-                  ].map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <PaymentMethodField
+                method={payMethod}
+                otherText={payMethodOther}
+                onMethodChange={setPayMethod}
+                onOtherTextChange={setPayMethodOther}
+              />
             </div>
             <div>
               <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.reference')}</label>
               <input type="text" value={payRef} onChange={e => setPayRef(e.target.value)} placeholder={t('payable.dialog.referencePlaceholder')}
                 className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
             </div>
-            <div>
-              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.notes')}</label>
-              <textarea value={payNotes} onChange={e => setPayNotes(e.target.value)} placeholder={t('payable.dialog.notesPlaceholder')} rows={2}
-                className="w-full rounded-md border border-[#D4D4D8] px-3 py-2 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none" />
-            </div>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setPayBill(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
             <Button onClick={submitPayment} className="bg-purple-600 hover:bg-purple-700 text-white">{t('payable.recordPayment')}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* AP Block 3 — Edit Payment (method + date) Dialog */}
+      <Dialog open={!!editPayment} onOpenChange={open => { if (!open) setEditPayment(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('payable.editPayment.title')} — {editPayment?.bill.billNumber}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {editPayment && (
+              <div className="rounded-md border border-[#D4D4D8] bg-[#FAFAFA]/60 px-3 py-2 text-xs text-[#71717A]">
+                {t('payable.table.amount')}: <span className="font-mono font-semibold text-[#0A0A0A]">{fmtAmount(editPayment.payment.amount)}</span>
+              </div>
+            )}
+            <div>
+              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.paymentDate')}</label>
+              <input type="date" value={epDate} onChange={e => setEpDate(e.target.value)}
+                className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.method')}</label>
+              <PaymentMethodField
+                method={epMethod}
+                otherText={epMethodOther}
+                onMethodChange={setEpMethod}
+                onOtherTextChange={setEpMethodOther}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditPayment(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
+            <Button onClick={submitEditPayment} disabled={submitting} className="bg-purple-600 hover:bg-purple-700 text-white">{t('buttons.save', { ns: 'common' })}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -738,17 +1083,15 @@ export function AccountsPayable() {
                 onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
                 onDrop={e => {
                   e.preventDefault(); e.stopPropagation();
-                  const dropped = Array.from(e.dataTransfer.files);
-                  if (dropped.length) setNewFiles(prev => [...prev, ...dropped]);
+                  addCreateFiles(Array.from(e.dataTransfer.files));
                 }}
               >
                 <Upload className="w-5 h-5 text-[#71717A]" />
                 <span className="text-xs text-[#71717A]">{t('payable.dialog.dropFiles')}</span>
                 <span className="text-[10px] text-[#D4D4D8]">{t('payable.dialog.fileFormats')}</span>
-                <input type="file" multiple className="hidden" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx"
+                <input type="file" multiple className="hidden" accept={ALLOWED_ACCEPT}
                   onChange={e => {
-                    const files = Array.from(e.target.files ?? []);
-                    if (files.length) setNewFiles(prev => [...prev, ...files]);
+                    addCreateFiles(Array.from(e.target.files ?? []));
                     e.target.value = '';
                   }} />
               </label>
@@ -773,7 +1116,230 @@ export function AccountsPayable() {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setShowCreate(false)}>{t('buttons.cancel', { ns: 'common' })}</Button>
-            <Button onClick={submitCreate} className="bg-purple-600 hover:bg-purple-700 text-white">{t('payable.dialog.submit')}</Button>
+            <Button onClick={submitCreate} disabled={submitting} className="bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-50">{t('payable.dialog.submit')}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Amount Dialog */}
+      <Dialog open={!!editBill} onOpenChange={open => { if (!open) setEditBill(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('payable.edit.title')} — {editBill?.billNumber}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {editBill && editBill.paidAmount > 0 && (
+              <div className="rounded-md p-3 text-sm bg-amber-50 border border-amber-200 text-amber-800">
+                {t('payable.edit.paidHint', { paid: fmtAmount(editBill.paidAmount) })}
+              </div>
+            )}
+            <div>
+              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.edit.newAmount')}</label>
+              <input type="number" step="0.01" min="0.01" value={editAmount} onChange={e => setEditAmount(e.target.value)}
+                className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.receivedDate')}</label>
+                <input type="date" value={editReceivedDate} onChange={e => setEditReceivedDate(e.target.value)}
+                  className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.dueDate')}</label>
+                <input type="date" value={editDueDate} onChange={e => setEditDueDate(e.target.value)}
+                  className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
+              </div>
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.edit.reason')}</label>
+              <textarea value={editReason} onChange={e => setEditReason(e.target.value)} rows={2} placeholder={t('payable.edit.reasonPlaceholder')}
+                className="w-full rounded-md border border-[#D4D4D8] px-3 py-2 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditBill(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
+            <Button onClick={submitEdit} disabled={submitting} className="bg-purple-600 hover:bg-purple-700 text-white">{t('buttons.save', { ns: 'common' })}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mark Unpaid Dialog */}
+      <Dialog open={!!unpayBill} onOpenChange={open => { if (!open) setUnpayBill(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('payable.unpay.title')} — {unpayBill?.billNumber}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="rounded-md p-3 text-sm bg-amber-50 border border-amber-200 text-amber-800">
+              {t('payable.unpay.warning')}
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.unpay.reason')}</label>
+              <textarea value={unpayReason} onChange={e => setUnpayReason(e.target.value)} rows={2} placeholder={t('payable.unpay.reasonPlaceholder')}
+                className="w-full rounded-md border border-[#D4D4D8] px-3 py-2 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setUnpayBill(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
+            <Button onClick={submitUnpay} disabled={submitting} className="bg-amber-600 hover:bg-amber-700 text-white gap-1.5">
+              <RotateCcw className="w-4 h-4" /> {t('payable.unpay.confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Convert to Invoice Dialog (Block 2) */}
+      <Dialog open={!!convertBill} onOpenChange={open => { if (!open) setConvertBill(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('payable.convert.title')} — {convertBill?.billNumber}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="rounded-md p-3 text-sm bg-blue-50 border border-blue-200 text-blue-800">
+              {t('payable.convert.hint')}
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.convert.number')}</label>
+              <input type="text" value={convertNumber} onChange={e => setConvertNumber(e.target.value)}
+                placeholder={t('payable.convert.numberPlaceholder')}
+                className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] font-mono focus:outline-none focus:ring-2 focus:ring-purple-400" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setConvertBill(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
+            <Button onClick={submitConvert} disabled={submitting} className="bg-purple-600 hover:bg-purple-700 text-white gap-1.5">
+              <Receipt className="w-4 h-4" /> {t('payable.convert.confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit-info Dialog (Block 5) — vendor / category / description / notes / invoice # */}
+      <Dialog open={!!infoBill} onOpenChange={open => { if (!open) setInfoBill(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('payable.info.title')} — {infoBill?.billNumber}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.info.vendor')}</label>
+              <input type="text" value={infoVendor} onChange={e => setInfoVendor(e.target.value)} maxLength={200}
+                className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.info.category')}</label>
+              <Select value={infoCategory} onValueChange={setInfoCategory}>
+                <SelectTrigger className="h-9 text-sm border-[#D4D4D8]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(CATEGORY_KEY_MAP) as BillCategory[]).map(c => (
+                    <SelectItem key={c} value={c}>{t(CATEGORY_KEY_MAP[c])}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.info.description')}</label>
+              <input type="text" value={infoDescription} onChange={e => setInfoDescription(e.target.value)} maxLength={500}
+                className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
+            </div>
+            <div>
+              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.info.notes')}</label>
+              <textarea value={infoNotes} onChange={e => setInfoNotes(e.target.value)} maxLength={1000} rows={2}
+                className="w-full rounded-md border border-[#D4D4D8] px-3 py-2 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
+            </div>
+            {infoBill?.documentType === 'INVOICE' ? (
+              <div>
+                <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.info.invoiceNumber')}</label>
+                <input type="text" value={infoInvoiceNumber} onChange={e => setInfoInvoiceNumber(e.target.value)} maxLength={100}
+                  className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] font-mono focus:outline-none focus:ring-2 focus:ring-purple-400" />
+              </div>
+            ) : (
+              <div className="rounded-md p-2.5 text-xs bg-[#FAFAFA] border border-[#D4D4D8] text-[#71717A]">
+                {t('payable.info.invoiceNumberBillHint')}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setInfoBill(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
+            <Button onClick={submitInfo} disabled={submitting} className="bg-purple-600 hover:bg-purple-700 text-white gap-1.5">
+              <FileText className="w-4 h-4" /> {t('payable.info.confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reassign-project Dialog (Block 4) */}
+      <Dialog open={!!reassignBill} onOpenChange={open => { if (!open) setReassignBill(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('payable.reassign.title')} — {reassignBill?.billNumber}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-[#71717A]">
+              {t('payable.reassign.description', { project: reassignBill?.project })}
+            </p>
+            {reassignBill && reassignBill.payments.some(p => !p.voided) && (
+              <div className="rounded-md p-3 text-sm bg-amber-50 border border-amber-200 text-amber-800">
+                {t('payable.reassign.activePaymentsHint')}
+              </div>
+            )}
+            <div>
+              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.reassign.targetLabel')}</label>
+              <Select value={reassignTarget} onValueChange={setReassignTarget}>
+                <SelectTrigger className="h-9 text-sm border-[#D4D4D8]">
+                  <SelectValue placeholder={t('payable.reassign.targetPlaceholder')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects.filter(p => p.id !== reassignBill?.projectId).map(p => (
+                    <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setReassignBill(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
+            <Button onClick={submitReassign} disabled={submitting || !reassignTarget} className="bg-purple-600 hover:bg-purple-700 text-white gap-1.5">
+              <ArrowRightLeft className="w-4 h-4" /> {t('payable.reassign.confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Dialog — two-step confirmation (Block 2) */}
+      <Dialog open={!!deleteBill} onOpenChange={open => { if (!open) setDeleteBill(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('payable.delete.title')} — {deleteBill?.billNumber}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="rounded-md p-3 text-sm bg-red-50 border border-red-200 text-red-800">
+              {t('payable.delete.warning')}
+            </div>
+            {deleteBill && deleteBill.payments.some(p => !p.voided) && (
+              <div className="rounded-md p-3 text-sm bg-amber-50 border border-amber-200 text-amber-800">
+                {t('payable.delete.activePaymentsHint')}
+              </div>
+            )}
+            {deleteStep === 2 && (
+              <div className="rounded-md p-3 text-sm bg-red-100 border border-red-300 text-red-900 font-medium">
+                {t('payable.delete.confirmFinal')}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDeleteBill(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
+            {deleteStep === 1 ? (
+              <Button onClick={() => setDeleteStep(2)} className="bg-red-600 hover:bg-red-700 text-white gap-1.5">
+                <Trash2 className="w-4 h-4" /> {t('payable.delete.continue')}
+              </Button>
+            ) : (
+              <Button onClick={submitDelete} disabled={submitting} className="bg-red-600 hover:bg-red-700 text-white gap-1.5">
+                <Trash2 className="w-4 h-4" /> {t('payable.delete.confirm')}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

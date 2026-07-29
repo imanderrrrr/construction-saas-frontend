@@ -1,11 +1,24 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import QRCode from 'qrcode';
-import { ShieldAlert } from 'lucide-react';
+import { Lock, ShieldCheck } from 'lucide-react';
+import { AnimatePresence, motion, MotionConfig } from 'motion/react';
 
 import { usePlatformAuth } from '../context/PlatformAuthContext';
 import * as platformAuth from '../services/platformAuth';
 import type { PlatformLoginResponse, PlatformRole, PlatformSession } from '../types';
+import { BuildTrackLogo } from '../../app/components/landing/BuildTrackLogo';
+import {
+  EASE_OUT,
+  FieldError,
+  inputCx,
+  inputErrTintCx,
+  labelCx,
+  microLabelCx,
+  primaryBtnCx,
+  Skeleton,
+} from '../components/console';
+import '../platform.css';
 
 type Stage =
   | { kind: 'CREDENTIALS' }
@@ -128,141 +141,176 @@ export function PlatformLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center px-4">
-      <div className="w-full max-w-md bg-white shadow-lg rounded-lg overflow-hidden">
-        <div className="bg-slate-900 text-white px-6 py-4 flex items-center gap-2">
-          <ShieldAlert size={18} className="text-red-400" />
-          <div>
-            <div className="text-xs uppercase tracking-wider text-slate-400">BuildTrack</div>
-            <div className="text-base font-semibold">Platform Console</div>
-          </div>
-        </div>
-
-        <div className="p-6">
-          {error && (
-            <div className="mb-4 px-3 py-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-              {error}
+    <MotionConfig reducedMotion="user">
+      <div className="flex min-h-screen items-center justify-center bg-bt-paper px-4 font-bt-body text-bt-ink antialiased">
+        <motion.div
+          className="w-full max-w-[400px]"
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: EASE_OUT }}
+        >
+          <div className="rounded-[14px] border border-bt-rule bg-white px-9 pb-7 pt-[30px] shadow-[0_1px_3px_rgba(23,19,15,0.06)]">
+            <div className="flex flex-col items-center text-center">
+              <BuildTrackLogo boxPx={28} textPx={17} tone="on-light" />
+              <div className="mt-2 flex items-center gap-1.5 text-bt-muted-2">
+                <ShieldCheck size={10} strokeWidth={2} />
+                <span className="font-bt-mono text-[9.5px] font-semibold tracking-[0.16em]">PLATFORM CONSOLE</span>
+              </div>
+              <div className="mt-2.5 text-[12.5px] text-bt-muted">Vendor staff only. All actions are audited.</div>
             </div>
-          )}
 
-          {stage.kind === 'CREDENTIALS' && (
-            <form onSubmit={submitCredentials} className="space-y-4">
-              <h1 className="text-xl font-semibold">Sign in</h1>
-              <p className="text-sm text-slate-600">
-                Vendor staff only. All actions are audited.
-              </p>
+            <div className="-mx-9 my-5 h-px bg-bt-rule-3" />
 
-              <div>
-                <label className="block text-sm font-medium mb-1" htmlFor="email">Email</label>
-                <input
-                  id="email"
-                  type="email"
-                  required
-                  autoComplete="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded focus:outline-none focus:border-blue-500"
-                  disabled={submitting}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1" htmlFor="password">Password</label>
-                <input
-                  id="password"
-                  type="password"
-                  required
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded focus:outline-none focus:border-blue-500"
-                  disabled={submitting}
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white py-2 rounded font-medium transition-colors"
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={stage.kind}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.22, ease: EASE_OUT }}
               >
-                {submitting ? 'Signing in…' : 'Continue'}
-              </button>
-            </form>
-          )}
+                {stage.kind === 'CREDENTIALS' && (
+                  <form onSubmit={submitCredentials} className="flex flex-col gap-3.5">
+                    {error && (
+                      <div role="alert">
+                        <FieldError>{error}</FieldError>
+                      </div>
+                    )}
 
-          {stage.kind === 'ENROLL' && (
-            <form onSubmit={submitMfa} className="space-y-4">
-              <h1 className="text-xl font-semibold">Set up two-factor</h1>
-              <p className="text-sm text-slate-600">
-                Scan the QR code with Google Authenticator, 1Password, Authy, or any
-                TOTP-compatible app. Then enter the 6-digit code shown in the app.
-              </p>
+                    <div className="flex flex-col gap-1.5">
+                      <label className={labelCx} htmlFor="email">Email</label>
+                      <input
+                        id="email"
+                        type="email"
+                        required
+                        autoComplete="email"
+                        spellCheck={false}
+                        placeholder="you@buildtrack.example"
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
+                        className={inputCx}
+                        disabled={submitting}
+                      />
+                    </div>
 
-              <div className="flex flex-col items-center bg-slate-50 border border-slate-200 rounded p-4">
-                {qrDataUrl ? (
-                  <img src={qrDataUrl} alt="MFA setup QR code" className="rounded" />
-                ) : (
-                  <div className="w-[220px] h-[220px] bg-slate-200 animate-pulse rounded" />
+                    <div className="flex flex-col gap-1.5">
+                      <label className={labelCx} htmlFor="password">Password</label>
+                      <input
+                        id="password"
+                        type="password"
+                        required
+                        autoComplete="current-password"
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        className={inputCx}
+                        disabled={submitting}
+                      />
+                    </div>
+
+                    <button type="submit" disabled={submitting} className={`${primaryBtnCx} mt-1 h-10 w-full`}>
+                      {submitting ? 'Signing in…' : 'Continue'}
+                    </button>
+
+                    <div className="mt-0.5 flex items-center justify-center gap-1.5 text-bt-muted-2">
+                      <Lock size={11} strokeWidth={2} />
+                      <span className="text-[11.5px]">Staff-only. Every session and action is audited.</span>
+                    </div>
+                  </form>
                 )}
-                <div className="mt-3 text-xs text-slate-600">
-                  Or paste this secret manually:{' '}
-                  <code className="px-2 py-0.5 bg-slate-200 rounded font-mono">{stage.secret}</code>
-                </div>
-              </div>
 
-              <CodeInput value={code} onChange={setCode} disabled={submitting} />
+                {stage.kind === 'ENROLL' && (
+                  <form onSubmit={submitMfa} className="flex flex-col">
+                    <h1 className="font-bt-heading text-[15px] font-bold text-bt-ink">Set up two-factor authentication.</h1>
+                    <p className="mt-1.5 text-[12.5px] leading-normal text-bt-muted">
+                      Scan the QR code with Google Authenticator, 1Password, Authy, or any
+                      TOTP-compatible app. Then enter the 6-digit code shown in the app.
+                    </p>
 
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={restart}
-                  disabled={submitting}
-                  className="px-3 py-2 border border-slate-300 rounded text-sm text-slate-700 hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting || code.length !== 6}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white py-2 rounded font-medium"
-                >
-                  {submitting ? 'Verifying…' : 'Activate'}
-                </button>
-              </div>
-            </form>
-          )}
+                    <div className="mx-auto mt-[18px] w-[220px]">
+                      {qrDataUrl ? (
+                        <img
+                          src={qrDataUrl}
+                          alt="MFA setup QR code"
+                          className="w-[220px] rounded-[10px] border border-bt-rule"
+                        />
+                      ) : (
+                        <Skeleton className="h-[220px] w-[220px] rounded-[10px]" />
+                      )}
+                    </div>
 
-          {stage.kind === 'VERIFY' && (
-            <form onSubmit={submitMfa} className="space-y-4">
-              <h1 className="text-xl font-semibold">Authentication code</h1>
-              <p className="text-sm text-slate-600">
-                Enter the 6-digit code from your authenticator app.
-              </p>
+                    <div className="mt-4">
+                      <div className={`${microLabelCx} mb-1.5`}>Can't scan? Enter this key instead</div>
+                      <div className="cursor-text select-all rounded-[7px] border border-bt-rule-2 bg-bt-paper px-2.5 py-2 text-center font-bt-mono text-[12.5px] font-semibold tracking-[0.08em] text-bt-ink">
+                        {stage.secret}
+                      </div>
+                    </div>
 
-              <CodeInput value={code} onChange={setCode} disabled={submitting} />
+                    <div className="mt-4">
+                      <CodeInput value={code} onChange={setCode} disabled={submitting} invalid={!!error} />
+                      {error && (
+                        <div role="alert" className="mt-1.5">
+                          <FieldError>{error}</FieldError>
+                        </div>
+                      )}
+                    </div>
 
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={restart}
-                  disabled={submitting}
-                  className="px-3 py-2 border border-slate-300 rounded text-sm text-slate-700 hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting || code.length !== 6}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white py-2 rounded font-medium"
-                >
-                  {submitting ? 'Verifying…' : 'Sign in'}
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
+                    <button
+                      type="submit"
+                      disabled={submitting || code.length !== 6}
+                      className={`${primaryBtnCx} mt-4 h-10 w-full`}
+                    >
+                      {submitting ? 'Verifying…' : 'Enable 2FA'}
+                    </button>
+                    <RestartLink onClick={restart} disabled={submitting} />
+                  </form>
+                )}
+
+                {stage.kind === 'VERIFY' && (
+                  <form onSubmit={submitMfa} className="flex flex-col">
+                    <h1 className="font-bt-heading text-[15px] font-bold text-bt-ink">Verify it's you</h1>
+                    <p className="mt-1.5 text-[12.5px] leading-normal text-bt-muted">
+                      Enter the code from your authenticator app.
+                    </p>
+
+                    <div className="mt-4">
+                      <CodeInput value={code} onChange={setCode} disabled={submitting} invalid={!!error} />
+                      {error && (
+                        <div role="alert" className="mt-1.5">
+                          <FieldError>{error}</FieldError>
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={submitting || code.length !== 6}
+                      className={`${primaryBtnCx} mt-4 h-10 w-full`}
+                    >
+                      {submitting ? 'Verifying…' : 'Verify'}
+                    </button>
+                    <RestartLink onClick={restart} disabled={submitting} />
+                  </form>
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </motion.div>
       </div>
-    </div>
+    </MotionConfig>
+  );
+}
+
+function RestartLink({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="mx-auto mt-3.5 cursor-pointer text-xs font-medium text-bt-muted underline underline-offset-2 transition-colors hover:text-bt-ink disabled:opacity-60"
+    >
+      Use a different account
+    </button>
   );
 }
 
@@ -270,14 +318,16 @@ function CodeInput({
   value,
   onChange,
   disabled,
+  invalid,
 }: {
   value: string;
   onChange: (v: string) => void;
   disabled?: boolean;
+  invalid?: boolean;
 }) {
   return (
-    <div>
-      <label className="block text-sm font-medium mb-1">Authentication code</label>
+    <div className="flex flex-col gap-1.5">
+      <label className={labelCx}>6-digit code</label>
       <input
         type="text"
         inputMode="numeric"
@@ -286,11 +336,12 @@ function CodeInput({
         maxLength={6}
         required
         autoFocus
+        spellCheck={false}
         value={value}
         onChange={e => onChange(e.target.value.replace(/\D/g, '').slice(0, 6))}
         disabled={disabled}
         placeholder="000000"
-        className="w-full px-3 py-3 text-center text-2xl tracking-[0.5em] font-mono border border-slate-300 rounded focus:outline-none focus:border-blue-500"
+        className={`h-[52px] w-full rounded-[10px] border px-3 text-center font-bt-mono text-[22px] font-semibold tracking-[0.35em] text-bt-ink outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-bt-muted-2 focus:border-bt-orange focus:shadow-[0_0_0_3px_rgba(249,115,22,0.18)] disabled:opacity-60 ${invalid ? inputErrTintCx : 'border-bt-rule bg-white'}`}
       />
     </div>
   );

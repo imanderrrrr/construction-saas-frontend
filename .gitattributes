@@ -9,6 +9,8 @@
 *.jpeg binary
 *.ico binary
 *.gif binary
+*.mp4 binary
+*.webm binary
 *.svg text
 *.woff binary
 *.woff2 binary

@@ -8,13 +8,15 @@ import {
   ReceiptText, Wrench, CalendarClock,
   Clock, Receipt, Users, Bell, Activity,
   Building2, Loader2, Inbox, CheckCheck, Mail, MailOpen,
-  MapPin, ChevronRight, AlertCircle, RefreshCw,
+  MapPin, ChevronRight, AlertCircle, RefreshCw, NotebookPen, ClipboardList,
+  HelpCircle,
 } from 'lucide-react';
 import { AppShell, AppShellNavItem } from '../components/AppShell';
 import { AuthService } from '../services/auth';
+import { useSiteLogFeature } from '../hooks/useSiteLogFeature';
 import { Toaster } from '../components/ui/sonner';
 import { toast } from 'sonner';
-import { getSupervisorOutOfRangeAlerts, getSupervisorDashboard, getSupervisorTimeRecords, type OutOfRangeAlertResponse, type SupervisorDashboardResponse, type TimeRecordResponse } from '../services/time';
+import { getSupervisorOutOfRangeAlerts, isUnconfiguredAreaAlert, getSupervisorDashboard, getSupervisorTimeRecords, type OutOfRangeAlertResponse, type SupervisorDashboardResponse, type TimeRecordResponse } from '../services/time';
 import { getSupervisorSummary, getSupervisorExpenses, type ExpenseSummaryResponse, type ExpenseResponse } from '../services/expenses';
 import { getSupervisorNotifications, getSupervisorUnreadCount, markNotificationRead, markAllNotificationsRead, type NotificationResponse } from '../services/notifications';
 import { businessToday, nDaysAgo } from '../helpers/dateTime';
@@ -36,15 +38,34 @@ const SupervisorTaskBoard = lazy(() =>
 const TeamTools = lazy(() =>
   import('../components/TeamTools').then(m => ({ default: m.TeamTools }))
 );
+const SupervisorSiteLog = lazy(() =>
+  import('../components/sitelog/SupervisorSiteLogSection').then(m => ({ default: m.SupervisorSiteLogSection }))
+);
+const SupervisorPunchList = lazy(() =>
+  import('../components/punchlist/SupervisorPunchListSection').then(m => ({ default: m.SupervisorPunchListSection }))
+);
+const SupervisorRfi = lazy(() =>
+  import('../components/rfi/SupervisorRfiSection').then(m => ({ default: m.SupervisorRfiSection }))
+);
+// Supervisors are hourly field staff too: they punch their own time through
+// the same worker component/endpoints (backend already authorizes SUPERVISOR
+// on /api/v1/worker/**). Their records are approvable only by admins.
+const WorkerTime = lazy(() =>
+  import('../components/WorkerTime').then(m => ({ default: m.WorkerTime }))
+);
 
 // ——— Types & config ——————————————————————————————————————————————————
 
-type Section = 'dashboard' | 'projects' | 'task-board' | 'time-approvals' | 'expense-reviews' | 'team-tools';
+type Section = 'dashboard' | 'projects' | 'task-board' | 'site-log' | 'punch-list' | 'rfi' | 'my-time' | 'time-approvals' | 'expense-reviews' | 'team-tools';
 
 const SECTION_META_KEYS: Record<Section, { titleKey: string; subtitleKey: string }> = {
   'dashboard':       { titleKey: 'supervisor:section.dashboard.title',       subtitleKey: 'supervisor:section.dashboard.subtitle'       },
   'projects':        { titleKey: 'supervisor:section.projects.title',        subtitleKey: 'supervisor:section.projects.subtitle'        },
   'task-board':      { titleKey: 'supervisor:section.taskBoard.title',       subtitleKey: 'supervisor:section.taskBoard.subtitle'       },
+  'site-log':        { titleKey: 'siteLog:section.title',                    subtitleKey: 'siteLog:section.subtitle'                    },
+  'punch-list':      { titleKey: 'punchList:internal.title',                  subtitleKey: 'punchList:internal.subtitle'                 },
+  'rfi':             { titleKey: 'rfi:internal.title',                        subtitleKey: 'rfi:internal.subtitle'                       },
+  'my-time':         { titleKey: 'supervisor:section.myTime.title',          subtitleKey: 'supervisor:section.myTime.subtitle'          },
   'time-approvals':  { titleKey: 'supervisor:section.timeApprovals.title',   subtitleKey: 'supervisor:section.timeApprovals.subtitle'   },
   'expense-reviews': { titleKey: 'supervisor:section.expenseReviews.title',  subtitleKey: 'supervisor:section.expenseReviews.subtitle'  },
   'team-tools':      { titleKey: 'supervisor:section.teamTools.title',       subtitleKey: 'supervisor:section.teamTools.subtitle'       },
@@ -70,20 +91,36 @@ function SectionSpinner() {
 
 export function SupervisorDashboard() {
   const navigate = useNavigate();
-  const { t } = useTranslation(['supervisor', 'common']);
+  const { t } = useTranslation(['supervisor', 'common', 'siteLog', 'punchList', 'rfi']);
   const username = AuthService.getUsername() ?? 'supervisor1';
   const [active, setActive] = useState<Section>('dashboard');
+  // Bitácora de obra is gated behind the `bitacora` plan feature — hide its nav
+  // entry (and section) entirely when the tenant's plan does not include it.
+  const { enabled: siteLogEnabled } = useSiteLogFeature();
 
   const handleLogout = () => { document.cookie = 'ofjr_session=; Path=/; Max-Age=0'; navigate('/'); AuthService.logout(); };
 
-  const navItems: AppShellNavItem[] = useMemo(() => [
-    { key: 'dashboard',       label: t('supervisor:nav.dashboard'),       icon: LayoutDashboard, group: 'general'  },
-    { key: 'projects',        label: t('supervisor:nav.projects'),        icon: FolderKanban,    group: 'general'  },
-    { key: 'task-board',      label: t('supervisor:nav.taskBoard'),       icon: CalendarClock,   group: 'general'  },
-    { key: 'time-approvals',  label: t('supervisor:nav.timeApprovals'),   icon: ClipboardCheck,  group: 'time'     },
-    { key: 'expense-reviews', label: t('supervisor:nav.expenseReviews'),  icon: ReceiptText,     group: 'expenses' },
-    { key: 'team-tools',      label: t('supervisor:nav.teamTools'),       icon: Wrench,          group: 'tools'    },
-  ], [t]);
+  const navItems: AppShellNavItem[] = useMemo(() => {
+    const items: AppShellNavItem[] = [
+      { key: 'dashboard',       label: t('supervisor:nav.dashboard'),       icon: LayoutDashboard, group: 'general'  },
+      { key: 'projects',        label: t('supervisor:nav.projects'),        icon: FolderKanban,    group: 'general'  },
+      { key: 'task-board',      label: t('supervisor:nav.taskBoard'),       icon: CalendarClock,   group: 'general'  },
+    ];
+    if (siteLogEnabled) {
+      items.push({ key: 'site-log', label: t('siteLog:nav.bitacora'), icon: NotebookPen, group: 'general' });
+      // Punch list rides the same plan feature as the client portal (D8).
+      items.push({ key: 'punch-list', label: t('punchList:internal.title'), icon: ClipboardList, group: 'general' });
+      // RFIs live on the same portal → same plan feature.
+      items.push({ key: 'rfi', label: t('rfi:internal.title'), icon: HelpCircle, group: 'general' });
+    }
+    items.push(
+      { key: 'my-time',         label: t('supervisor:nav.myTime'),          icon: Clock,           group: 'time'     },
+      { key: 'time-approvals',  label: t('supervisor:nav.timeApprovals'),   icon: ClipboardCheck,  group: 'time'     },
+      { key: 'expense-reviews', label: t('supervisor:nav.expenseReviews'),  icon: ReceiptText,     group: 'expenses' },
+      { key: 'team-tools',      label: t('supervisor:nav.teamTools'),       icon: Wrench,          group: 'tools'    },
+    );
+    return items;
+  }, [t, siteLogEnabled]);
 
   const navGroups = useMemo(() => [
     { key: 'general',  label: t('supervisor:group.general')  },
@@ -112,6 +149,10 @@ export function SupervisorDashboard() {
           {active === 'dashboard'       && <SupervisorDashboardContent username={username} onNavigate={s => setActive(s as Section)} />}
           {active === 'projects'        && <SupervisorProjects />}
           {active === 'task-board'      && <SupervisorTaskBoard />}
+          {active === 'site-log'        && siteLogEnabled && <SupervisorSiteLog />}
+          {active === 'punch-list'      && siteLogEnabled && <SupervisorPunchList />}
+          {active === 'rfi'             && siteLogEnabled && <SupervisorRfi />}
+          {active === 'my-time'         && <WorkerTime username={username} />}
           {active === 'time-approvals'  && <SupervisorApprovals mode="supervisor" />}
           {active === 'expense-reviews' && <ExpenseReviews />}
           {active === 'team-tools'      && <TeamTools />}
@@ -129,7 +170,7 @@ export function SupervisorDashboard() {
 // ——— SupervisorDashboardContent ———————————————————————————————————————
 
 function SupervisorDashboardContent({ username, onNavigate }: { username: string; onNavigate: (s: string) => void }) {
-  const { t } = useTranslation(['supervisor', 'common']);
+  const { t } = useTranslation(['supervisor', 'common', 'siteLog', 'punchList', 'rfi']);
 
   // Out-of-range alerts (live data)
   const [oorAlerts, setOorAlerts] = useState<OutOfRangeAlertResponse[]>([]);
@@ -499,29 +540,75 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
               <p className="text-[11px] text-[#71717A] mt-0.5">{t('dash.allWithinArea')}</p>
             </div>
           ) : (
-            oorAlerts.map((alert) => (
+            oorAlerts.map((alert) => {
+              // An alert made up ONLY of NO_GEOFENCE marks is not a worker
+              // problem: the project has no work area, so nothing could be
+              // checked. Rendering it in the same red as "punched outside the
+              // site" would accuse the worker of something the admin has to
+              // fix — so it gets amber and its own wording.
+              const setupOnly = isUnconfiguredAreaAlert(alert);
+              const tone = setupOnly
+                ? { hover: 'hover:bg-amber-50/40', chipBg: 'bg-amber-100', icon: 'text-amber-600', text: 'text-amber-700', meta: 'text-amber-600' }
+                : { hover: 'hover:bg-red-50/40', chipBg: 'bg-red-100', icon: 'text-red-600', text: 'text-red-600', meta: 'text-red-500' };
+              return (
               <div
                 key={`oor-${alert.workerId}-${alert.projectId}`}
-                className="flex gap-3 py-2.5 border-b border-[#D4D4D8]/50 last:border-b-0 cursor-pointer hover:bg-red-50/40 rounded-lg px-1 -mx-1 transition-colors"
+                className={`flex gap-3 py-2.5 border-b border-[#D4D4D8]/50 last:border-b-0 cursor-pointer ${tone.hover} rounded-lg px-1 -mx-1 transition-colors`}
                 onClick={() => onNavigate('time-approvals')}
                 title={t('supervisor:section.timeApprovals.title')}
               >
-                <div className="bg-red-100 rounded-lg w-7 h-7 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <MapPin className="w-4 h-4 text-red-600" />
+                <div className={`${tone.chipBg} rounded-lg w-7 h-7 flex items-center justify-center flex-shrink-0 mt-0.5`}>
+                  <MapPin className={`w-4 h-4 ${tone.icon}`} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-[#0A0A0A] font-medium">
                     {alert.workerName ?? alert.workerUsername}{' '}
-                    <span className="font-normal text-red-600">{t('dash.outsideWorkArea')}</span>
+                    <span className={`font-normal ${tone.text}`}>
+                      {setupOnly
+                        ? t('dash.projectWithoutWorkArea')
+                        : alert.eventCount > 0
+                          ? t('dash.outsideWorkArea')
+                          : t('dash.punchedWithoutGps')}
+                    </span>
                   </p>
                   <p className="text-[11px] text-[#71717A] truncate">{alert.projectName}</p>
-                  <p className="text-[11px] text-red-500 font-medium">
+                  <p className={`text-[11px] ${tone.meta} font-medium`}>
                     {t('dash.firstReported', { time: relativeTime(alert.firstOccurredAt) })}
                     {alert.eventCount > 1 && ` ${t('dash.eventCount', { count: alert.eventCount })}`}
+                    {alert.unavailableCount > 0 && ` ${t('dash.unavailableCount', { count: alert.unavailableCount })}`}
+                    {alert.noGeofenceCount > 0 && ` ${t('dash.noGeofenceCount', { count: alert.noGeofenceCount })}`}
                   </p>
+                  {setupOnly && (
+                    <p className="text-[11px] text-[#71717A] mt-0.5">{t('dash.setUpProjectArea')}</p>
+                  )}
+                  {/* Exact punch locations — one Google Maps deep-link per flagged mark */}
+                  {(alert.events ?? []).some(ev => ev.lat != null && ev.lng != null) && (
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {(alert.events ?? [])
+                        .filter(ev => ev.lat != null && ev.lng != null)
+                        .map(ev => (
+                          <a
+                            key={ev.eventId}
+                            href={`https://www.google.com/maps?q=${ev.lat},${ev.lng}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={e => e.stopPropagation()}
+                            title={t('dash.viewInMaps')}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border border-red-200 bg-white text-[10px] font-semibold text-red-600 hover:bg-red-50"
+                          >
+                            <MapPin className="w-3 h-3" />
+                            {new Date(ev.capturedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {ev.distanceMeters != null && (
+                              <span className="font-normal">· {Math.round(ev.distanceMeters).toLocaleString()} m</span>
+                            )}
+                          </a>
+                        ))}
+                    </div>
+                  )}
                 </div>
               </div>
-            ))
+            );
+            })
           )}
         </div>
       </div>

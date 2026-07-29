@@ -85,6 +85,11 @@ export interface TimeEvent {
   type: TimeEventType;
   capturedAt: string;       // ISO 8601 datetime
   locationStatus: LocationStatus;
+  /** Punch coordinates as captured by the device; null when GPS was unavailable. */
+  lat?: number | null;
+  lng?: number | null;
+  /** Distance from the project center in meters; null when either side lacks coordinates. */
+  distanceMeters?: number | null;
   /** Per-event approval status (independent from the record's overall status) */
   approvalStatus: ApprovalStatus;
   reviewComment?: string | null;
@@ -104,6 +109,12 @@ export interface TimeEvent {
   disputeResolvedBy?: string | null;
   /** ISO 8601 timestamp when the dispute was resolved. */
   disputeResolvedAt?: string | null;
+  /**
+   * Username of the ADMIN/FINANCE user who manually created this mark on the
+   * worker's behalf; null for organic punches. Manual marks carry no GPS —
+   * the UI shows a "Manual" badge and no map link.
+   */
+  manualCreatorUsername?: string | null;
 }
 
 /** Review metadata attached once a record has been reviewed. */

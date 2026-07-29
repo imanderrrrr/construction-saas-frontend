@@ -2,11 +2,12 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Wallet, DollarSign, TrendingDown, Percent, Plus,
-  Pencil, Clock, Lock, MoreHorizontal,
+  Pencil, Clock, Lock, MoreHorizontal, Trash2,
   AlertTriangle, AlertCircle, XCircle,
   Loader2, ArrowLeft, Receipt, Users,
   CreditCard, PieChart,
 } from 'lucide-react';
+import { DeleteProjectModal } from './projects/DeleteProjectModal';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -32,7 +33,7 @@ import {
   type ProjectResponse, type ContractHistoryEntry,
 } from '../services/projects';
 import { getExpenseReport } from '../services/expenses';
-import { listPayables } from '../services/finance';
+import { listAllPayables } from '../services/finance';
 
 // Types
 
@@ -161,6 +162,42 @@ function formatExpenseType(type: string): string {
   return type.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
 }
 
+// ── Cost distribution (labor / expenses / payables) ────────────────────────
+//
+// A project's consumed budget is drawn down from exactly three sources
+// (verified against the backend budget ledger):
+//   • approved expenses      → deducted on approval, by the expense amount
+//   • payable payments       → deducted on payment, by the amount PAID
+//   • labor payroll payments → deducted per LaborPayment
+// so `consumed === approvedExpenses + Σ payable.paidAmount + payroll`.
+//
+// The payables slice must therefore use what has actually been PAID
+// (`paidAmount`), NOT the outstanding balance (`amount − paidAmount`). The old
+// balance formula returned 0 for a fully-paid bill, which collapsed AP to 0%
+// and — because labor is the residual — made labor swallow ~100% on projects
+// whose spend was mostly paid material bills.
+//
+// Labor is the residual, which equals the payroll draw-down. Vendor bills —
+// including bills from the "General Labor" vendor — are payables and belong to
+// the payables slice, so they are never double-counted into the labor residual.
+export interface CostDistribution {
+  laborCost: number;
+  expenseTotal: number;
+  payableTotal: number;
+}
+
+export function computeCostDistribution(
+  consumed: number,
+  expenseTotal: number,
+  payables: ReadonlyArray<{ paidAmount: number }>,
+): CostDistribution {
+  const payableTotal = payables.reduce((sum, p) => sum + p.paidAmount, 0);
+  // Residual = payroll. Floored at 0 to stay robust against a transient
+  // out-of-sync read (e.g. an approval landing between the two fetches).
+  const laborCost = Math.max(consumed - expenseTotal - payableTotal, 0);
+  return { laborCost, expenseTotal, payableTotal };
+}
+
 // Sub-components
 
 function HistoryTypeBadge({ type }: { type: HistoryType }) {
@@ -217,12 +254,13 @@ function MiniDonut({ segments, size = 80 }: { segments: DonutSegment[]; size?: n
 
 // ── Project Bento Card ─────────────────────────────────
 
-function BudgetCard({ budget, onSelect, onEdit, onHistory, onClose }: {
+function BudgetCard({ budget, onSelect, onEdit, onHistory, onClose, onDelete }: {
   budget: Budget;
   onSelect: () => void;
   onEdit: () => void;
   onHistory: () => void;
   onClose: () => void;
+  onDelete: () => void;
 }) {
   const { t } = useTranslation(['admin', 'common']);
   const alertCfg = getAlertConfig(budget.alertLevel);
@@ -296,6 +334,15 @@ function BudgetCard({ budget, onSelect, onEdit, onHistory, onClose }: {
                 </DropdownMenuItem>
               </>
             )}
+            {/* Pilot-client request (ported from OFJR): delete a project (its
+                budget) from the Budgets screen. Same guarded flow as the
+                Projects screen — the backend refuses while any financial or
+                operational history exists. */}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onDelete}
+              className="gap-2 text-sm cursor-pointer text-[#d4183d] focus:text-[#d4183d]">
+              <Trash2 className="w-4 h-4" />{t('admin:projectMgmt.deleteProject')}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -383,9 +430,12 @@ function ProjectDetail({ budget, onBack }: { budget: Budget; onBack: () => void 
     async function load() {
       setLoading(true);
       try {
-        const [expReport, payablesPage] = await Promise.all([
+        // Let the server do the project filter — a browser-side filter over a
+        // single page silently drops this project's older bills once the tenant
+        // outgrows one page, and the labor residual then absorbs them.
+        const [expReport, projectBills] = await Promise.all([
           getExpenseReport(),
-          listPayables({ size: 200 }),
+          listAllPayables({ projectId: budget.projectId }),
         ]);
 
         const projectExpRow = expReport.byProject.find(r => r.projectId === budget.projectId);
@@ -404,14 +454,15 @@ function ProjectDetail({ budget, onBack }: { budget: Budget; onBack: () => void 
           };
         }).sort((a, b) => b.amount - a.amount);
 
-        // Payables for this project
-        const projectPayables = payablesPage.content
-          .filter(p => p.projectId === budget.projectId)
+        // Payables for this project (already scoped server-side)
+        const projectPayables = projectBills
           .map(p => ({ vendor: p.vendor, amount: p.amount, paidAmount: p.paidAmount, status: p.status }));
-        const payableTotal = projectPayables.reduce((s, p) => s + (p.amount - p.paidAmount), 0);
 
-        // Labor = consumed - expenses - payables (approximate)
-        const laborCost = Math.max(budget.consumed - expenseTotal - payableTotal, 0);
+        // AP consumes the budget by what has been PAID, not the outstanding
+        // balance; labor is the residual (= payroll). See computeCostDistribution.
+        const { laborCost, payableTotal } = computeCostDistribution(
+          budget.consumed, expenseTotal, projectPayables,
+        );
 
         if (!cancelled) {
           setDetail({ expenseBreakdown: breakdown, payables: projectPayables, laborCost, expenseTotal, payableTotal });
@@ -608,25 +659,23 @@ function ProjectDetail({ budget, onBack }: { budget: Budget; onBack: () => void 
             </div>
           ) : (
             <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
-              {detail.payables.map((p, i) => {
-                const remaining = p.amount - p.paidAmount;
-                return (
-                  <div key={i} className="flex items-center justify-between gap-2 py-1.5 px-2 bg-[#F8F9FB] rounded-lg">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-[#0A0A0A] truncate">{p.vendor}</p>
-                      <span className={`text-[10px] font-semibold ${
-                        p.status === 'paid' ? 'text-emerald-600' : p.status === 'overdue' ? 'text-red-600' : p.status === 'partial' ? 'text-blue-600' : 'text-amber-600'
-                      }`}>{p.status}</span>
-                    </div>
-                    <div className="text-right">
-                      <span className={`text-xs font-mono font-semibold ${p.status === 'paid' ? 'text-emerald-600' : 'text-[#0A0A0A]'}`}>{fmtAmount(remaining)}</span>
-                      {p.paidAmount > 0 && p.status !== 'paid' && (
-                        <p className="text-[10px] text-[#71717A] font-mono">{fmtAmount(p.paidAmount)} paid</p>
-                      )}
-                    </div>
+              {detail.payables.map((p, i) => (
+                <div key={i} className="flex items-center justify-between gap-2 py-1.5 px-2 bg-[#F8F9FB] rounded-lg">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-[#0A0A0A] truncate">{p.vendor}</p>
+                    <span className={`text-[10px] font-semibold ${
+                      p.status === 'paid' ? 'text-emerald-600' : p.status === 'overdue' ? 'text-red-600' : p.status === 'partial' ? 'text-blue-600' : 'text-amber-600'
+                    }`}>{p.status}</span>
                   </div>
-                );
-              })}
+                  <div className="text-right">
+                    {/* Original billed amount, so the reader sees the size of each invoice */}
+                    <span className="text-xs font-mono font-semibold text-[#0A0A0A]">{fmtAmount(p.amount)}</span>
+                    {p.paidAmount > 0 && (
+                      <p className="text-[10px] text-emerald-600 font-mono">{fmtAmount(p.paidAmount)} paid</p>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -672,6 +721,10 @@ export function BudgetManagement() {
   }, [t]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Delete a project (its budget) straight from this screen — reuses the
+  // guarded type-the-name modal from the Projects screen.
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
 
   // Derived KPIs
   const totalAssigned = useMemo(() => budgets.reduce((s, b) => s + b.totalBudget, 0), [budgets]);
@@ -1169,6 +1222,7 @@ export function BudgetManagement() {
                 onEdit={() => openEdit(budget)}
                 onHistory={() => openHistory(budget)}
                 onClose={() => openClose(budget)}
+                onDelete={() => setDeleteTarget({ id: budget.projectId, name: budget.project })}
               />
             ))}
           </div>
@@ -1176,6 +1230,17 @@ export function BudgetManagement() {
       )}
 
       {renderModals()}
+
+      <DeleteProjectModal
+        project={deleteTarget}
+        open={deleteTarget != null}
+        onClose={() => setDeleteTarget(null)}
+        onDeleted={deletedId => {
+          setDeleteTarget(null);
+          setSelectedBudget(prev => (prev && prev.projectId === deletedId ? null : prev));
+          fetchData();
+        }}
+      />
     </div>
   );
 }

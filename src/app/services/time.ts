@@ -1,6 +1,7 @@
 ﻿// OFJR Construction — Time Tracking Service (real API)
 // Worker time events + assigned‑projects endpoints.
 import { api } from '../lib/api';
+import { drainPages } from '../lib/paging';
 import type { WorkerProject, TimeEventType, LocationStatus, WorkerState, BudgetWarning } from '../types';
 
 // Request / Response types
@@ -31,6 +32,10 @@ export interface TimeRecordResponse {
   workerName: string | null;
   projectId: number;
   projectName: string;
+  /** Geofence center of the project; null when the project has no coordinates configured. */
+  projectLatitude: number | null;
+  projectLongitude: number | null;
+  geofenceRadiusMeters: number;
   workDate: string; // YYYY-MM-DD
   approvalStatus: 'PENDING' | 'APPROVED' | 'OBSERVED' | 'REJECTED';
   /** True when the CHECK_IN was registered after 08:00. */
@@ -45,6 +50,8 @@ export interface TimeRecordResponse {
     lat: number | null;
     lng: number | null;
     locationStatus: string | null;
+    /** Distance from the project center in meters; null when either side lacks coordinates. */
+    distanceMeters: number | null;
     eventApprovalStatus: 'PENDING' | 'APPROVED' | 'OBSERVED' | 'REJECTED';
     eventReviewComment: string | null;
     eventReviewerUsername: string | null;
@@ -63,6 +70,12 @@ export interface TimeRecordResponse {
     disputeResolvedBy?: string | null;
     /** ISO 8601 timestamp when the dispute was resolved. */
     disputeResolvedAt?: string | null;
+    /**
+     * Username of the ADMIN/FINANCE user who manually created this mark on
+     * the worker's behalf; null for organic punches. Manual marks carry no
+     * GPS — clients show a "Manual" badge and no map link.
+     */
+    manualCreatorUsername?: string | null;
   }[];
   reviews: {
     id: number;
@@ -129,10 +142,15 @@ export interface PageResponse<T> {
   totalPages: number;
 }
 
-/** List all time records (admin / supervisor) with optional server-side filters. */
+/**
+ * List all time records (admin / finance) with optional server-side filters.
+ * `role` narrows to WORKER- or SUPERVISOR-owned records (ADMIN only — the
+ * backend forces SUPERVISOR for FINANCE callers regardless of this param).
+ */
 export function getTimeRecords(params?: {
   status?: string;
   projectId?: number;
+  role?: 'WORKER' | 'SUPERVISOR';
   dateFrom?: string;
   dateTo?: string;
   page?: number;
@@ -141,12 +159,31 @@ export function getTimeRecords(params?: {
   const qs = new URLSearchParams();
   if (params?.status)    qs.set('status',    params.status);
   if (params?.projectId) qs.set('projectId', String(params.projectId));
+  if (params?.role)      qs.set('role',      params.role);
   if (params?.dateFrom)  qs.set('dateFrom',  params.dateFrom);
   if (params?.dateTo)    qs.set('dateTo',    params.dateTo);
   if (params?.page != null) qs.set('page', String(params.page));
   if (params?.size != null) qs.set('size', String(params.size));
   const q = qs.toString();
   return api<PageResponse<TimeRecordResponse>>(`/api/v1/time-records${q ? `?${q}` : ''}`);
+}
+
+/**
+ * Every time record matching the filters, across all pages.
+ *
+ * The review screen counts pending approvals and filters in the browser, so a
+ * single page would let older records — the very ones already overdue — go
+ * unseen with nothing on screen to say so. Always pass a date range: the
+ * caller's filters are what bounds this, not a row cap.
+ */
+export function getAllTimeRecords(params?: {
+  status?: string;
+  projectId?: number;
+  role?: 'WORKER' | 'SUPERVISOR';
+  dateFrom?: string;
+  dateTo?: string;
+}): Promise<TimeRecordResponse[]> {
+  return drainPages((page, size) => getTimeRecords({ ...params, page, size }));
 }
 
 /** Get full detail of a single time record. */
@@ -219,7 +256,51 @@ export function getSupervisorTimeRecords(params?: {
   return api<PageResponse<TimeRecordResponse>>(`/api/v1/time-records/supervisor${q ? `?${q}` : ''}`);
 }
 
+/** Every supervisor-scoped time record matching the filters. See getAllTimeRecords. */
+export function getAllSupervisorTimeRecords(params?: {
+  status?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}): Promise<TimeRecordResponse[]> {
+  return drainPages((page, size) => getSupervisorTimeRecords({ ...params, page, size }));
+}
+
 // Out-of-range alerts (supervisor)
+
+/** One flagged punch (OUT_OF_RANGE or UNAVAILABLE) with the coordinates that power maps deep-links. */
+export interface OutOfRangeFlaggedEvent {
+  eventId: number;
+  /** Record the event belongs to (an alert can span multi-shift records). */
+  recordId: number;
+  type: TimeEventType;
+  /** When the worker punched, per the device clock (ISO 8601). */
+  capturedAt: string;
+  /** OUT_OF_RANGE or UNAVAILABLE. */
+  locationStatus: string;
+  lat: number | null;
+  lng: number | null;
+  /** Distance from the project center in meters; null when either side lacks coordinates. */
+  distanceMeters: number | null;
+}
+
+/**
+ * Whether a location alert is an ADMIN setup problem rather than something the
+ * worker did.
+ *
+ * The alerts feed carries every mark whose location was not verified, for three
+ * different reasons. Two of them point at the worker (punched outside the area,
+ * or punched with GPS suppressed). The third — the project having no work area
+ * configured — points at whoever set the project up: the worker punched
+ * normally and there was simply nothing to check against.
+ *
+ * The distinction is strict on purpose. If ANY out-of-range or GPS-less mark is
+ * present, the alert stays a worker alert: the serious signal must not be
+ * softened into "just a configuration detail" because an unconfigured mark
+ * happened to land in the same group.
+ */
+export function isUnconfiguredAreaAlert(alert: OutOfRangeAlertResponse): boolean {
+  return alert.noGeofenceCount > 0 && alert.eventCount === 0 && alert.unavailableCount === 0;
+}
 
 export interface OutOfRangeAlertResponse {
   workerId: number;
@@ -228,10 +309,24 @@ export interface OutOfRangeAlertResponse {
   projectId: number;
   projectName: string;
   recordId: number;
-  /** ISO 8601 timestamp of the first OUT_OF_RANGE event today for this worker/project. */
+  /** ISO 8601 timestamp of the first location-flagged event today for this worker/project. */
   firstOccurredAt: string;
   /** Total number of OUT_OF_RANGE events today for this worker/project. */
   eventCount: number;
+  /** Marks that claimed GPS permission but carried no coordinates (possible GPS suppression). */
+  unavailableCount: number;
+  /**
+   * Marks that could not be checked at all because the project has no work
+   * area configured. Separate axis on purpose: the admin fixes this by
+   * configuring the project — it is not the worker punching somewhere wrong.
+   */
+  noGeofenceCount: number;
+  /** Geofence center of the project; null when the project has no coordinates configured. */
+  projectLatitude: number | null;
+  projectLongitude: number | null;
+  geofenceRadiusMeters: number;
+  /** Every flagged mark today for this worker/project, oldest first. */
+  events: OutOfRangeFlaggedEvent[];
 }
 
 /**
@@ -384,6 +479,8 @@ export interface DailyEntryDetail {
   entryCost?: number | null;
   /** True if this record has been paid. */
   paid?: boolean;
+  /** True if check-in was after the shift threshold (per-day, unlike lateDays). */
+  isLate?: boolean;
 }
 
 export interface WorkerHoursSummary {
@@ -498,13 +595,82 @@ export function confirmPayment(request: ConfirmPaymentRequest): Promise<ConfirmP
 }
 
 /** Get payment history with optional filters. */
-export function getPaymentHistory(params?: {
+export async function getPaymentHistory(params?: {
   workerId?: number;
   projectId?: number;
 }): Promise<LaborPaymentResponse[]> {
   const qs = new URLSearchParams();
   if (params?.workerId) qs.set('workerId', String(params.workerId));
   if (params?.projectId) qs.set('projectId', String(params.projectId));
-  const query = qs.toString();
-  return api<LaborPaymentResponse[]>(`/api/v1/admin/payroll/history${query ? `?${query}` : ''}`);
+  // Backend changed this endpoint from a bare list to a Spring
+  // `Page<LaborPaymentResponse>` ({ content, totalElements, totalPages, … }).
+  // The history modal shows the full (filtered) list with no page controls, so
+  // request a single large page and unwrap `.content` to preserve the previous
+  // "show all" behaviour — otherwise Spring's default page size (20) would
+  // silently truncate the history. Mirrors the size-based "fetch all" idiom
+  // already used elsewhere (e.g. SupervisorApprovals, users service).
+  qs.set('size', '1000');
+  const page = await api<PageResponse<LaborPaymentResponse>>(
+    `/api/v1/admin/payroll/history?${qs.toString()}`,
+  );
+  return page.content;
+}
+
+// Manual time marks (ADMIN/FINANCE create marks on a worker's/supervisor's behalf)
+
+export interface ManualMarkInput {
+  type: TimeEventType;
+  capturedAt: string; // ISO 8601
+}
+
+export interface ManualMarkContextResponse {
+  userId: number;
+  date: string; // YYYY-MM-DD
+  /**
+   * True when the date is covered by an already-confirmed labor payment for
+   * this user. Creating marks is still allowed (incremental re-payment is
+   * supported by design) — the UI shows a yellow warning.
+   */
+  paidPeriod: boolean;
+  records: {
+    recordId: number;
+    projectId: number;
+    projectName: string;
+    approvalStatus: 'PENDING' | 'APPROVED' | 'OBSERVED' | 'REJECTED' | 'AUTO_REJECTED';
+    /** True when this record itself was already paid — no more marks can be added to it. */
+    paid: boolean;
+    /** Mark types already present on the record (a manual mark of the same type cannot be added). */
+    presentTypes: TimeEventType[];
+  }[];
+  /** ACTIVE projects the subject is assigned to — the valid targets for a manual day. */
+  assignedProjects: { id: number; name: string }[];
+}
+
+/** Context for the manual-marks UI: paid-period flag + the user's existing records for a date. */
+export function getManualMarkContext(userId: number, date: string): Promise<ManualMarkContextResponse> {
+  const qs = new URLSearchParams();
+  qs.set('userId', String(userId));
+  qs.set('date', date);
+  return api<ManualMarkContextResponse>(`/api/v1/time-records/manual/context?${qs.toString()}`);
+}
+
+/** Create a full day (record + marks) from scratch. Marks are born PENDING. */
+export function createManualRecord(request: {
+  userId: number;
+  projectId: number;
+  workDate: string; // YYYY-MM-DD
+  marks: ManualMarkInput[];
+}): Promise<TimeRecordResponse> {
+  return api<TimeRecordResponse>('/api/v1/time-records/manual', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
+}
+
+/** Add missing marks to an existing record. Reopens machine-closed records. */
+export function addManualMarks(recordId: number, marks: ManualMarkInput[]): Promise<TimeRecordResponse> {
+  return api<TimeRecordResponse>(`/api/v1/time-records/${recordId}/events/manual`, {
+    method: 'POST',
+    body: JSON.stringify({ marks }),
+  });
 }

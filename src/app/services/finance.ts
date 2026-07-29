@@ -1,6 +1,7 @@
 // OFJR Construction — Finance API Service (Payables & Receivables)
 
-import { api } from '../lib/api';
+import { api, apiMultipart, getBaseUrl } from '../lib/api';
+import { drainPages } from '../lib/paging';
 import type { BudgetWarning } from '../types';
 
 // ── Shared ────���─────────────────────────────────────
@@ -22,6 +23,7 @@ function qs(params: Record<string, string | number | null | undefined>): string 
   return s ? `?${s}` : '';
 }
 
+
 // ── Payables (Accounts Payable) ─────────────────────
 
 export interface PayablePayment {
@@ -31,7 +33,13 @@ export interface PayablePayment {
   method: string;
   reference?: string;
   approvedBy?: string;
+  voided?: boolean;
+  voidedAt?: string | null;
+  voidedBy?: string | null;
+  voidReason?: string | null;
 }
+
+export type PayableDocumentType = 'BILL' | 'INVOICE';
 
 export interface Payable {
   id: number;
@@ -41,6 +49,10 @@ export interface Payable {
   project: string;
   projectId: number;
   description: string | null;
+  /** AP Block 2 — "BILL" (cuenta) or "INVOICE" (factura). */
+  documentType: PayableDocumentType;
+  /** AP Block 2 — supplier invoice number; null until promoted to an invoice. */
+  invoiceNumber: string | null;
   receivedDate: string;
   dueDate: string;
   amount: number;
@@ -59,10 +71,28 @@ export function listPayables(params?: {
   vendor?: string;
   status?: string;
   category?: string;
+  /** AP Block 4 — server-side filter by project. */
+  projectId?: number;
   page?: number;
   size?: number;
 }): Promise<PageResponse<Payable>> {
   return api<PageResponse<Payable>>(`${PAYABLES}${qs({ ...params })}`);
+}
+
+/**
+ * Every payable matching the filters, across all pages.
+ *
+ * Use this instead of listPayables wherever the caller totals or filters the
+ * result in the browser. Pass whatever the server can filter on — projectId
+ * above all — so the sweep stays to a single request.
+ */
+export function listAllPayables(params?: {
+  vendor?: string;
+  status?: string;
+  category?: string;
+  projectId?: number;
+}): Promise<Payable[]> {
+  return drainPages((page, size) => listPayables({ ...params, page, size }));
 }
 
 export function getPayable(id: number): Promise<Payable> {
@@ -109,6 +139,132 @@ export function recordPayablePayment(id: number, data: {
 
 export function listPayableVendors(): Promise<string[]> {
   return api<string[]>(`${PAYABLES}/vendors`);
+}
+
+/** Correct the total amount of a bill. Cannot drop below what is already paid. */
+export function updatePayableAmount(id: number, data: { amount: number; reason?: string }): Promise<Payable> {
+  const { amount, ...rest } = data;
+  return api<Payable>(`${PAYABLES}/${id}/amount`, {
+    method: 'PATCH',
+    body: JSON.stringify({ ...rest, amountCents: toCents(amount) }),
+  });
+}
+
+/** Mark a bill as unpaid: voids all active payments (kept in history) and restores the project budget. */
+export function markPayableUnpaid(id: number, reason?: string): Promise<Payable> {
+  return api<Payable>(`${PAYABLES}/${id}/unpay`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  });
+}
+
+/** Void a single payment (kept in history) and restore the project budget. */
+export function voidPayablePayment(id: number, paymentId: number, reason?: string): Promise<Payable> {
+  return api<Payable>(`${PAYABLES}/${id}/payments/${paymentId}/void`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  });
+}
+
+/**
+ * AP Block 3 — edit an active payment's method and/or date. Metadata only: the
+ * amount is changed by voiding + re-recording (this never moves the budget).
+ * Partial: omit a field to leave it unchanged. `method` is free text (the UI
+ * offers "Credit card" and a typed-in "Other"). A voided payment cannot be
+ * edited (409).
+ */
+export function updatePayablePayment(id: number, paymentId: number, data: {
+  method?: string;
+  date?: string;
+}): Promise<Payable> {
+  return api<Payable>(`${PAYABLES}/${id}/payments/${paymentId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+/** AP Block 2 — promote a bill (cuenta) to an invoice (factura) by assigning its invoice number. */
+export function convertPayableToInvoice(id: number, invoiceNumber: string): Promise<Payable> {
+  return api<Payable>(`${PAYABLES}/${id}/convert-to-invoice`, {
+    method: 'PATCH',
+    body: JSON.stringify({ invoiceNumber }),
+  });
+}
+
+/** AP Block 2 — correct a bill's received / due dates (dueDate must be >= receivedDate). */
+export function updatePayableDates(id: number, data: { receivedDate: string; dueDate: string }): Promise<Payable> {
+  return api<Payable>(`${PAYABLES}/${id}/dates`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * AP Block 5 — edit a bill/invoice's general info after creation: vendor,
+ * category, description, notes, and (for invoices) the supplier invoice number.
+ * Partial: omit a field to leave it unchanged. invoiceNumber stays unique per
+ * vendor among active bills; setting it on a plain BILL is rejected (convert
+ * first). billNumber (cuenta) is not editable.
+ */
+export function updatePayableInfo(id: number, data: {
+  vendor?: string;
+  category?: string;
+  description?: string | null;
+  notes?: string | null;
+  invoiceNumber?: string;
+}): Promise<Payable> {
+  return api<Payable>(`${PAYABLES}/${id}/info`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+/** AP Block 2 — soft-delete a bill / invoice. Blocked (409) while it has active payments. */
+export function deletePayable(id: number): Promise<void> {
+  return api<void>(`${PAYABLES}/${id}`, { method: 'DELETE' });
+}
+
+/**
+ * AP Block 4 — reassign a bill / invoice to another project.
+ * Blocked (409 PAYABLE_HAS_ACTIVE_PAYMENTS) while it has active payments:
+ * void them first (the budget returns to the source project), then reassign.
+ */
+export function reassignPayableProject(id: number, projectId: number): Promise<Payable> {
+  return api<Payable>(`${PAYABLES}/${id}/project`, {
+    method: 'PATCH',
+    body: JSON.stringify({ projectId }),
+  });
+}
+
+// ── Payable photo attachments (bytes in object storage) ──
+
+export interface PayableAttachmentResponse {
+  id: number;
+  payableId: number;
+  contentType: string;
+  originalName: string | null;
+  sizeBytes: number;
+  uploadedBy: string | null;
+  createdAt: string;
+}
+
+export function listPayableAttachments(payableId: number): Promise<PayableAttachmentResponse[]> {
+  return api<PayableAttachmentResponse[]>(`${PAYABLES}/${payableId}/attachments`);
+}
+
+export function uploadPayableAttachment(payableId: number, file: File): Promise<PayableAttachmentResponse> {
+  const form = new FormData();
+  form.append('file', file);
+  return apiMultipart<PayableAttachmentResponse>(`${PAYABLES}/${payableId}/attachments`, 'POST', form);
+}
+
+/** Authenticated download URL — consumed by AuthImage (blob fetch with the session cookie). */
+export function payableAttachmentUrl(payableId: number, attachmentId: number): string {
+  return `${getBaseUrl()}${PAYABLES}/${payableId}/attachments/${attachmentId}/file`;
+}
+
+export function deletePayableAttachment(payableId: number, attachmentId: number): Promise<void> {
+  return api<void>(`${PAYABLES}/${payableId}/attachments/${attachmentId}`, { method: 'DELETE' });
 }
 
 // ── Receivables (Accounts Receivable) ───────────────
@@ -173,6 +329,17 @@ export function listReceivables(params?: {
   return api<PageResponse<Receivable>>(`${RECEIVABLES}${qs({ ...params })}`);
 }
 
+/** Every receivable matching the filters, across all pages. See drainPages. */
+export function listAllReceivables(params?: {
+  projectId?: number;
+  status?: string;
+  documentType?: string;
+  issuedFrom?: string;
+  issuedTo?: string;
+}): Promise<Receivable[]> {
+  return drainPages((page, size) => listReceivables({ ...params, page, size }));
+}
+
 export function getReceivable(id: number): Promise<Receivable> {
   return api<Receivable>(`${RECEIVABLES}/${id}`);
 }
@@ -221,4 +388,33 @@ export function approveChangeOrder(id: number): Promise<Receivable> {
   return api<Receivable>(`${RECEIVABLES}/${id}/approve`, {
     method: 'POST',
   });
+}
+
+/**
+ * V88 — edit an AR document's info: invoice/CO number, client, description,
+ * dates, notes. Partial: omit a field to leave it unchanged. The number stays
+ * unique among the tenant's active documents. Amounts are not editable —
+ * delete and re-create while the document has no payments.
+ */
+export function updateReceivableInfo(id: number, data: {
+  invoiceNumber?: string;
+  client?: string;
+  description?: string | null;
+  issuedDate?: string;
+  dueDate?: string;
+  notes?: string | null;
+}): Promise<Receivable> {
+  return api<Receivable>(`${RECEIVABLES}/${id}/info`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * V88 — soft-delete an AR document. Blocked (409 RECEIVABLE_HAS_PAYMENTS)
+ * while it has recorded payments. A deleted approved change order frees the
+ * contract headroom it occupied.
+ */
+export function deleteReceivable(id: number): Promise<void> {
+  return api<void>(`${RECEIVABLES}/${id}`, { method: 'DELETE' });
 }

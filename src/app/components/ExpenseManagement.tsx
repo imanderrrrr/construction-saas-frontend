@@ -118,6 +118,15 @@ const STATUS_KEY_MAP: Record<ExpenseStatus, string> = {
   Rejected: 'common:status.rejected',
 };
 
+// Styling for the reviewer's note, per status. Pending is absent: it has no
+// reviewer yet. Approved carries the optional note from the approve dialog,
+// which is why it reads emerald rather than the amber/red of a problem.
+const REVIEW_NOTE_CFG: Partial<Record<ExpenseStatus, { box: string; title: string; body: string; labelKey: string }>> = {
+  Approved: { box: 'bg-emerald-50 border-emerald-200', title: 'text-emerald-800', body: 'text-emerald-700', labelKey: 'admin:expenseMgmt.detail.approvalNote' },
+  Observed: { box: 'bg-amber-50 border-amber-200',     title: 'text-amber-800',   body: 'text-amber-700',   labelKey: 'admin:expenseMgmt.detail.observation'  },
+  Rejected: { box: 'bg-red-50 border-red-200',         title: 'text-red-800',     body: 'text-red-700',     labelKey: 'admin:expenseMgmt.detail.rejection'    },
+};
+
 function StatusBadge({ status }: { status: ExpenseStatus }) {
   const { t } = useTranslation(['common']);
   const c = STATUS_CFG[status];
@@ -190,6 +199,7 @@ function DetailPanel({ expense, onApprove, onObserve, onReject, onViewReceipt }:
 }) {
   const { t, i18n } = useTranslation(['admin', 'common']);
   const typeCfg = TYPE_CFG[expense.type] ?? { labelKey: expense.type, shortLabelKey: expense.type, icon: MoreHorizontal };
+  const noteCfg = REVIEW_NOTE_CFG[expense.status];
   return (
     <div className="bg-[#FAFAFA] rounded-xl border border-[#D4D4D8] p-4 space-y-4">
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -211,12 +221,12 @@ function DetailPanel({ expense, onApprove, onObserve, onReject, onViewReceipt }:
       <button onClick={onViewReceipt} className="flex items-center gap-1.5 text-xs font-medium text-[#F97316] hover:text-[#C2410C] transition-colors">
         <ImageIcon className="w-3.5 h-3.5" />{t('admin:expenseMgmt.detail.viewReceipt')}
       </button>
-      {(expense.status === 'Observed' || expense.status === 'Rejected') && expense.reviewerComment && (
-        <div className={`rounded-xl border p-3 ${expense.status === 'Observed' ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200'}`}>
-          <p className={`text-xs font-semibold mb-0.5 ${expense.status === 'Observed' ? 'text-amber-800' : 'text-red-800'}`}>
-            {expense.status === 'Observed' ? t('admin:expenseMgmt.detail.observation') : t('admin:expenseMgmt.detail.rejection')} — {expense.reviewerName}
+      {noteCfg && expense.reviewerComment && (
+        <div className={`rounded-xl border p-3 ${noteCfg.box}`}>
+          <p className={`text-xs font-semibold mb-0.5 ${noteCfg.title}`}>
+            {t(noteCfg.labelKey)} — {expense.reviewerName}
           </p>
-          <p className={`text-[11px] ${expense.status === 'Observed' ? 'text-amber-700' : 'text-red-700'}`}>{expense.reviewerComment}</p>
+          <p className={`text-[11px] ${noteCfg.body}`}>{expense.reviewerComment}</p>
         </div>
       )}
       {expense.status === 'Pending' && (
@@ -563,7 +573,7 @@ export function ExpenseManagement() {
   async function handleApproveConfirm() {
     if (!approveTarget) return;
     try {
-      const result = await approveExpense(Number(approveTarget.id), 'admin');
+      const result = await approveExpense(Number(approveTarget.id), 'admin', approveNote);
       toast.success(t('admin:expenseMgmt.approve.toastSuccess', { amount: fmtAmount(approveTarget.amount), worker: approveTarget.workerName }));
       if (result.budgetWarning) {
         const w = result.budgetWarning;
@@ -890,7 +900,7 @@ export function ExpenseManagement() {
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-[#0A0A0A]">{t('admin:expenseMgmt.approve.noteLabel')}</label>
-                <Textarea value={approveNote} onChange={e => setApproveNote(e.target.value)}
+                <Textarea value={approveNote} onChange={e => setApproveNote(e.target.value)} maxLength={500}
                   placeholder={t('admin:expenseMgmt.approve.notePlaceholder')} className="resize-none text-sm border-[#D4D4D8] min-h-[72px]" rows={3} />
               </div>
             </div>

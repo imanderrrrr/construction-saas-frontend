@@ -108,6 +108,10 @@ const ANONYMOUS_ENDPOINTS = [
   '/auth/password-reset/request',
   '/auth/password-reset/confirm',
   '/auth/invitations/',
+  // Client portal (public read-only site-log view): auth is the portal token,
+  // not a user session. A 401/410 here must render inline on the public page,
+  // never bounce the visitor to /?session=expired.
+  '/client-view/',
 ];
 
 function isAuthEndpoint(endpoint: string): boolean {
