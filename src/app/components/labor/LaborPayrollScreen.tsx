@@ -115,7 +115,7 @@ export function LaborPayrollScreen({ onNavigate }: { onNavigate: (section: strin
       />
 
       {/* Indicators */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 bg-white border border-[#E4E4E7]">
+      <div className="grid grid-cols-1 sm:grid-cols-3 bg-white border border-[#E4E4E7]" data-tour="sec.labor-payroll.kpis">
         <div className="p-4 md:px-5 sm:border-r border-[#EDE7DB]">
           <div className="flex items-baseline">
             <span className="font-bt-display font-bold text-2xl text-[#8A8175] self-start mt-1">$</span>
@@ -140,6 +140,7 @@ export function LaborPayrollScreen({ onNavigate }: { onNavigate: (section: strin
       </div>
 
       <LaborFilters
+        tourAnchor="sec.labor-payroll.filters"
         q={q} onQ={setQ} range={range} onRange={setRange}
         project={project} onProject={setProject} projects={projects}
         chips={chips} onClear={() => { setQ(''); setProject(''); setStatus(''); setRange('week'); }}
@@ -154,7 +155,7 @@ export function LaborPayrollScreen({ onNavigate }: { onNavigate: (section: strin
       />
 
       {/* List */}
-      <div className="bg-white border border-[#E4E4E7] min-h-[320px]">
+      <div className="bg-white border border-[#E4E4E7] min-h-[320px]" data-tour="sec.labor-payroll.list">
         {loading ? <LaborSkeleton /> : error ? (
           <div className="py-16 text-center">
             <p className="text-sm text-[#71717A]">{t('admin:lab.error')}</p>

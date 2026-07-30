@@ -315,7 +315,7 @@ export function OfficeExpenses() {
     <div className="space-y-6 max-w-6xl">
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4" data-tour="sec.office-expenses.kpis">
         <StatCard
           icon={Building2}
           title={t('admin:officeExpense.kpi.totalExpenses')}
@@ -336,7 +336,7 @@ export function OfficeExpenses() {
 
       {/* Filters + actions */}
       <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-6 py-4 border-b border-[#D4D4D8]">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-6 py-4 border-b border-[#D4D4D8]" data-tour="sec.office-expenses.new-expense">
           <div className="flex items-center gap-2">
             <Building2 className="w-4 h-4 text-[#71717A]" />
             <span className="text-sm font-semibold text-[#0A0A0A]">
@@ -357,7 +357,7 @@ export function OfficeExpenses() {
         </div>
 
         {/* Filter row */}
-        <div className="flex flex-wrap items-center gap-3 px-6 py-3 bg-[#FAFAFA]/50 border-b border-[#D4D4D8]/50">
+        <div className="flex flex-wrap items-center gap-3 px-6 py-3 bg-[#FAFAFA]/50 border-b border-[#D4D4D8]/50" data-tour="sec.office-expenses.filters">
           <div className="relative flex-1 min-w-[180px] max-w-xs">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#71717A]" />
             <input

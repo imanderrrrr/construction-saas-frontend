@@ -116,7 +116,7 @@ export function LaborCostScreen({ onNavigate }: { onNavigate: (section: string) 
       />
 
       {/* Indicators */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 bg-white border border-[#E4E4E7]">
+      <div className="grid grid-cols-1 sm:grid-cols-3 bg-white border border-[#E4E4E7]" data-tour="sec.labor-cost.kpis">
         <div className="p-4 md:px-5 sm:border-r border-[#EDE7DB]">
           <div className="flex items-baseline">
             <span className="font-bt-display font-bold text-2xl text-[#8A8175] self-start mt-1">$</span>
@@ -186,13 +186,14 @@ export function LaborCostScreen({ onNavigate }: { onNavigate: (section: string) 
       )}
 
       <LaborFilters
+        tourAnchor="sec.labor-cost.filters"
         q={q} onQ={setQ} range={range} onRange={setRange}
         project={project} onProject={setProject} projects={projects}
         chips={chips} onClear={() => { setQ(''); setProject(''); setRange('week'); }}
       />
 
       {/* List */}
-      <div className="bg-white border border-[#E4E4E7] min-h-[300px]">
+      <div className="bg-white border border-[#E4E4E7] min-h-[300px]" data-tour="sec.labor-cost.list">
         {loading ? <LaborSkeleton /> : error ? (
           <div className="py-16 text-center">
             <p className="text-sm text-[#71717A]">{t('admin:lab.error')}</p>

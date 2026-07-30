@@ -1185,7 +1185,7 @@ export function BudgetManagement() {
     <div className="space-y-6 max-w-6xl">
 
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-4" data-tour="sec.budgets.header">
         <div>
           <h2 className="text-sm font-semibold text-[#0A0A0A]">{t('admin:budgetMgmt.title')}</h2>
           <p className="text-[11px] text-[#71717A] mt-0.5">{t('admin:budgetMgmt.subtitle')}</p>
@@ -1194,7 +1194,7 @@ export function BudgetManagement() {
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" data-tour="sec.budgets.kpis">
         <StatCard icon={Wallet}      title={t('admin:budgetMgmt.kpi.totalBudgets')}   value={budgets.length.toString()}        subtitle={t('admin:budgetMgmt.kpi.allProjects')}        iconBgColor="bg-[#F97316]/10"  iconColor="text-[#F97316]"   />
         <StatCard icon={DollarSign}  title={t('admin:budgetMgmt.kpi.totalAssigned')}  value={fmtAmount(totalAssigned)}         subtitle={t('admin:budgetMgmt.kpi.budgetAllocated')}    iconBgColor="bg-emerald-50"    iconColor="text-emerald-600" />
         <StatCard icon={TrendingDown}title={t('admin:budgetMgmt.kpi.totalConsumed')}  value={fmtAmount(totalConsumed)}         subtitle={t('admin:budgetMgmt.kpi.approvedExpenses')}   iconBgColor="bg-amber-50"      iconColor="text-amber-600"   />
