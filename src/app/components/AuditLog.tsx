@@ -222,7 +222,7 @@ export function AuditLog() {
       </div>
 
       {/* Indicators */}
-      <div className="grid grid-cols-3 bg-white border border-[#E4E4E7]">
+      <div className="grid grid-cols-3 bg-white border border-[#E4E4E7]" data-tour="sec.audit.kpis">
         {[
           { n: stats?.access, label: t('admin:audit.stat.access'), alert: false },
           { n: stats?.alerts, label: t('admin:audit.stat.alerts'), alert: (stats?.alerts ?? 0) > 0 },
@@ -241,7 +241,7 @@ export function AuditLog() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white border border-[#E4E4E7] p-3.5">
+      <div className="bg-white border border-[#E4E4E7] p-3.5" data-tour="sec.audit.filters">
         <div className="flex flex-wrap items-center gap-2.5">
           <Mono className="text-[10px] text-[#8A8175]">{t('admin:audit.f.filter')}</Mono>
           <SelectF value={filters.period} onChange={v => setF('period', v as Filters['period'])}
@@ -273,7 +273,7 @@ export function AuditLog() {
       </div>
 
       {/* List */}
-      <div className="bg-white border border-[#E4E4E7] min-h-[320px]">
+      <div className="bg-white border border-[#E4E4E7] min-h-[320px]" data-tour="sec.audit.list">
         {loading ? (
           <div className="py-2">
             {[0, 1, 2, 3, 4, 5].map(i => (

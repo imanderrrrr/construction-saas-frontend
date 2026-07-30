@@ -211,7 +211,7 @@ export function ProjectManagement() {
     <>
       <div className="space-y-6">
         {/* Page header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4" data-tour="sec.projects.create">
           <div>
             <h2 className="text-2xl font-bold text-[#0A0A0A]">{t('admin:projectMgmt.title')}</h2>
             <p className="text-sm text-[#71717A] mt-1">{t('admin:projectMgmt.subtitle')}</p>
@@ -223,7 +223,7 @@ export function ProjectManagement() {
         </div>
 
         {/* Search & Filters */}
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex flex-col sm:flex-row gap-3" data-tour="sec.projects.filters">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#71717A]" />
             <Input value={search} onChange={e => { setSearch(e.target.value); }}
@@ -245,7 +245,7 @@ export function ProjectManagement() {
         </div>
 
         {/* Table container */}
-        <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden">
+        <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden" data-tour="sec.projects.table">
           {/* Toolbar */}
           <div className="px-6 py-4 border-b border-[#D4D4D8] flex items-center justify-between">
             <div>
