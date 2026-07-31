@@ -266,7 +266,7 @@ export function ToolReport() {
     <div className="space-y-6 max-w-5xl">
 
       {/* Header */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+      <div className="flex items-center justify-between gap-4 flex-wrap" data-tour="sec.tool-report.export">
         <div>
           <h2 className="text-sm font-semibold text-[#0A0A0A]">{t('admin:toolReport.title')}</h2>
           <p className="text-[11px] text-[#71717A] mt-0.5">{t('admin:toolReport.subtitle')}</p>
@@ -289,7 +289,7 @@ export function ToolReport() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-[#D4D4D8] p-4">
+      <div className="bg-white rounded-xl border border-[#D4D4D8] p-4" data-tour="sec.tool-report.filters">
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col gap-1.5 min-w-[160px]">
             <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide">{t('admin:toolReport.byCategory.table.category')}</label>
@@ -324,7 +324,7 @@ export function ToolReport() {
       ) : (
         <>
           {/* KPI cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" data-tour="sec.tool-report.kpis">
             <StatCard icon={TrendingUp}    title={t('admin:toolReport.kpi.utilization')}    value={`${utilizationPct}%`}                                                subtitle={t('admin:toolReport.kpi.utilizationSub', { count: assignedCount, total: totalTools })} iconBgColor="bg-[#F97316]/10" iconColor="text-[#F97316]"   />
             <StatCard icon={Clock}         title={t('admin:toolReport.kpi.avgDaysOut')}     value={`${avgDaysOut} days`}                                                subtitle={t('admin:toolReport.kpi.perTool')}                                                    iconBgColor="bg-amber-50"     iconColor="text-amber-600"   />
             <StatCard icon={AlertTriangle} title={t('admin:toolReport.kpi.needsAttention')} value={needsAttention.toString()}                                           subtitle={t('admin:toolReport.kpi.damagedLost')}                                                iconBgColor="bg-red-50"       iconColor="text-red-600"     />
@@ -332,7 +332,7 @@ export function ToolReport() {
           </div>
 
           {/* Table: Tools by Status */}
-          <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden">
+          <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden" data-tour="sec.tool-report.by-status">
             <div className="px-6 py-4 border-b border-[#D4D4D8]">
               <h3 className="text-sm font-semibold text-[#0A0A0A]">{t('admin:toolReport.byStatus.title')}</h3>
               <p className="text-xs text-[#71717A] mt-0.5">{t('admin:toolReport.byStatus.subtitle', { count: totalTools })}</p>

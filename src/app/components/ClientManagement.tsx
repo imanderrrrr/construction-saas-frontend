@@ -508,7 +508,7 @@ export function ClientManagement() {
     return (
         <div className="space-y-6">
             {/* Page header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3" data-tour="sec.clients.add-client">
                 <div>
                     <h1 className="text-xl font-bold text-[#0A0A0A]">{t('clients.title')}</h1>
                     <p className="text-sm text-[#71717A] mt-0.5">{t('clients.subtitle')}</p>
@@ -523,7 +523,7 @@ export function ClientManagement() {
             </div>
 
             {/* Search */}
-            <div className="relative">
+            <div className="relative" data-tour="sec.clients.search">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#71717A]" />
                 <Input
                     value={search}

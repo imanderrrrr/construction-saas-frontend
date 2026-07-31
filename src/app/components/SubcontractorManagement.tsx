@@ -301,7 +301,7 @@ export function SubcontractorManagement() {
     <div className="space-y-6 max-w-6xl">
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-white rounded-xl border border-[#D4D4D8] p-1 w-fit">
+      <div className="flex gap-1 bg-white rounded-xl border border-[#D4D4D8] p-1 w-fit" data-tour="sec.subcontractors.tabs">
         <button
           onClick={() => setActiveTab('jobs')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'jobs' ? 'bg-[#F97316] text-white' : 'text-[#71717A] hover:bg-[#FAFAFA]'}`}
@@ -320,7 +320,7 @@ export function SubcontractorManagement() {
       {activeTab === 'jobs' && (
         <>
           {/* KPIs */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4" data-tour="sec.subcontractors.job-kpis">
             <StatCard icon={Briefcase} title={t('subcontractors:kpi.totalJobs')} value={jobKpis.total} subtitle={t('subcontractors:kpi.allAssigned')} iconBgColor="bg-blue-50" iconColor="text-blue-600" isLoading={jobsLoading} />
             <StatCard icon={Clock} title={t('subcontractors:kpi.inProgress')} value={jobKpis.inProgress} subtitle={t('subcontractors:kpi.activeWork')} iconBgColor="bg-amber-50" iconColor="text-amber-600" isLoading={jobsLoading} />
             <StatCard icon={Eye} title={t('subcontractors:kpi.inReview')} value={jobKpis.inReview} subtitle={t('subcontractors:kpi.pendingReview')} iconBgColor="bg-purple-50" iconColor="text-purple-600" isLoading={jobsLoading} />
@@ -329,7 +329,7 @@ export function SubcontractorManagement() {
           </div>
 
           {/* Filters + CTA */}
-          <div className="bg-white rounded-xl border border-[#D4D4D8] p-4">
+          <div className="bg-white rounded-xl border border-[#D4D4D8] p-4" data-tour="sec.subcontractors.job-filters">
             <div className="flex flex-wrap items-end gap-3">
               <div className="flex-1 min-w-[200px]">
                 <div className="relative">
@@ -361,7 +361,7 @@ export function SubcontractorManagement() {
           </div>
 
           {/* Jobs Table */}
-          <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden">
+          <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden" data-tour="sec.subcontractors.jobs-table">
             {jobsLoading ? (
               <div className="animate-pulse h-64" />
             ) : jobsLoadError ? (

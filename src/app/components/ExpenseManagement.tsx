@@ -651,7 +651,7 @@ export function ExpenseManagement() {
           <h2 className="text-sm font-semibold text-[#0A0A0A]">{t('admin:expenseMgmt.title')}</h2>
           <p className="text-[11px] text-[#71717A] mt-0.5">{t('admin:expenseMgmt.subtitle')}</p>
         </div>
-        <Button onClick={() => setShowBatch(true)} disabled={pendingExpenses.length === 0}
+        <Button data-tour="sec.expenses.approve-all" onClick={() => setShowBatch(true)} disabled={pendingExpenses.length === 0}
           className="bg-emerald-600 hover:bg-emerald-700 text-white h-9 px-4 text-xs gap-2 flex-shrink-0 disabled:opacity-50">
           <CheckCircle className="w-3.5 h-3.5" />{t('admin:expenseMgmt.approveAllPending')}
           {pendingExpenses.length > 0 && (
@@ -661,7 +661,7 @@ export function ExpenseManagement() {
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4" data-tour="sec.expenses.kpis">
         <StatCard icon={Receipt}       title={t('admin:expenseMgmt.kpi.totalTitle')}    value={kpiTotal}    subtitle={t('admin:expenseMgmt.kpi.totalSub')}         iconBgColor="bg-[#F97316]/10" iconColor="text-[#F97316]"    />
         <StatCard icon={DollarSign}    title={t('admin:expenseMgmt.kpi.amountTitle')}      value={kpiAmount}   subtitle={t('admin:expenseMgmt.kpi.amountSub')}      iconBgColor="bg-emerald-50"   iconColor="text-emerald-600"  />
         <StatCard icon={Clock}         title={t('admin:expenseMgmt.kpi.pendingTitle')}           value={kpiPending}  subtitle={t('admin:expenseMgmt.kpi.pendingSub')}   iconBgColor="bg-amber-50"     iconColor="text-amber-600"    />
@@ -670,7 +670,7 @@ export function ExpenseManagement() {
       </div>
 
       {/* Filter bar */}
-      <div className="bg-white rounded-xl border border-[#D4D4D8] p-5">
+      <div className="bg-white rounded-xl border border-[#D4D4D8] p-5" data-tour="sec.expenses.filters">
         <div className="flex items-center gap-2 mb-4">
           <FilterIcon className="w-4 h-4 text-[#71717A]" />
           <span className="text-sm font-semibold text-[#0A0A0A]">{t('admin:expenseMgmt.filters.title')}</span>
@@ -748,7 +748,7 @@ export function ExpenseManagement() {
       </div>
 
       {/* Table card */}
-      <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden">
+      <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden" data-tour="sec.expenses.table">
         <div className="flex items-center gap-2 px-6 py-4 border-b border-[#D4D4D8]">
           <Receipt className="w-4 h-4 text-[#71717A]" />
           <span className="text-sm font-semibold text-[#0A0A0A]">{t('admin:expenseMgmt.table.title')}</span>

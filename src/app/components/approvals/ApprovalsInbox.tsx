@@ -196,7 +196,7 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
       </div>
 
       {/* Indicators */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 bg-white border border-[#E4E4E7]">
+      <div className="grid grid-cols-1 sm:grid-cols-3 bg-white border border-[#E4E4E7]" data-tour="sec.time-approvals.kpis">
         <div className="p-4 md:px-5 sm:border-r border-[#EDE7DB]">
           <div className="font-bt-display font-bold text-3xl md:text-4xl leading-none text-[#0A0A0A]">{pendingCount}</div>
           <Mono className="block text-[10.5px] text-[#5A5346] mt-1.5">{t('admin:apr.ind.pending')}</Mono>
@@ -220,7 +220,7 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
       </div>
 
       {/* Filters */}
-      <div className="bg-white border border-[#E4E4E7] p-3.5">
+      <div className="bg-white border border-[#E4E4E7] p-3.5" data-tour="sec.time-approvals.filters">
         <div className="flex flex-wrap items-center gap-2.5">
           <div className="relative flex-1 min-w-[190px] max-w-[280px]">
             <Search className="w-3.5 h-3.5 text-[#A69C8D] absolute left-3 top-1/2 -translate-y-1/2" />
@@ -271,7 +271,7 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
       )}
 
       {/* Queue */}
-      <div className="bg-white border border-[#E4E4E7] min-h-[340px]">
+      <div className="bg-white border border-[#E4E4E7] min-h-[340px]" data-tour="sec.time-approvals.queue">
         {loading ? (
           <div className="py-1.5">
             {[0, 1, 2, 3, 4].map(i => (
