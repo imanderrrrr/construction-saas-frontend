@@ -13,7 +13,7 @@ import {
   CreditCard, FileSignature, HelpCircle, Star,
 } from 'lucide-react';
 import { OnboardingTour } from '../components/onboarding/OnboardingTour';
-import { SectionIntro } from '../components/onboarding/SectionIntro';
+import { SectionTour } from '../components/onboarding/SectionTour';
 import { BillingSection } from '../components/BillingSection';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -553,7 +553,7 @@ export function AdminDashboard() {
 
         {/* Content area */}
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
-          <SectionIntro section={activeSection} username={username} replayNonce={introReplay} />
+          <SectionTour section={activeSection} username={username} replayNonce={introReplay} />
           {activeSection === 'dashboard'    && <DashboardContent onNavigate={handleNavigate} />}
           {activeSection === 'billing'      && <BillingSection />}
           {activeSection === 'users'        && <UsersRoster />}

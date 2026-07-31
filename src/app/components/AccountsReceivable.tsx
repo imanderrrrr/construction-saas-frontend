@@ -604,7 +604,7 @@ export function AccountsReceivable() {
       )}
 
       {/* KPI cards — computed from state */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" data-tour="sec.accounts-receivable.kpis">
         <StatCard icon={Receipt}        title={t('finance:receivable.kpi.totalReceivable')}     value={fmtAmount(kpis.totalReceivable)}   subtitle={t('finance:receivable.kpi.allInvoices')}                                           iconBgColor="bg-purple-50"  iconColor="text-purple-600" />
         <StatCard icon={DollarSign}     title={t('finance:receivable.kpi.collectedThisMonth')} value={fmtAmount(kpis.collectedThisMonth)} subtitle={collectedMonthLabel}                                           iconBgColor="bg-emerald-50" iconColor="text-emerald-600" />
         <StatCard icon={Clock}          title={t('finance:receivable.kpi.pending')}              value={fmtAmount(kpis.pendingTotal)}       subtitle={t('finance:receivable.invoiceCount', { count: kpis.pendingCount })} iconBgColor="bg-amber-50"   iconColor="text-amber-600" />
@@ -612,7 +612,7 @@ export function AccountsReceivable() {
       </div>
 
       {/* Filter bar */}
-      <div className="bg-white rounded-xl border border-[#D4D4D8] p-5">
+      <div className="bg-white rounded-xl border border-[#D4D4D8] p-5" data-tour="sec.accounts-receivable.filters">
         <div className="flex items-center gap-2 mb-4">
           <Filter className="w-4 h-4 text-[#71717A]" />
           <span className="text-sm font-semibold text-[#0A0A0A]">{t('common:buttons.filters')}</span>
@@ -662,7 +662,7 @@ export function AccountsReceivable() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden">
+      <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden" data-tour="sec.accounts-receivable.table">
         <div className="flex items-center gap-2 px-6 py-4 border-b border-[#D4D4D8]">
           <Receipt className="w-4 h-4 text-[#71717A]" />
           <span className="text-sm font-semibold text-[#0A0A0A]">{t('finance:receivable.title')}</span>

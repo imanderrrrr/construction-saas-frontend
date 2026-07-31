@@ -317,7 +317,7 @@ export function InvoiceManager() {
       <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden">
 
         {/* Document type toggle */}
-        <div className="px-6 py-4 border-b border-[#D4D4D8] bg-[#FAFAFA]/50">
+        <div className="px-6 py-4 border-b border-[#D4D4D8] bg-[#FAFAFA]/50" data-tour="sec.invoices.doc-type">
           <div className="flex items-center gap-3">
             <label className="text-sm font-medium text-[#0A0A0A]">{t('invoice.dialog.docType')}</label>
             <div className="flex rounded-lg border border-[#D4D4D8] overflow-hidden">
@@ -399,7 +399,7 @@ export function InvoiceManager() {
           )}
 
           {/* Row: Client + Project */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-tour="sec.invoices.client-project">
             <div>
               <label className="block text-xs font-medium text-[#71717A] mb-1.5">{t('invoice.dialog.client')} *</label>
               <Select value={clientName} onValueChange={setClientName}>
@@ -451,7 +451,7 @@ export function InvoiceManager() {
           </div>
 
           {/* Line items */}
-          <div>
+          <div data-tour="sec.invoices.line-items">
             <div className="flex items-center justify-between mb-3">
               <label className="text-xs font-semibold text-[#0A0A0A] uppercase tracking-wider">{t('invoice.dialog.lineItems')}</label>
               <Button variant="ghost" size="sm" className="text-xs h-7 gap-1 text-purple-600" onClick={addLineItem}>
@@ -509,7 +509,7 @@ export function InvoiceManager() {
           </div>
 
           {/* Totals card */}
-          <div className="bg-[#FAFAFA] rounded-xl p-5 space-y-3">
+          <div className="bg-[#FAFAFA] rounded-xl p-5 space-y-3" data-tour="sec.invoices.totals">
             <div className="flex justify-between text-sm">
               <span className="text-[#71717A]">{t('invoice.dialog.subtotal')}</span>
               <span className="font-mono font-medium text-[#0A0A0A]">{fmtAmount(subtotal)}</span>

@@ -138,7 +138,7 @@ export function UsersRoster() {
             {noPin.length > 0 && <span className="text-[#EA580C]"> · {t('admin:usr.summaryNoPin', { count: noPin.length })}</span>}
           </Mono>
         </div>
-        <div className="flex gap-2 flex-shrink-0">
+        <div className="flex gap-2 flex-shrink-0" data-tour="sec.users.new-user">
           <button onClick={() => setInviteOpen(true)}
             className="inline-flex items-center gap-2 border border-[#DBD0BB] bg-[#FAF7F0] hover:border-[#F97316] hover:text-[#C2410C] text-[#0A0A0A] font-bt-mono text-[11.5px] font-semibold uppercase tracking-[0.09em] px-4 py-3 transition-colors">
             <QrCode className="w-3.5 h-3.5" />{t('admin:usr.inviteQr')}
@@ -151,7 +151,7 @@ export function UsersRoster() {
       </div>
 
       {/* Indicators */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 bg-white border border-[#E4E4E7]">
+      <div className="grid grid-cols-1 sm:grid-cols-3 bg-white border border-[#E4E4E7]" data-tour="sec.users.kpis">
         <div className="p-4 md:px-5 sm:border-r border-[#EDE7DB]">
           <div className="font-bt-display font-bold text-3xl md:text-4xl leading-none text-[#0A0A0A]">{activeCount}</div>
           <Mono className="block text-[10.5px] text-[#5A5346] mt-1.5">{t('admin:usr.ind.active')}</Mono>
@@ -201,7 +201,7 @@ export function UsersRoster() {
       )}
 
       {/* Filters */}
-      <div className="bg-white border border-[#E4E4E7] p-3.5">
+      <div className="bg-white border border-[#E4E4E7] p-3.5" data-tour="sec.users.filters">
         <div className="flex flex-wrap items-center gap-2.5">
           <div className="relative flex-1 min-w-[200px] max-w-[320px]">
             <Search className="w-3.5 h-3.5 text-[#A69C8D] absolute left-3 top-1/2 -translate-y-1/2" />
@@ -245,7 +245,7 @@ export function UsersRoster() {
       </div>
 
       {/* Roster */}
-      <div className="bg-white border border-[#E4E4E7] min-h-[340px]">
+      <div className="bg-white border border-[#E4E4E7] min-h-[340px]" data-tour="sec.users.roster">
         {loading ? (
           <div className="py-1.5">
             {[0, 1, 2, 3, 4].map(i => (

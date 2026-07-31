@@ -103,7 +103,7 @@ export function HoursReportScreen({ onNavigate }: { onNavigate: (section: string
       />
 
       {/* Indicators — hours only, never money */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 bg-white border border-[#E4E4E7]">
+      <div className="grid grid-cols-1 sm:grid-cols-3 bg-white border border-[#E4E4E7]" data-tour="sec.hours.kpis">
         <div className="p-4 md:px-5 sm:border-r border-[#EDE7DB]">
           <div className="flex items-baseline gap-1.5">
             <span className="font-bt-display font-bold text-4xl leading-none text-[#0A0A0A]">
@@ -132,6 +132,7 @@ export function HoursReportScreen({ onNavigate }: { onNavigate: (section: string
       </div>
 
       <LaborFilters
+        tourAnchor="sec.hours.filters"
         q={q} onQ={setQ} range={range} onRange={setRange}
         project={project} onProject={setProject} projects={projects}
         chips={chips} onClear={() => { setQ(''); setProject(''); setAttendance(''); setRange('week'); }}
@@ -160,7 +161,7 @@ export function HoursReportScreen({ onNavigate }: { onNavigate: (section: string
       )}
 
       {/* List */}
-      <div className="bg-white border border-[#E4E4E7] min-h-[340px]">
+      <div className="bg-white border border-[#E4E4E7] min-h-[340px]" data-tour="sec.hours.list">
         {loading ? <LaborSkeleton /> : error ? (
           <div className="py-16 text-center">
             <p className="text-sm text-[#71717A]">{t('admin:lab.error')}</p>

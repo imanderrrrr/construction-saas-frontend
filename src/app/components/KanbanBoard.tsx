@@ -407,7 +407,7 @@ export function KanbanBoard() {
     <DndProvider backend={HTML5Backend}>
       <div className="space-y-5">
         {/* Project selector */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3" data-tour="sec.schedules.project-picker">
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <label className="text-xs font-semibold text-[#71717A] uppercase tracking-wide whitespace-nowrap">
               {t('kanban.project')}
@@ -433,7 +433,7 @@ export function KanbanBoard() {
             )}
           </div>
 
-          <Button
+          <Button data-tour="sec.schedules.add-task"
             onClick={handleOpenCreate}
             disabled={!selectedProjectId}
             className="bg-[#F97316] hover:bg-[#C2410C] text-white text-xs gap-2 h-9 px-4"

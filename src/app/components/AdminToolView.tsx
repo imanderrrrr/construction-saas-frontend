@@ -274,7 +274,7 @@ export function AdminToolView() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-[#FAFAFA] rounded-lg p-1">
+      <div className="flex gap-1 bg-[#FAFAFA] rounded-lg p-1" data-tour="sec.tool-inventory.tabs">
         <button
           onClick={() => setActiveTab('returnable')}
           className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
@@ -307,7 +307,7 @@ export function AdminToolView() {
       <>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4" data-tour="sec.tool-inventory.kpis">
         <StatCard icon={Package}       title={t('admin:toolView.kpi.total')}     value={loading ? '—' : (summary?.total     ?? 0).toString()} subtitle={t('admin:toolView.kpi.allTools')}    iconBgColor="bg-[#C2410C]/10" iconColor="text-[#C2410C]"   />
         <StatCard icon={CheckCircle}   title={t('admin:toolView.kpi.available')} value={loading ? '—' : (summary?.available ?? 0).toString()} subtitle={t('admin:toolView.kpi.ready')}        iconBgColor="bg-emerald-50"   iconColor="text-emerald-600" />
         <StatCard icon={ArrowLeftRight}title={t('admin:toolView.kpi.assigned')}  value={loading ? '—' : (summary?.assigned  ?? 0).toString()} subtitle={t('admin:toolView.kpi.out')}          iconBgColor="bg-[#F97316]/10" iconColor="text-[#F97316]"   />
@@ -316,7 +316,7 @@ export function AdminToolView() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-[#D4D4D8] p-4">
+      <div className="bg-white rounded-xl border border-[#D4D4D8] p-4" data-tour="sec.tool-inventory.filters">
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col gap-1.5 flex-1 min-w-[160px]">
             <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide">{t('common:labels.search')}</label>
@@ -362,7 +362,7 @@ export function AdminToolView() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden">
+      <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden" data-tour="sec.tool-inventory.table">
         <div className="flex items-center gap-2 px-6 py-4 border-b border-[#D4D4D8]">
           <Wrench className="w-4 h-4 text-[#71717A]" />
           <span className="text-sm font-semibold text-[#0A0A0A]">{t('admin:toolView.allCompanyTools')}</span>

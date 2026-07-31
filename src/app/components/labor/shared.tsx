@@ -233,7 +233,7 @@ export function LaborSwitch({ current, onNavigate }: {
 
 /** Shared filter shell: search + range + project, with removable chips. */
 export function LaborFilters({
-  q, onQ, range, onRange, project, onProject, projects, extra, chips, onClear,
+  q, onQ, range, onRange, project, onProject, projects, extra, chips, onClear, tourAnchor,
 }: {
   q: string; onQ: (v: string) => void;
   range: 'week' | 'month'; onRange: (v: 'week' | 'month') => void;
@@ -242,10 +242,14 @@ export function LaborFilters({
   extra?: React.ReactNode;
   chips: { key: string; label: string; clear: () => void }[];
   onClear: () => void;
+  /** `data-tour` anchor, supplied per screen: this bar is shared by the three
+   *  labor screens, so a hardcoded anchor here would resolve to whichever of
+   *  them mounted last. */
+  tourAnchor?: string;
 }) {
   const { t } = useTranslation(['admin']);
   return (
-    <div className="bg-white border border-[#E4E4E7] p-3.5">
+    <div className="bg-white border border-[#E4E4E7] p-3.5" data-tour={tourAnchor}>
       <div className="flex flex-wrap items-center gap-2.5">
         <div className="relative flex-1 min-w-[190px] max-w-[280px]">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A69C8D" strokeWidth="2"

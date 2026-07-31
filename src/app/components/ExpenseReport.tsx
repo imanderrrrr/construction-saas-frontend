@@ -205,7 +205,7 @@ export function ExpenseReport({ readOnly = false }: ExpenseReportProps) {
     <div className="space-y-6 max-w-6xl">
 
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-4" data-tour="sec.expense-report.export">
         <div>
           <h2 className="text-sm font-semibold text-[#0A0A0A]">{t('admin:expenseReport.title')}</h2>
           <p className="text-[11px] text-[#71717A] mt-0.5">
@@ -244,7 +244,7 @@ export function ExpenseReport({ readOnly = false }: ExpenseReportProps) {
       </div>
 
       {/* Filter bar */}
-      <div className="bg-white rounded-xl border border-[#D4D4D8] p-5">
+      <div className="bg-white rounded-xl border border-[#D4D4D8] p-5" data-tour="sec.expense-report.filters">
         <div className="flex items-center gap-2 mb-4">
           <FilterIcon className="w-4 h-4 text-[#71717A]" />
           <span className="text-sm font-semibold text-[#0A0A0A]">{t('admin:expenseReport.reportParams')}</span>
@@ -292,7 +292,7 @@ export function ExpenseReport({ readOnly = false }: ExpenseReportProps) {
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" data-tour="sec.expense-report.kpis">
         <StatCard icon={CheckCircle} title={t('admin:expenseReport.kpi.totalApproved')}   value={totalApproved} subtitle={t('admin:expenseReport.kpi.allTime')}            iconBgColor="bg-emerald-50"   iconColor="text-emerald-600"  />
         <StatCard icon={Users}       title={t('admin:expenseReport.kpi.avgPerWorker')}   value={avgPerWorker}  subtitle={t('admin:expenseReport.kpi.activeWorkers', { count: workerRows.length })}    iconBgColor="bg-[#F97316]/10" iconColor="text-[#F97316]"    />
         <StatCard icon={TrendingUp}  title={t('admin:expenseReport.kpi.topCategory')}     value={topCategory}   subtitle={t('admin:expenseReport.kpi.byTotalAmount')}     iconBgColor="bg-amber-50"     iconColor="text-amber-600"    />
@@ -300,7 +300,7 @@ export function ExpenseReport({ readOnly = false }: ExpenseReportProps) {
       </div>
 
       {/* Table 1: By Project */}
-      <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden">
+      <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden" data-tour="sec.expense-report.by-project">
         <div className="flex items-center gap-2 px-6 py-4 border-b border-[#D4D4D8]">
           <TrendingUp className="w-4 h-4 text-[#71717A]" />
           <span className="text-sm font-semibold text-[#0A0A0A]">{t('admin:expenseReport.byProject.title')}</span>

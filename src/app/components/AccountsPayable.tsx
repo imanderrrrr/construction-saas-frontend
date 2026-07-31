@@ -648,14 +648,14 @@ export function AccountsPayable() {
     <div className="space-y-6 max-w-6xl">
 
       {/* Top bar */}
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-end" data-tour="sec.accounts-payable.new-bill">
         <Button onClick={openCreateDialog} className="bg-purple-600 hover:bg-purple-700 text-white gap-1.5">
           <Plus className="w-4 h-4" /> {t('payable.newBill')}
         </Button>
       </div>
 
       {/* KPI cards — computed from state */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" data-tour="sec.accounts-payable.kpis">
         <StatCard icon={Wallet}         title={t('payable.kpi.totalPayable')}   value={fmtAmount(kpis.totalPayable)}    subtitle={t('payable.kpi.allInvoices')}                                              iconBgColor="bg-purple-50"  iconColor="text-purple-600" />
         <StatCard icon={DollarSign}     title={t('payable.kpi.paidThisMonth')}  value={fmtAmount(kpis.paidThisMonth)}   subtitle={paidMonthLabel}                                                  iconBgColor="bg-emerald-50" iconColor="text-emerald-600" />
         <StatCard icon={Clock}          title={t('payable.kpi.pendingPayment')} value={fmtAmount(kpis.pendingTotal)}    subtitle={`${kpis.pendingCount} invoice${kpis.pendingCount !== 1 ? 's' : ''}`} iconBgColor="bg-amber-50" iconColor="text-amber-600" />
@@ -663,7 +663,7 @@ export function AccountsPayable() {
       </div>
 
       {/* Filter bar */}
-      <div className="bg-white rounded-xl border border-[#D4D4D8] p-5">
+      <div className="bg-white rounded-xl border border-[#D4D4D8] p-5" data-tour="sec.accounts-payable.filters">
         <div className="flex items-center gap-2 mb-4">
           <Filter className="w-4 h-4 text-[#71717A]" />
           <span className="text-sm font-semibold text-[#0A0A0A]">{t('buttons.filters', { ns: 'common' })}</span>
@@ -757,7 +757,7 @@ export function AccountsPayable() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden">
+      <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden" data-tour="sec.accounts-payable.table">
         <div className="flex items-center gap-2 px-6 py-4 border-b border-[#D4D4D8]">
           <Wallet className="w-4 h-4 text-[#71717A]" />
           <span className="text-sm font-semibold text-[#0A0A0A]">{t('payable.title')}</span>

@@ -220,7 +220,7 @@ export function InvoiceBrandingSettings() {
         <p className="mt-1 text-sm text-[#71717A]">{t('invoiceBranding.formHint')}</p>
 
         {/* Logo */}
-        <div className="mt-6">
+        <div className="mt-6" data-tour="sec.invoice-branding.logo">
           <Label className="text-sm font-medium">{t('invoiceBranding.logo')}</Label>
           <div className="mt-2 flex items-center gap-4">
             <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-lg border border-dashed border-[#D4D4D8] bg-[#FAFAFA]">
@@ -274,7 +274,7 @@ export function InvoiceBrandingSettings() {
         </div>
 
         {/* Text fields */}
-        <div className="mt-6 grid grid-cols-1 gap-4">
+        <div className="mt-6 grid grid-cols-1 gap-4" data-tour="sec.invoice-branding.fields">
           <div>
             <Label htmlFor="ib-company" className="text-sm font-medium">
               {t('invoiceBranding.companyName')}
@@ -346,7 +346,7 @@ export function InvoiceBrandingSettings() {
           </div>
         </div>
 
-        <div className="mt-6 flex items-center justify-end">
+        <div className="mt-6 flex items-center justify-end" data-tour="sec.invoice-branding.save">
           <Button
             onClick={handleSave}
             disabled={saving}
