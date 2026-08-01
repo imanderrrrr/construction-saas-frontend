@@ -224,9 +224,18 @@ export function ProjectDetailsView({ project, allUsers, usersLoading, onBack, on
                 {fmtUSD(revisedCents)}
               </span>
             ) : <span className="text-sm text-[#71717A]">—</span> },
-            { label: t('admin:projectDetails.field.remainingBudget'), value: project.contractAmountCents != null ? (
-              <span className={`text-sm font-mono font-semibold ${project.contractAmountCents < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
-                {fmtUSD(project.contractAmountCents)}
+            { label: t('admin:projectDetails.field.costBudget'), value: project.costBudgetCents != null ? (
+              <span className="text-sm font-mono font-semibold text-[#0A0A0A]">{fmtUSD(project.costBudgetCents)}</span>
+            ) : (
+              // Never filled in with the contract: an invented budget reads
+              // exactly like a reviewed one, and there would be no way to tell
+              // which projects someone had actually gone through.
+              <span className="text-sm text-[#71717A] italic">{t('admin:projectDetails.notSet')}</span>
+            ) },
+            // Follows whichever of the two the gauge is measuring against.
+            { label: t('admin:projectDetails.field.remainingBudget'), value: project.remainingBudgetCents != null ? (
+              <span className={`text-sm font-mono font-semibold ${project.remainingBudgetCents < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                {fmtUSD(project.remainingBudgetCents)}
               </span>
             ) : <span className="text-sm text-[#71717A]">—</span> },
             { label: t('admin:projectDetails.field.address'), value: <span className="text-sm text-[#71717A]">{project.address || '—'}</span> },
