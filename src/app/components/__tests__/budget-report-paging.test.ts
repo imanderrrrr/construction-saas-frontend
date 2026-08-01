@@ -76,3 +76,32 @@ describe('budget report project sweep', () => {
     expect(outstanding).toBe(135_500);
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════
+// A frontend deploy can land before the backend that introduces a field.
+// `undefined / 100` is NaN, and NaN.toFixed(2) is the string "NaN" — which
+// reaches a finance screen as "$NaN". Defaulting is not decoration here.
+// ════════════════════════════════════════════════════════════════════════
+
+/** The report's money mapping, extracted verbatim from BudgetReport. */
+function toMoney(cents: number | undefined): number {
+  return (cents ?? 0) / 100;
+}
+
+describe('money fields the backend may not send yet', () => {
+  it('reads a missing field as 0, never NaN', () => {
+    expect(toMoney(undefined)).toBe(0);
+    expect(Number.isNaN(toMoney(undefined))).toBe(false);
+  });
+
+  it('still converts cents normally when the field is present', () => {
+    expect(toMoney(80_000)).toBe(800);
+    expect(toMoney(0)).toBe(0);
+  });
+
+  it('shows what the undefended version would have rendered', () => {
+    const undefended = (cents: number | undefined) => (cents as number) / 100;
+    expect(Number.isNaN(undefended(undefined))).toBe(true);
+    expect(`$${(undefended(undefined)).toFixed(2)}`).toBe('$NaN');
+  });
+});

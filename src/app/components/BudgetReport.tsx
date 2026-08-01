@@ -255,9 +255,12 @@ export function BudgetReport({ readOnly = false }: BudgetReportProps) {
             project:    p.name,
             totalBudget,
             consumed,
-            invoiced:    p.invoicedCents / 100,
-            collected:   p.collectedCents / 100,
-            outstanding: p.outstandingCents / 100,
+            // Defaulted, not asserted: a frontend deploy can land before the
+            // backend that introduces these fields, and `undefined / 100` is NaN
+            // — which reaches the screen as "$NaN" on a finance report.
+            invoiced:    (p.invoicedCents ?? 0) / 100,
+            collected:   (p.collectedCents ?? 0) / 100,
+            outstanding: (p.outstandingCents ?? 0) / 100,
             status:     (p.status === 'CLOSED' ? 'Closed' : 'Active') as BudgetStatus,
             deviation:  computeDeviation(pct, consumed),
             deviationPct: Math.round(Math.abs(pct - 100) * 10) / 10,
