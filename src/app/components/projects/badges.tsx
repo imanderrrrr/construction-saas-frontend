@@ -95,18 +95,25 @@ export function ContractBar({
     return <span className="text-xs text-[#71717A]">—</span>;
   }
 
-  const remainingCents = remaining != null ? Math.max(0, remaining) : baseCents;
+  // A project may run past its contract, leaving a negative remainder — show it.
+  // Clamping to 0 (as this did) reported "nothing left" for a job that finished
+  // exactly on budget and for one that blew $50k past it, which is the number
+  // the overrun has to be read from.
+  const remainingCents = remaining ?? baseCents;
   const pct = Math.round((remainingCents / baseCents) * 100);
+  // Geometry only: a negative width draws no bar at all, and above 100% it would
+  // overflow its track. The figure and the percentage stay uncapped.
+  const barPct = Math.min(Math.max(pct, 0), 100);
 
   const barColor  = pct >= 75 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-400' : 'bg-red-500';
   const textColor = pct >= 75 ? 'text-emerald-700' : pct >= 40 ? 'text-amber-700' : 'text-red-700';
 
   return (
     <div className="min-w-[130px]">
-      <p className="text-xs font-semibold text-[#0A0A0A] mb-0.5">{fmtUSD(remainingCents)}</p>
+      <p className={`text-xs font-semibold mb-0.5 ${remainingCents < 0 ? 'text-red-700' : 'text-[#0A0A0A]'}`}>{fmtUSD(remainingCents)}</p>
       <p className={`text-[10px] font-medium ${textColor} mb-1`}>{pct}% of {fmtUSD(baseCents)}</p>
       <div className="h-1.5 w-full bg-[#E8EDF2] rounded-full overflow-hidden">
-        <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
+        <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${barPct}%` }} />
       </div>
     </div>
   );

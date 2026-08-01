@@ -2261,7 +2261,7 @@
   "pay.touchesBudget": "Roza el presupuesto",
   "pay.d.preTitle": "Este pago deja {{project}} sobre su contrato",
   "pay.d.preBody": "A {{project}} le quedan ${{remaining}} y este pago le carga ${{amount}} — se pasa por ${{over}}.",
-  "pay.d.preFix": "El sistema lo va a rechazar. Amplía el contrato de la obra o paga un período más corto.",
+  "pay.d.preFix": "El pago se registra igual — el saldo de la obra va a quedar en negativo por esa cantidad.",
   "hrs.daysWorked": "{{worked}} de {{total}} días trabajados",
   "hrs.rowPending": "{{hours}} h por aprobar",
   "hrs.legendLate": "Llegó tarde",

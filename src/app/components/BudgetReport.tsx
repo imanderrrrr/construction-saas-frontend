@@ -77,7 +77,9 @@ const DEVIATION_CFG: Record<DeviationKey, { labelKey: string; textColor: string;
 // Helpers
 
 function fmtAmount(n: number): string {
-  return `$${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+  // Sign outside the symbol: an over-budget project reads "-$500.00", not "$-500.00".
+  const sign = n < 0 ? '-' : '';
+  return `${sign}$${Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 }
 
 function getPct(consumed: number, total: number): number {
