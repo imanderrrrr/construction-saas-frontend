@@ -7,7 +7,6 @@ import {
 } from '../../services/time';
 import type { BudgetWarning } from '../../types';
 import { listProjects } from '../../services/projects';
-import { ApiError } from '../../lib/api';
 import {
   GRID_INK, LaborFilters, LaborHeader, LaborSkeleton, Mono, amountOwed, fmtRange,
   budgetBlockers, initials, mainProject, money, monthRange, paidAmount, unpaidHours, weekRange,
@@ -320,8 +319,6 @@ function ConfirmPaymentDialog({ worker, from, to, lang, blockers, onClose, onDon
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  /** True when the error is the budget guard, which deserves the loud treatment. */
-  const [blocked, setBlocked] = useState(false);
   const [warnings, setWarnings] = useState<BudgetWarning[] | null>(null);
 
   useEffect(() => {
@@ -344,9 +341,8 @@ function ConfirmPaymentDialog({ worker, from, to, lang, blockers, onClose, onDon
       if (res.budgetWarnings?.length) { setWarnings(res.budgetWarnings); setSaving(false); return; }
       onDone();
     } catch (e) {
-      // The budget guard rejects the payment outright (409). That's not a
-      // technical failure — it's a decision the admin needs to see loudly.
-      setBlocked(e instanceof ApiError && e.code === 'BUDGET_EXCEEDED');
+      // Running past the budget is no longer an error: payroll goes through and
+      // the project balance turns negative. Anything caught here is a real failure.
       setError(e instanceof Error ? e.message : t('admin:pay.d.error'));
       setSaving(false);
     }
@@ -437,8 +433,8 @@ function ConfirmPaymentDialog({ worker, from, to, lang, blockers, onClose, onDon
                 </div>
               </div>
 
-              {/* Pre-flight budget check — the backend rejects the whole payment
-                  when a jobsite can't cover it, so say so before they commit. */}
+              {/* Pre-flight budget check — the payment is never refused, but the
+                  jobsite balance will go negative, so say so before they commit. */}
               {blockers.length > 0 && (
                 <div className="flex gap-3 items-start bg-[#FBEDE0] border border-[#F6CFA6] border-l-[3px] border-l-[#F97316] px-4 py-3.5 mt-4">
                   <AlertTriangle className="w-[18px] h-[18px] text-[#EA580C] flex-shrink-0 mt-0.5" />

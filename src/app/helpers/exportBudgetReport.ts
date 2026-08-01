@@ -14,6 +14,11 @@ export interface BudgetExportRow {
   executionPct: number;
   deviation: string;
   status: string;
+  // Appended after Status in both exports on purpose: the Excel writer styles
+  // its columns by hard-coded index, so inserting these mid-row would silently
+  // shift every money format and colour rule that follows.
+  collected: number;
+  outstanding: number;
   breakdown: { type: string; label: string; amount: number; pct: number }[];
 }
 
@@ -158,7 +163,7 @@ export async function exportBudgetExcel(params: BudgetExportParams) {
 
   // ── Table header ──
   const tableStartRow = 6 + kpiData.length + 2;
-  const headers = ['#', 'Project', 'Budget', 'Consumed', 'Available', 'Execution %', 'Deviation', 'Status'];
+  const headers = ['#', 'Project', 'Budget', 'Consumed', 'Available', 'Execution %', 'Deviation', 'Status', 'Collected', 'Outstanding'];
   const hRow = ws.getRow(tableStartRow);
   hRow.height = 26;
   headers.forEach((h, i) => {
@@ -186,6 +191,8 @@ export async function exportBudgetExcel(params: BudgetExportParams) {
       r.executionPct / 100,
       deviationLabel(r.deviation),
       r.status,
+      fmtMoneyExcel(r.collected),
+      fmtMoneyExcel(r.outstanding),
     ];
 
     values.forEach((v, i) => {
@@ -211,6 +218,10 @@ export async function exportBudgetExcel(params: BudgetExportParams) {
       if (i === 7) {
         const statusColor = r.status === 'Active' ? XL_EMERALD : XL_GRAY_TEXT;
         cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: statusColor } };
+      }
+      if (i === 8 || i === 9) {
+        cell.alignment = { horizontal: 'right' };
+        cell.numFmt = '$#,##0.00';
       }
     });
     currentRow++;
@@ -542,11 +553,13 @@ export function exportBudgetPdf(params: BudgetExportParams) {
     `${r.executionPct.toFixed(1)}%`,
     deviationLabel(r.deviation),
     r.status,
+    fmtMoneyPdf(r.collected),
+    fmtMoneyPdf(r.outstanding),
   ]);
 
   autoTable(doc, {
     startY: 24,
-    head: [['#', 'Project', 'Budget', 'Consumed', 'Available', 'Execution %', 'Deviation', 'Status']],
+    head: [['#', 'Project', 'Budget', 'Consumed', 'Available', 'Execution %', 'Deviation', 'Status', 'Collected', 'Outstanding']],
     body: budgetTableData,
     theme: 'grid',
     headStyles: {

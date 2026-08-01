@@ -259,15 +259,10 @@ export function AccountsPayable() {
       }
       setPayBill(null);
     } catch (err: unknown) {
-      if (err instanceof ApiError && err.code === 'BUDGET_EXCEEDED') {
-        toast.error(
-          t('payable.toast.budgetExceeded.title', 'Project budget exceeded'),
-          { description: err.message, duration: 10000 },
-        );
-      } else {
-        const message = err instanceof Error ? err.message : undefined;
-        toast.error(t('payable.toast.paymentFailed'), { description: message });
-      }
+      // No BUDGET_EXCEEDED branch: a payment past the budget is no longer
+      // refused — it goes through and the project balance turns negative.
+      const message = err instanceof Error ? err.message : undefined;
+      toast.error(t('payable.toast.paymentFailed'), { description: message });
     }
   }
 
@@ -911,9 +906,11 @@ export function AccountsPayable() {
               const wouldExceed = requested > remaining;
               return (
                 <div
+                  // Amber, not red: going over is allowed now, so this states a
+                  // consequence rather than reporting an error.
                   className={`rounded-md p-3 text-sm ${
                     wouldExceed
-                      ? 'bg-red-50 border border-red-200 text-red-800'
+                      ? 'bg-amber-50 border border-amber-200 text-amber-900'
                       : 'bg-blue-50 border border-blue-200 text-blue-800'
                   }`}
                   data-testid="remaining-budget-panel"
@@ -925,7 +922,7 @@ export function AccountsPayable() {
                   {wouldExceed && (
                     <div className="mt-1 text-xs">
                       {t('payable.dialog.wouldExceed',
-                        'This payment would exceed the remaining budget and will be rejected.')}
+                        'This payment goes past the remaining budget — it will be recorded and the project balance will turn negative.')}
                     </div>
                   )}
                 </div>

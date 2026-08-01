@@ -14,6 +14,10 @@ export function toProject(r: ProjectResponse): Project {
     changeOrdersTotalCents: r.changeOrdersTotalCents ?? 0,
     revisedContractCents: r.revisedContractCents ?? null,
     contractAmountCents: r.contractAmountCents ?? null,
+    totalConsumedCents: r.totalConsumedCents ?? null,
+    invoicedCents: r.invoicedCents ?? 0,
+    collectedCents: r.collectedCents ?? 0,
+    outstandingCents: r.outstandingCents ?? 0,
     address: r.address ?? null,
     latitude: r.latitude ?? null,
     longitude: r.longitude ?? null,
@@ -26,7 +30,9 @@ export function toProject(r: ProjectResponse): Project {
 
 export function fmtUSD(cents: number | null): string {
   if (cents == null) return '—';
-  return '$' + (cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // Sign outside the symbol: an over-budget project reads "-$500.00", not "$-500.00".
+  const sign = cents < 0 ? '-' : '';
+  return sign + '$' + (Math.abs(cents) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 export function fmtDate(iso: string, locale = 'en-US') {
