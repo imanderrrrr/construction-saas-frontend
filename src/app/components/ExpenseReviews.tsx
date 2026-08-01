@@ -33,7 +33,6 @@ import {
 } from '../services/expenses';
 import { listActiveUsers, type UserDTO } from '../services/users';
 import { businessToday, nDaysAgo } from '../helpers/dateTime';
-import { ApiError } from '../lib/api';
 import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 // Types
@@ -479,15 +478,10 @@ export function ExpenseReviews() {
       setApproveTarget(null); fetchExpenses();
       getSupervisorSummary().then(setSummary).catch(err => toast.error(err?.message));
     } catch (err: unknown) {
-      if (err instanceof ApiError && err.code === 'BUDGET_EXCEEDED') {
-        toast.error(
-          t('review.toast.budgetExceeded.title', 'Project budget exceeded'),
-          { description: err.message, duration: 10000 },
-        );
-      } else {
-        const message = err instanceof Error ? err.message : undefined;
-        toast.error(t('review.toast.approveFailed'), { description: message });
-      }
+      // No BUDGET_EXCEEDED branch: an approval past the budget is no longer
+      // refused — it goes through and the project balance turns negative.
+      const message = err instanceof Error ? err.message : undefined;
+      toast.error(t('review.toast.approveFailed'), { description: message });
     }
   }
 

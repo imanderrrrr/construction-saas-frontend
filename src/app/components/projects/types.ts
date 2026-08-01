@@ -14,6 +14,11 @@ export interface Project {
   changeOrdersTotalCents: number;
   revisedContractCents: number | null;
   contractAmountCents: number | null;
+  totalConsumedCents: number | null;   // spend from all sources
+  // Receivable side, summed by the backend: billed to the client, paid, owed.
+  invoicedCents: number;
+  collectedCents: number;
+  outstandingCents: number;
   address: string | null;
   latitude: number | null;
   longitude: number | null;

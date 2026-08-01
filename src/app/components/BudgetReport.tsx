@@ -4,7 +4,7 @@ import {
   Wallet, TrendingDown, TrendingUp, AlertCircle,
   AlertTriangle, CheckCircle, ChevronDown, ChevronRight,
   FileText, FileSpreadsheet, Download, Filter as FilterIcon,
-  Loader2,
+  HandCoins, Receipt, Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
@@ -19,6 +19,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { listProjects, listFinanceProjects, type ProjectResponse } from '../services/projects';
+import { drainPages } from '../lib/paging';
 import { getExpenseReport, getFinanceExpenseReport, type ProjectExpenseRow } from '../services/expenses';
 import { exportBudgetExcel, exportBudgetPdf, type BudgetExportRow, type AlertExportRow } from '../helpers/exportBudgetReport';
 
@@ -32,6 +33,11 @@ interface ProjectReportRow {
   project: string;
   totalBudget: number;
   consumed: number;
+  /** Billed to the client. The three below come straight from the backend's
+   *  grouped sum — never totalled from receivable pages in the browser. */
+  invoiced: number;
+  collected: number;
+  outstanding: number;
   status: BudgetStatus;
   deviation: DeviationKey;
   deviationPct: number;
@@ -77,7 +83,9 @@ const DEVIATION_CFG: Record<DeviationKey, { labelKey: string; textColor: string;
 // Helpers
 
 function fmtAmount(n: number): string {
-  return `$${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+  // Sign outside the symbol: an over-budget project reads "-$500.00", not "$-500.00".
+  const sign = n < 0 ? '-' : '';
+  return `${sign}$${Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 }
 
 function getPct(consumed: number, total: number): number {
@@ -208,8 +216,12 @@ export function BudgetReport({ readOnly = false }: BudgetReportProps) {
       setLoading(true);
       const fetchProjects = readOnly ? listFinanceProjects : listProjects;
       const fetchReport   = readOnly ? getFinanceExpenseReport : getExpenseReport;
-      const [projectsPage, expenseReport] = await Promise.all([
-        fetchProjects({ size: 500 }),
+      // Sweep every page. `size: 500` looked like "all of them" but the backend
+      // caps page size at 100, so this report silently stopped at the first 100
+      // projects — and the KPI row totals what it received. That is the same
+      // shape as the paged-total bug that once hid the oldest invoices.
+      const [allProjects, expenseReport] = await Promise.all([
+        drainPages<ProjectResponse>((page, size) => fetchProjects({ page, size })),
         fetchReport(),
       ]);
 
@@ -218,7 +230,7 @@ export function BudgetReport({ readOnly = false }: BudgetReportProps) {
       expenseReport.byProject.forEach(row => expenseByProject.set(row.projectId, row));
 
       // Map projects with budgets to report rows
-      const rows: ProjectReportRow[] = projectsPage.content
+      const rows: ProjectReportRow[] = allProjects
         .filter((p: ProjectResponse) => p.originalContractCents != null)
         .map((p: ProjectResponse) => {
           const totalBudget = (p.revisedContractCents ?? p.originalContractCents ?? 0) / 100;
@@ -243,6 +255,12 @@ export function BudgetReport({ readOnly = false }: BudgetReportProps) {
             project:    p.name,
             totalBudget,
             consumed,
+            // Defaulted, not asserted: a frontend deploy can land before the
+            // backend that introduces these fields, and `undefined / 100` is NaN
+            // — which reaches the screen as "$NaN" on a finance report.
+            invoiced:    (p.invoicedCents ?? 0) / 100,
+            collected:   (p.collectedCents ?? 0) / 100,
+            outstanding: (p.outstandingCents ?? 0) / 100,
             status:     (p.status === 'CLOSED' ? 'Closed' : 'Active') as BudgetStatus,
             deviation:  computeDeviation(pct, consumed),
             deviationPct: Math.round(Math.abs(pct - 100) * 10) / 10,
@@ -332,6 +350,8 @@ export function BudgetReport({ readOnly = false }: BudgetReportProps) {
   const totalBudgetAssigned = useMemo(() => reportData.reduce((s, r) => s + r.totalBudget, 0), [reportData]);
   const totalConsumed       = useMemo(() => reportData.reduce((s, r) => s + r.consumed, 0), [reportData]);
   const totalAvailable      = totalBudgetAssigned - totalConsumed;
+  const totalCollected      = useMemo(() => reportData.reduce((s, r) => s + r.collected, 0), [reportData]);
+  const totalOutstanding    = useMemo(() => reportData.reduce((s, r) => s + r.outstanding, 0), [reportData]);
   const projectsOver90      = reportData.filter(r => getPct(r.consumed, r.totalBudget) >= 90).length;
 
   // Loading state
@@ -370,7 +390,7 @@ export function BudgetReport({ readOnly = false }: BudgetReportProps) {
             <DropdownMenuItem onClick={() => {
               if (filteredRows.length === 0) return;
               try {
-                const rows: BudgetExportRow[] = filteredRows.map(r => ({ project: r.project, totalBudget: r.totalBudget, consumed: r.consumed, available: r.totalBudget - r.consumed, executionPct: getPct(r.consumed, r.totalBudget), deviation: t(`admin:${DEVIATION_CFG[r.deviation].labelKey}`), status: r.status, breakdown: r.breakdown }));
+                const rows: BudgetExportRow[] = filteredRows.map(r => ({ project: r.project, totalBudget: r.totalBudget, consumed: r.consumed, available: r.totalBudget - r.consumed, executionPct: getPct(r.consumed, r.totalBudget), deviation: t(`admin:${DEVIATION_CFG[r.deviation].labelKey}`), status: r.status, collected: r.collected, outstanding: r.outstanding, breakdown: r.breakdown }));
                 const alerts: AlertExportRow[] = alertRows.map(a => ({ project: a.project, pct: a.pct, level: a.level, remaining: a.remaining, estimatedDays: a.estimatedDays }));
                 exportBudgetPdf({ rows, alerts, kpis: { totalBudget: totalBudgetAssigned, totalConsumed, totalAvailable, projectsOver90 } });
                 toast.success(t('admin:budgetReport.exportSuccess', 'Export started'));
@@ -381,7 +401,7 @@ export function BudgetReport({ readOnly = false }: BudgetReportProps) {
             <DropdownMenuItem onClick={async () => {
               if (filteredRows.length === 0) return;
               try {
-                const rows: BudgetExportRow[] = filteredRows.map(r => ({ project: r.project, totalBudget: r.totalBudget, consumed: r.consumed, available: r.totalBudget - r.consumed, executionPct: getPct(r.consumed, r.totalBudget), deviation: t(`admin:${DEVIATION_CFG[r.deviation].labelKey}`), status: r.status, breakdown: r.breakdown }));
+                const rows: BudgetExportRow[] = filteredRows.map(r => ({ project: r.project, totalBudget: r.totalBudget, consumed: r.consumed, available: r.totalBudget - r.consumed, executionPct: getPct(r.consumed, r.totalBudget), deviation: t(`admin:${DEVIATION_CFG[r.deviation].labelKey}`), status: r.status, collected: r.collected, outstanding: r.outstanding, breakdown: r.breakdown }));
                 const alerts: AlertExportRow[] = alertRows.map(a => ({ project: a.project, pct: a.pct, level: a.level, remaining: a.remaining, estimatedDays: a.estimatedDays }));
                 await exportBudgetExcel({ rows, alerts, kpis: { totalBudget: totalBudgetAssigned, totalConsumed, totalAvailable, projectsOver90 } });
                 toast.success(t('admin:budgetReport.exportSuccess', 'Export started'));
@@ -447,11 +467,13 @@ export function BudgetReport({ readOnly = false }: BudgetReportProps) {
         </div>
       </div>
 
-      {/* KPI cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" data-tour="sec.budget-report.kpis">
+      {/* KPI cards — spend on the first row, money in on the second */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4" data-tour="sec.budget-report.kpis">
         <StatCard icon={Wallet}       title={t('admin:budgetReport.kpi.totalBudget')} value={fmtAmount(totalBudgetAssigned)} subtitle={t('admin:budgetReport.kpi.allProjects')}        iconBgColor="bg-emerald-50"   iconColor="text-emerald-600" />
         <StatCard icon={TrendingDown} title={t('admin:budgetReport.kpi.totalConsumed')}        value={fmtAmount(totalConsumed)}       subtitle={t('admin:budgetReport.kpi.approvedExpenses')}   iconBgColor="bg-amber-50"     iconColor="text-amber-600"   />
         <StatCard icon={TrendingUp}   title={t('admin:budgetReport.kpi.totalAvailable')}       value={fmtAmount(totalAvailable)}      subtitle={t('admin:budgetReport.kpi.remainingBudget')}    iconBgColor="bg-[#F97316]/10" iconColor="text-[#F97316]"   />
+        <StatCard icon={HandCoins}    title={t('admin:budgetReport.kpi.totalCollected')}       value={fmtAmount(totalCollected)}      subtitle={t('admin:budgetReport.kpi.collectedSubtitle')}  iconBgColor="bg-emerald-50"   iconColor="text-emerald-600" />
+        <StatCard icon={Receipt}      title={t('admin:budgetReport.kpi.totalOutstanding')}     value={fmtAmount(totalOutstanding)}    subtitle={t('admin:budgetReport.kpi.outstandingSubtitle')} iconBgColor="bg-blue-50"     iconColor="text-blue-600"    />
         <StatCard icon={AlertCircle}  title={t('admin:budgetReport.kpi.projectsOver90')}    value={projectsOver90.toString()}       subtitle={t('admin:budgetReport.kpi.needAttention')}      iconBgColor="bg-red-50"       iconColor="text-red-600"     />
       </div>
 
@@ -468,7 +490,7 @@ export function BudgetReport({ readOnly = false }: BudgetReportProps) {
             <TableHeader>
               <TableRow className="bg-[#FAFAFA] hover:bg-[#FAFAFA]">
                 <TableHead className="w-8" />
-                {[t('admin:budgetReport.table.project'), t('admin:budgetReport.table.budget'), t('admin:budgetReport.table.consumed'), t('admin:budgetReport.table.available'), t('admin:budgetReport.table.execution'), t('admin:budgetReport.table.deviation'), t('common:labels.status')].map(h => (
+                {[t('admin:budgetReport.table.project'), t('admin:budgetReport.table.budget'), t('admin:budgetReport.table.consumed'), t('admin:budgetReport.table.available'), t('admin:budgetReport.table.collected'), t('admin:budgetReport.table.outstanding'), t('admin:budgetReport.table.execution'), t('admin:budgetReport.table.deviation'), t('common:labels.status')].map(h => (
                   <TableHead key={h} className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wider whitespace-nowrap">{h}</TableHead>
                 ))}
               </TableRow>
@@ -498,6 +520,15 @@ export function BudgetReport({ readOnly = false }: BudgetReportProps) {
                         {fmtAmount(available)}
                       </span>
                     </TableCell>
+                    {/* What the client has actually paid, and what he still owes. */}
+                    <TableCell className="py-3">
+                      <span className="font-mono text-sm font-semibold text-emerald-700">{fmtAmount(row.collected)}</span>
+                    </TableCell>
+                    <TableCell className="py-3">
+                      <span className={`font-mono text-sm font-semibold ${row.outstanding > 0 ? 'text-blue-700' : 'text-[#71717A]'}`}>
+                        {fmtAmount(row.outstanding)}
+                      </span>
+                    </TableCell>
                     <TableCell className="py-3 min-w-[130px]">
                       <ProgressCell consumed={row.consumed} total={row.totalBudget} />
                     </TableCell>
@@ -510,7 +541,7 @@ export function BudgetReport({ readOnly = false }: BudgetReportProps) {
 
                 const breakdownRow = (
                   <TableRow key={`${row.id}-breakdown`} className="bg-[#FAFAFA]/40 hover:bg-[#FAFAFA]/40">
-                    <TableCell colSpan={8} className="px-6 py-4 border-b border-[#D4D4D8]/50">
+                    <TableCell colSpan={10} className="px-6 py-4 border-b border-[#D4D4D8]/50">
                       <div className="space-y-2">
                         <p className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide">
                           {t('admin:budgetReport.expenseBreakdown', { project: row.project })}
@@ -587,7 +618,7 @@ export function BudgetReport({ readOnly = false }: BudgetReportProps) {
             <TableBody>
               {alertRows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-8 text-center text-sm text-[#71717A]">
+                  <TableCell colSpan={10} className="py-8 text-center text-sm text-[#71717A]">
                     {t('admin:budgetReport.noAlerts', 'No projects require attention at this time')}
                   </TableCell>
                 </TableRow>

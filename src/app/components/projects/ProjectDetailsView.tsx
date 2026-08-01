@@ -1,7 +1,7 @@
 import {
   FolderOpen, UserPlus, Users, PowerOff, Power,
   Lock, ShieldAlert, Pencil, History, TrendingDown, TrendingUp, FileText,
-  Plus, Minus, Trash2, Loader2, AlertCircle, Share2,
+  Plus, Minus, Trash2, Loader2, AlertCircle, Share2, HandCoins,
 } from 'lucide-react';
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -242,6 +242,39 @@ export function ProjectDetailsView({ project, allUsers, usersLoading, onBack, on
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Billing Card — "you've collected this much, they owe you this much,
+          and you've also spent this much". The three figures the client asked
+          for, side by side: every other number on this screen is spend. */}
+      <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden" data-testid="project-billing-card">
+        <div className="px-6 py-4 border-b border-[#D4D4D8] bg-[#FAFAFA]/50 flex items-center gap-2">
+          <HandCoins className="w-4 h-4 text-emerald-600" />
+          <h3 className="text-sm font-semibold text-[#0A0A0A]">{t('admin:projectDetails.billing.title')}</h3>
+        </div>
+        <div className="p-6 grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div>
+            <p className="text-[10px] font-semibold text-[#71717A] uppercase tracking-wide mb-1">{t('admin:projectDetails.billing.invoiced')}</p>
+            <p className="text-xl font-bold font-mono text-[#0A0A0A]">{fmtUSD(project.invoicedCents)}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold text-[#71717A] uppercase tracking-wide mb-1">{t('admin:projectDetails.billing.collected')}</p>
+            <p className="text-xl font-bold font-mono text-emerald-600">{fmtUSD(project.collectedCents)}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold text-[#71717A] uppercase tracking-wide mb-1">{t('admin:projectDetails.billing.outstanding')}</p>
+            <p className={`text-xl font-bold font-mono ${project.outstandingCents > 0 ? 'text-blue-700' : 'text-[#71717A]'}`}>
+              {fmtUSD(project.outstandingCents)}
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold text-[#71717A] uppercase tracking-wide mb-1">{t('admin:projectDetails.billing.spent')}</p>
+            <p className="text-xl font-bold font-mono text-amber-600">{fmtUSD(project.totalConsumedCents)}</p>
+          </div>
+        </div>
+        {project.invoicedCents === 0 && (
+          <p className="px-6 pb-5 -mt-2 text-[11px] text-[#71717A]">{t('admin:projectDetails.billing.noDocuments')}</p>
+        )}
       </div>
 
       {/* Change Orders Card */}

@@ -25,6 +25,11 @@ export interface ProjectResponse {
   approvedExpensesCents: number;         // sum of APPROVED expenses for this project
   totalConsumedCents: number | null;     // total consumed from ALL sources (expenses + labor + payables)
   remainingBudgetCents: number | null;   // actual remaining = contractAmountCents
+  // Receivable side — every field above is spend. Summed by the backend in one
+  // grouped query; never total receivable pages in the browser to get these.
+  invoicedCents: number;                 // billed to the client (excludes unapproved/rejected CORs)
+  collectedCents: number;                // how much of that has been paid
+  outstandingCents: number;              // invoiced − collected = what they still owe
   address: string | null;
   latitude: number | null;
   longitude: number | null;
