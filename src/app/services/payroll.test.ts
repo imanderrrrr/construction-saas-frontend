@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../lib/api', () => ({ getBaseUrl: () => '' }));
 
@@ -11,20 +11,23 @@ import { exportPayrollPayments } from './payroll';
  */
 describe('exportPayrollPayments', () => {
   const fetchMock = vi.fn();
-  let clicked: HTMLAnchorElement | null = null;
+  /** The anchor the service hands to the DOM — spying the append keeps it real. */
+  let appendSpy: ReturnType<typeof vi.spyOn<typeof document.body, 'appendChild'>>;
+  const savedAnchor = () => appendSpy.mock.calls[0]?.[0] as HTMLAnchorElement | undefined;
 
   beforeEach(() => {
     fetchMock.mockReset();
-    clicked = null;
     vi.stubGlobal('fetch', fetchMock);
     // jsdom has no object URLs and no real downloads. Patch the two statics in
     // place rather than replacing `URL` — the constructor is still needed.
     Object.defineProperty(URL, 'createObjectURL', { value: () => 'blob:payroll', configurable: true });
     Object.defineProperty(URL, 'revokeObjectURL', { value: () => {}, configurable: true });
-    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
-      clicked = this;
-    });
+    // jsdom would log "navigation not implemented" on a real anchor click.
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    appendSpy = vi.spyOn(document.body, 'appendChild');
   });
+
+  afterEach(() => vi.restoreAllMocks());
 
   it('asks the server for one xlsx over the requested range', async () => {
     fetchMock.mockResolvedValueOnce({ ok: true, blob: async () => new Blob(['x']) });
@@ -50,7 +53,7 @@ describe('exportPayrollPayments', () => {
 
     await exportPayrollPayments({ dateFrom: '2026-07-27', dateTo: '2026-08-02' });
 
-    expect(clicked!.download).toBe('payroll-payments_2026-07-27_2026-08-02.xlsx');
+    expect(savedAnchor()!.download).toBe('payroll-payments_2026-07-27_2026-08-02.xlsx');
   });
 
   it('surfaces a failed download instead of saving an empty file', async () => {
@@ -62,6 +65,6 @@ describe('exportPayrollPayments', () => {
     await expect(
       exportPayrollPayments({ dateFrom: '2026-07-27', dateTo: '2026-08-02' }),
     ).rejects.toThrow('Forbidden');
-    expect(clicked).toBeNull();
+    expect(appendSpy).not.toHaveBeenCalled();
   });
 });
