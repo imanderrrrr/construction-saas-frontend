@@ -84,3 +84,60 @@ describe('ContractBar', () => {
     expect(el.textContent).toBe('—');
   });
 });
+
+// V93 — the gauge divides by the cost budget once one exists. Before it, a
+// project's spend was drawn against the sale price: on a $100,000 contract with
+// a $70,000 cost budget, $35,000 spent read as "65% left" when in truth half
+// the money for the job was gone.
+describe('ContractBar with a cost budget', () => {
+  it('measures against the cost budget instead of the contract', () => {
+    const el = render({
+      originalContractCents: 10_000_000,
+      revisedContractCents: 10_000_000,
+      budgetBaseCents: 7_000_000,
+      remainingCents: 3_500_000,
+    });
+
+    expect(el.textContent).toContain('$35,000.00');
+    expect(el.textContent).toContain('50%');
+    expect(el.textContent).toContain('$70,000.00');
+    expect(el.textContent).not.toContain('$100,000.00');
+  });
+
+  it('says which of the two numbers it is measuring against', () => {
+    const withBudget = render({
+      originalContractCents: 10_000_000,
+      revisedContractCents: 10_000_000,
+      budgetBaseCents: 7_000_000,
+      remainingCents: 3_500_000,
+    });
+    expect(withBudget.textContent).toContain('budget');
+  });
+
+  it('reads exactly as before when no budget is set', () => {
+    // budgetBaseCents comes back equal to the revised contract, so nothing on
+    // screen may move for a project that predates the field.
+    const el = render({
+      originalContractCents: 10_000_000,
+      revisedContractCents: 10_000_000,
+      budgetBaseCents: 10_000_000,
+      remainingCents: 6_500_000,
+    });
+
+    expect(el.textContent).toContain('$65,000.00');
+    expect(el.textContent).toContain('65%');
+    expect(el.textContent).not.toContain('budget');
+  });
+
+  it('shows an overrun of the cost budget uncapped', () => {
+    const el = render({
+      originalContractCents: 10_000_000,
+      revisedContractCents: 10_000_000,
+      budgetBaseCents: 7_000_000,
+      remainingCents: -1_000_000,
+    });
+
+    expect(el.textContent).toContain('-$10,000.00');
+    expect(barWidth(el)).toBe('0%');
+  });
+});

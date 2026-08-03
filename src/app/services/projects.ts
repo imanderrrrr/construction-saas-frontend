@@ -24,7 +24,13 @@ export interface ProjectResponse {
   contractAmountCents: number | null;
   approvedExpensesCents: number;         // sum of APPROVED expenses for this project
   totalConsumedCents: number | null;     // total consumed from ALL sources (expenses + labor + payables)
-  remainingBudgetCents: number | null;   // actual remaining = contractAmountCents
+  // The gauge. costBudgetCents is what the company planned to SPEND, typed in
+  // by hand; budgetBaseCents is what the gauge divides by, falling back to the
+  // revised contract while no budget is set. Divide by budgetBaseCents and
+  // nothing else — the backend already resolved that fallback.
+  costBudgetCents: number | null;        // planned spend; null = never set
+  budgetBaseCents: number | null;        // costBudgetCents, else revisedContractCents
+  remainingBudgetCents: number | null;   // budgetBaseCents − totalConsumedCents
   // Receivable side — every field above is spend. Summed by the backend in one
   // grouped query; never total receivable pages in the browser to get these.
   invoicedCents: number;                 // billed to the client (excludes unapproved/rejected CORs)
@@ -52,6 +58,7 @@ export interface CreateProjectPayload {
   clientId?: number;
   costCode?: string;
   contractAmountCents: number;
+  costBudgetCents?: number;
   address?: string;
   latitude?: number;
   longitude?: number;
@@ -64,6 +71,8 @@ export interface UpdateProjectPayload {
   clientId?: number;
   costCode?: string;
   contractAmountCents?: number;
+  // 0 clears it: null already means "leave this field alone" in a PATCH.
+  costBudgetCents?: number;
   address?: string;
   latitude?: number;
   longitude?: number;

@@ -233,7 +233,9 @@ export function BudgetReport({ readOnly = false }: BudgetReportProps) {
       const rows: ProjectReportRow[] = allProjects
         .filter((p: ProjectResponse) => p.originalContractCents != null)
         .map((p: ProjectResponse) => {
-          const totalBudget = (p.revisedContractCents ?? p.originalContractCents ?? 0) / 100;
+          // The gauge's denominator, resolved by the backend: cost budget when
+          // one is set, revised contract otherwise.
+          const totalBudget = (p.budgetBaseCents ?? p.revisedContractCents ?? p.originalContractCents ?? 0) / 100;
           const consumed    = (p.totalConsumedCents ?? 0) / 100;
           const pct         = totalBudget > 0 ? (consumed / totalBudget) * 100 : 0;
 

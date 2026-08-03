@@ -40,6 +40,7 @@ interface FormState {
     clientId: number | null;
     costCode: string;
     contractAmount: string; // display string, e.g. "1500000.00"
+    costBudget: string;     // what the company plans to SPEND; blank = not set
     address: string;
     latitude: string;
     longitude: string;
@@ -51,6 +52,7 @@ const INITIAL_FORM: FormState = {
     clientId: null,
     costCode: '',
     contractAmount: '',
+    costBudget: '',
     address: '',
     latitude: '',
     longitude: '',
@@ -561,6 +563,9 @@ export function ProjectFormDialog({ open, onClose, onSaved, editProject }: Proje
                 clientId: editProject.clientId ?? null,
                 costCode: editProject.costCode ?? '',
                 contractAmount: centsToDollars(editProject.originalContractCents ?? editProject.contractAmountCents),
+                // Blank when unset — never pre-filled from the contract, which
+                // is the conflation this field exists to undo.
+                costBudget: editProject.costBudgetCents != null ? centsToDollars(editProject.costBudgetCents) : '',
                 address: editProject.address ?? '',
                 latitude: editProject.latitude != null ? String(editProject.latitude) : '',
                 longitude: editProject.longitude != null ? String(editProject.longitude) : '',
@@ -597,6 +602,7 @@ export function ProjectFormDialog({ open, onClose, onSaved, editProject }: Proje
         setIsLoading(true);
         try {
             const cents = dollarsToCents(form.contractAmount);
+            const budgetCents = dollarsToCents(form.costBudget);
 
             if (isEdit && editProject) {
                 const payload: UpdateProjectPayload = {};
@@ -604,6 +610,9 @@ export function ProjectFormDialog({ open, onClose, onSaved, editProject }: Proje
                 if (form.clientId !== editProject.clientId) payload.clientId = form.clientId ?? undefined;
                 if (form.costCode !== (editProject.costCode ?? '')) payload.costCode = form.costCode || undefined;
                 if (cents !== (editProject.originalContractCents ?? editProject.contractAmountCents)) payload.contractAmountCents = cents;
+                // Sends 0 when the field is cleared: a PATCH cannot say null,
+                // and 0 is what the backend reads as "no budget".
+                if (budgetCents !== (editProject.costBudgetCents ?? null)) payload.costBudgetCents = budgetCents ?? 0;
                 if (form.address !== (editProject.address ?? '')) payload.address = form.address || undefined;
                 if (form.latitude && parseFloat(form.latitude) !== editProject.latitude) payload.latitude = parseFloat(form.latitude);
                 if (form.longitude && parseFloat(form.longitude) !== editProject.longitude) payload.longitude = parseFloat(form.longitude);
@@ -618,6 +627,7 @@ export function ProjectFormDialog({ open, onClose, onSaved, editProject }: Proje
                     ...(form.clientId && { clientId: form.clientId }),
                     ...(form.costCode && { costCode: form.costCode }),
                     contractAmountCents: cents ?? 0,   // guaranteed non-null by the create-mode guard above
+                    ...(budgetCents != null && { costBudgetCents: budgetCents }),
                     ...(form.address && { address: form.address }),
                     ...(form.latitude && { latitude: parseFloat(form.latitude) }),
                     ...(form.longitude && { longitude: parseFloat(form.longitude) }),
@@ -736,6 +746,26 @@ export function ProjectFormDialog({ open, onClose, onSaved, editProject }: Proje
                                 />
                             </div>
                             <p className="text-[10px] text-[#71717A]">{t('admin:projectForm.contractHint')}</p>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label className="text-sm font-medium text-[#0A0A0A]">{t('admin:projectForm.costBudget')}</Label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-2.5 text-sm text-[#71717A] font-medium">$</span>
+                                <Input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={form.costBudget}
+                                    onChange={e => updateField('costBudget', e.target.value.replace(/[^0-9.]/g, ''))}
+                                    onBlur={() => {
+                                        if (form.costBudget) updateField('costBudget', formatUSD(form.costBudget));
+                                    }}
+                                    placeholder={t('admin:projectForm.costBudgetPlaceholder')}
+                                    className="h-10 pl-7 border-[#D4D4D8] font-mono"
+                                    disabled={isLoading}
+                                />
+                            </div>
+                            <p className="text-[10px] text-[#71717A]">{t('admin:projectForm.costBudgetHint')}</p>
                         </div>
                     </div>
 

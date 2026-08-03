@@ -14,6 +14,9 @@
   "termsOfService": "Términos de Servicio",
   "poweredBy": "Desarrollado por",
 
+  "contractBar.ofContract": "de {{amount}}",
+  "contractBar.ofBudget": "de {{amount}} de presupuesto",
+
   "roles.ADMIN": "Administrador",
   "roles.SUPERVISOR": "Supervisor",
   "roles.WORKER": "Trabajador",

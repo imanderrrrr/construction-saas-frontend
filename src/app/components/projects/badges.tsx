@@ -84,16 +84,26 @@ export function AssignedAvatars({ userIds, allUsers }: { userIds: number[]; allU
 export function ContractBar({
   originalContractCents,
   revisedContractCents,
+  budgetBaseCents,
   remainingCents: remaining,
 }: {
   originalContractCents: number | null;
   revisedContractCents?: number | null;
+  budgetBaseCents?: number | null;
   remainingCents?: number | null;
 }) {
-  const baseCents = revisedContractCents ?? originalContractCents;
+  const { t } = useTranslation('common');
+  // What the gauge divides by. The backend resolves "cost budget, else revised
+  // contract" and hands the answer over as budgetBaseCents; the two fallbacks
+  // below only cover a response that predates the field.
+  const baseCents = budgetBaseCents ?? revisedContractCents ?? originalContractCents;
   if (baseCents == null || baseCents === 0) {
     return <span className="text-xs text-[#71717A]">—</span>;
   }
+  // Whether this job is being measured against what it was budgeted to spend
+  // or against the contract — the same "$70,000" means very different things,
+  // and the difference is the whole reason the cost budget exists.
+  const againstBudget = budgetBaseCents != null && budgetBaseCents !== (revisedContractCents ?? originalContractCents);
 
   // A project may run past its contract, leaving a negative remainder — show it.
   // Clamping to 0 (as this did) reported "nothing left" for a job that finished
@@ -111,7 +121,11 @@ export function ContractBar({
   return (
     <div className="min-w-[130px]">
       <p className={`text-xs font-semibold mb-0.5 ${remainingCents < 0 ? 'text-red-700' : 'text-[#0A0A0A]'}`}>{fmtUSD(remainingCents)}</p>
-      <p className={`text-[10px] font-medium ${textColor} mb-1`}>{pct}% of {fmtUSD(baseCents)}</p>
+      <p className={`text-[10px] font-medium ${textColor} mb-1`}>
+        {pct}% {againstBudget
+          ? t('contractBar.ofBudget', 'of {{amount}} budget', { amount: fmtUSD(baseCents) })
+          : t('contractBar.ofContract', 'of {{amount}}', { amount: fmtUSD(baseCents) })}
+      </p>
       <div className="h-1.5 w-full bg-[#E8EDF2] rounded-full overflow-hidden">
         <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${barPct}%` }} />
       </div>
