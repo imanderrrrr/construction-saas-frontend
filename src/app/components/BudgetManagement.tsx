@@ -142,7 +142,11 @@ function mapHistoryEntry(entry: ContractHistoryEntry): HistoryEntry {
 }
 
 function mapProjectToBudget(p: ProjectResponse): Budget {
-  const totalBudget = centsToUsd(p.revisedContractCents ?? p.originalContractCents ?? 0);
+  // budgetBaseCents is the cost budget when one is set and the revised contract
+  // otherwise — resolved by the backend, not re-derived here. Measuring spend
+  // against the contract measured it against the SALE price: for a builder who
+  // bills progress with margin on top, that number always looked healthy.
+  const totalBudget = centsToUsd(p.budgetBaseCents ?? p.revisedContractCents ?? p.originalContractCents ?? 0);
   const consumed    = centsToUsd(p.totalConsumedCents ?? 0);
   const remaining   = totalBudget - consumed;
   const pct         = getPct(consumed, totalBudget);

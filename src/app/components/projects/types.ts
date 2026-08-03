@@ -15,6 +15,11 @@ export interface Project {
   revisedContractCents: number | null;
   contractAmountCents: number | null;
   totalConsumedCents: number | null;   // spend from all sources
+  // What was budgeted to SPEND (null = never set) and what the gauge divides
+  // by, which falls back to the revised contract while no budget exists.
+  costBudgetCents: number | null;
+  budgetBaseCents: number | null;
+  remainingBudgetCents: number | null; // budgetBaseCents − totalConsumedCents
   // Receivable side, summed by the backend: billed to the client, paid, owed.
   invoicedCents: number;
   collectedCents: number;

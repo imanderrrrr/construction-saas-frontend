@@ -338,7 +338,7 @@ export function ProjectManagement() {
                         <AssignedAvatars userIds={project.assignedUserIds} allUsers={allUsers} />
                       </TableCell>
                       <TableCell className="py-4">
-                        <ContractBar originalContractCents={project.originalContractCents} revisedContractCents={project.revisedContractCents} remainingCents={project.contractAmountCents} />
+                        <ContractBar originalContractCents={project.originalContractCents} revisedContractCents={project.revisedContractCents} budgetBaseCents={project.budgetBaseCents} remainingCents={project.remainingBudgetCents} />
                       </TableCell>
                       <TableCell className="py-4">
                         <span className="text-xs text-[#71717A]">{fmtDate(project.createdAt, i18n.language)}</span>
@@ -438,7 +438,7 @@ export function ProjectManagement() {
                           <p className="text-xs text-[#71717A] mt-1.5">{fmtDate(project.createdAt, i18n.language)}</p>
                           {project.originalContractCents != null && (
                             <div className="mt-2">
-                              <ContractBar originalContractCents={project.originalContractCents} revisedContractCents={project.revisedContractCents} remainingCents={project.contractAmountCents} />
+                              <ContractBar originalContractCents={project.originalContractCents} revisedContractCents={project.revisedContractCents} budgetBaseCents={project.budgetBaseCents} remainingCents={project.remainingBudgetCents} />
                             </div>
                           )}
                         </div>
