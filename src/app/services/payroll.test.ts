@@ -11,8 +11,14 @@ import { exportPayrollPayments } from './payroll';
  */
 describe('exportPayrollPayments', () => {
   const fetchMock = vi.fn();
-  /** The anchor the service hands to the DOM — spying the append keeps it real. */
-  let appendSpy: ReturnType<typeof vi.spyOn<typeof document.body, 'appendChild'>>;
+  /**
+   * The anchor the service hands to the DOM. Spying on the append (rather than
+   * on the click) keeps the real implementation running, so the service's own
+   * `removeChild` still finds its node. Typed through a helper because naming
+   * `vi.spyOn<..., 'appendChild'>` explicitly does not satisfy its constraint.
+   */
+  const spyOnAppend = () => vi.spyOn(document.body, 'appendChild');
+  let appendSpy: ReturnType<typeof spyOnAppend>;
   const savedAnchor = () => appendSpy.mock.calls[0]?.[0] as HTMLAnchorElement | undefined;
 
   beforeEach(() => {
@@ -24,7 +30,7 @@ describe('exportPayrollPayments', () => {
     Object.defineProperty(URL, 'revokeObjectURL', { value: () => {}, configurable: true });
     // jsdom would log "navigation not implemented" on a real anchor click.
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
-    appendSpy = vi.spyOn(document.body, 'appendChild');
+    appendSpy = spyOnAppend();
   });
 
   afterEach(() => vi.restoreAllMocks());
