@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, ArrowRight, Check, CreditCard, Download, Loader2, X } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Check, CreditCard, Download, FileSpreadsheet, Loader2, X } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   confirmPayment, getAdminHoursReport,
   type AdminHoursReportResponse, type WorkerHoursSummary,
 } from '../../services/time';
 import type { BudgetWarning } from '../../types';
+import { exportPayrollPayments } from '../../services/payroll';
 import { listProjects } from '../../services/projects';
 import {
   GRID_INK, LaborFilters, LaborHeader, LaborSkeleton, Mono, amountOwed, fmtRange,
@@ -32,6 +34,7 @@ export function LaborPayrollScreen({ onNavigate }: { onNavigate: (section: strin
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [paying, setPaying] = useState<WorkerHoursSummary | null>(null);
+  const [exportingPayments, setExportingPayments] = useState(false);
 
   const { from, to } = range === 'week' ? weekRange() : monthRange();
 
@@ -47,6 +50,18 @@ export function LaborPayrollScreen({ onNavigate }: { onNavigate: (section: strin
   }, [from, to, project]);
 
   useEffect(() => { load(); }, [load]);
+
+  const downloadPayments = useCallback(async () => {
+    setExportingPayments(true);
+    try {
+      await exportPayrollPayments({ dateFrom: from, dateTo: to });
+    } catch {
+      toast.error(t('admin:pay.exportPayments.failed'));
+    } finally {
+      setExportingPayments(false);
+    }
+  }, [from, to, t]);
+
   useEffect(() => {
     listProjects({ status: 'ACTIVE', page: 0, size: 100 })
       .then(p => setProjects(p.content.map(x => ({
@@ -106,10 +121,24 @@ export function LaborPayrollScreen({ onNavigate }: { onNavigate: (section: strin
           amount: money(totalOwed), count: unpaid.length, range: fmtRange(from, to, lang),
         })}
         right={
-          <button onClick={() => exportCsv(visible, from, to, isPaid)}
-            className="inline-flex items-center gap-2 border border-[#DBD0BB] bg-[#FAF7F0] px-4 py-3 font-bt-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-[#0A0A0A] hover:border-[#F97316] hover:text-[#C2410C]">
-            <Download className="w-3.5 h-3.5" />{t('admin:lab.export')}
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => exportCsv(visible, from, to, isPaid)}
+              className="inline-flex items-center gap-2 border border-[#DBD0BB] bg-[#FAF7F0] px-4 py-3 font-bt-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-[#0A0A0A] hover:border-[#F97316] hover:text-[#C2410C]">
+              <Download className="w-3.5 h-3.5" />{t('admin:lab.export')}
+            </button>
+            {/* Two exports, two questions. The CSV above lists who is still
+                owed, from the hours on screen. This one lists the payments
+                already made in the period — the cheques — which is what gets
+                keyed into QuickBooks. */}
+            <button onClick={downloadPayments} disabled={exportingPayments}
+              title={t('admin:pay.exportPayments.hint')}
+              className="inline-flex items-center gap-2 border border-[#DBD0BB] bg-[#FAF7F0] px-4 py-3 font-bt-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-[#0A0A0A] hover:border-[#F97316] hover:text-[#C2410C] disabled:opacity-50">
+              {exportingPayments
+                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : <FileSpreadsheet className="w-3.5 h-3.5" />}
+              {t('admin:pay.exportPayments')}
+            </button>
+          </div>
         }
       />
 
