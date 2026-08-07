@@ -10,7 +10,8 @@ import { listActiveUsers } from './users';
  * staff. Past 100 active users the rest stopped existing for every caller —
  * including the project assignment editor, which keeps ids it cannot show and
  * sends them back on save, so a user off page one became invisible AND
- * unremovable. That is what left a customer unable to delete a project.
+ * unremovable. That is what left a customer unable to delete a project —
+ * see the inactive-assignee fix in the backend guard for the sibling case.
  */
 describe('listActiveUsers', () => {
   beforeEach(() => apiMock.mockReset());
