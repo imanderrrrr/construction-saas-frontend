@@ -1,6 +1,7 @@
 ﻿// OFJR Construction — Users Service (real API)
 // Admin-only CRUD over /api/v1/admin/users
 import { api } from '../lib/api';
+import { drainPages } from '../lib/paging';
 
 // Types
 
@@ -135,10 +136,24 @@ export async function updateUser(id: number, payload: UpdateUserPayload): Promis
  * Optionally filter by role.
  * Returns the content array of UserDTO directly.
  */
+/**
+ * Every active user, across all pages.
+ *
+ * This used to ask for `size: 100` and return the first page as if it were the
+ * whole staff. Past 100 active users the rest simply did not exist for any
+ * caller: they vanished from the worker pickers on expenses, payroll and tool
+ * assignment, and — worst of it — from the project assignment editor, which
+ * keeps the ids it cannot show and sends them back on save. An assignee who
+ * fell off page one became invisible AND unremovable, which is the shape of the
+ * bug that left a customer unable to delete a project.
+ *
+ * Bounded by the caller's own filters (status, optional role), never by a row
+ * cap: a cap that stops quietly is exactly what this replaces.
+ */
 export async function listActiveUsers(role?: string): Promise<UserDTO[]> {
-  const q = buildQuery({ status: 'ACTIVE', role, page: 0, size: 100 });
-  const page = await api<UsersPage>(`/api/v1/admin/users${q}`);
-  return page.content;
+  return drainPages<UserDTO>((page, size) =>
+    api<UsersPage>(`/api/v1/admin/users${buildQuery({ status: 'ACTIVE', role, page, size })}`),
+  );
 }
 
 export async function resetPassword(id: number, payload: ResetPasswordPayload): Promise<void> {
