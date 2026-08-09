@@ -30,6 +30,35 @@ function money(cents: number, currency: string): string {
     .format(cents / 100);
 }
 
+/**
+ * Format a date-only value (`YYYY-MM-DD`) as the calendar day it literally is.
+ *
+ * `new Date('2026-08-01')` parses as midnight UTC, so a signer anywhere west of
+ * Greenwich was shown "31 de julio" for an invoice dated 2026-08-01 — caught in
+ * a browser, not by a test. On a document somebody is putting their name to, a
+ * date that shifts with the reader's timezone is not acceptable, so the
+ * components are read straight out of the string and rendered with no timezone
+ * in play at all. The same document reads the same day everywhere.
+ */
+export function formatDocumentDate(value: string, locale: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return value;
+  const [, y, m, d] = match;
+  return new Date(Number(y), Number(m) - 1, Number(d))
+    .toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+/**
+ * Format an instant (`…T…Z`) in the reader's own timezone. Correct here in a
+ * way [formatDocumentDate] is not: "I signed at this moment" is a point in
+ * time, and the signer should see it on their own clock.
+ */
+function formatMoment(iso: string, locale: string): string {
+  return new Date(iso).toLocaleString(locale, {
+    year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
+}
+
 function classify(err: unknown): 'gone' | 'invalid' {
   if (err instanceof ApiError && (err.status === 410 || err.code === 'SIGNATURE_LINK_GONE')) {
     return 'gone';
@@ -68,10 +97,8 @@ export function SignDocument() {
     return () => { cancelled = true; };
   }, [token]);
 
-  const formatDate = useCallback(
-    (iso: string) => new Date(iso).toLocaleDateString(i18n.language, {
-      year: 'numeric', month: 'long', day: 'numeric',
-    }),
+  const docDate = useCallback(
+    (value: string) => formatDocumentDate(value, i18n.language),
     [i18n.language],
   );
 
@@ -160,7 +187,7 @@ export function SignDocument() {
             <dl className="mx-auto mt-6 max-w-sm space-y-1 rounded-lg bg-zinc-50 p-4 text-left text-sm">
               <Row label={t('signed.signer')} value={outcome.signerName ?? '—'} />
               <Row label={t('signed.title_field')} value={outcome.signerTitle ?? '—'} />
-              <Row label={t('signed.at')} value={formatDate(outcome.signedAt)} />
+              <Row label={t('signed.at')} value={formatMoment(outcome.signedAt, i18n.language)} />
             </dl>
           )}
         </div>
@@ -186,8 +213,8 @@ export function SignDocument() {
 
       <section className="mt-6 space-y-4">
         <dl className="grid grid-cols-2 gap-3 text-sm">
-          <Row label={t('doc.issued')} value={formatDate(doc.issuedDate)} />
-          <Row label={t('doc.due')} value={formatDate(doc.dueDate)} />
+          <Row label={t('doc.issued')} value={docDate(doc.issuedDate)} />
+          <Row label={t('doc.due')} value={docDate(doc.dueDate)} />
         </dl>
 
         {doc.description && <p className="text-sm text-zinc-700">{doc.description}</p>}

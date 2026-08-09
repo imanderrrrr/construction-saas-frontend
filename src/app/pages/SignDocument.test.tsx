@@ -27,6 +27,7 @@ vi.mock('../services/signatures', async (importOriginal) => {
 import { ApiError } from '../lib/api';
 import i18n from '../../i18n';
 import { routes } from '../routes';
+import { formatDocumentDate } from './SignDocument';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -68,6 +69,25 @@ function type(input: HTMLInputElement, value: string) {
   setter.call(input, value);
   input.dispatchEvent(new Event('input', { bubbles: true }));
 }
+
+describe('formatDocumentDate', () => {
+  // Regression: `new Date('2026-08-01')` is midnight UTC, so a signer in any
+  // timezone west of Greenwich was shown "31 de julio" for an invoice dated
+  // 2026-08-01. On a document being signed, the date must be the date.
+  it('renders the calendar day literally, with no timezone shift', () => {
+    expect(formatDocumentDate('2026-08-01', 'es')).toContain('1');
+    expect(formatDocumentDate('2026-08-01', 'es')).toContain('agosto');
+    expect(formatDocumentDate('2026-08-01', 'es')).not.toContain('julio');
+
+    expect(formatDocumentDate('2026-01-01', 'en')).toContain('January 1');
+    expect(formatDocumentDate('2026-12-31', 'en')).toContain('December 31');
+  });
+
+  it('passes through anything that is not a plain date', () => {
+    expect(formatDocumentDate('', 'es')).toBe('');
+    expect(formatDocumentDate('not-a-date', 'es')).toBe('not-a-date');
+  });
+});
 
 describe('SignDocument (public signing page)', () => {
   let container: HTMLDivElement;
@@ -120,7 +140,7 @@ describe('SignDocument (public signing page)', () => {
 
   it('shows the dead-link state on 410 instead of bouncing to login', async () => {
     svc.openSignatureSession.mockRejectedValue(
-      new ApiError(410, 'SIGNATURE_LINK_GONE', 'gone'),
+      new ApiError(410, 'gone', undefined, 'SIGNATURE_LINK_GONE'),
     );
     await renderPage(root);
 
@@ -130,7 +150,7 @@ describe('SignDocument (public signing page)', () => {
 
   it('shows the invalid state on a malformed token', async () => {
     svc.openSignatureSession.mockRejectedValue(
-      new ApiError(401, 'SIGNATURE_LINK_INVALID', 'invalid'),
+      new ApiError(401, 'invalid', undefined, 'SIGNATURE_LINK_INVALID'),
     );
     await renderPage(root);
 
