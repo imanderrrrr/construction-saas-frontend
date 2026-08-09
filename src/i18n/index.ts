@@ -20,6 +20,7 @@ import enLanding from './locales/en/landing.json';
 import enBilling from './locales/en/billing.json';
 import enSiteLog from './locales/en/siteLog.json';
 import enClientView from './locales/en/clientView.json';
+import enSignatures from './locales/en/signatures.json';
 import enPunchList from './locales/en/punchList.json';
 import enRfi from './locales/en/rfi.json';
 import enDocs from './locales/en/docs.json';
@@ -44,13 +45,14 @@ import esLanding from './locales/es/landing.json';
 import esBilling from './locales/es/billing.json';
 import esSiteLog from './locales/es/siteLog.json';
 import esClientView from './locales/es/clientView.json';
+import esSignatures from './locales/es/signatures.json';
 import esPunchList from './locales/es/punchList.json';
 import esRfi from './locales/es/rfi.json';
 import esDocs from './locales/es/docs.json';
 import esStatus from './locales/es/status.json';
 import esPay from './locales/es/pay.json';
 
-const ns = ['common', 'auth', 'admin', 'expenses', 'finance', 'projects', 'time', 'inventory', 'users', 'dashboard', 'worker', 'supervisor', 'subcontractors', 'landing', 'billing', 'siteLog', 'clientView', 'punchList', 'rfi', 'docs', 'status', 'pay'] as const;
+const ns = ['common', 'auth', 'admin', 'expenses', 'finance', 'projects', 'time', 'inventory', 'users', 'dashboard', 'worker', 'supervisor', 'subcontractors', 'landing', 'billing', 'siteLog', 'clientView', 'signatures', 'punchList', 'rfi', 'docs', 'status', 'pay'] as const;
 
 i18n
   .use(LanguageDetector)
@@ -75,6 +77,7 @@ i18n
         billing: enBilling,
         siteLog: enSiteLog,
         clientView: enClientView,
+        signatures: enSignatures,
         punchList: enPunchList,
         rfi: enRfi,
         docs: enDocs,
@@ -99,6 +102,7 @@ i18n
         billing: esBilling,
         siteLog: esSiteLog,
         clientView: esClientView,
+        signatures: esSignatures,
         punchList: esPunchList,
         rfi: esRfi,
         docs: esDocs,

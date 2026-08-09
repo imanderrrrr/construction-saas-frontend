@@ -112,6 +112,10 @@ const ANONYMOUS_ENDPOINTS = [
   // not a user session. A 401/410 here must render inline on the public page,
   // never bounce the visitor to /?session=expired.
   '/client-view/',
+  // Public signing surface: same reasoning as the client portal. A 401/410
+  // must render inline on the public page, never bounce the signer to
+  // /?session=expired — they have no session to expire.
+  '/sign/',
 ];
 
 function isAuthEndpoint(endpoint: string): boolean {

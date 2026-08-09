@@ -26,6 +26,8 @@ import { AuthService } from '../services/auth';
 import { listProjects } from '../services/projects';
 import { listClients, type ClientResponse } from '../services/clients';
 import { generateInvoicePdf, downloadInvoicePdf, type InvoicePdfData } from '../helpers/exportInvoicePdf';
+import { SignatureRequestPanel } from './signatures/SignatureRequestPanel';
+import { loadSignatureForPdf } from '../services/signatures';
 import { loadInvoiceIssuer } from '../services/invoiceBranding';
 import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
@@ -567,7 +569,7 @@ export function AccountsReceivable() {
                       billable). */}
                   <Button
                     variant="outline"
-                    onClick={async () => downloadInvoicePdf(invoiceToPdfData(inv), await loadInvoiceIssuer())}
+                    onClick={async () => downloadInvoicePdf(invoiceToPdfData(inv), await loadInvoiceIssuer(), await loadSignatureForPdf(inv.id))}
                     className="text-xs h-8 px-3 border-amber-300 text-amber-800 hover:bg-amber-100 gap-1.5"
                     title={t('finance:receivable.downloadPdf')}
                   >
@@ -725,7 +727,7 @@ export function AccountsReceivable() {
                             {t('finance:receivable.registerPayment')}
                           </Button>
                           <button
-                            onClick={async () => downloadInvoicePdf(invoiceToPdfData(inv), await loadInvoiceIssuer())}
+                            onClick={async () => downloadInvoicePdf(invoiceToPdfData(inv), await loadInvoiceIssuer(), await loadSignatureForPdf(inv.id))}
                             className="h-7 w-7 flex items-center justify-center rounded-md border border-red-200 text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors"
                             title={t('finance:receivable.downloadPdf')}
                           >
@@ -810,6 +812,11 @@ export function AccountsReceivable() {
                                 </tbody>
                               </table>
                             )}
+                            {/* Customer signature — what used to be a blank
+                                ruled line at the foot of the printed invoice. */}
+                            <div className="pt-2 border-t border-[#D4D4D8]/40">
+                              <SignatureRequestPanel receivableId={inv.id} />
+                            </div>
                           </div>
                         </td>
                       </tr>,

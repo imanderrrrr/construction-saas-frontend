@@ -143,7 +143,22 @@ function drawLogoImage(doc: jsPDF, dataUrl: string, x: number, y: number, box: n
 
 /* ───────────────────────── Main export ───────────────────────── */
 
-export function generateInvoicePdf(data: InvoicePdfData, issuer?: InvoiceIssuerPdf): { blob: Blob; filename: string } {
+/**
+ * A captured customer signature, when the document has one.
+ *
+ * `imageDataUrl` is the PNG the signer drew (PNG only — see
+ * SignatureImageStorage). When absent, the PDF keeps printing the blank ruled
+ * line it always did, so an unsigned invoice is unchanged.
+ */
+export interface InvoiceSignaturePdf {
+  imageDataUrl: string;
+  signerName: string;
+  signerTitle: string;
+  signedAt: string;
+  documentHash: string;
+}
+
+export function generateInvoicePdf(data: InvoicePdfData, issuer?: InvoiceIssuerPdf, signature?: InvoiceSignaturePdf): { blob: Blob; filename: string } {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
   const pageW = doc.internal.pageSize.getWidth();
   const margin = 18;
@@ -388,16 +403,45 @@ export function generateInvoicePdf(data: InvoicePdfData, issuer?: InvoiceIssuerP
 
   /* ═══════════════════ Signature line ═══════════════════ */
 
-  y = Math.max(y, doc.internal.pageSize.getHeight() - 40);
+  // Unsigned: the blank ruled line this document always printed, for a wet
+  // signature. Signed: the captured stroke sits ON that line, with the name,
+  // the title and the date underneath — the three things the customer's own
+  // contractors ask them for — plus the document fingerprint, so the paper
+  // copy carries the same evidence as the record behind it.
+  y = Math.max(y, doc.internal.pageSize.getHeight() - (signature ? 52 : 40));
 
   doc.setFontSize(8.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...BLACK);
   doc.text('Customer Signature', margin, y);
+
+  if (signature) {
+    try {
+      // 75mm × 18mm over the rule, matching the line's span below.
+      doc.addImage(signature.imageDataUrl, 'PNG', margin + 35, y - 16, 75, 18, undefined, 'FAST');
+    } catch {
+      // A corrupt stored image must not take the whole PDF down; the ruled
+      // line and the typed attribution below still tell the story.
+    }
+  }
+
   y += 2;
   doc.setDrawColor(...BLACK);
   doc.setLineWidth(0.3);
   doc.line(margin + 35, y, margin + 110, y);
+
+  if (signature) {
+    y += 4;
+    doc.setFontSize(8);
+    doc.setTextColor(...BLACK);
+    doc.text(`${signature.signerName} — ${signature.signerTitle}`, margin + 35, y);
+    y += 3.5;
+    doc.setFontSize(7);
+    doc.setTextColor(...GRAY_TEXT);
+    doc.text(`Signed ${new Date(signature.signedAt).toLocaleString()}`, margin + 35, y);
+    y += 3;
+    doc.text(`Document fingerprint (SHA-256): ${signature.documentHash}`, margin + 35, y);
+  }
 
   /* ═══════════════════ Footer ═══════════════════ */
 
@@ -424,8 +468,8 @@ export function generateInvoicePdf(data: InvoicePdfData, issuer?: InvoiceIssuerP
 }
 
 /** Generate and immediately trigger download. */
-export function downloadInvoicePdf(data: InvoicePdfData, issuer?: InvoiceIssuerPdf) {
-  const { blob, filename } = generateInvoicePdf(data, issuer);
+export function downloadInvoicePdf(data: InvoicePdfData, issuer?: InvoiceIssuerPdf, signature?: InvoiceSignaturePdf) {
+  const { blob, filename } = generateInvoicePdf(data, issuer, signature);
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -442,7 +486,7 @@ export function downloadInvoicePdf(data: InvoicePdfData, issuer?: InvoiceIssuerP
  * `URL.revokeObjectURL` it when it changes or the component unmounts —
  * otherwise the blobs leak. Used by the live invoice preview.
  */
-export function invoicePdfPreviewUrl(data: InvoicePdfData, issuer?: InvoiceIssuerPdf): string {
-  const { blob } = generateInvoicePdf(data, issuer);
+export function invoicePdfPreviewUrl(data: InvoicePdfData, issuer?: InvoiceIssuerPdf, signature?: InvoiceSignaturePdf): string {
+  const { blob } = generateInvoicePdf(data, issuer, signature);
   return URL.createObjectURL(blob);
 }
