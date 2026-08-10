@@ -1,9 +1,7 @@
 {
   "loading": "Loading the document…",
-
   "kind.invoice": "Invoice",
   "kind.changeOrder": "Change order",
-
   "doc.issued": "Issued",
   "doc.due": "Due",
   "doc.item": "Item",
@@ -14,7 +12,6 @@
   "doc.discount": "Discount",
   "doc.tax": "Tax",
   "doc.total": "Total",
-
   "form.heading": "Signature",
   "form.hint": "Enter your full name and your title at the company, then sign in the box.",
   "form.name": "Full name",
@@ -25,29 +22,22 @@
   "form.submit": "Sign document",
   "form.decline": "I can't sign this",
   "form.trailNote": "Signing records your name, your title, the date, your IP address and the exact version of this document (SHA-256 fingerprint):",
-
   "pad.aria": "Signature box",
   "pad.placeholder": "Sign here",
   "pad.clear": "Clear and sign again",
-
   "signed.title": "Document signed",
   "signed.body": "Done. The contractor has your signature; there is nothing else you need to do.",
   "signed.signer": "Signed by",
   "signed.title_field": "Title",
   "signed.at": "Date",
-
   "declined.title": "Document not signed",
   "declined.body": "We recorded that you did not sign this document. Contact the contractor if you would like to review it.",
-
   "gone.title": "This link is no longer active",
   "gone.body": "The link was already used, expired, or the contractor withdrew it. Ask them for a new one.",
-
   "invalid.title": "Invalid link",
   "invalid.body": "We couldn't open this link. Check that you copied all of it, or ask for a new one.",
-
   "errors.submit": "The signature could not be recorded. Please try again.",
   "errors.decline": "Your response could not be recorded. Please try again.",
-
   "panel.title": "Customer signature",
   "panel.none": "No signature has been requested for this document yet.",
   "panel.request": "Request signature",
@@ -71,5 +61,7 @@
   "panel.cancel": "Cancel",
   "panel.emailHint": "Leave it empty to skip the email: the link is generated for you to copy.",
   "panel.declineReason": "Reason: {{reason}}",
-  "panel.error": "The operation could not be completed. Please try again."
+  "panel.error": "The operation could not be completed. Please try again.",
+  "panel.documentChanged": "Heads up: this invoice changed after the link went out.",
+  "panel.documentChangedHint": "The client sees and signs the version that was sent. To have them sign the new one, request the signature again."
 }

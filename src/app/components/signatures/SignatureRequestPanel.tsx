@@ -8,7 +8,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  CheckCircle2, Clock, Copy, FileSignature, Loader2, ShieldOff, XCircle,
+  AlertTriangle, CheckCircle2, Clock, Copy, FileSignature, Loader2, ShieldOff, XCircle,
 } from 'lucide-react';
 import {
   getSignatureRequest,
@@ -201,6 +201,24 @@ export function SignatureRequestPanel({ receivableId, defaultRecipientEmail }: P
             </span>
           </p>
           <p className="text-xs text-[#71717A]">{t('panel.expires', { date: fmtDate(state.expiresAt) })}</p>
+
+          {/* The invoice moved after the link went out. This warns; it does
+              not block. The signer keeps seeing the frozen version and the
+              signature stays valid evidence of what was shown — the point is
+              only that the office should know the two no longer match. */}
+          {state.documentChanged && (
+            <p
+              role="status"
+              className="flex items-start gap-1.5 rounded bg-amber-50 px-2.5 py-2 text-xs text-amber-800"
+            >
+              <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" />
+              <span>
+                {t('panel.documentChanged')}{' '}
+                <span className="text-amber-700">{t('panel.documentChangedHint')}</span>
+              </span>
+            </p>
+          )}
+
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"

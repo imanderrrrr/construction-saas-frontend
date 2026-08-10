@@ -35,6 +35,13 @@ export interface SignatureRequestState {
   declinedAt: string | null;
   declineReason: string | null;
   revokedAt: string | null;
+  /**
+   * The live invoice no longer matches the version that was frozen and sent.
+   * Informational only — the link still works and the signature is still
+   * valid evidence of what was shown. The panel warns so the divergence is
+   * not invisible on our side too.
+   */
+  documentChanged: boolean;
 }
 
 export interface CreateSignatureRequestBody {
