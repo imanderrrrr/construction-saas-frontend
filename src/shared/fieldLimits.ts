@@ -93,6 +93,37 @@ export const FIELD_LIMITS = {
 export type FieldLimitKey = keyof typeof FIELD_LIMITS;
 
 /**
+ * The largest money amount, in units, that a request may carry on a field that
+ * is **multiplied** before it is stored.
+ *
+ * Kept outside `FIELD_LIMITS` on purpose: everything in there is a string
+ * length destined for a `maxLength` attribute, and this is a *value* bound.
+ * Mixing it in would let it reach a `maxLength={...}` by autocomplete and cap
+ * an input at a million characters.
+ *
+ * Mirrors `FieldLimits.MONEY_AMOUNT` / `MONEY_INTEGER_DIGITS` in the backend —
+ * the two files must be edited together. Nothing consumes this yet: the T&M
+ * screens do not exist. It is here so the mirror stays whole, and so the number
+ * is already in place when the form that needs it is written.
+ *
+ * ### Where the number comes from
+ *
+ * A T&M ticket's labour is `workerCount × hours × hourlyRate`, capped at 999
+ * workers and 99999.99 hours — a multiplier of up to ~1e8 before the result
+ * lands in a 64-bit integer of cents. The hard arithmetic ceiling is therefore
+ * `Long.MAX_VALUE / 1e8 ≈ 9.2e10` cents, about $923,000,000 per hour;
+ * 1,000,000 sits ~920× under it and far past any real value.
+ *
+ * It is a sanity bound, **not** a budget guard: it does not look at what a
+ * project can afford, it does not warn, and it does not clamp. The budget is a
+ * gauge, not a gate.
+ */
+export const MONEY_AMOUNT = 1_000_000;
+
+/** Integer digits implied by {@link MONEY_AMOUNT} — `1000000.00` has 7. */
+export const MONEY_INTEGER_DIGITS = 7;
+
+/**
  * Deliberately absent: a limit for password inputs.
  *
  * The backend caps passwords at 100 characters, but putting `maxLength` on a
