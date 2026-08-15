@@ -6,6 +6,7 @@ import {
   LayoutDashboard, CheckCircle, FileBarChart, DollarSign, Clock,
   Wallet, PieChart, ArrowDownToLine, ArrowUpFromLine, BarChart3,
   TrendingUp, TrendingDown, AlertTriangle, Receipt, Banknote, HardHat, Loader2, FileText,
+  FileSignature,
 } from 'lucide-react';
 import { AppShell, type AppShellNavItem } from '../components/AppShell';
 import { StatCard } from '../components/StatCard';
@@ -35,6 +36,11 @@ const AccountsReceivable = lazy(() =>
 );
 const AccountsPayable = lazy(() =>
   import('../components/AccountsPayable').then(m => ({ default: m.AccountsPayable }))
+);
+// Tiempo y material, office half only: FINANCE converts signed tickets into
+// change orders. Capture lives on the site surface, which FINANCE is not on.
+const TmOffice = lazy(() =>
+  import('../components/tm/TmOfficeSection').then(m => ({ default: m.TmOfficeSection }))
 );
 const InvoiceManager = lazy(() =>
   import('../components/InvoiceManager').then(m => ({ default: m.InvoiceManager }))
@@ -69,10 +75,12 @@ type ActiveSection =
   | 'project-financials'
   | 'labor-cost'
   | 'labor-payroll'
-  | 'supervisor-hours';
+  | 'supervisor-hours'
+  | 'tm-office';
 
 const SECTION_META_KEYS: Record<ActiveSection, { titleKey: string; subtitleKey: string }> = {
   'dashboard':            { titleKey: 'finance:section.dashboard.title',            subtitleKey: 'finance:section.dashboard.subtitle'            },
+  'tm-office':            { titleKey: 'tm:section.office.title',                    subtitleKey: 'tm:section.office.subtitle'                    },
   'invoices':             { titleKey: 'finance:section.invoices.title',             subtitleKey: 'finance:section.invoices.subtitle'             },
   'accounts-receivable':  { titleKey: 'finance:section.accountsReceivable.title',   subtitleKey: 'finance:section.accountsReceivable.subtitle'   },
   'accounts-payable':     { titleKey: 'finance:section.accountsPayable.title',      subtitleKey: 'finance:section.accountsPayable.subtitle'      },
@@ -260,7 +268,7 @@ function DashboardView({ username, onNavigate }: { username: string; onNavigate:
 
 export function FinanceDashboard({ initialSection }: { initialSection?: ActiveSection } = {}) {
   const navigate    = useNavigate();
-  const { t }       = useTranslation(['finance', 'common']);
+  const { t }       = useTranslation(['finance', 'common', 'tm']);
   const username    = AuthService.getUsername() ?? 'finance';
   // `initialSection` lets a deep-link route (e.g. /finance/expenses) open the
   // dashboard straight on a section while keeping the full shell + sidebar.
@@ -274,6 +282,7 @@ export function FinanceDashboard({ initialSection }: { initialSection?: ActiveSe
     { key: 'invoices',              label: t('finance:nav.invoices'),              icon: FileText,        group: 'accounting' },
     { key: 'accounts-receivable',  label: t('finance:nav.accountsReceivable'),   icon: ArrowDownToLine, group: 'accounting' },
     { key: 'accounts-payable',     label: t('finance:nav.accountsPayable'),      icon: ArrowUpFromLine, group: 'accounting' },
+    { key: 'tm-office',            label: t('tm:nav.office'),                     icon: FileSignature,   group: 'accounting' },
     { key: 'approved-expenses',    label: t('finance:nav.approvedExpenses'),     icon: CheckCircle,     group: 'expenses'   },
     { key: 'expense-report',       label: t('finance:nav.expenseReport'),        icon: FileBarChart,    group: 'expenses'   },
     { key: 'budgets',              label: t('finance:nav.budgets'),              icon: Wallet,          group: 'budgets'    },
@@ -309,6 +318,11 @@ export function FinanceDashboard({ initialSection }: { initialSection?: ActiveSe
       >
         {activeSection === 'dashboard' && (
           <DashboardView username={username} onNavigate={handleNavigate} />
+        )}
+        {activeSection === 'tm-office' && (
+          <Suspense fallback={<LoadingSkeleton />}>
+            <TmOffice />
+          </Suspense>
         )}
         {activeSection === 'invoices' && (
           <Suspense fallback={<LoadingSkeleton />}>

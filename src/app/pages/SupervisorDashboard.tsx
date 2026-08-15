@@ -9,7 +9,7 @@ import {
   Clock, Receipt, Users, Bell, Activity,
   Building2, Loader2, Inbox, CheckCheck, Mail, MailOpen,
   MapPin, ChevronRight, AlertCircle, RefreshCw, NotebookPen, ClipboardList,
-  HelpCircle,
+  HelpCircle, FileSignature,
 } from 'lucide-react';
 import { AppShell, AppShellNavItem } from '../components/AppShell';
 import { AuthService } from '../services/auth';
@@ -47,6 +47,12 @@ const SupervisorPunchList = lazy(() =>
 const SupervisorRfi = lazy(() =>
   import('../components/rfi/SupervisorRfiSection').then(m => ({ default: m.SupervisorRfiSection }))
 );
+// Tiempo y material: capture on site + collect the client's signature there.
+// Not gated behind the `bitacora` plan feature — a T&M sheet is how the
+// company gets paid for unforeseen work, not part of the client portal.
+const SupervisorTm = lazy(() =>
+  import('../components/tm/TmFieldSection').then(m => ({ default: m.TmFieldSection }))
+);
 // Supervisors are hourly field staff too: they punch their own time through
 // the same worker component/endpoints (backend already authorizes SUPERVISOR
 // on /api/v1/worker/**). Their records are approvable only by admins.
@@ -56,7 +62,7 @@ const WorkerTime = lazy(() =>
 
 // ——— Types & config ——————————————————————————————————————————————————
 
-type Section = 'dashboard' | 'projects' | 'task-board' | 'site-log' | 'punch-list' | 'rfi' | 'my-time' | 'time-approvals' | 'expense-reviews' | 'team-tools';
+type Section = 'dashboard' | 'projects' | 'task-board' | 'site-log' | 'punch-list' | 'rfi' | 'tm' | 'my-time' | 'time-approvals' | 'expense-reviews' | 'team-tools';
 
 const SECTION_META_KEYS: Record<Section, { titleKey: string; subtitleKey: string }> = {
   'dashboard':       { titleKey: 'supervisor:section.dashboard.title',       subtitleKey: 'supervisor:section.dashboard.subtitle'       },
@@ -65,6 +71,7 @@ const SECTION_META_KEYS: Record<Section, { titleKey: string; subtitleKey: string
   'site-log':        { titleKey: 'siteLog:section.title',                    subtitleKey: 'siteLog:section.subtitle'                    },
   'punch-list':      { titleKey: 'punchList:internal.title',                  subtitleKey: 'punchList:internal.subtitle'                 },
   'rfi':             { titleKey: 'rfi:internal.title',                        subtitleKey: 'rfi:internal.subtitle'                       },
+  'tm':              { titleKey: 'tm:section.field.title',                    subtitleKey: 'tm:section.field.subtitle'                   },
   'my-time':         { titleKey: 'supervisor:section.myTime.title',          subtitleKey: 'supervisor:section.myTime.subtitle'          },
   'time-approvals':  { titleKey: 'supervisor:section.timeApprovals.title',   subtitleKey: 'supervisor:section.timeApprovals.subtitle'   },
   'expense-reviews': { titleKey: 'supervisor:section.expenseReviews.title',  subtitleKey: 'supervisor:section.expenseReviews.subtitle'  },
@@ -91,7 +98,7 @@ function SectionSpinner() {
 
 export function SupervisorDashboard() {
   const navigate = useNavigate();
-  const { t } = useTranslation(['supervisor', 'common', 'siteLog', 'punchList', 'rfi']);
+  const { t } = useTranslation(['supervisor', 'common', 'siteLog', 'punchList', 'rfi', 'tm']);
   const username = AuthService.getUsername() ?? 'supervisor1';
   const [active, setActive] = useState<Section>('dashboard');
   // Bitácora de obra is gated behind the `bitacora` plan feature — hide its nav
@@ -114,6 +121,7 @@ export function SupervisorDashboard() {
       items.push({ key: 'rfi', label: t('rfi:internal.title'), icon: HelpCircle, group: 'general' });
     }
     items.push(
+      { key: 'tm',              label: t('tm:nav.tm'),                      icon: FileSignature,   group: 'general'  },
       { key: 'my-time',         label: t('supervisor:nav.myTime'),          icon: Clock,           group: 'time'     },
       { key: 'time-approvals',  label: t('supervisor:nav.timeApprovals'),   icon: ClipboardCheck,  group: 'time'     },
       { key: 'expense-reviews', label: t('supervisor:nav.expenseReviews'),  icon: ReceiptText,     group: 'expenses' },
@@ -152,6 +160,7 @@ export function SupervisorDashboard() {
           {active === 'site-log'        && siteLogEnabled && <SupervisorSiteLog />}
           {active === 'punch-list'      && siteLogEnabled && <SupervisorPunchList />}
           {active === 'rfi'             && siteLogEnabled && <SupervisorRfi />}
+          {active === 'tm'              && <SupervisorTm />}
           {active === 'my-time'         && <WorkerTime username={username} />}
           {active === 'time-approvals'  && <SupervisorApprovals mode="supervisor" />}
           {active === 'expense-reviews' && <ExpenseReviews />}
@@ -170,7 +179,7 @@ export function SupervisorDashboard() {
 // ——— SupervisorDashboardContent ———————————————————————————————————————
 
 function SupervisorDashboardContent({ username, onNavigate }: { username: string; onNavigate: (s: string) => void }) {
-  const { t } = useTranslation(['supervisor', 'common', 'siteLog', 'punchList', 'rfi']);
+  const { t } = useTranslation(['supervisor', 'common', 'siteLog', 'punchList', 'rfi', 'tm']);
 
   // Out-of-range alerts (live data)
   const [oorAlerts, setOorAlerts] = useState<OutOfRangeAlertResponse[]>([]);

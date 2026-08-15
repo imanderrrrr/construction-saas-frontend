@@ -2,6 +2,8 @@
   "loading": "Loading the document…",
   "kind.invoice": "Invoice",
   "kind.changeOrder": "Change order",
+  "kind.timeAndMaterial": "Time & material",
+  "kind.document": "Document",
   "doc.issued": "Issued",
   "doc.due": "Due",
   "doc.item": "Item",

@@ -88,6 +88,37 @@ export const FIELD_LIMITS = {
   SEARCH: 100,
   /** A 6-digit numeric PIN. */
   PIN: 6,
+
+  // ── Value bounds (not lengths) ────────────────────────────────
+  /**
+   * The largest money amount, in units, a field may carry when that field is
+   * **multiplied** before it is stored. A string, not a number, because the
+   * backend's `@DecimalMax` takes one and this file mirrors it literally.
+   *
+   * The odd one out in this file: every other entry is a string length that
+   * keeps an INSERT inside its column. This one prevents different damage —
+   * arithmetic that overflows and stores a small, plausible, *wrong* number.
+   * A T&M ticket's labour is `workerCount × hours × hourlyRate`, so the rate
+   * is multiplied by up to `999 × 99999.99 ≈ 1e8` before it lands in a
+   * `BIGINT`; a bound that is fine for a value only ever *added* is not fine
+   * here.
+   *
+   * ⚠️ It is a **sanity bound, not a budget guard**. It does not look at what
+   * a project can afford, it does not warn, and it does not clamp — the
+   * budget is a gauge, not a gate. It only rules out a ticket that is
+   * arithmetically impossible.
+   *
+   * Mirrors `FieldLimits.MONEY_AMOUNT`.
+   */
+  MONEY_AMOUNT: '1000000.00',
+  /**
+   * Integer digits implied by [MONEY_AMOUNT] — `1000000.00` has 7 before the
+   * point. Pairs with it so the two bounds agree instead of one silently
+   * permitting what the other rejects.
+   *
+   * Mirrors `FieldLimits.MONEY_INTEGER_DIGITS`.
+   */
+  MONEY_INTEGER_DIGITS: 7,
 } as const;
 
 export type FieldLimitKey = keyof typeof FIELD_LIMITS;
