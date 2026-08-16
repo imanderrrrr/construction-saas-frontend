@@ -220,6 +220,14 @@ const NAV_FINANCE: NavItem[] = [
 /** Flat list used for lookups (section meta, rendering content, etc.) */
 const NAV_ITEMS: NavItem[] = [...NAV_GENERAL, ...NAV_PERSONNEL, ...NAV_PROJECTS, ...NAV_FINANCE];
 
+// Industrial chassis — keep in sync with components/AppShell.tsx and
+// pages/WarehouseDashboard.tsx (same markup, maintained by hand).
+const GRID_INK: React.CSSProperties = {
+  backgroundImage:
+    'linear-gradient(rgba(245,241,232,0.055) 1px, transparent 1px), linear-gradient(90deg, rgba(245,241,232,0.055) 1px, transparent 1px)',
+  backgroundSize: '24px 24px',
+};
+
 const SECTION_META: Record<ActiveSection, { titleKey: string; subtitleKey: string }> = {
   'dashboard':       { titleKey: 'admin:section.dashboard.title',       subtitleKey: 'admin:section.dashboard.subtitle'       },
   'users':           { titleKey: 'admin:section.users.title',           subtitleKey: 'admin:section.users.subtitle'           },
@@ -316,18 +324,18 @@ export function AdminDashboard() {
       <button
         onClick={handleClick}
         data-tour={item.key}
-        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-left group ${
+        className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-colors group font-bt-mono text-[10.5px] font-medium uppercase tracking-[0.07em] ${
           isActive
-            ? 'bg-[#F97316]/10 text-[#F97316]'
-            : 'text-[#0A0A0A] hover:bg-[#FAFAFA] hover:text-[#F97316]'
+            ? 'bg-[#0A0A0A] text-[#F5F1E8]'
+            : 'text-[#5A5346] hover:bg-[#F3EEE4] hover:text-[#0A0A0A]'
         }`}
       >
-        <item.icon className="w-4.5 h-4.5 flex-shrink-0" style={{ width: 18, height: 18 }} />
-        <span className={`text-sm flex-1 ${isActive ? 'font-semibold' : 'font-medium'}`}>
+        <item.icon className="flex-shrink-0" style={{ width: 15, height: 15 }} />
+        <span className={`flex-1 ${isActive ? 'font-semibold' : ''}`}>
           {t(item.labelKey)}
         </span>
         {item.badgeKey && (
-          <span className="text-[9px] font-bold px-1.5 py-0.5 bg-[#F97316]/10 text-[#F97316] rounded-md">
+          <span className="font-bt-mono text-[8.5px] font-bold uppercase tracking-[0.05em] px-1.5 py-0.5 bg-[#F97316] text-[#0A0A0A]">
             {t(item.badgeKey)}
           </span>
         )}
@@ -341,13 +349,13 @@ export function AdminDashboard() {
           className={`flex-shrink-0 transition-opacity ${
             favorites.includes(item.key)
               ? 'opacity-100 text-[#F97316]'
-              : 'opacity-0 group-hover:opacity-100 text-[#A1A1AA] hover:text-[#F97316]'
+              : 'opacity-0 group-hover:opacity-100 text-[#A69C8D] hover:text-[#F97316]'
           }`}
         >
           <Star className="w-3.5 h-3.5" fill={favorites.includes(item.key) ? 'currentColor' : 'none'} />
         </span>
         {isActive && (
-          <span className="w-1.5 h-1.5 rounded-full bg-[#F97316] flex-shrink-0" />
+          <span className="w-1.5 h-1.5 bg-[#F97316] flex-shrink-0" />
         )}
       </button>
     );
@@ -357,15 +365,15 @@ export function AdminDashboard() {
   function SidebarContent() {
     return (
       <>
-        {/* Brand */}
-        <div className="p-5 border-b border-[#D4D4D8] flex-shrink-0">
+        {/* Brand plate */}
+        <div className="px-4 py-4 bg-[#0A0A0A] flex-shrink-0" style={GRID_INK}>
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-9 h-9 bg-[#F97316] rounded-lg flex-shrink-0">
-              <Building2 className="w-5 h-5 text-white" />
+            <div className="w-9 h-9 bg-[#F97316] flex items-center justify-center flex-shrink-0">
+              <Building2 className="w-5 h-5 text-[#0A0A0A]" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-sm font-semibold text-[#0A0A0A] leading-tight">{t('common:brand')}</h1>
-              <p className="text-[11px] text-[#71717A]">{t('admin:panelLabel')}</p>
+              <h1 className="font-bt-display font-bold uppercase text-[16px] leading-none text-[#F5F1E8] truncate">{t('common:brand')}</h1>
+              <p className="font-bt-mono text-[8.5px] uppercase tracking-[0.16em] text-[#B4A992] mt-1 truncate">{t('admin:panelLabel')}</p>
             </div>
           </div>
         </div>
@@ -380,18 +388,18 @@ export function AdminDashboard() {
           {/* Favorites — pinned on top, in pin order. Hidden while empty. */}
           {favoriteItems.length > 0 && (
             <>
-              <p className="text-[10px] font-semibold text-[#71717A] uppercase tracking-wider px-3 py-2">
+              <p className="font-bt-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-[#A69C8D] px-3 py-2">
                 {t('admin:group.favorites')}
               </p>
               {favoriteItems.map(item => (
                 <NavItem key={`fav-${item.key}`} item={item} />
               ))}
-              <div className="my-3 border-t border-[#D4D4D8]" />
+              <div className="my-3 border-t border-[#EDE7DB]" />
             </>
           )}
 
           {/* General */}
-          <p className="text-[10px] font-semibold text-[#71717A] uppercase tracking-wider px-3 py-2">
+          <p className="font-bt-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-[#A69C8D] px-3 py-2">
             {t('admin:group.general')}
           </p>
           {NAV_GENERAL.map(item => (
@@ -399,8 +407,8 @@ export function AdminDashboard() {
           ))}
 
           {/* Personnel */}
-          <div className="my-3 border-t border-[#D4D4D8]" />
-          <p className="text-[10px] font-semibold text-[#71717A] uppercase tracking-wider px-3 py-2">
+          <div className="my-3 border-t border-[#EDE7DB]" />
+          <p className="font-bt-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-[#A69C8D] px-3 py-2">
             {t('admin:group.personnel')}
           </p>
           {NAV_PERSONNEL.map(item => (
@@ -408,8 +416,8 @@ export function AdminDashboard() {
           ))}
 
           {/* Projects */}
-          <div className="my-3 border-t border-[#D4D4D8]" />
-          <p className="text-[10px] font-semibold text-[#71717A] uppercase tracking-wider px-3 py-2">
+          <div className="my-3 border-t border-[#EDE7DB]" />
+          <p className="font-bt-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-[#A69C8D] px-3 py-2">
             {t('admin:group.projects')}
           </p>
           {NAV_PROJECTS.map(item => (
@@ -417,8 +425,8 @@ export function AdminDashboard() {
           ))}
 
           {/* Finance */}
-          <div className="my-3 border-t border-[#D4D4D8]" />
-          <p className="text-[10px] font-semibold text-[#71717A] uppercase tracking-wider px-3 py-2">
+          <div className="my-3 border-t border-[#EDE7DB]" />
+          <p className="font-bt-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-[#A69C8D] px-3 py-2">
             {t('admin:group.finance')}
           </p>
           {NAV_FINANCE.map(item => (
@@ -427,17 +435,17 @@ export function AdminDashboard() {
         </nav>
 
         {/* User footer */}
-        <div className="p-3 border-t border-[#D4D4D8] flex-shrink-0">
-          <div className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-[#FAFAFA] transition-colors">
-            <div className="w-8 h-8 bg-[#F97316] rounded-full flex items-center justify-center text-xs text-white font-bold flex-shrink-0">
+        <div className="p-3 border-t border-[#DBD0BB] flex-shrink-0">
+          <div className="flex items-center gap-2.5 p-2">
+            <div className="w-9 h-9 bg-[#0A0A0A] flex items-center justify-center font-bt-mono text-[11px] font-semibold text-[#F97316] flex-shrink-0">
               {(username ?? 'A').slice(0, 2).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-[#0A0A0A] truncate">{username}</p>
-              <p className="text-[10px] text-[#71717A]">ADMIN</p>
+              <p className="font-bt-mono text-[11px] font-semibold text-[#0A0A0A] truncate">{username}</p>
+              <p className="font-bt-mono text-[8.5px] uppercase tracking-[0.14em] text-[#8A8175] mt-0.5 truncate">{t('common:roles.ADMIN')}</p>
             </div>
             <button onClick={handleLogout}
-              className="text-[#71717A] hover:text-red-600 transition-colors p-1 rounded"
+              className="p-1.5 text-[#8A8175] hover:text-[#C2410C] hover:bg-[#F3EEE4] transition-colors flex-shrink-0"
               title={t('common:signOut')}>
               <LogOut className="w-3.5 h-3.5" />
             </button>
@@ -445,7 +453,7 @@ export function AdminDashboard() {
           <div className="px-2 mt-2">
             <TimezoneSwitcher />
           </div>
-          <p className="text-[10px] text-[#D4D4D8] px-2 mt-1.5">{t('admin:sidebar.version')}</p>
+          <p className="font-bt-mono text-[8px] uppercase tracking-[0.1em] text-[#B4A992] px-2 mt-1.5">{t('admin:sidebar.version')}</p>
         </div>
       </>
     );
@@ -455,7 +463,7 @@ export function AdminDashboard() {
     <div className="min-h-screen bg-[#FAFAFA] flex">
 
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex w-60 bg-white border-r border-[#D4D4D8] flex-col flex-shrink-0 sticky top-0 h-screen overflow-hidden">
+      <aside className="hidden md:flex w-60 bg-[#FAF7F0] border-r border-[#DBD0BB] flex-col flex-shrink-0 sticky top-0 h-screen overflow-hidden">
         <SidebarContent />
       </aside>
 
@@ -468,11 +476,11 @@ export function AdminDashboard() {
             onClick={() => setSidebarOpen(false)}
           />
           {/* Drawer */}
-          <aside className="absolute left-0 top-0 bottom-0 w-72 bg-white flex flex-col shadow-2xl">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[#D4D4D8]">
-              <span className="text-sm font-semibold text-[#0A0A0A]">{t('admin:sidebar.menu')}</span>
+          <aside className="absolute left-0 top-0 bottom-0 w-72 bg-[#FAF7F0] flex flex-col shadow-2xl">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#DBD0BB]">
+              <span className="font-bt-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-[#0A0A0A]">{t('admin:sidebar.menu')}</span>
               <button onClick={() => setSidebarOpen(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg text-[#71717A] hover:bg-[#FAFAFA]">
+                className="w-8 h-8 flex items-center justify-center text-[#8A8175] hover:bg-[#F3EEE4] hover:text-[#0A0A0A]">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -486,20 +494,20 @@ export function AdminDashboard() {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
 
-        {/* Topbar */}
-        <header className="h-14 bg-white border-b border-[#D4D4D8] flex items-center justify-between px-4 md:px-6 flex-shrink-0 sticky top-0 z-30">
+        {/* Topbar — identity + context + actions; the content below carries
+            its own display title, so the masthead only whispers where you are. */}
+        <header className="h-14 bg-[#FAF7F0] border-b border-[#0A0A0A] flex items-center justify-between px-4 md:px-6 flex-shrink-0 sticky top-0 z-30">
           <div className="flex items-center gap-3 min-w-0">
             {/* Mobile hamburger */}
             <button
               onClick={() => setSidebarOpen(true)}
-              className="md:hidden w-9 h-9 flex items-center justify-center rounded-lg border border-[#D4D4D8] text-[#0A0A0A] hover:bg-[#FAFAFA] flex-shrink-0"
+              className="md:hidden w-9 h-9 flex items-center justify-center border border-[#0A0A0A] text-[#0A0A0A] hover:bg-[#F3EEE4] flex-shrink-0"
             >
               <Menu className="w-4 h-4" />
             </button>
-            <div className="min-w-0">
-              <h2 className="text-sm font-semibold text-[#0A0A0A] truncate">{t(meta.titleKey)}</h2>
-              <p className="text-[11px] text-[#71717A] truncate hidden sm:block">{t(meta.subtitleKey)}</p>
-            </div>
+            <h2 className="min-w-0 truncate font-bt-mono text-[10.5px] font-semibold uppercase tracking-[0.14em] text-[#0A0A0A]">
+              <span className="text-[#8A8175] hidden sm:inline">{t('admin:panelLabel')} · </span>{t(meta.titleKey)}
+            </h2>
           </div>
 
           <div className="flex items-center gap-2">
@@ -511,27 +519,27 @@ export function AdminDashboard() {
                 : setIntroReplay(n => n + 1)
             }
             title={t('admin:tour.helpButton')}
-            className="w-9 h-9 flex items-center justify-center rounded-lg text-[#71717A] hover:text-[#F97316] hover:bg-[#FAFAFA] transition-colors"
+            className="w-9 h-9 flex items-center justify-center text-[#8A8175] hover:text-[#C2410C] hover:bg-[#F3EEE4] transition-colors"
           >
             <HelpCircle className="w-4 h-4" />
           </button>
-          <LanguageSwitcher />
+          <LanguageSwitcher variant="shell" />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-2 h-9 px-3">
-                <div className="w-7 h-7 bg-[#F97316] rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="text-white text-[10px] font-bold">
+              <Button variant="ghost" size="sm" className="gap-2 h-9 px-2 rounded-none hover:bg-[#F3EEE4]">
+                <div className="w-7 h-7 bg-[#0A0A0A] flex items-center justify-center flex-shrink-0">
+                  <span className="font-bt-mono text-[10px] font-semibold text-[#F97316]">
                     {(username ?? 'A').slice(0, 2).toUpperCase()}
                   </span>
                 </div>
                 <div className="text-left hidden sm:block">
-                  <div className="text-xs font-semibold text-[#0A0A0A]">{username}</div>
-                  <div className="text-[10px] text-[#71717A]">{t('admin:topbar.administrator')}</div>
+                  <div className="font-bt-mono text-[10.5px] font-semibold text-[#0A0A0A]">{username}</div>
+                  <div className="font-bt-mono text-[8.5px] uppercase tracking-[0.1em] text-[#8A8175]">{t('admin:topbar.administrator')}</div>
                 </div>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52">
-              <DropdownMenuLabel className="text-xs text-[#71717A]">{t('admin:topbar.signedInAs', { username })}</DropdownMenuLabel>
+            <DropdownMenuContent align="end" className="w-56 rounded-none border-[#DBD0BB]">
+              <DropdownMenuLabel className="font-bt-mono text-[10px] uppercase tracking-[0.08em] text-[#8A8175]">{t('admin:topbar.signedInAs', { username })}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem className="gap-2 text-sm cursor-pointer">
                 <User className="w-4 h-4" />{t('common:profile')}
@@ -543,7 +551,7 @@ export function AdminDashboard() {
                 <CreditCard className="w-4 h-4" />{t('admin:nav.billing')}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout} className="gap-2 text-sm text-red-600 focus:text-red-600 cursor-pointer">
+              <DropdownMenuItem onClick={handleLogout} className="gap-2 text-sm text-[#C2410C] focus:text-[#C2410C] cursor-pointer">
                 <LogOut className="w-4 h-4" />{t('common:signOut')}
               </DropdownMenuItem>
             </DropdownMenuContent>
