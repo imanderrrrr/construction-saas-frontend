@@ -10,7 +10,7 @@ import {
   Clock, CalendarClock, ClipboardList, Receipt, FileBarChart,
   Wallet, PieChart, Wrench, Banknote, HardHat,
   ArrowDownToLine, ArrowUpFromLine, UserRound, FileText, Briefcase,
-  CreditCard, FileSignature, HelpCircle, Star,
+  CreditCard, FileSignature, HelpCircle, Star, Palette,
 } from 'lucide-react';
 import { OnboardingTour } from '../components/onboarding/OnboardingTour';
 import { SectionTour } from '../components/onboarding/SectionTour';
@@ -151,6 +151,11 @@ const SubcontractorManagement = lazyWithRetry(() =>
   import('../components/SubcontractorManagement').then(m => ({ default: m.SubcontractorManagement }))
 );
 
+// Lazy-loaded app identity (product branding) settings
+const AppBrandingSettings = lazyWithRetry(() =>
+  import('../components/AppBrandingSettings').then(m => ({ default: m.AppBrandingSettings }))
+);
+
 // Lazy-loaded invoice template (issuer branding) settings
 const InvoiceBrandingSettings = lazyWithRetry(() =>
   import('../components/InvoiceBrandingSettings').then(m => ({ default: m.InvoiceBrandingSettings }))
@@ -165,6 +170,7 @@ type ActiveSection =
   | 'tool-inventory' | 'tool-report'
   | 'labor-cost' | 'labor-payroll'
   | 'invoices' | 'invoice-branding'
+  | 'app-branding'
   | 'accounts-receivable' | 'accounts-payable'
   | 'office-expenses'
   | 'subcontractors'
@@ -183,9 +189,12 @@ type NavItem = {
 };
 
 const NAV_GENERAL: NavItem[] = [
-  { key: 'dashboard', labelKey: 'admin:nav.dashboard', icon: LayoutDashboard },
-  { key: 'audit',     labelKey: 'admin:nav.auditLogs', icon: Shield          },
-  { key: 'billing',   labelKey: 'admin:nav.billing',   icon: CreditCard },
+  { key: 'dashboard',    labelKey: 'admin:nav.dashboard',   icon: LayoutDashboard },
+  { key: 'audit',        labelKey: 'admin:nav.auditLogs',   icon: Shield          },
+  // The app's own identity is a GENERAL setting, not a finance one — the
+  // invoice template next to it in NAV_FINANCE is the billing identity.
+  { key: 'app-branding', labelKey: 'admin:nav.appBranding', icon: Palette         },
+  { key: 'billing',      labelKey: 'admin:nav.billing',     icon: CreditCard      },
 ];
 
 const NAV_PERSONNEL: NavItem[] = [
@@ -237,6 +246,7 @@ const SECTION_META: Record<ActiveSection, { titleKey: string; subtitleKey: strin
   'labor-payroll':        { titleKey: 'admin:section.laborPayroll.title',        subtitleKey: 'admin:section.laborPayroll.subtitle'        },
   'invoices':             { titleKey: 'admin:section.invoices.title',             subtitleKey: 'admin:section.invoices.subtitle'             },
   'invoice-branding':     { titleKey: 'admin:section.invoiceBranding.title',      subtitleKey: 'admin:section.invoiceBranding.subtitle'      },
+  'app-branding':         { titleKey: 'admin:section.appBranding.title',          subtitleKey: 'admin:section.appBranding.subtitle'          },
   'accounts-receivable':  { titleKey: 'admin:section.accountsReceivable.title',  subtitleKey: 'admin:section.accountsReceivable.subtitle'  },
   'accounts-payable':     { titleKey: 'admin:section.accountsPayable.title',     subtitleKey: 'admin:section.accountsPayable.subtitle'     },
   'office-expenses':      { titleKey: 'admin:section.officeExpenses.title',      subtitleKey: 'admin:section.officeExpenses.subtitle'      },
@@ -615,6 +625,11 @@ export function AdminDashboard() {
           {activeSection === 'invoice-branding' && (
             <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
               <InvoiceBrandingSettings />
+            </Suspense></SectionErrorBoundary>
+          )}
+          {activeSection === 'app-branding' && (
+            <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
+              <AppBrandingSettings />
             </Suspense></SectionErrorBoundary>
           )}
           {activeSection === 'accounts-receivable' && (
