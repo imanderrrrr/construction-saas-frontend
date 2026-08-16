@@ -16,7 +16,7 @@
 
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FileSignature, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 import { businessToday } from '../../helpers/dateTime';
 import {
@@ -56,6 +56,23 @@ interface FormState {
   hours: string;
   hourlyRate: string;
   material: string;
+}
+
+function Mono({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return <span className={`font-bt-mono uppercase tracking-[0.1em] ${className}`}>{children}</span>;
+}
+
+/** Subtle grid on ink surfaces — same texture as the Suscripción hero. */
+const GRID_INK: React.CSSProperties = {
+  backgroundImage:
+    'linear-gradient(rgba(245,241,232,0.055) 1px, transparent 1px), linear-gradient(90deg, rgba(245,241,232,0.055) 1px, transparent 1px)',
+  backgroundSize: '24px 24px',
+};
+
+/** "$1,850.00" → ["$", "1,850.00"] so the symbol can set small, guide-style. */
+function splitMoney(formatted: string): [string, string] {
+  const i = formatted.indexOf('$');
+  return [formatted.slice(0, i + 1), formatted.slice(i + 1)];
 }
 
 function initialState(ticket?: TmTicket | null): FormState {
@@ -172,33 +189,37 @@ export function TmTicketForm({ projects, ticket, onSaved, onCancel }: Props) {
     }
   };
 
-  // The panel's field vocabulary: a small uppercase label over a 36px control,
-  // orange focus ring, hairline border. `block` on the label keeps the input a
-  // child of it, which is also how the form is driven in tests.
-  const label = 'block text-[11px] font-semibold uppercase tracking-wide text-[#71717A]';
-  const field = 'mt-1.5 h-9 w-full rounded-lg border border-[#D4D4D8] bg-white px-3 text-sm font-normal normal-case tracking-normal text-[#0A0A0A] transition-colors focus:border-[#F97316] focus:outline-none focus:ring-2 focus:ring-[#F97316]/25';
+  // The panel's field vocabulary: a small mono label in caps over a sand
+  // control with a hairline border, square corners, orange focus. `block` on
+  // the label keeps the input a child of it, which is also how the form is
+  // driven in tests. `font-sans` + normal-case pull the value text back out
+  // of the label's mono caps.
+  const label = 'block font-bt-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-[#5A5346]';
+  const field = 'mt-1.5 h-10 w-full border border-[#DBD0BB] bg-[#FAF7F0] px-3 font-sans text-sm font-normal normal-case tracking-normal text-[#0A0A0A] transition-colors focus:border-[#F97316] outline-none';
   const area = `${field} h-auto py-2 leading-relaxed`;
-  const hint = 'mt-1.5 block text-xs font-normal normal-case tracking-normal text-[#71717A]';
+  const hint = 'mt-1.5 block font-sans text-xs font-normal normal-case tracking-normal text-[#71717A]';
+
+  const [totalSym, totalDigits] = preview ? splitMoney(formatCents(preview.total)) : ['', '—'];
 
   return (
     <form
       className="p-4 md:p-6 max-w-[1400px] mx-auto space-y-4"
       onSubmit={e => { e.preventDefault(); void submit(); }}
     >
-      <div className="space-y-4 rounded-xl border border-[#D4D4D8] bg-white p-4 sm:p-6">
-        <div className="flex items-center gap-2 border-b border-[#D4D4D8] pb-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#F97316]/10">
-            <FileSignature className="h-4 w-4 text-[#F97316]" />
-          </div>
-          <h3 className="text-base font-semibold text-[#0A0A0A]">
-            {ticket ? t('tm:form.titleEdit', { number: ticket.ticketNumber }) : t('tm:form.titleCreate')}
-          </h3>
-        </div>
+      {/* Editorial header — the eyebrow says which desk this is, the display
+          title says what is being written. */}
+      <div className="min-w-0">
+        <Mono className="text-[11px] tracking-[0.15em] text-[#71717A]">{t('tm:kicker.form')}</Mono>
+        <h2 className="font-bt-display font-bold uppercase text-4xl md:text-5xl leading-none text-[#0A0A0A] mt-1.5">
+          {ticket ? t('tm:form.titleEdit', { number: ticket.ticketNumber }) : t('tm:form.bigCreate')}
+        </h2>
+      </div>
 
+      <div className="space-y-4 bg-white border border-[#E4E4E7] p-4 sm:p-6">
         <label className={label}>
           {t('tm:form.project')}
           <select
-            className={field}
+            className={`${field} appearance-none cursor-pointer disabled:opacity-60`}
             value={form.projectId}
             disabled={Boolean(ticket)}
             onChange={e => set('projectId', e.target.value)}
@@ -296,60 +317,59 @@ export function TmTicketForm({ projects, ticket, onSaved, onCancel }: Props) {
         </label>
 
         {error && (
-          <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <p role="alert" className="flex gap-2.5 items-center bg-[#FBEDE0] border border-[#F6CFA6] border-l-[3px] border-l-[#F97316] px-3 py-2.5 text-[13px] text-[#43301F]">
             {error}
           </p>
         )}
       </div>
 
       {/* The number that gets read out loud before anyone signs, so it is the
-          biggest thing on the form and it lives in the featured card the rest
-          of the module uses for money. */}
+          biggest thing on the form and it lives on the ink surface the panel
+          reserves for money. */}
       <div
-        className="overflow-hidden rounded-xl bg-[#0A0A0A] p-5 sm:p-6 text-[#F5F1E8]"
+        className="relative overflow-hidden bg-[#0A0A0A] p-5 sm:p-6 text-[#F5F1E8]"
         data-testid="tm-total-preview"
       >
-        <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="absolute inset-0 pointer-events-none" style={GRID_INK} />
+        <div className="relative flex flex-wrap items-end justify-between gap-4">
           <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[#F5F1E8]/50">
+            <Mono className="block text-[11px] tracking-[0.15em] text-[#F5F1E8]/50">
               {t('tm:form.total')}
-            </p>
-            <p
-              className="mt-2 font-bt-display font-bold leading-[0.84] tracking-tight tabular-nums text-5xl sm:text-6xl"
-              data-testid="tm-total-value"
-            >
-              {preview ? formatCents(preview.total) : '—'}
-            </p>
+            </Mono>
+            <div className="flex items-baseline mt-2" data-testid="tm-total-value">
+              {preview && (
+                <span className="font-bt-display font-bold text-3xl text-[#F5F1E8]/60 self-start mt-1">{totalSym}</span>
+              )}
+              <span className="font-bt-display font-bold leading-[0.84] tracking-tight tabular-nums text-5xl sm:text-6xl">
+                {totalDigits}
+              </span>
+            </div>
           </div>
           <dl className="flex gap-6 border-t border-[#F5F1E8]/15 pt-3 sm:border-0 sm:pt-0">
             <div>
-              <dt className="text-[10px] font-semibold uppercase tracking-wider text-[#F5F1E8]/45">
-                {t('tm:form.labor')}
-              </dt>
-              <dd className="mt-1 text-lg font-bold tabular-nums">
+              <dt><Mono className="text-[9.5px] text-[#F5F1E8]/45">{t('tm:form.labor')}</Mono></dt>
+              <dd className="mt-1 font-bt-display font-bold text-xl leading-none tabular-nums">
                 {preview ? formatCents(preview.labor) : '—'}
               </dd>
             </div>
             <div>
-              <dt className="text-[10px] font-semibold uppercase tracking-wider text-[#F5F1E8]/45">
-                {t('tm:form.material')}
-              </dt>
-              <dd className="mt-1 text-lg font-bold tabular-nums">
+              <dt><Mono className="text-[9.5px] text-[#F5F1E8]/45">{t('tm:form.material')}</Mono></dt>
+              <dd className="mt-1 font-bt-display font-bold text-xl leading-none tabular-nums">
                 {preview ? formatCents(preview.total - preview.labor) : '—'}
               </dd>
             </div>
           </dl>
         </div>
-        <p className="mt-4 border-t border-[#F5F1E8]/15 pt-3 text-xs text-[#F5F1E8]/60">
+        <Mono className="relative block mt-4 border-t border-[#F5F1E8]/15 pt-3 text-[10px] tracking-[0.05em] normal-case text-[#F5F1E8]/60">
           {t('tm:form.totalHint')}
-        </p>
+        </Mono>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="submit"
           disabled={!canSave}
-          className="inline-flex items-center gap-2 rounded-lg bg-[#F97316] px-5 py-2.5 text-sm font-semibold text-[#0A0A0A] transition-colors hover:bg-[#EA580C] disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex items-center gap-2 bg-[#0A0A0A] hover:bg-[#F97316] text-[#F5F1E8] hover:text-[#0A0A0A] font-bt-mono text-[11px] font-semibold uppercase tracking-[0.08em] px-5 py-3 transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-[#0A0A0A] disabled:hover:text-[#F5F1E8]"
         >
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}
           {t('tm:form.save')}
@@ -357,7 +377,7 @@ export function TmTicketForm({ projects, ticket, onSaved, onCancel }: Props) {
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-lg px-2 py-2.5 text-sm font-medium text-[#71717A] transition-colors hover:text-[#0A0A0A]"
+          className="font-bt-mono text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[#8A8175] hover:text-[#0A0A0A] transition-colors px-2 py-3"
         >
           {t('tm:form.cancel')}
         </button>

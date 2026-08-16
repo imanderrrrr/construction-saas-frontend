@@ -15,10 +15,13 @@
 //
 // There is no delete here, and there is no endpoint for one. A T&M is revoked
 // while it waits, or refused by the signer — never removed.
+//
+// Dressed in the same industrial language as the site side — see the note at
+// the top of `TmFieldSection`.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, CheckCircle2, Loader2, RefreshCw, Wallet } from 'lucide-react';
+import { AlertTriangle, ChevronRight, Loader2, RefreshCw, Wallet } from 'lucide-react';
 import { fmtDate, fmtDateTime } from '../../helpers/dateTime';
 import { formatApiAmount } from '../../helpers/tmMoney';
 import { FIELD_LIMITS } from '../../../shared/fieldLimits';
@@ -32,6 +35,26 @@ import {
   type TmTicketStatus,
 } from '../../services/tm';
 import { TmStatusChip } from './TmStatusChip';
+
+function Mono({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return <span className={`font-bt-mono uppercase tracking-[0.1em] ${className}`}>{children}</span>;
+}
+
+/** Subtle grid on ink surfaces — same texture as the Suscripción hero. */
+const GRID_INK: React.CSSProperties = {
+  backgroundImage:
+    'linear-gradient(rgba(245,241,232,0.055) 1px, transparent 1px), linear-gradient(90deg, rgba(245,241,232,0.055) 1px, transparent 1px)',
+  backgroundSize: '24px 24px',
+};
+
+/** "$1,850.00" → ["$", "1,850.00"] so the symbol can set small, guide-style. */
+function splitMoney(formatted: string): [string, string] {
+  const i = formatted.indexOf('$');
+  return [formatted.slice(0, i + 1), formatted.slice(i + 1)];
+}
+
+const BTN_PRIMARY = 'inline-flex items-center gap-2 bg-[#0A0A0A] hover:bg-[#F97316] text-[#F5F1E8] hover:text-[#0A0A0A] font-bt-mono text-[11px] font-semibold uppercase tracking-[0.08em] px-4 py-2.5 transition-colors disabled:opacity-40 disabled:hover:bg-[#0A0A0A] disabled:hover:text-[#F5F1E8]';
+const BTN_GHOST = 'font-bt-mono text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[#8A8175] hover:text-[#0A0A0A] transition-colors disabled:opacity-40';
 
 export function TmOfficeSection() {
   const { t, i18n } = useTranslation('tm');
@@ -92,285 +115,311 @@ export function TmOfficeSection() {
     }
   };
 
+  const [pendingSym, pendingDigits] = pending ? splitMoney(money(pending.totalPending)) : ['', '—'];
+  const [convSym, convDigits] = converting ? splitMoney(money(converting.total)) : ['', ''];
+
   return (
     <div className="p-4 md:p-6 max-w-[1400px] mx-auto space-y-4">
-      {/* Same featured card as the site side, so the two halves of T&M read as
-          one module — but this is the office's copy of the number, and the
-          hint underneath says whose desk it is sitting on. */}
-      <section className="relative overflow-hidden rounded-xl bg-[#0A0A0A] p-5 sm:p-6 md:p-7 text-[#F5F1E8]">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[#F5F1E8]/50">
-          {t('pending.title')}
-        </p>
-        <p className="mt-2 font-bt-display font-bold leading-[0.84] tracking-tight tabular-nums text-5xl sm:text-6xl md:text-7xl">
-          {pending ? money(pending.totalPending) : '—'}
-        </p>
-        <p className="mt-3 max-w-md text-xs leading-relaxed text-[#F5F1E8]/60">{t('office.pendingHint')}</p>
+      {/* Editorial header — same grammar as the site side; the right-hand mono
+          caption is the office's standing rule, the way Aprobaciones carries
+          "NADA CUENTA HASTA QUE APRUEBAS". */}
+      <div className="flex items-end justify-between gap-4 flex-wrap">
+        <div className="min-w-0">
+          <Mono className="text-[11px] tracking-[0.15em] text-[#71717A]">{t('kicker.office')}</Mono>
+          <h2 className="font-bt-display font-bold uppercase text-4xl md:text-5xl leading-none text-[#0A0A0A] mt-1.5">
+            {t('section.office.title')}
+          </h2>
+          <p className="text-sm text-[#52525B] mt-1.5">{t('section.office.subtitle')}</p>
+        </div>
+        <Mono className="block text-[10px] text-[#A1A1AA] flex-shrink-0">{t('office.headerNote')}</Mono>
+      </div>
 
-        {pending && (
-          <dl className="mt-5 grid grid-cols-2 gap-4 border-t border-[#F5F1E8]/15 pt-4 sm:grid-cols-3">
-            <div>
-              <dt className="text-[10px] font-semibold uppercase tracking-wider text-[#F5F1E8]/45">
-                {t('pending.count')}
-              </dt>
-              <dd className="mt-1 text-xl font-bold tabular-nums">{pending.ticketCount}</dd>
-            </div>
-            <div>
-              <dt className="text-[10px] font-semibold uppercase tracking-wider text-[#F5F1E8]/45">
-                {t('pending.oldest')}
-              </dt>
-              <dd className="mt-1 text-xl font-bold tabular-nums">
-                {t('pending.days', { count: pending.oldestAgeDays })}
-              </dd>
-            </div>
-          </dl>
-        )}
+      {/* Same ink hero as the site side, so the two halves of T&M read as one
+          module — but this is the office's copy of the number, and the line
+          underneath says whose desk it is sitting on. */}
+      <section className="relative overflow-hidden bg-[#0A0A0A] p-5 sm:p-6 md:p-7 text-[#F5F1E8]">
+        <div className="absolute inset-0 pointer-events-none" style={GRID_INK} />
+        <div className="relative">
+          <Mono className="block text-[11px] tracking-[0.15em] text-[#F5F1E8]/50">
+            {t('pending.title')}
+          </Mono>
+          <div className="flex items-baseline mt-2">
+            {pending && (
+              <span className="font-bt-display font-bold text-3xl sm:text-4xl text-[#F5F1E8]/60 self-start mt-1">
+                {pendingSym}
+              </span>
+            )}
+            <span className="font-bt-display font-bold leading-[0.84] tracking-tight tabular-nums text-5xl sm:text-6xl md:text-7xl">
+              {pendingDigits}
+            </span>
+          </div>
+          <Mono className="block max-w-md mt-3 text-[11px] tracking-[0.05em] normal-case text-[#F5F1E8]/60">
+            {t('office.pendingHint')}
+          </Mono>
+
+          {pending && (
+            <dl className="mt-5 grid grid-cols-2 sm:grid-cols-3 border-t border-[#F5F1E8]/15">
+              <div className="pt-4 pr-4 border-r border-[#F5F1E8]/15">
+                <dd className="font-bt-display font-bold text-2xl leading-none tabular-nums">{pending.ticketCount}</dd>
+                <dt className="mt-1.5"><Mono className="text-[9.5px] text-[#F5F1E8]/45">{t('pending.count')}</Mono></dt>
+              </div>
+              <div className="pt-4 px-4">
+                <dd className="font-bt-display font-bold uppercase text-2xl leading-none tabular-nums">
+                  {t('pending.days', { count: pending.oldestAgeDays })}
+                </dd>
+                <dt className="mt-1.5"><Mono className="text-[9.5px] text-[#F5F1E8]/45">{t('pending.oldest')}</Mono></dt>
+              </div>
+            </dl>
+          )}
+        </div>
       </section>
 
-      <div className="rounded-xl border border-[#D4D4D8] bg-white p-3 sm:p-4">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="flex min-w-[150px] flex-1 flex-col gap-1.5 sm:max-w-[240px]">
-            <label
-              htmlFor="tm-office-status"
-              className="text-[11px] font-semibold uppercase tracking-wide text-[#71717A]"
-            >
-              {t('filter.status')}
-            </label>
-            <select
-              id="tm-office-status"
-              value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value as '' | TmTicketStatus)}
-              className="h-9 rounded-lg border border-[#D4D4D8] bg-white px-3 text-sm text-[#0A0A0A] transition-colors focus:border-[#F97316] focus:outline-none focus:ring-2 focus:ring-[#F97316]/25"
-            >
-              <option value="">{t('filter.allStatuses')}</option>
-              {TM_TICKET_STATUSES.map(s => (
-                <option key={s} value={s}>{t(`status.${s}`)}</option>
-              ))}
-            </select>
-          </div>
+      <div className="bg-white border border-[#E4E4E7] p-3.5">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <select
+            aria-label={t('filter.status')}
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value as '' | TmTicketStatus)}
+            className="appearance-none cursor-pointer border border-[#DBD0BB] bg-[#FAF7F0] px-3 py-2 font-bt-mono text-[11px] uppercase tracking-[0.06em] text-[#0A0A0A] max-w-[230px] focus:border-[#F97316] outline-none"
+          >
+            <option value="">{t('filter.statusAll')}</option>
+            {TM_TICKET_STATUSES.map(s => (
+              <option key={s} value={s}>{t(`status.${s}`)}</option>
+            ))}
+          </select>
         </div>
       </div>
 
       {actionError && (
-        <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <p role="alert" className="flex gap-2.5 items-center bg-[#FBEDE0] border border-[#F6CFA6] border-l-[3px] border-l-[#F97316] px-3 py-2.5 text-[13px] text-[#43301F]">
+          <AlertTriangle className="h-3.5 w-3.5 text-[#EA580C] flex-shrink-0" />
           {actionError}
         </p>
       )}
 
       {loading && (
-        <div className="rounded-xl border border-[#D4D4D8] bg-white p-6">
+        <div className="bg-white border border-[#E4E4E7] py-1.5">
           {[0, 1, 2].map(i => (
-            <div key={i} className="flex items-center gap-3 py-3">
-              <div className="h-9 w-9 shrink-0 animate-pulse rounded-lg bg-[#FAFAFA]" />
-              <div className="flex-1 space-y-2">
-                <div className="h-3 w-1/3 animate-pulse rounded bg-[#FAFAFA]" />
-                <div className="h-2.5 w-1/2 animate-pulse rounded bg-[#FAFAFA]" />
+            <div key={i} className="flex gap-3.5 items-center px-5 py-4 border-b border-[#F0EBE1]">
+              <div className="flex-1">
+                <div className="w-1/3 h-3 bg-[#EAE4D8] animate-pulse mb-2" />
+                <div className="w-1/2 h-2 bg-[#EAE4D8] animate-pulse" />
               </div>
-              <div className="h-6 w-20 animate-pulse rounded bg-[#FAFAFA]" />
+              <div className="w-20 h-7 bg-[#EAE4D8] animate-pulse" />
             </div>
           ))}
-          <p className="flex items-center gap-2 pt-2 text-xs text-[#71717A]">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            {t('list.loading')}
+          <p className="flex items-center gap-2 px-5 py-3">
+            <Loader2 className="h-3 w-3 animate-spin text-[#8A8175]" />
+            <Mono className="text-[10px] text-[#8A8175]">{t('list.loading')}</Mono>
           </p>
         </div>
       )}
 
       {!loading && failed && (
-        <div className="rounded-xl border border-[#D4D4D8] bg-white p-10 text-center">
-          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-red-50">
-            <AlertTriangle className="h-5 w-5 text-red-600" />
-          </div>
-          <p className="mt-3 text-sm font-medium text-[#0A0A0A]">{t('list.loadFailed')}</p>
+        <div className="bg-white border border-[#E4E4E7] py-16 text-center">
+          <p className="text-sm text-[#71717A]">{t('list.loadFailed')}</p>
           <button
             type="button"
             onClick={() => void reload()}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-[#D4D4D8] px-3 py-2 text-xs font-semibold text-[#0A0A0A] transition-colors hover:border-[#F97316] hover:text-[#F97316]"
+            className="mt-3 inline-flex items-center gap-1.5 font-bt-mono text-[10px] uppercase tracking-[0.1em] border border-[#DBD0BB] px-3 py-1.5 hover:border-[#F97316]"
           >
-            <RefreshCw className="h-3.5 w-3.5" />
+            <RefreshCw className="h-3 w-3" />
             {t('list.retry')}
           </button>
         </div>
       )}
 
       {!loading && !failed && tickets.length === 0 && (
-        <div className="rounded-xl border border-[#D4D4D8] bg-white p-12 text-center">
-          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-[#F97316]/10">
-            <Wallet className="h-5 w-5 text-[#F97316]" />
-          </div>
-          <p className="mt-3 text-sm font-semibold text-[#0A0A0A]">{t('office.empty')}</p>
+        <div className="bg-white border border-[#E4E4E7] py-[70px] px-6 text-center">
+          <div className="font-bt-display font-bold text-4xl leading-none text-[#CDBFA6]">{t('list.emptyBig')}</div>
+          <p className="font-bt-heading font-bold text-base text-[#0A0A0A] mt-2.5">{t('office.empty')}</p>
         </div>
       )}
 
-      {!loading && !failed && tickets.map(ticket => {
-        const open = expanded === ticket.id;
-        const accent = ROW_ACCENT[ticket.status];
-        return (
-          <article
-            key={ticket.id}
-            className={`overflow-hidden rounded-xl border border-l-[3px] bg-white transition-colors ${accent}`}
-          >
-            <button
-              type="button"
-              onClick={() => setExpanded(open ? null : ticket.id)}
-              className="flex w-full items-start justify-between gap-3 p-4 text-left transition-colors hover:bg-[#FAFAFA]"
-            >
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-mono text-xs text-[#71717A]">{ticket.ticketNumber}</span>
-                  <TmStatusChip status={ticket.status} />
-                </div>
-                <p className="mt-1.5 truncate text-sm font-medium text-[#0A0A0A]">{ticket.description}</p>
-                <p className="mt-0.5 text-xs text-[#71717A]">
-                  {ticket.projectName} · {fmtDate(ticket.workDate, i18n.language)} ·{' '}
-                  {t('list.age', { count: ticket.ageDays })}
-                </p>
-              </div>
-              <p className="shrink-0 text-lg font-bold tabular-nums text-[#0A0A0A]">
-                {money(ticket.total)}
-              </p>
-            </button>
+      {!loading && !failed && tickets.length > 0 && (
+        <div className="bg-white border border-[#E4E4E7]">
+          {tickets.map(ticket => {
+            const open = expanded === ticket.id;
+            const [sym, digits] = splitMoney(money(ticket.total));
+            return (
+              <article key={ticket.id} className="border-b border-[#F0EBE1] last:border-b-0">
+                <button
+                  type="button"
+                  onClick={() => setExpanded(open ? null : ticket.id)}
+                  className="flex w-full items-center gap-3.5 px-4 sm:px-5 py-4 text-left hover:bg-[#FBF8F2] transition-colors"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <Mono className="text-[10.5px] tracking-[0.06em] text-[#8A8175]">{ticket.ticketNumber}</Mono>
+                      <TmStatusChip status={ticket.status} />
+                    </div>
+                    <p className="mt-1.5 truncate text-[15px] font-semibold text-[#0A0A0A]">{ticket.description}</p>
+                    <Mono className="block mt-1 text-[10.5px] tracking-[0.04em] normal-case text-[#A69C8D] truncate">
+                      {ticket.projectName} · {fmtDate(ticket.workDate, i18n.language)} · {t('list.age', { count: ticket.ageDays })}
+                    </Mono>
+                  </div>
+                  <div className="flex items-baseline gap-0.5 flex-shrink-0">
+                    <span className="font-bt-display font-bold text-base text-[#8A8175]">{sym}</span>
+                    <span className="font-bt-display font-bold text-2xl sm:text-3xl leading-none tabular-nums text-[#0A0A0A]">{digits}</span>
+                  </div>
+                  <ChevronRight className={`w-4 h-4 text-[#C6BBA6] flex-shrink-0 transition-transform ${open ? 'rotate-90' : ''}`} />
+                </button>
 
-            {open && (
-              <div className="space-y-4 border-t border-[#D4D4D8] p-4">
-                <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-lg bg-[#FAFAFA] p-3 sm:grid-cols-3">
-                  <Detail label={t('detail.people')} value={String(ticket.workerCount)} />
-                  <Detail label={t('detail.hours')} value={String(ticket.hours)} />
-                  <Detail label={t('detail.rate')} value={money(ticket.hourlyRate)} />
-                  <Detail label={t('detail.labor')} value={money(ticket.labor)} />
-                  <Detail label={t('detail.material')} value={money(ticket.material)} />
-                  <Detail label={t('detail.total')} value={money(ticket.total)} strong />
-                </dl>
+                {open && (
+                  <div className="border-t border-[#EDE7DB] bg-[#FBF8F2] px-4 sm:px-5 py-4 space-y-4">
+                    <div className="border border-[#E4E4E7] bg-white">
+                      <LedgerRow label={t('detail.people')} value={String(ticket.workerCount)} />
+                      <LedgerRow label={t('detail.hours')} value={String(ticket.hours)} />
+                      <LedgerRow label={t('detail.rate')} value={money(ticket.hourlyRate)} />
+                      <LedgerRow label={t('detail.labor')} value={money(ticket.labor)} />
+                      <LedgerRow label={t('detail.material')} value={money(ticket.material)} />
+                      <div className="flex items-center justify-between gap-2.5 px-3.5 py-2.5 bg-[#FBF8F2]">
+                        <Mono className="text-[10px] tracking-[0.08em] text-[#5A5346]">{t('detail.total')}</Mono>
+                        <span className="font-bt-display font-bold text-xl leading-none tabular-nums text-[#0A0A0A]">{money(ticket.total)}</span>
+                      </div>
+                    </div>
 
-                {ticket.notes && (
-                  <p className="rounded-lg border border-[#D4D4D8] bg-white p-3 text-sm leading-relaxed text-[#3F3F46]">
-                    {ticket.notes}
-                  </p>
-                )}
-
-                <p className="text-xs text-[#71717A]">
-                  {t('detail.capturedBy', {
-                    user: ticket.createdBy,
-                    date: fmtDateTime(ticket.createdAt, i18n.language),
-                  })}
-                </p>
-
-                {ticket.status === 'SIGNED' && ticket.signerName && (
-                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-                    <p className="flex items-center gap-1.5 text-sm font-semibold text-emerald-900">
-                      <CheckCircle2 className="h-4 w-4 shrink-0" />
-                      {t('signature.signedBy', {
-                        name: ticket.signerName,
-                        title: ticket.signerTitle ?? '',
-                      })}
-                    </p>
-                    {ticket.signedAt && (
-                      <p className="mt-1 text-xs text-emerald-800">
-                        {t('signature.signedAt', { date: fmtDateTime(ticket.signedAt, i18n.language) })}
+                    {ticket.notes && (
+                      <p className="border-l-2 border-[#DED4C2] pl-3 text-[13px] leading-relaxed text-[#3F3F46]">
+                        {ticket.notes}
                       </p>
+                    )}
+
+                    <Mono className="block text-[10px] tracking-[0.04em] normal-case text-[#8A8175]">
+                      {t('detail.capturedBy', {
+                        user: ticket.createdBy,
+                        date: fmtDateTime(ticket.createdAt, i18n.language),
+                      })}
+                    </Mono>
+
+                    {ticket.status === 'SIGNED' && ticket.signerName && (
+                      <div className="bg-[#0A0A0A] text-[#F5F1E8] px-3.5 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 bg-[#D5C9B4] block flex-shrink-0" />
+                          <Mono className="text-[10px] tracking-[0.1em]">
+                            {t('signature.signedBy', {
+                              name: ticket.signerName,
+                              title: ticket.signerTitle ?? '',
+                            })}
+                          </Mono>
+                        </div>
+                        {ticket.signedAt && (
+                          <Mono className="block mt-1.5 pl-3.5 text-[9.5px] tracking-[0.05em] normal-case text-[#F5F1E8]/60">
+                            {t('signature.signedAt', { date: fmtDateTime(ticket.signedAt, i18n.language) })}
+                          </Mono>
+                        )}
+                      </div>
+                    )}
+
+                    {ticket.status === 'DECLINED' && (
+                      <div className="bg-[#FBEDE0] border border-[#F6CFA6] border-l-[3px] border-l-[#F97316] px-3.5 py-3">
+                        <p className="flex items-center gap-2 font-bt-heading font-bold text-[14px] text-[#0A0A0A]">
+                          <AlertTriangle className="h-4 w-4 shrink-0 text-[#EA580C]" />
+                          {t('signature.declined')}
+                        </p>
+                        {ticket.declineReason && (
+                          <p className="mt-1.5 text-[12.5px] leading-relaxed text-[#43301F]">
+                            {t('signature.declineReason', { reason: ticket.declineReason })}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {ticket.status === 'CONVERTED' && (
+                      <div className="flex items-center gap-2 bg-[#0A0A0A] px-3.5 py-3 text-[#F5F1E8]">
+                        <span className="w-1.5 h-1.5 bg-[#F97316] block flex-shrink-0" />
+                        <Mono className="text-[10px] tracking-[0.05em] normal-case">
+                          {t('office.convertedOn', {
+                            date: ticket.convertedAt ? fmtDateTime(ticket.convertedAt, i18n.language) : '',
+                            user: ticket.convertedBy ?? '',
+                          })}
+                        </Mono>
+                      </div>
+                    )}
+
+                    {ticket.documentHash && (
+                      <Mono className="block text-[9.5px] tracking-[0.04em] normal-case text-[#B4A992]">
+                        {t('detail.hash')} {ticket.documentHash.slice(0, 16)}…
+                      </Mono>
+                    )}
+
+                    {/* `convertible` is the server's answer, not a rule re-derived
+                        here — so a rule that moves on the backend cannot leave a
+                        button lit that the API refuses. */}
+                    {ticket.convertible && (
+                      <div className="border-t border-[#EDE7DB] pt-3.5">
+                        <button
+                          type="button"
+                          onClick={() => { setConverting(ticket); setChangeOrderNumber(''); }}
+                          className={BTN_PRIMARY}
+                        >
+                          <Wallet className="h-3.5 w-3.5" />
+                          {t('office.convert')}
+                        </button>
+                      </div>
+                    )}
+
+                    {!ticket.convertible && ticket.status !== 'CONVERTED' && (
+                      <Mono className="block text-[10px] tracking-[0.04em] normal-case text-[#8A8175]">
+                        {t('office.notConvertible')}
+                      </Mono>
                     )}
                   </div>
                 )}
-
-                {ticket.status === 'DECLINED' && (
-                  <div className="rounded-lg border border-red-200 bg-red-50 p-3">
-                    <p className="flex items-center gap-1.5 text-sm font-semibold text-red-900">
-                      <AlertTriangle className="h-4 w-4 shrink-0" />
-                      {t('signature.declined')}
-                    </p>
-                    {ticket.declineReason && (
-                      <p className="mt-1 text-xs text-red-800">
-                        {t('signature.declineReason', { reason: ticket.declineReason })}
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {ticket.status === 'CONVERTED' && (
-                  <div className="flex items-start gap-2 rounded-lg bg-[#0A0A0A] p-3 text-sm text-[#F5F1E8]">
-                    <Wallet className="mt-0.5 h-4 w-4 shrink-0 text-[#F97316]" />
-                    <span>
-                      {t('office.convertedOn', {
-                        date: ticket.convertedAt ? fmtDateTime(ticket.convertedAt, i18n.language) : '',
-                        user: ticket.convertedBy ?? '',
-                      })}
-                    </span>
-                  </div>
-                )}
-
-                {ticket.documentHash && (
-                  <p className="text-[11px] text-[#A1A1AA]">
-                    {t('detail.hash')}{' '}
-                    <span className="font-mono">{ticket.documentHash.slice(0, 16)}…</span>
-                  </p>
-                )}
-
-                {/* `convertible` is the server's answer, not a rule re-derived
-                    here — so a rule that moves on the backend cannot leave a
-                    button lit that the API refuses. */}
-                {ticket.convertible && (
-                  <div className="border-t border-[#D4D4D8] pt-3">
-                    <button
-                      type="button"
-                      onClick={() => { setConverting(ticket); setChangeOrderNumber(''); }}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-[#0A0A0A] px-4 py-2 text-xs font-semibold text-[#F5F1E8] transition-colors hover:bg-[#F97316] hover:text-[#0A0A0A]"
-                    >
-                      <Wallet className="h-3.5 w-3.5" />
-                      {t('office.convert')}
-                    </button>
-                  </div>
-                )}
-
-                {!ticket.convertible && ticket.status !== 'CONVERTED' && (
-                  <p className="text-xs text-[#71717A]">{t('office.notConvertible')}</p>
-                )}
-              </div>
-            )}
-          </article>
-        );
-      })}
+              </article>
+            );
+          })}
+        </div>
+      )}
 
       {converting && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[#0A0A0A]/50 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#0B0A09]/50 p-4"
           role="dialog"
           aria-modal="true"
           aria-label={t('office.convertTitle')}
         >
-          <div className="w-full max-w-md overflow-hidden rounded-xl border border-[#D4D4D8] bg-white shadow-xl">
-            {/* The amount leads, because the amount is what is about to move. */}
-            <div className="bg-[#0A0A0A] p-5 text-[#F5F1E8]">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[#F5F1E8]/50">
-                {t('office.convertTitle')}
-              </p>
-              <p className="mt-2 font-bt-display font-bold leading-[0.84] tracking-tight tabular-nums text-4xl sm:text-5xl">
-                {money(converting.total)}
-              </p>
-              <p className="mt-2.5 text-xs text-[#F5F1E8]/60">
-                {t('office.convertBody', {
-                  number: converting.ticketNumber,
-                  project: converting.projectName,
-                  amount: money(converting.total),
-                })}
-              </p>
+          <div className="w-full max-w-md bg-white border border-[#CDBFA6] shadow-2xl">
+            {/* The amount leads, because the amount is what is about to move —
+                it gets the ink surface and the grid, like every featured
+                number in the panel. */}
+            <div className="relative overflow-hidden bg-[#0A0A0A] p-5 text-[#F5F1E8]">
+              <div className="absolute inset-0 pointer-events-none" style={GRID_INK} />
+              <div className="relative">
+                <Mono className="block text-[10.5px] tracking-[0.15em] text-[#F5F1E8]/50">
+                  {t('office.convertTitle')}
+                </Mono>
+                <div className="flex items-baseline mt-2">
+                  <span className="font-bt-display font-bold text-2xl sm:text-3xl text-[#F5F1E8]/60 self-start mt-1">{convSym}</span>
+                  <span className="font-bt-display font-bold leading-[0.84] tracking-tight tabular-nums text-4xl sm:text-5xl">{convDigits}</span>
+                </div>
+                <Mono className="block mt-2.5 text-[10.5px] tracking-[0.05em] normal-case text-[#F5F1E8]/60">
+                  {t('office.convertBody', {
+                    number: converting.ticketNumber,
+                    project: converting.projectName,
+                    amount: money(converting.total),
+                  })}
+                </Mono>
+              </div>
             </div>
 
             <div className="p-5">
               {/* Said plainly: this is the step that moves money. */}
-              <p className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <p className="flex items-start gap-2.5 bg-[#FBEDE0] border border-[#F6CFA6] border-l-[3px] border-l-[#F97316] px-3 py-2.5 text-[12.5px] leading-relaxed text-[#43301F]">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#EA580C]" />
                 {t('office.convertWarning')}
               </p>
 
-              <label className="mt-4 block text-[11px] font-semibold uppercase tracking-wide text-[#71717A]">
+              <label className="mt-4 block font-bt-mono text-[10px] font-semibold uppercase tracking-[0.08em] text-[#5A5346]">
                 {t('office.changeOrderNumber')}
                 <input
                   type="text"
                   value={changeOrderNumber}
                   onChange={e => setChangeOrderNumber(e.target.value)}
                   maxLength={FIELD_LIMITS.IDENTIFIER}
-                  className="mt-1.5 h-9 w-full rounded-lg border border-[#D4D4D8] px-3 text-sm font-normal normal-case tracking-normal text-[#0A0A0A] transition-colors focus:border-[#F97316] focus:outline-none focus:ring-2 focus:ring-[#F97316]/25"
+                  className="mt-1.5 h-10 w-full border border-[#DBD0BB] bg-[#FAF7F0] px-3 font-sans text-sm font-normal normal-case tracking-normal text-[#0A0A0A] transition-colors focus:border-[#F97316] outline-none"
                 />
-                <span className="mt-1.5 block text-xs font-normal normal-case tracking-normal text-[#71717A]">
+                <span className="mt-1.5 block font-sans text-xs font-normal normal-case tracking-normal text-[#71717A]">
                   {t('office.changeOrderNumberHint')}
                 </span>
               </label>
@@ -380,7 +429,7 @@ export function TmOfficeSection() {
                   type="button"
                   onClick={() => void doConvert()}
                   disabled={busy}
-                  className="inline-flex items-center gap-2 rounded-lg bg-[#0A0A0A] px-4 py-2.5 text-sm font-semibold text-[#F5F1E8] transition-colors hover:bg-[#F97316] hover:text-[#0A0A0A] disabled:opacity-40"
+                  className={BTN_PRIMARY}
                 >
                   {busy && <Loader2 className="h-4 w-4 animate-spin" />}
                   {t('office.convertConfirm')}
@@ -389,7 +438,7 @@ export function TmOfficeSection() {
                   type="button"
                   onClick={() => setConverting(null)}
                   disabled={busy}
-                  className="rounded-lg px-2 py-2.5 text-sm font-medium text-[#71717A] transition-colors hover:text-[#0A0A0A] disabled:opacity-40"
+                  className={BTN_GHOST}
                 >
                   {t('office.cancel')}
                 </button>
@@ -402,27 +451,12 @@ export function TmOfficeSection() {
   );
 }
 
-/**
- * The left rail on a ticket card — see the note in `TmFieldSection`. The
- * office cares most about the two ends of the run: emerald is work somebody
- * signed and this desk still owes a decision on, ink is work already turned
- * into a change order.
- */
-const ROW_ACCENT: Record<TmTicketStatus, string> = {
-  DRAFT: 'border-[#D4D4D8] border-l-[#D4D4D8]',
-  PENDING_SIGNATURE: 'border-[#D4D4D8] border-l-amber-400',
-  SIGNED: 'border-emerald-200 border-l-emerald-500',
-  DECLINED: 'border-red-200 border-l-red-500',
-  CONVERTED: 'border-[#D4D4D8] border-l-[#0A0A0A]',
-};
-
-function Detail({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
+/** One line of the arithmetic ledger: mono label left, mono figure right. */
+function LedgerRow({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <dt className="text-[11px] font-medium uppercase tracking-wide text-[#71717A]">{label}</dt>
-      <dd className={`tabular-nums text-[#0A0A0A] ${strong ? 'text-base font-bold' : 'text-sm font-medium'}`}>
-        {value}
-      </dd>
+    <div className="flex items-center justify-between gap-2.5 px-3.5 py-2 border-b border-[#F0EBE1]">
+      <Mono className="text-[10px] tracking-[0.08em] text-[#5A5346]">{label}</Mono>
+      <Mono className="text-[12.5px] font-semibold tracking-normal normal-case tabular-nums text-[#0A0A0A]">{value}</Mono>
     </div>
   );
 }
