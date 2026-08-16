@@ -172,7 +172,7 @@ export function TmSignatureHandoff({ ticket, onFinished, onCancel }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 overflow-y-auto bg-zinc-100"
+      className="fixed inset-0 z-50 overflow-y-auto bg-[#FAFAFA]"
       role="dialog"
       aria-modal="true"
       aria-label={t('tm:handoff.title')}
@@ -184,69 +184,92 @@ export function TmSignatureHandoff({ ticket, onFinished, onCancel }: Props) {
         className="mx-auto w-full max-w-2xl p-4 outline-none sm:p-8"
       >
         {step === 'handoff' && (
-          <section className="rounded-xl bg-white p-6 shadow-sm">
-            <h2 className="flex items-center gap-2 text-lg font-semibold text-zinc-900">
-              <ArrowRight className="h-5 w-5 text-orange-500" />
-              {t('tm:handoff.title')}
-            </h2>
-            <p className="mt-2 text-sm text-zinc-600">{t('tm:handoff.intro')}</p>
+          <section className="overflow-hidden rounded-xl border border-[#D4D4D8] bg-white">
+            {/* Ink header: the moment the device changes hands is the whole
+                point of the screen, so it gets the module's featured surface
+                rather than a heading on white. */}
+            <div className="bg-[#0A0A0A] p-6 text-[#F5F1E8] sm:p-7">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[#F5F1E8]/50">
+                {ticket.ticketNumber}
+              </p>
+              <h2 className="mt-2 flex items-center gap-2.5 text-xl font-bold sm:text-2xl">
+                <ArrowRight className="h-6 w-6 shrink-0 text-[#F97316]" />
+                {t('tm:handoff.title')}
+              </h2>
+              <p className="mt-2.5 text-sm leading-relaxed text-[#F5F1E8]/70">{t('tm:handoff.intro')}</p>
+            </div>
 
-            <dl className="mt-4 space-y-1 rounded-lg bg-zinc-50 p-4 text-sm">
-              <div className="flex justify-between gap-4">
-                <dt className="text-zinc-500">{t('tm:handoff.ticket')}</dt>
-                <dd className="font-medium text-zinc-800">{ticket.ticketNumber}</dd>
+            <div className="p-6 sm:p-7">
+              <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="rounded-lg border border-[#D4D4D8] bg-[#FAFAFA] p-3">
+                  <dt className="text-[11px] font-semibold uppercase tracking-wide text-[#71717A]">
+                    {t('tm:handoff.ticket')}
+                  </dt>
+                  <dd className="mt-1 font-mono text-sm font-semibold text-[#0A0A0A]">{ticket.ticketNumber}</dd>
+                </div>
+                <div className="rounded-lg border border-[#D4D4D8] bg-[#FAFAFA] p-3">
+                  <dt className="text-[11px] font-semibold uppercase tracking-wide text-[#71717A]">
+                    {t('tm:list.project')}
+                  </dt>
+                  <dd className="mt-1 truncate text-sm font-semibold text-[#0A0A0A]">{ticket.projectName}</dd>
+                </div>
+              </dl>
+
+              <p className="mt-4 flex items-start gap-2 rounded-lg border border-[#D4D4D8] bg-[#FAFAFA] p-3 text-xs leading-relaxed text-[#71717A]">
+                <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                {t('tm:handoff.lockNote')}
+              </p>
+
+              <div className="mt-6 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => void openSession()}
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#F97316] px-5 py-2.5 text-sm font-semibold text-[#0A0A0A] transition-colors hover:bg-[#EA580C]"
+                >
+                  <ArrowRight className="h-4 w-4" />
+                  {t('tm:handoff.start')}
+                </button>
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className="rounded-lg px-2 py-2.5 text-sm font-medium text-[#71717A] transition-colors hover:text-[#0A0A0A]"
+                >
+                  {t('tm:handoff.cancel')}
+                </button>
               </div>
-              <div className="flex justify-between gap-4">
-                <dt className="text-zinc-500">{t('tm:list.project')}</dt>
-                <dd className="font-medium text-zinc-800">{ticket.projectName}</dd>
-              </div>
-            </dl>
-
-            <p className="mt-4 flex items-start gap-2 text-xs text-zinc-500">
-              <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              {t('tm:handoff.lockNote')}
-            </p>
-
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={() => void openSession()}
-                className="rounded-lg bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-orange-600"
-              >
-                {t('tm:handoff.start')}
-              </button>
-              <button
-                type="button"
-                onClick={onCancel}
-                className="text-sm text-zinc-500 hover:text-zinc-800"
-              >
-                {t('tm:handoff.cancel')}
-              </button>
             </div>
           </section>
         )}
 
         {step === 'opening' && (
-          <div className="flex items-center justify-center gap-3 py-24 text-zinc-500">
+          <div className="flex items-center justify-center gap-3 rounded-xl border border-[#D4D4D8] bg-white py-24 text-sm text-[#71717A]">
             <Loader2 className="h-5 w-5 animate-spin" />
             {t('signatures:loading')}
           </div>
         )}
 
         {step === 'failed' && (
-          <section className="rounded-xl bg-white p-6 text-center shadow-sm">
-            <ShieldAlert className="mx-auto h-12 w-12 text-amber-500" />
-            <h2 className="mt-4 text-lg font-semibold text-zinc-900">{t('tm:handoff.failedTitle')}</h2>
-            <p className="mx-auto mt-2 max-w-md text-sm text-zinc-600">{t('tm:handoff.failedBody')}</p>
+          <section className="rounded-xl border border-[#D4D4D8] bg-white p-8 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-50">
+              <ShieldAlert className="h-7 w-7 text-amber-600" />
+            </div>
+            <h2 className="mt-4 text-lg font-bold text-[#0A0A0A]">{t('tm:handoff.failedTitle')}</h2>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-[#71717A]">
+              {t('tm:handoff.failedBody')}
+            </p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
               <button
                 type="button"
                 onClick={() => void openSession()}
-                className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600"
+                className="rounded-lg bg-[#F97316] px-4 py-2.5 text-sm font-semibold text-[#0A0A0A] transition-colors hover:bg-[#EA580C]"
               >
                 {t('tm:handoff.retry')}
               </button>
-              <button type="button" onClick={onCancel} className="text-sm text-zinc-500 hover:text-zinc-800">
+              <button
+                type="button"
+                onClick={onCancel}
+                className="rounded-lg px-2 py-2.5 text-sm font-medium text-[#71717A] transition-colors hover:text-[#0A0A0A]"
+              >
                 {t('tm:handoff.cancel')}
               </button>
             </div>
@@ -254,16 +277,22 @@ export function TmSignatureHandoff({ ticket, onFinished, onCancel }: Props) {
         )}
 
         {step === 'signing' && doc && (
-          <section className="rounded-xl bg-white p-6 shadow-sm sm:p-8">
-            <SignatureDocumentView doc={doc} />
+          <section className="overflow-hidden rounded-xl border border-[#D4D4D8] bg-white">
+            {/* The document itself is `SignatureDocumentView`, shared with the
+                emailed-link page and with client invoices. It is deliberately
+                left alone — what the signer puts their name to must not depend
+                on which surface opened it. Only the frame around it is ours. */}
+            <div className="p-6 sm:p-8">
+              <SignatureDocumentView doc={doc} />
+            </div>
 
-            <section className="mt-8 border-t border-zinc-200 pt-6">
-              <h2 className="text-base font-semibold text-zinc-900">{t('signatures:form.heading')}</h2>
-              <p className="mt-1 text-sm text-zinc-600">{t('signatures:form.hint')}</p>
+            <section className="border-t border-[#D4D4D8] bg-[#FAFAFA] p-6 sm:p-8">
+              <h2 className="text-base font-bold text-[#0A0A0A]">{t('signatures:form.heading')}</h2>
+              <p className="mt-1 text-sm text-[#71717A]">{t('signatures:form.hint')}</p>
 
-              <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                <label className="block">
-                  <span className="text-sm font-medium text-zinc-700">{t('signatures:form.name')}</span>
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-[#71717A]">
+                  {t('signatures:form.name')}
                   <input
                     type="text"
                     value={signerName}
@@ -271,11 +300,11 @@ export function TmSignatureHandoff({ ticket, onFinished, onCancel }: Props) {
                     maxLength={FIELD_LIMITS.PERSON_NAME}
                     disabled={busy}
                     placeholder={t('signatures:form.namePlaceholder')}
-                    className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none"
+                    className="mt-1.5 h-10 w-full rounded-lg border border-[#D4D4D8] bg-white px-3 text-sm font-normal normal-case tracking-normal text-[#0A0A0A] transition-colors focus:border-[#F97316] focus:outline-none focus:ring-2 focus:ring-[#F97316]/25 disabled:opacity-50"
                   />
                 </label>
-                <label className="block">
-                  <span className="text-sm font-medium text-zinc-700">{t('signatures:form.title')}</span>
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-[#71717A]">
+                  {t('signatures:form.title')}
                   <input
                     type="text"
                     value={signerTitle}
@@ -283,20 +312,24 @@ export function TmSignatureHandoff({ ticket, onFinished, onCancel }: Props) {
                     maxLength={FIELD_LIMITS.SHORT_NAME}
                     disabled={busy}
                     placeholder={t('signatures:form.titlePlaceholder')}
-                    className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none"
+                    className="mt-1.5 h-10 w-full rounded-lg border border-[#D4D4D8] bg-white px-3 text-sm font-normal normal-case tracking-normal text-[#0A0A0A] transition-colors focus:border-[#F97316] focus:outline-none focus:ring-2 focus:ring-[#F97316]/25 disabled:opacity-50"
                   />
                 </label>
               </div>
 
               <div className="mt-4">
-                <span className="text-sm font-medium text-zinc-700">{t('signatures:form.signature')}</span>
-                <div className="mt-1">
+                <span className="block text-[11px] font-semibold uppercase tracking-wide text-[#71717A]">
+                  {t('signatures:form.signature')}
+                </span>
+                <div className="mt-1.5">
                   <SignaturePad onChange={setImage} disabled={busy} />
                 </div>
               </div>
 
               {error && (
-                <p role="alert" className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>
+                <p role="alert" className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  {error}
+                </p>
               )}
 
               <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -304,7 +337,7 @@ export function TmSignatureHandoff({ ticket, onFinished, onCancel }: Props) {
                   type="button"
                   onClick={() => void sign()}
                   disabled={!canSubmit}
-                  className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#F97316] px-5 py-3 text-sm font-semibold text-[#0A0A0A] transition-colors hover:bg-[#EA580C] disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {busy && <Loader2 className="h-4 w-4 animate-spin" />}
                   {t('signatures:form.submit')}
@@ -313,65 +346,77 @@ export function TmSignatureHandoff({ ticket, onFinished, onCancel }: Props) {
                   type="button"
                   onClick={() => void refuse()}
                   disabled={busy}
-                  className="text-sm text-zinc-500 underline-offset-2 hover:text-zinc-800 hover:underline disabled:opacity-50"
+                  className="rounded-lg px-2 py-3 text-sm font-medium text-[#71717A] underline-offset-2 transition-colors hover:text-[#0A0A0A] hover:underline disabled:opacity-40"
                 >
                   {t('signatures:form.decline')}
                 </button>
               </div>
 
-              <p className="mt-6 border-t border-zinc-100 pt-4 text-xs text-zinc-400">
+              <p className="mt-6 border-t border-[#D4D4D8] pt-4 text-xs leading-relaxed text-[#A1A1AA]">
                 {t('signatures:form.trailNote')}
                 <br />
                 <span className="font-mono">{doc.documentHash.slice(0, 16)}…</span>
               </p>
-            </section>
 
-            {/* The way out for the encargado if the super walks off. Behind a
-                confirmation so it is not an accidental tap by someone who is
-                not supposed to end up in our panel. */}
-            <div className="mt-6 border-t border-zinc-100 pt-4">
-              {confirmingAbort ? (
-                <div className="flex flex-wrap items-center gap-3 text-sm">
-                  <span className="text-zinc-600">{t('tm:handoff.abortConfirm')}</span>
-                  <button type="button" onClick={onCancel} className="font-medium text-red-600 hover:underline">
-                    {t('tm:handoff.abortYes')}
-                  </button>
+              {/* The way out for the encargado if the super walks off. Behind a
+                  confirmation so it is not an accidental tap by someone who is
+                  not supposed to end up in our panel. */}
+              <div className="mt-4 border-t border-[#D4D4D8] pt-4">
+                {confirmingAbort ? (
+                  <div className="flex flex-wrap items-center gap-3 text-sm">
+                    <span className="text-[#3F3F46]">{t('tm:handoff.abortConfirm')}</span>
+                    <button
+                      type="button"
+                      onClick={onCancel}
+                      className="font-semibold text-red-600 hover:underline"
+                    >
+                      {t('tm:handoff.abortYes')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmingAbort(false)}
+                      className="font-medium text-[#71717A] transition-colors hover:text-[#0A0A0A]"
+                    >
+                      {t('tm:handoff.abortNo')}
+                    </button>
+                  </div>
+                ) : (
                   <button
                     type="button"
-                    onClick={() => setConfirmingAbort(false)}
-                    className="text-zinc-500 hover:text-zinc-800"
+                    onClick={() => setConfirmingAbort(true)}
+                    className="text-xs font-medium text-[#A1A1AA] transition-colors hover:text-[#71717A]"
                   >
-                    {t('tm:handoff.abortNo')}
+                    {t('tm:handoff.abort')}
                   </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setConfirmingAbort(true)}
-                  className="text-xs text-zinc-400 hover:text-zinc-600"
-                >
-                  {t('tm:handoff.abort')}
-                </button>
-              )}
-            </div>
+                )}
+              </div>
+            </section>
           </section>
         )}
 
         {step === 'done' && (
-          <section className="rounded-xl bg-white p-6 text-center shadow-sm sm:p-8">
+          <section className="overflow-hidden rounded-xl border border-[#D4D4D8] bg-white p-8 text-center sm:p-10">
             {outcome?.status === 'DECLINED' ? (
               <>
-                <XCircle className="mx-auto h-12 w-12 text-zinc-400" />
-                <h2 className="mt-4 text-lg font-semibold text-zinc-900">{t('signatures:declined.title')}</h2>
-                <p className="mx-auto mt-2 max-w-md text-sm text-zinc-600">{t('tm:handoff.declinedBody')}</p>
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-50">
+                  <XCircle className="h-8 w-8 text-red-500" />
+                </div>
+                <h2 className="mt-4 text-xl font-bold text-[#0A0A0A]">{t('signatures:declined.title')}</h2>
+                <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-[#71717A]">
+                  {t('tm:handoff.declinedBody')}
+                </p>
               </>
             ) : (
               <>
-                <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-500" />
-                <h2 className="mt-4 text-lg font-semibold text-zinc-900">{t('signatures:signed.title')}</h2>
-                <p className="mx-auto mt-2 max-w-md text-sm text-zinc-600">{t('tm:handoff.signedBody')}</p>
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50">
+                  <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+                </div>
+                <h2 className="mt-4 text-xl font-bold text-[#0A0A0A]">{t('signatures:signed.title')}</h2>
+                <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-[#71717A]">
+                  {t('tm:handoff.signedBody')}
+                </p>
                 {outcome?.signerName && (
-                  <p className="mt-4 text-sm text-zinc-700">
+                  <p className="mx-auto mt-4 inline-block rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-900">
                     {t('tm:signature.signedBy', {
                       name: outcome.signerName,
                       title: outcome.signerTitle ?? '',
@@ -381,13 +426,15 @@ export function TmSignatureHandoff({ ticket, onFinished, onCancel }: Props) {
               </>
             )}
 
-            <button
-              type="button"
-              onClick={finish}
-              className="mt-6 rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-zinc-700"
-            >
-              {t('tm:handoff.return')}
-            </button>
+            <div className="mt-7">
+              <button
+                type="button"
+                onClick={finish}
+                className="rounded-lg bg-[#0A0A0A] px-5 py-3 text-sm font-semibold text-[#F5F1E8] transition-colors hover:bg-[#F97316] hover:text-[#0A0A0A]"
+              >
+                {t('tm:handoff.return')}
+              </button>
+            </div>
           </section>
         )}
       </div>

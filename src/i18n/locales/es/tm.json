@@ -9,7 +9,7 @@
   "status.DRAFT": "Borrador",
   "status.PENDING_SIGNATURE": "Esperando firma",
   "status.SIGNED": "Firmado",
-  "status.DECLINED": "Sin firmar",
+  "status.DECLINED": "Rechazado",
   "status.CONVERTED": "Orden de cambio",
   "pending.title": "Trabajo hecho, todavía sin autorizar",
   "pending.hint": "Trabajo capturado que sigue esperando una firma o a la oficina.",

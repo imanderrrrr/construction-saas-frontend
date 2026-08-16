@@ -9,7 +9,7 @@
   "status.DRAFT": "Draft",
   "status.PENDING_SIGNATURE": "Waiting for signature",
   "status.SIGNED": "Signed",
-  "status.DECLINED": "Not signed",
+  "status.DECLINED": "Declined",
   "status.CONVERTED": "Change order",
   "pending.title": "Work done, not authorised yet",
   "pending.hint": "Captured work still waiting on a signature or on the office.",

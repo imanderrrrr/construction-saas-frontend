@@ -36,6 +36,22 @@ export function money(cents: number, currency: string): string {
 }
 
 /**
+ * A line's quantity, printed so it does not sit ragged next to the money.
+ *
+ * The amount columns always carry two decimals, so a T&M crew line — whose
+ * quantity is hours — printed `22.5` beside `$20.00` and `$450.00`, three
+ * right-aligned numerals with two different decimal habits.
+ *
+ * Only fractional quantities are padded. An invoice line for 1 unit still
+ * reads `1`, not `1.00`: this document is also a client invoice, and turning
+ * every whole count into a decimal would be a change to what the client
+ * receives rather than a fix to what was misaligned.
+ */
+export function quantity(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2);
+}
+
+/**
  * i18n key for the document's title line.
  *
  * A lookup and not a ternary: with two kinds a ternary was fine, but the
@@ -103,7 +119,7 @@ export function SignatureDocumentView({ doc }: { doc: SignatureDocument }) {
                 {doc.lineItems.map((li, i) => (
                   <tr key={i} className="border-b border-zinc-100">
                     <td className="py-2 pr-2">{li.description}</td>
-                    <td className="py-2 text-right tabular-nums">{li.quantity}</td>
+                    <td className="py-2 text-right tabular-nums">{quantity(li.quantity)}</td>
                     <td className="py-2 text-right tabular-nums">{money(li.unitPriceCents, doc.currency)}</td>
                     <td className="py-2 text-right tabular-nums">{money(li.subtotalCents, doc.currency)}</td>
                   </tr>

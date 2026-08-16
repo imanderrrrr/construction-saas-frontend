@@ -106,6 +106,35 @@ export function computeTotalCents(laborCents: bigint, materialCents: bigint): bi
 }
 
 /**
+ * Money, the way the rest of this application writes it: `$1,850.00`.
+ *
+ * Deliberately NOT locale-aware, and that is the whole point. These helpers
+ * used to run the amount through `Intl.NumberFormat(i18n.language, {style:
+ * 'currency'})`, which in Spanish renders `1850,00 US$` — so a T&M total and
+ * the budget figure on the neighbouring screen disagreed on both the separator
+ * and where the symbol goes, with the decimal comma swapping meaning between
+ * two panels of the same product.
+ *
+ * Every other money surface here is locale-independent and identical to this:
+ * `BudgetOverview.fmtAmount` builds `$` + `toFixed(2)` + grouping by hand, and
+ * `labor/shared.money` uses a hard `'en-US'`. Matching them is what makes the
+ * numbers on adjacent screens comparable; being cleverer than them in one
+ * module is what made T&M look foreign.
+ *
+ * A real currency migration (these amounts are quetzales, not dollars) is a
+ * product decision for the whole app at once, not something one module gets to
+ * do on its own.
+ */
+function formatMoney(value: number): string {
+  // `toFixed` first so the grouping regex only ever sees a fixed 2-decimal
+  // string, then insert separators into the integer part alone.
+  const fixed = Math.abs(value).toFixed(2);
+  const [whole, fraction] = fixed.split('.');
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return `${value < 0 ? '-' : ''}$${grouped}.${fraction}`;
+}
+
+/**
  * Render integer cents as money.
  *
  * The one place a value is allowed to become a double, and only after every
@@ -117,14 +146,8 @@ export function computeTotalCents(laborCents: bigint, materialCents: bigint): bi
  * number at zero: on the budget gauges a negative *is* the answer, and a
  * formatter that hides it would be lying about how much an obra lost.
  */
-export function formatCents(cents: bigint | number, locale: string, currency = 'USD'): string {
-  const value = typeof cents === 'bigint' ? Number(cents) / 100 : cents / 100;
-  return new Intl.NumberFormat(locale || 'en-US', {
-    style: 'currency',
-    currency: currency || 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
+export function formatCents(cents: bigint | number): string {
+  return formatMoney(typeof cents === 'bigint' ? Number(cents) / 100 : cents / 100);
 }
 
 /**
@@ -134,11 +157,6 @@ export function formatCents(cents: bigint | number, locale: string, currency = '
  * as a double. Printing it is safe; doing sums with it is not, which is why the
  * only thing this does is print.
  */
-export function formatApiAmount(amount: number, locale: string, currency = 'USD'): string {
-  return new Intl.NumberFormat(locale || 'en-US', {
-    style: 'currency',
-    currency: currency || 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
+export function formatApiAmount(amount: number): string {
+  return formatMoney(amount);
 }

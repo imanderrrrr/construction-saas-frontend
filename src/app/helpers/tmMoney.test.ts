@@ -128,23 +128,42 @@ describe('computeTotalCents', () => {
 
 describe('formatCents', () => {
   it('formats bigint cents as money', () => {
-    expect(formatCents(57550n, 'en-US')).toBe('$575.50');
-    expect(formatCents(0n, 'en-US')).toBe('$0.00');
+    expect(formatCents(57550n)).toBe('$575.50');
+    expect(formatCents(0n)).toBe('$0.00');
   });
 
   it('shows a negative as negative — the gauge never clamps at zero', () => {
-    expect(formatCents(-57550n, 'en-US')).toBe('-$575.50');
+    expect(formatCents(-57550n)).toBe('-$575.50');
   });
 
-  it('falls back to a sane locale and currency', () => {
-    expect(formatCents(100n, '', '')).toBe('$1.00');
+  it('groups thousands the way the rest of the app does', () => {
+    expect(formatCents(185000n)).toBe('$1,850.00');
+    expect(formatCents(123456789n)).toBe('$1,234,567.89');
   });
 });
 
 describe('formatApiAmount', () => {
   it('prints a scale-2 amount that arrived as a JSON number', () => {
-    expect(formatApiAmount(575.5, 'en-US')).toBe('$575.50');
-    expect(formatApiAmount(-575.5, 'en-US')).toBe('-$575.50');
+    expect(formatApiAmount(575.5)).toBe('$575.50');
+    expect(formatApiAmount(-575.5)).toBe('-$575.50');
+  });
+
+  /**
+   * The bug this format exists to prevent: these helpers used to take the
+   * active i18n language, so the same amount read `$1,850.00` next to a budget
+   * figure in English and `1850,00 US$` in Spanish — the decimal comma
+   * swapping meaning between two panels of the same product.
+   */
+  it('does not change with the interface language', () => {
+    const before = Intl.NumberFormat;
+    try {
+      // Any locale-aware path would show up here as a different string.
+      Intl.NumberFormat = (() => { throw new Error('formatting must not be locale-aware'); }) as never;
+      expect(formatApiAmount(1850)).toBe('$1,850.00');
+      expect(formatCents(185000n)).toBe('$1,850.00');
+    } finally {
+      Intl.NumberFormat = before;
+    }
   });
 });
 
