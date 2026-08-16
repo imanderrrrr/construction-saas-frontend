@@ -2,6 +2,8 @@
   "loading": "Cargando el documento…",
   "kind.invoice": "Factura",
   "kind.changeOrder": "Orden de cambio",
+  "kind.timeAndMaterial": "Tiempo y material",
+  "kind.document": "Documento",
   "doc.issued": "Emitida",
   "doc.due": "Vence",
   "doc.item": "Concepto",

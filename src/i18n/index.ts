@@ -26,6 +26,7 @@ import enRfi from './locales/en/rfi.json';
 import enDocs from './locales/en/docs.json';
 import enStatus from './locales/en/status.json';
 import enPay from './locales/en/pay.json';
+import enTm from './locales/en/tm.json';
 
 // Spanish
 import esCommon from './locales/es/common.json';
@@ -51,8 +52,9 @@ import esRfi from './locales/es/rfi.json';
 import esDocs from './locales/es/docs.json';
 import esStatus from './locales/es/status.json';
 import esPay from './locales/es/pay.json';
+import esTm from './locales/es/tm.json';
 
-const ns = ['common', 'auth', 'admin', 'expenses', 'finance', 'projects', 'time', 'inventory', 'users', 'dashboard', 'worker', 'supervisor', 'subcontractors', 'landing', 'billing', 'siteLog', 'clientView', 'signatures', 'punchList', 'rfi', 'docs', 'status', 'pay'] as const;
+const ns = ['common', 'auth', 'admin', 'expenses', 'finance', 'projects', 'time', 'inventory', 'users', 'dashboard', 'worker', 'supervisor', 'subcontractors', 'landing', 'billing', 'siteLog', 'clientView', 'signatures', 'punchList', 'rfi', 'docs', 'status', 'pay', 'tm'] as const;
 
 i18n
   .use(LanguageDetector)
@@ -83,6 +85,7 @@ i18n
         docs: enDocs,
         status: enStatus,
         pay: enPay,
+        tm: enTm,
       },
       es: {
         common: esCommon,
@@ -108,6 +111,7 @@ i18n
         docs: esDocs,
         status: esStatus,
         pay: esPay,
+        tm: esTm,
       },
     },
     fallbackLng: 'es',
