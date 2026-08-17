@@ -238,6 +238,7 @@
   "assignment.dialog.selectCondition": "Select condition...",
 
   "warehouse.panelLabel": "Warehouse Panel",
+  "warehouse.sidebar.version": "v1.0.0 · Phase 5",
   "warehouse.welcome": "Welcome back, {{username}}!",
   "warehouse.welcomeSubtitle": "Manage the tool inventory, consumable supplies and track assignments.",
   "warehouse.nav.dashboard": "Dashboard",
