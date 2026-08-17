@@ -24,6 +24,7 @@ import { WarehouseDashboard }  from './pages/WarehouseDashboard';
 import { SubcontractorWebInfo } from './pages/SubcontractorWebInfo';
 import { BillingPage }         from './pages/admin/BillingPage';
 import { ClientView }          from './pages/ClientView';
+import { SignDocument }        from './pages/SignDocument';
 import { AuthService }         from './services/auth';
 import { BillingGuard }        from './components/BillingGuard';
 import { CanonicalRole, ROLE_DASHBOARD_ROUTES } from './types';
@@ -94,6 +95,10 @@ export const routes = [
   // Client portal — public read-only site-log view. Auth is the signed token
   // in the URL (exchanged in-page), NOT a user session: no guards on purpose.
   { path: '/client-view/:token',     element: <ClientView /> },
+  // Document signing — public by design: the person signing is an external
+  // superintendent / PM with no account here. Auth is the signed token in the
+  // URL (exchanged in-page for a short-lived session), NOT a user session.
+  { path: '/sign/:token',            element: <SignDocument /> },
   { path: '/forgot-password',        element: <ForgotPassword /> },
   { path: '/reset-password/:token',  element: <ResetPassword /> },
   { path: '/auth/handoff',           element: <AuthHandoff /> },
