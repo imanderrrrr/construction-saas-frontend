@@ -10,7 +10,7 @@ import {
   Clock, CalendarClock, ClipboardList, Receipt, FileBarChart,
   Wallet, PieChart, Wrench, Banknote, HardHat,
   ArrowDownToLine, ArrowUpFromLine, UserRound, FileText, Briefcase,
-  CreditCard, FileSignature, HelpCircle, Star,
+  CreditCard, FileSignature, HelpCircle, Star, PenLine,
 } from 'lucide-react';
 import { OnboardingTour } from '../components/onboarding/OnboardingTour';
 import { SectionTour } from '../components/onboarding/SectionTour';
@@ -87,6 +87,16 @@ async function withChunkRetry<T>(importer: () => Promise<T>, attempts = 3): Prom
 function lazyWithRetry<T extends { default: ComponentType<any> }>(importer: () => Promise<T>) {
   return lazy(() => withChunkRetry(importer));
 }
+
+// Tiempo y material. Both halves live on this dashboard because ADMIN is on
+// both role gates: the field surface (capture + collect the signature on site)
+// and the office one (convert a signed ticket into a change order).
+const AdminTmField = lazyWithRetry(() =>
+  import('../components/tm/TmFieldSection').then(m => ({ default: m.TmFieldSection }))
+);
+const AdminTmOffice = lazyWithRetry(() =>
+  import('../components/tm/TmOfficeSection').then(m => ({ default: m.TmOfficeSection }))
+);
 
 // Lazy-loaded phase-2 sections
 const KanbanBoard = lazyWithRetry(() =>
@@ -167,6 +177,7 @@ type ActiveSection =
   | 'invoices' | 'invoice-branding'
   | 'accounts-receivable' | 'accounts-payable'
   | 'office-expenses'
+  | 'tm-field' | 'tm-office'
   | 'subcontractors'
   | 'billing';
 
@@ -203,6 +214,7 @@ const NAV_PROJECTS: NavItem[] = [
   { key: 'schedules',       labelKey: 'admin:nav.schedules',       icon: CalendarClock },
   { key: 'tool-inventory',  labelKey: 'admin:nav.allTools',        icon: Wrench        },
   { key: 'tool-report',     labelKey: 'admin:nav.toolReport',      icon: ClipboardList },
+  { key: 'tm-field',        labelKey: 'tm:nav.field',              icon: PenLine       },
 ];
 
 const NAV_FINANCE: NavItem[] = [
@@ -215,6 +227,7 @@ const NAV_FINANCE: NavItem[] = [
   { key: 'office-expenses',      labelKey: 'admin:nav.officeExpenses',      icon: Building2       },
   { key: 'accounts-receivable',  labelKey: 'admin:nav.accountsReceivable',  icon: ArrowDownToLine },
   { key: 'accounts-payable',     labelKey: 'admin:nav.accountsPayable',     icon: ArrowUpFromLine },
+  { key: 'tm-office',            labelKey: 'tm:nav.office',                icon: FileSignature   },
 ];
 
 /** Flat list used for lookups (section meta, rendering content, etc.) */
@@ -252,11 +265,13 @@ const SECTION_META: Record<ActiveSection, { titleKey: string; subtitleKey: strin
   'clients':              { titleKey: 'admin:section.clients.title',              subtitleKey: 'admin:section.clients.subtitle'              },
   'subcontractors':       { titleKey: 'admin:section.subcontractors.title',       subtitleKey: 'admin:section.subcontractors.subtitle'       },
   'billing':              { titleKey: 'admin:section.billing.title',              subtitleKey: 'admin:section.billing.subtitle'              },
+  'tm-field':             { titleKey: 'tm:section.field.title',                    subtitleKey: 'tm:section.field.subtitle'                   },
+  'tm-office':            { titleKey: 'tm:section.office.title',                   subtitleKey: 'tm:section.office.subtitle'                  },
 };
 
 export function AdminDashboard() {
   const navigate = useNavigate();
-  const { t } = useTranslation(['admin', 'common']);
+  const { t } = useTranslation(['admin', 'common', 'tm']);
   const username = AuthService.getUsername();
   const [activeSection, setActiveSection] = useState<ActiveSection>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -564,6 +579,16 @@ export function AdminDashboard() {
           <SectionTour section={activeSection} username={username} replayNonce={introReplay} />
           {activeSection === 'dashboard'    && <DashboardContent onNavigate={handleNavigate} />}
           {activeSection === 'billing'      && <BillingSection />}
+          {activeSection === 'tm-field'     && (
+            <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
+              <AdminTmField />
+            </Suspense></SectionErrorBoundary>
+          )}
+          {activeSection === 'tm-office'    && (
+            <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
+              <AdminTmOffice />
+            </Suspense></SectionErrorBoundary>
+          )}
           {activeSection === 'users'        && <UsersRoster />}
           {activeSection === 'schedules'    && (
             <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
