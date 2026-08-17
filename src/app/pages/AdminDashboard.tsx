@@ -571,8 +571,16 @@ export function AdminDashboard() {
           <SectionTour section={activeSection} username={username} replayNonce={introReplay} />
           {activeSection === 'dashboard'    && <DashboardContent onNavigate={handleNavigate} />}
           {activeSection === 'billing'      && <BillingSection />}
-          {activeSection === 'tm-field'     && <AdminTmField />}
-          {activeSection === 'tm-office'    && <AdminTmOffice />}
+          {activeSection === 'tm-field'     && (
+            <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
+              <AdminTmField />
+            </Suspense></SectionErrorBoundary>
+          )}
+          {activeSection === 'tm-office'    && (
+            <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
+              <AdminTmOffice />
+            </Suspense></SectionErrorBoundary>
+          )}
           {activeSection === 'users'        && <UsersRoster />}
           {activeSection === 'schedules'    && (
             <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
