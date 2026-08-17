@@ -238,6 +238,7 @@
   "assignment.dialog.selectCondition": "Seleccionar condición...",
 
   "warehouse.panelLabel": "Panel de Bodega",
+  "warehouse.sidebar.version": "v1.0.0 · Fase 5",
   "warehouse.welcome": "¡Bienvenido, {{username}}!",
   "warehouse.welcomeSubtitle": "Gestiona el inventario de herramientas, insumos consumibles y seguimiento de asignaciones.",
   "warehouse.nav.dashboard": "Panel",
