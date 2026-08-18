@@ -223,6 +223,7 @@ export function TmFieldSection() {
         </div>
         <button
           type="button"
+          data-tour="sec.tm-field.new"
           onClick={() => { setEditing(null); setComposing(true); }}
           disabled={loadingProjects || projects.length === 0}
           className={`${BTN_PRIMARY} px-4 py-3 flex-shrink-0`}
@@ -235,8 +236,12 @@ export function TmFieldSection() {
       {/* Work done and still unauthorised — the number that exists nowhere
           else today, so it gets the panel's ink hero with the grid texture and
           is the largest thing on the screen. Not a budget figure and not
-          compared against one: no bar, no ceiling, no "of" denominator. */}
-      <section className="relative overflow-hidden bg-[#0A0A0A] p-5 sm:p-6 md:p-7 text-[#F5F1E8]">
+          compared against one: no bar, no ceiling, no "of" denominator.
+
+          `data-tour` anchors ring the section tour's stops under the key
+          `tm-field` on BOTH panels that mount this screen — the supervisor's
+          nav key is `tm`, but it tours as `tm-field` (see SECTION_TOUR_STEPS). */}
+      <section data-tour="sec.tm-field.pending" className="relative overflow-hidden bg-[#0A0A0A] p-5 sm:p-6 md:p-7 text-[#F5F1E8]">
         <div className="absolute inset-0 pointer-events-none" style={GRID_INK} />
         <div className="relative">
           <Mono className="block text-[11px] tracking-[0.15em] text-[#F5F1E8]/50">
@@ -286,6 +291,7 @@ export function TmFieldSection() {
             {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
           <select
+            data-tour="sec.tm-field.states"
             aria-label={t('tm:filter.status')}
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value as '' | TmTicketStatus)}
@@ -306,6 +312,14 @@ export function TmFieldSection() {
         </p>
       )}
 
+      {/* Two tour stops share the ticket zone — `list` (what a ticket is, and
+          that asking for the signature freezes it) and `sign` (who signs and
+          how). One element carries one `data-tour` value, so the second stop
+          rings an inner wrapper of the same zone. Wrapping every list state —
+          not the data-only container — follows the anchor doctrine in
+          sectionTourSteps.ts: a stop must not vanish on a fresh account. */}
+      <div data-tour="sec.tm-field.list">
+      <div data-tour="sec.tm-field.sign" className="space-y-4">
       {loading && (
         <div className="bg-white border border-[#E4E4E7] py-1.5">
           {[0, 1, 2].map(i => (
@@ -532,6 +546,8 @@ export function TmFieldSection() {
           })}
         </div>
       )}
+      </div>
+      </div>
     </div>
   );
 }

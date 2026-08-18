@@ -136,8 +136,12 @@ export function TmOfficeSection() {
 
       {/* Same ink hero as the site side, so the two halves of T&M read as one
           module — but this is the office's copy of the number, and the line
-          underneath says whose desk it is sitting on. */}
-      <section className="relative overflow-hidden bg-[#0A0A0A] p-5 sm:p-6 md:p-7 text-[#F5F1E8]">
+          underneath says whose desk it is sitting on.
+
+          `data-tour` anchors ring the section tour's stops under the key
+          `tm-office` on BOTH panels that mount this screen (admin + finance,
+          same nav key) — see SECTION_TOUR_STEPS. */}
+      <section data-tour="sec.tm-office.pending" className="relative overflow-hidden bg-[#0A0A0A] p-5 sm:p-6 md:p-7 text-[#F5F1E8]">
         <div className="absolute inset-0 pointer-events-none" style={GRID_INK} />
         <div className="relative">
           <Mono className="block text-[11px] tracking-[0.15em] text-[#F5F1E8]/50">
@@ -197,6 +201,14 @@ export function TmOfficeSection() {
         </p>
       )}
 
+      {/* Two tour stops share the ticket zone — `queue` (only what is signed
+          can convert, and nothing converts by itself) and `convert` (the step
+          that moves money). One element carries one `data-tour` value, so the
+          second stop rings an inner wrapper of the same zone. Wrapping every
+          list state — not the data-only container — follows the anchor
+          doctrine in sectionTourSteps.ts. */}
+      <div data-tour="sec.tm-office.queue">
+      <div data-tour="sec.tm-office.convert" className="space-y-4">
       {loading && (
         <div className="bg-white border border-[#E4E4E7] py-1.5">
           {[0, 1, 2].map(i => (
@@ -371,6 +383,8 @@ export function TmOfficeSection() {
           })}
         </div>
       )}
+      </div>
+      </div>
 
       {converting && (
         <div

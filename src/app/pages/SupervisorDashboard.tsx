@@ -12,6 +12,7 @@ import {
   HelpCircle, FileSignature,
 } from 'lucide-react';
 import { AppShell, AppShellNavItem } from '../components/AppShell';
+import { SectionTour } from '../components/onboarding/SectionTour';
 import { AuthService } from '../services/auth';
 import { useSiteLogFeature } from '../hooks/useSiteLogFeature';
 import { Toaster } from '../components/ui/sonner';
@@ -64,6 +65,17 @@ const WorkerTime = lazy(() =>
 
 type Section = 'dashboard' | 'projects' | 'task-board' | 'site-log' | 'punch-list' | 'rfi' | 'tm' | 'my-time' | 'time-approvals' | 'expense-reviews' | 'team-tools';
 
+/**
+ * Which onboarding key (SECTION_TOUR_STEPS / INTRO_SECTIONS) each section of
+ * THIS panel tours under. The registries are keyed by ADMIN nav keys, so the
+ * map is explicit twice over: `tm` mounts the same screen the admin calls
+ * `tm-field`, and supervisor keys that merely collide with admin ones
+ * (`projects`, `time-approvals`) must NOT pick up the admin copy by accident.
+ */
+const ONBOARDING_KEY: Partial<Record<Section, string>> = {
+  tm: 'tm-field',
+};
+
 const SECTION_META_KEYS: Record<Section, { titleKey: string; subtitleKey: string }> = {
   'dashboard':       { titleKey: 'supervisor:section.dashboard.title',       subtitleKey: 'supervisor:section.dashboard.subtitle'       },
   'projects':        { titleKey: 'supervisor:section.projects.title',        subtitleKey: 'supervisor:section.projects.subtitle'        },
@@ -98,9 +110,13 @@ function SectionSpinner() {
 
 export function SupervisorDashboard() {
   const navigate = useNavigate();
-  const { t } = useTranslation(['supervisor', 'common', 'siteLog', 'punchList', 'rfi', 'tm']);
+  // `admin` is on the list because the onboarding chrome (the "?" tooltip)
+  // lives there — SectionTour reads that namespace itself.
+  const { t } = useTranslation(['supervisor', 'common', 'siteLog', 'punchList', 'rfi', 'tm', 'admin']);
   const username = AuthService.getUsername() ?? 'supervisor1';
   const [active, setActive] = useState<Section>('dashboard');
+  /** Bumped by the topbar "?" — replays the tour of the section on screen. */
+  const [introReplay, setIntroReplay] = useState(0);
   // Bitácora de obra is gated behind the `bitacora` plan feature — hide its nav
   // entry (and section) entirely when the tenant's plan does not include it.
   const { enabled: siteLogEnabled } = useSiteLogFeature();
@@ -138,6 +154,7 @@ export function SupervisorDashboard() {
   ], [t]);
 
   const metaKeys = SECTION_META_KEYS[active];
+  const onboardingKey = ONBOARDING_KEY[active];
 
   return (
     <>
@@ -152,7 +169,23 @@ export function SupervisorDashboard() {
         onLogout={handleLogout}
         pageTitle={t(metaKeys.titleKey)}
         pageSubtitle={t(metaKeys.subtitleKey)}
+        topbarExtra={
+          /* Only offered where there is a tour to replay — same button as the
+             admin topbar's. */
+          onboardingKey ? (
+            <button
+              onClick={() => setIntroReplay(n => n + 1)}
+              title={t('admin:tour.helpButton')}
+              className="w-9 h-9 flex items-center justify-center rounded-lg text-[#71717A] hover:text-[#F97316] hover:bg-[#FAFAFA] transition-colors"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </button>
+          ) : null
+        }
       >
+        {onboardingKey && (
+          <SectionTour section={onboardingKey} username={username} replayNonce={introReplay} />
+        )}
         <Suspense fallback={<SectionSpinner />}>
           {active === 'dashboard'       && <SupervisorDashboardContent username={username} onNavigate={s => setActive(s as Section)} />}
           {active === 'projects'        && <SupervisorProjects />}
