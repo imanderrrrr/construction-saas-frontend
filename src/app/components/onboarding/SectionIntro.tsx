@@ -25,6 +25,9 @@ export const INTRO_SECTIONS = new Set([
   'invoices', 'invoice-branding', 'budgets', 'budget-report',
   'expenses', 'expense-report', 'office-expenses',
   'accounts-receivable', 'accounts-payable', 'audit',
+  // The two halves of T&M — the banner is their mobile/fallback voice; the
+  // desktop tour lives in SECTION_TOUR_STEPS under the same keys.
+  'tm-field', 'tm-office',
 ]);
 
 export function SectionIntro({

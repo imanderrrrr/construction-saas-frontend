@@ -6,9 +6,10 @@ import {
   LayoutDashboard, CheckCircle, FileBarChart, DollarSign, Clock,
   Wallet, PieChart, ArrowDownToLine, ArrowUpFromLine, BarChart3,
   TrendingUp, TrendingDown, AlertTriangle, Receipt, Banknote, HardHat, Loader2, FileText,
-  FileSignature,
+  FileSignature, HelpCircle,
 } from 'lucide-react';
 import { AppShell, type AppShellNavItem } from '../components/AppShell';
+import { SectionTour } from '../components/onboarding/SectionTour';
 import { StatCard } from '../components/StatCard';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { Toaster } from '../components/ui/sonner';
@@ -77,6 +78,17 @@ type ActiveSection =
   | 'labor-payroll'
   | 'supervisor-hours'
   | 'tm-office';
+
+/**
+ * Which onboarding key (SECTION_TOUR_STEPS / INTRO_SECTIONS) each section of
+ * THIS panel tours under. The registries are keyed by ADMIN nav keys; most
+ * finance sections collide with admin ones whose copy was written for the
+ * admin panel, so only what is explicitly mapped gets a tour here. `tm-office`
+ * is the same screen under the same key on both panels.
+ */
+const ONBOARDING_KEY: Partial<Record<ActiveSection, string>> = {
+  'tm-office': 'tm-office',
+};
 
 const SECTION_META_KEYS: Record<ActiveSection, { titleKey: string; subtitleKey: string }> = {
   'dashboard':            { titleKey: 'finance:section.dashboard.title',            subtitleKey: 'finance:section.dashboard.subtitle'            },
@@ -268,8 +280,12 @@ function DashboardView({ username, onNavigate }: { username: string; onNavigate:
 
 export function FinanceDashboard({ initialSection }: { initialSection?: ActiveSection } = {}) {
   const navigate    = useNavigate();
-  const { t }       = useTranslation(['finance', 'common', 'tm']);
+  // `admin` is on the list because the onboarding chrome (the "?" tooltip)
+  // lives there — SectionTour reads that namespace itself.
+  const { t }       = useTranslation(['finance', 'common', 'tm', 'admin']);
   const username    = AuthService.getUsername() ?? 'finance';
+  /** Bumped by the topbar "?" — replays the tour of the section on screen. */
+  const [introReplay, setIntroReplay] = useState(0);
   // `initialSection` lets a deep-link route (e.g. /finance/expenses) open the
   // dashboard straight on a section while keeping the full shell + sidebar.
   const [activeSection, setActiveSection] = useState<ActiveSection>(initialSection ?? 'dashboard');
@@ -301,6 +317,7 @@ export function FinanceDashboard({ initialSection }: { initialSection?: ActiveSe
   ], [t]);
 
   const metaKeys = SECTION_META_KEYS[activeSection];
+  const onboardingKey = ONBOARDING_KEY[activeSection];
 
   return (
     <>
@@ -315,7 +332,23 @@ export function FinanceDashboard({ initialSection }: { initialSection?: ActiveSe
         onLogout={handleLogout}
         pageTitle={t(metaKeys.titleKey)}
         pageSubtitle={t(metaKeys.subtitleKey)}
+        topbarExtra={
+          /* Only offered where there is a tour to replay — same button as the
+             admin topbar's. */
+          onboardingKey ? (
+            <button
+              onClick={() => setIntroReplay(n => n + 1)}
+              title={t('admin:tour.helpButton')}
+              className="w-9 h-9 flex items-center justify-center rounded-lg text-[#71717A] hover:text-[#F97316] hover:bg-[#FAFAFA] transition-colors"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </button>
+          ) : null
+        }
       >
+        {onboardingKey && (
+          <SectionTour section={onboardingKey} username={username} replayNonce={introReplay} />
+        )}
         {activeSection === 'dashboard' && (
           <DashboardView username={username} onNavigate={handleNavigate} />
         )}
