@@ -4,6 +4,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { AuthService, LoginCredentials, ApiError } from '../services/auth';
 import { getStoredTenantSlug } from '../lib/api';
+import { setPasswordChangeRequired } from '../lib/passwordChangeState';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -114,7 +115,12 @@ export function Login() {
     try {
       const { tenantSlug, ...credentials } = data;
       const response = await AuthService.login(credentials, tenantSlug);
-      // Cookies are set by the server — no client-side persistence needed
+      // Cookies are set by the server — no client-side persistence needed.
+      // The server has already applied the office-vs-field policy, so this is
+      // recorded verbatim; PasswordChangeGuard reads it on the dashboard and
+      // shows the change screen there. Routing itself is unchanged — the user
+      // still lands on the dashboard their role earns them.
+      setPasswordChangeRequired(response.passwordChangeRequired === true);
       const dashboardRoute = AuthService.getDashboardRoute(response.role);
       navigate(dashboardRoute);
     } catch (err) {
