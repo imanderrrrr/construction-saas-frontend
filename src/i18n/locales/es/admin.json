@@ -2084,6 +2084,7 @@
   "usr.new.pinHint": "6 dígitos. Anótalo: se lo entregas junto con el QR.",
   "usr.new.webTitle": "Acceso web para {{name}}",
   "usr.new.webBody": "Entra en el navegador con su usuario y una contraseña temporal. La cambia en el primer ingreso.",
+  "usr.new.workspace": "Identificador de empresa",
   "usr.new.tempPassword": "Contraseña temp.",
   "usr.new.regenerate": "Regenerar",
   "usr.new.error": "No se pudo crear el usuario.",

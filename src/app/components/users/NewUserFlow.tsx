@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import QRCode from 'qrcode';
 import { ChevronLeft, ChevronRight, Check, Loader2, RefreshCw, X } from 'lucide-react';
 import { createUser, getWorkerQr, setWorkerPin, type UserDTO } from '../../services/users';
+import { getStoredTenantSlug } from '../../lib/api';
 import { GRID_INK, Mono, isFieldRole, randomPassword, randomPin } from './shared';
 
 /**
@@ -37,6 +38,16 @@ export function NewUserFlow({ existingUsernames, onClose, onCreated }: {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const field = isFieldRole(role);
+
+  // The workspace identifier the new user has to type in the third field on
+  // the login screen. It is the admin's own workspace, so the `bt_tenant`
+  // cookie the backend dropped at their last sign-in already holds it — no
+  // extra request. The legacy single-tenant deployment is the exception: its
+  // cookie says "default", but that tenant's users are told to leave the
+  // field BLANK, so printing "default" would be an instruction to type the
+  // wrong thing. Hide the row there instead.
+  const storedSlug = getStoredTenantSlug();
+  const workspaceSlug = storedSlug && storedSlug !== 'default' ? storedSlug : null;
 
   // Derive the username from the full name until the admin edits it.
   useEffect(() => {
@@ -220,6 +231,12 @@ export function NewUserFlow({ existingUsernames, onClose, onCreated }: {
                   <p className="text-[13.5px] text-[#5A5346] leading-relaxed mt-1.5">{t('admin:usr.new.webBody')}</p>
                   <div className="mt-5 border border-[#E4E4E7] bg-white p-4">
                     <div className="grid grid-cols-[130px_1fr] gap-3 items-center">
+                      {workspaceSlug && (
+                        <>
+                          <Mono className="text-[10px] normal-case tracking-[0.06em] text-[#A69C8D]">{t('admin:usr.new.workspace')}</Mono>
+                          <Mono className="text-sm normal-case tracking-normal text-[#0A0A0A]">{workspaceSlug}</Mono>
+                        </>
+                      )}
                       <Mono className="text-[10px] normal-case tracking-[0.06em] text-[#A69C8D]">{t('admin:usr.d.username')}</Mono>
                       <Mono className="text-sm normal-case tracking-normal text-[#0A0A0A]">{username}</Mono>
                       <Mono className="text-[10px] normal-case tracking-[0.06em] text-[#A69C8D]">{t('admin:usr.new.tempPassword')}</Mono>
@@ -281,6 +298,12 @@ export function NewUserFlow({ existingUsernames, onClose, onCreated }: {
                     </>
                   ) : (
                     <div className="grid grid-cols-[130px_1fr] gap-2.5 items-center mt-5">
+                      {workspaceSlug && (
+                        <>
+                          <Mono className="text-[10px] normal-case tracking-[0.06em] text-[#A69C8D]">{t('admin:usr.new.workspace')}</Mono>
+                          <Mono className="text-sm normal-case tracking-normal text-[#0A0A0A]">{workspaceSlug}</Mono>
+                        </>
+                      )}
                       <Mono className="text-[10px] normal-case tracking-[0.06em] text-[#A69C8D]">{t('admin:usr.d.username')}</Mono>
                       <Mono className="text-sm normal-case tracking-normal text-[#0A0A0A]">{created.username}</Mono>
                       <Mono className="text-[10px] normal-case tracking-[0.06em] text-[#A69C8D]">{t('admin:usr.new.tempPassword')}</Mono>

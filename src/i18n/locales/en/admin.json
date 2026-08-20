@@ -2084,6 +2084,7 @@
   "usr.new.pinHint": "6 digits. Write it down: you hand it over with the QR.",
   "usr.new.webTitle": "Web access for {{name}}",
   "usr.new.webBody": "They sign in on the browser with their username and a temporary password, and change it on first sign-in.",
+  "usr.new.workspace": "Company identifier",
   "usr.new.tempPassword": "Temp. password",
   "usr.new.regenerate": "Regenerate",
   "usr.new.error": "Couldn't create the user.",

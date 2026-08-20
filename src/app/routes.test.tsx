@@ -34,6 +34,11 @@ vi.mock('./services/auth', () => ({ AuthService: auth.AuthService }));
 vi.mock('./components/BillingGuard', () => ({
   BillingGuard: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
+// Pass-through for the same reason as BillingGuard above: this file asserts
+// route + role wiring, and the password gate has its own test.
+vi.mock('./components/PasswordChangeGuard', () => ({
+  PasswordChangeGuard: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
 vi.mock('./pages/FinanceDashboard', () => ({
   FinanceDashboard: ({ initialSection }: { initialSection?: string }) => (
     <div data-testid="finance-dash">finance:{String(initialSection)}</div>
