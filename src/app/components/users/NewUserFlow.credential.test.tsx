@@ -26,11 +26,14 @@ const mocks = vi.hoisted(() => ({
   createUser: vi.fn(),
 }));
 
-vi.mock('react-i18next', () => {
-  const t = (key: string) => key;
-  const i18n = { language: 'es-GT' };
-  return { useTranslation: () => ({ t, i18n }) };
-});
+// Mirror NewUserFlow.workspace.test.tsx: since #92 NewUserFlow's import
+// graph pulls in src/i18n/index.ts, whose real init calls initReactI18next —
+// a mock without that export explodes before any test runs.
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'es-GT' } }),
+  Trans: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
+  initReactI18next: { type: '3rdParty', init: () => {} },
+}));
 
 vi.mock('../../services/users', () => ({
   createUser: mocks.createUser,
