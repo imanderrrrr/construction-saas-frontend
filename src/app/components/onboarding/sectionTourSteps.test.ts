@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { SECTION_TOUR_STEPS } from './sectionTourSteps';
+import { INTRO_SECTIONS } from './SectionIntro';
 import en from '../../../i18n/locales/en/admin.json';
 import es from '../../../i18n/locales/es/admin.json';
 
@@ -72,5 +73,31 @@ describe('section tour registry', () => {
     const registered = new Set(steps.map(s => s.anchor));
     const orphans = [...anchors].filter(a => !registered.has(a));
     expect(orphans).toEqual([]);
+  });
+});
+
+describe('section intro registry', () => {
+  // The banner renders `t('admin:sec.<key>.<part>')` blindly, and it is the
+  // fallback voice of every toured section on mobile — a missing key prints
+  // the raw key at the user there. Same enforcement as the tour copy above.
+  it.each([...INTRO_SECTIONS].map(section => [section]))(
+    '%s has title/body/b1/b2 in en and es',
+    section => {
+      for (const [lang, dict] of [['en', en], ['es', es]] as const) {
+        const d = dict as Record<string, string>;
+        for (const part of ['title', 'body', 'b1', 'b2'] as const) {
+          const k = `sec.${section}.${part}`;
+          expect(d[k]?.trim(), `${lang} missing ${k}`).toBeTruthy();
+        }
+      }
+    },
+  );
+
+  it('every toured section also has its banner fallback authored', () => {
+    // SectionTour degrades to the banner on mobile and when anchors never
+    // appear; a toured section missing from INTRO_SECTIONS would degrade to
+    // nothing at all.
+    const missing = Object.keys(SECTION_TOUR_STEPS).filter(s => !INTRO_SECTIONS.has(s));
+    expect(missing).toEqual([]);
   });
 });

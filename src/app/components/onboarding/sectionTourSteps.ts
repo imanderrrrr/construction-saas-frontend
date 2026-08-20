@@ -41,4 +41,11 @@ export const SECTION_TOUR_STEPS: Record<string, string[]> = {
   'accounts-receivable': ['kpis', 'filters', 'table'],
   'accounts-payable': ['new-bill', 'kpis', 'filters', 'table'],
   audit: ['kpis', 'filters', 'list'],
+  // Tiempo y material. `tm-field` doubles as the supervisor panel's tour (its
+  // nav key is `tm`, but it mounts the same screen the admin calls `tm-field`)
+  // and `tm-office` doubles as the finance panel's (same nav key there). The
+  // two ticket-zone stops of each section share their anchor zone via nested
+  // wrappers — see the note in TmFieldSection.
+  'tm-field': ['pending', 'new', 'list', 'sign', 'states'],
+  'tm-office': ['pending', 'queue', 'convert'],
 };

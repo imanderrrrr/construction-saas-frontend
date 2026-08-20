@@ -3,6 +3,7 @@
 
 import { refreshIfNeeded } from './refresh-coordinator';
 import i18n from '../../i18n';
+import { getPasswordChangeRequired, setPasswordChangeRequired } from './passwordChangeState';
 
 // In production (Vercel) we MUST use relative paths so requests go through
 // the Vercel rewrite proxy, keeping cookies same-origin.
@@ -72,6 +73,13 @@ function getCsrfToken(): string | null {
 
 export { getCsrfToken };
 
+/**
+ * Backend code for "your password is temporary" (TemporaryPasswordFilter).
+ * Its own code rather than a bare 403 precisely so this layer can tell it from
+ * a real authorization failure and route instead of erroring.
+ */
+const PASSWORD_CHANGE_REQUIRED_CODE = 'PASSWORD_CHANGE_REQUIRED';
+
 // ── Custom API error ────────────────────────────────────────────────────────
 
 export class ApiError extends Error {
@@ -92,7 +100,17 @@ export class ApiError extends Error {
 // Auth endpoints that must never trigger auto-refresh (prevents infinite loops).
 // A 401 here is still a credentials / token failure for an authenticated flow,
 // so we let it surface as an ApiError but skip the refresh attempt.
-const AUTH_ENDPOINTS = ['/auth/refresh', '/auth/login'];
+const AUTH_ENDPOINTS = [
+  '/auth/refresh',
+  '/auth/login',
+  // Changing your own password answers 401 for exactly one reason: the current
+  // password was wrong. Retrying after a refresh cannot help — the password is
+  // still wrong — and it costs a second attempt against
+  // PasswordSetupRateLimiter, so a user who mistypes once is charged twice and
+  // gets locked out in half the tries. Observed live: one click produced two
+  // 401s with a token refresh wedged between them.
+  '/auth/change-password',
+];
 
 // Public / anonymous endpoints used by pre-auth flows (signup, password reset,
 // invitation preview/accept). A 401 here MUST NOT trigger auto-refresh or the
@@ -175,6 +193,22 @@ async function handleErrorResponse(res: Response): Promise<never> {
   }
 
   if (res.status === 403) {
+    // The password gate, not an authorization failure. Anything a user still
+    // on an admin-issued password touches comes back this way, so recognising
+    // it centrally is what keeps a blocked call from surfacing as a stray
+    // error toast on whatever screen happened to fire it.
+    //
+    // Recording the verdict is usually enough — PasswordChangeGuard wraps
+    // every internal route, so the next render already shows the form. The
+    // reload is the backstop for a call fired from an already-mounted tree,
+    // which would otherwise sit there looking broken. It runs only on the
+    // FIRST such 403: afterwards the guard is showing the form and no product
+    // call is in flight to trigger another, so there is no reload loop.
+    if (backendCode === PASSWORD_CHANGE_REQUIRED_CODE) {
+      const firstTime = getPasswordChangeRequired() !== true;
+      setPasswordChangeRequired(true);
+      if (firstTime && typeof window !== 'undefined') window.location.reload();
+    }
     throw new ApiError(403, backendMessage ?? i18n.t('common:error.forbidden'), undefined, backendCode);
   }
 

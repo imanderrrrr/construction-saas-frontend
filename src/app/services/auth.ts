@@ -8,6 +8,7 @@ import {
   clearSessionCookie, getCsrfToken,
   getBaseUrl,
 } from '../lib/api';
+import { clearPasswordChangeState } from '../lib/passwordChangeState';
 
 export interface LoginCredentials {
   username: string;
@@ -19,6 +20,15 @@ export interface LoginResponse {
   username: string;
   /** Expiration in minutes */
   expiresInMinutes: number;
+  /**
+   * The account is still on the password an admin issued, and the backend
+   * will reject everything except the change-password flow until it is
+   * replaced. Already has the office-vs-field policy applied server-side —
+   * do NOT re-derive it here, or the UI and the API will disagree about who
+   * is blocked. Optional so a backend that predates the field is read as
+   * "not blocked" rather than crashing the login.
+   */
+  passwordChangeRequired?: boolean;
 }
 
 /**
@@ -37,6 +47,14 @@ export interface SignupPayload {
 export interface MeResponse {
   username: string;
   role: CanonicalRole;
+  /** See {@link LoginResponse.passwordChangeRequired}. */
+  passwordChangeRequired?: boolean;
+}
+
+/** Body of `POST /api/v1/auth/change-password`. */
+export interface ChangePasswordPayload {
+  currentPassword: string;
+  newPassword: string;
 }
 
 export { ApiError };
@@ -79,6 +97,17 @@ export class AuthService {
     return api<MeResponse>('/api/v1/auth/me');
   }
 
+  /**
+   * Replace my own password. This is the only way out of the temporary-password
+   * block, and the backend lifts it on the session already open — no re-login.
+   */
+  static async changePassword(payload: ChangePasswordPayload): Promise<void> {
+    await api<void>('/api/v1/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
   // No-op: cookies are set by the server, nothing to persist client-side
   static saveAuthData(_response: LoginResponse): void {
     // Intentionally empty — kept for call-site compatibility during migration
@@ -111,5 +140,8 @@ export class AuthService {
       });
     } catch { /* best effort */ }
     clearSessionCookie();
+    // Otherwise the next person to sign in on this browser inherits the
+    // previous user's verdict until their own login overwrites it.
+    clearPasswordChangeState();
   }
 }

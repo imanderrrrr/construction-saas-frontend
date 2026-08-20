@@ -27,6 +27,7 @@ import { ClientView }          from './pages/ClientView';
 import { SignDocument }        from './pages/SignDocument';
 import { AuthService }         from './services/auth';
 import { BillingGuard }        from './components/BillingGuard';
+import { PasswordChangeGuard } from './components/PasswordChangeGuard';
 import { CanonicalRole, ROLE_DASHBOARD_ROUTES } from './types';
 
 // Platform (super-admin) console — separate auth model (Bearer + MFA),
@@ -59,7 +60,10 @@ function ProtectedRoute({
     return <Navigate to={redirect} replace />;
   }
 
-  return <>{children}</>;
+  // Inside the role check, so the user has already been routed to the
+  // dashboard their role earns them and the change screen appears THERE —
+  // not at a URL of its own. One wrap here covers every internal page.
+  return <PasswordChangeGuard>{children}</PasswordChangeGuard>;
 }
 
 // Role dashboard redirect
