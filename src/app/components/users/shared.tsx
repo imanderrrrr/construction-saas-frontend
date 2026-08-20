@@ -1,5 +1,7 @@
 /** Shared bits for the Usuarios screens (roster, drawer, new-user flow). */
 
+import { cn } from '../ui/utils';
+
 export type AccessKind = 'FIELD' | 'OFFICE';
 
 /** Roles that sign in on the phone with QR + PIN (no password). */
@@ -32,8 +34,20 @@ export function randomPassword(): string {
 export function Mono({ children, className = '', style }: {
   children: React.ReactNode; className?: string; style?: React.CSSProperties;
 }) {
+  // cn() (tailwind-merge), NOT template interpolation. Both `uppercase` and
+  // `normal-case` set text-transform, so with plain interpolation BOTH land in
+  // the class attribute and the winner is decided by the order Tailwind emits
+  // them in the stylesheet — where `.uppercase` comes after `.normal-case`.
+  // The base `uppercase` therefore beat every caller that asked for
+  // `normal-case`, no matter how the attribute was written.
+  //
+  // That silently upper-cased the temporary password on the new-user
+  // credential card: the admin read "LA7R-MHC7" while "LA7r-MHC7" was what
+  // got stored, so the handover password was rejected as invalid. The
+  // username right above it was mangled the same way. cn() resolves the
+  // conflict in the class string instead, so the last utility wins.
   return (
-    <span className={`font-bt-mono uppercase tracking-[0.1em] ${className}`} style={style}>
+    <span className={cn('font-bt-mono uppercase tracking-[0.1em]', className)} style={style}>
       {children}
     </span>
   );
