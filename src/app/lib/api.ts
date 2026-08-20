@@ -193,23 +193,21 @@ async function handleErrorResponse(res: Response): Promise<never> {
   }
 
   if (res.status === 403) {
-    // The password gate, not an authorization failure. Anything the user
-    // reaches while still on an admin-issued password comes back this way, so
-    // catching it centrally is what keeps a blocked call from surfacing as a
-    // stray error toast on whatever screen happened to fire it.
+    // The password gate, not an authorization failure. Anything a user still
+    // on an admin-issued password touches comes back this way, so recognising
+    // it centrally is what keeps a blocked call from surfacing as a stray
+    // error toast on whatever screen happened to fire it.
     //
-    // Recording it is usually enough: PasswordChangeGuard wraps every internal
-    // route, so the next render already shows the form. The reload below is
-    // the backstop for a call fired from an already-mounted tree, which would
-    // otherwise sit there looking broken. Skipped when we are already on a
-    // protected page and the guard has been told — no reload loops.
+    // Recording the verdict is usually enough — PasswordChangeGuard wraps
+    // every internal route, so the next render already shows the form. The
+    // reload is the backstop for a call fired from an already-mounted tree,
+    // which would otherwise sit there looking broken. It runs only on the
+    // FIRST such 403: afterwards the guard is showing the form and no product
+    // call is in flight to trigger another, so there is no reload loop.
     if (backendCode === PASSWORD_CHANGE_REQUIRED_CODE) {
-      const alreadyKnown = getPasswordChangeRequired() === true;
+      const firstTime = getPasswordChangeRequired() !== true;
       setPasswordChangeRequired(true);
-      if (!alreadyKnown && typeof window !== 'undefined') {
-        window.location.reload();
-      }
-      throw new ApiError(403, backendMessage ?? i18n.t('common:error.forbidden'), undefined, backendCode);
+      if (firstTime && typeof window !== 'undefined') window.location.reload();
     }
     throw new ApiError(403, backendMessage ?? i18n.t('common:error.forbidden'), undefined, backendCode);
   }
