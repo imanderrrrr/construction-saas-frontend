@@ -145,4 +145,44 @@ describe('SectionTour', () => {
     await advance(600);
     expect(document.querySelector('[data-testid="tour-spotlight-card"]')).toBeNull();
   });
+
+  it('a stale nonce does not resurrect banners the user already dismissed', async () => {
+    // The topbar nonce stays >0 for the rest of the session after the first
+    // "?". On mobile every section degrades to the banner and SectionIntro
+    // remounts per section, so forwarding the raw nonce re-showed every
+    // dismissed banner on every section visited until reload.
+    setViewport(false);
+    localStorage.setItem('bt.sectionintro.v1.ana.users', new Date().toISOString());
+
+    // "?" pressed while on audit…
+    await act(async () => {
+      root.render(<SectionTour section="audit" username="ana" replayNonce={2} />);
+    });
+    await advance(4200);
+
+    // …then the user navigates to users, whose banner they dismissed long ago.
+    await act(async () => {
+      root.render(<SectionTour section="users" username="ana" replayNonce={2} />);
+    });
+    await advance(4200); // past the anchor poll → banner fallback path
+    expect(container.textContent).not.toContain('sec.users.title');
+  });
+
+  it('the "?" still re-shows the dismissed banner of the section on screen', async () => {
+    setViewport(false);
+    localStorage.setItem('bt.sectionintro.v1.ana.users', new Date().toISOString());
+
+    await act(async () => {
+      root.render(<SectionTour section="users" username="ana" replayNonce={0} />);
+    });
+    await advance(4200);
+    expect(container.textContent).not.toContain('sec.users.title'); // dismissed stays hidden
+
+    // Topbar "?" while on users.
+    await act(async () => {
+      root.render(<SectionTour section="users" username="ana" replayNonce={1} />);
+    });
+    await advance(100);
+    expect(container.textContent).toContain('sec.users.title');
+  });
 });

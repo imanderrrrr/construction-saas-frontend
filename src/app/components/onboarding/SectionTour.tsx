@@ -82,16 +82,29 @@ export function SectionTour({
   const [stepIdx, setStepIdx] = useState(0);
   /** True once we've decided this section can't be toured → show the banner. */
   const [fellBack, setFellBack] = useState(false);
+  /** Replay signal forwarded to the banner fallback, scoped to the section on
+      screen. The shared topbar nonce stays >0 for the rest of the session after
+      the first "?", and the banner remounts on every fallback — forwarding the
+      raw nonce resurrected banners the user had already dismissed on every
+      section they visited (systematic on mobile, where every section falls
+      back). This one only moves when a replay actually degrades to the banner,
+      and resets when the section changes. */
+  const [introNonce, setIntroNonce] = useState(0);
 
   const start = useCallback(
     (replay: boolean) => {
-      if (!canSpotlight()) {
+      // A replay that degrades to the banner must still open the banner.
+      const fallBack = () => {
         setFellBack(true);
+        if (replay) setIntroNonce(n => n + 1);
+      };
+      if (!canSpotlight()) {
+        fallBack();
         return;
       }
       const found = visibleSteps(section);
       if (found.length === 0) {
-        setFellBack(true);
+        fallBack();
         return;
       }
       if (!replay) markSeen(username, section);
@@ -110,6 +123,7 @@ export function SectionTour({
   useEffect(() => {
     setSteps(null);
     setFellBack(false);
+    setIntroNonce(0);
     if (!SECTION_TOUR_STEPS[section]) return;
     if (hasSeen(username, section)) return;
 
@@ -126,7 +140,10 @@ export function SectionTour({
 
   // Topbar "?" replay for the section on screen.
   useEffect(() => {
-    if (replayNonce > 0 && SECTION_TOUR_STEPS[section]) start(true);
+    if (replayNonce === 0) return;
+    if (SECTION_TOUR_STEPS[section]) start(true);
+    // A section with no authored steps only has the banner — replay re-shows it.
+    else setIntroNonce(n => n + 1);
     // `start` is stable per section; replaying must key off the nonce only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [replayNonce]);
@@ -136,10 +153,10 @@ export function SectionTour({
     setSteps(null);
   }, [username, section]);
 
-  // Banner fallback (mobile / no visible anchors). Passing the same nonce keeps
-  // the "?" button working there too.
+  // Banner fallback (mobile / no visible anchors). The scoped nonce keeps the
+  // "?" button working there without leaking replays across sections.
   if (fellBack || !SECTION_TOUR_STEPS[section]) {
-    return <SectionIntro section={section} username={username} replayNonce={replayNonce} />;
+    return <SectionIntro section={section} username={username} replayNonce={introNonce} />;
   }
 
   if (!steps || steps.length === 0) return null;
