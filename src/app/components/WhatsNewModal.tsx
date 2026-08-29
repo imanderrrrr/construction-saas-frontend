@@ -19,7 +19,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft, ArrowRight, FileSpreadsheet, HardHat, LayoutDashboard,
-  PenLine, Sparkles, TrendingUp, X,
+  PenLine, Sparkles, TrendingUp, X, type LucideIcon,
 } from 'lucide-react';
 
 import { AuthService } from '../services/auth';
@@ -38,7 +38,7 @@ const seenKey = (username: string) => `bt.whatsnew.${username}`;
 const AUDIENCE = new Set(['ADMIN', 'SUPERVISOR', 'FINANCE']);
 
 interface Slide {
-  icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
+  icon: LucideIcon;
   /** i18n prefix: whatsNew.<key>.title / whatsNew.<key>.body in common.json */
   key: string;
 }
@@ -52,29 +52,29 @@ const SLIDES: Slide[] = [
   { icon: LayoutDashboard, key: 'look' },
 ];
 
+// Decided once, at mount: authenticated, in-audience, and unseen BY THIS
+// USER. A missing username means we cannot remember the dismissal per user,
+// so we stay quiet rather than nag on every load.
+function shouldShowOnMount(): boolean {
+  if (!AuthService.isAuthenticated()) return false;
+  const role = AuthService.getRole();
+  if (!role || !AUDIENCE.has(role)) return false;
+  const username = AuthService.getUsername();
+  if (!username) return false;
+  let seen: boolean;
+  try {
+    seen = localStorage.getItem(seenKey(username)) === WHATS_NEW_VERSION;
+  } catch {
+    seen = false; // private mode / no storage → show once, don't crash
+  }
+  return !seen;
+}
+
 export function WhatsNewModal() {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(shouldShowOnMount);
   const [index, setIndex] = useState(0);
   const trackRef = useRef<HTMLDivElement | null>(null);
-
-  // Decide once on mount whether to show: authenticated, in-audience, unseen
-  // BY THIS USER. A missing username means we cannot remember the dismissal
-  // per user, so we stay quiet rather than nag on every load.
-  useEffect(() => {
-    if (!AuthService.isAuthenticated()) return;
-    const role = AuthService.getRole();
-    if (!role || !AUDIENCE.has(role)) return;
-    const username = AuthService.getUsername();
-    if (!username) return;
-    let seen = false;
-    try {
-      seen = localStorage.getItem(seenKey(username)) === WHATS_NEW_VERSION;
-    } catch {
-      seen = false; // private mode / no storage → show once, don't crash
-    }
-    if (!seen) setOpen(true);
-  }, []);
 
   const dismiss = useCallback(() => {
     const username = AuthService.getUsername();
