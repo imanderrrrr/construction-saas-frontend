@@ -28,6 +28,7 @@ import { SignDocument }        from './pages/SignDocument';
 import { AuthService }         from './services/auth';
 import { BillingGuard }        from './components/BillingGuard';
 import { PasswordChangeGuard } from './components/PasswordChangeGuard';
+import { WhatsNewModal }       from './components/WhatsNewModal';
 import { CanonicalRole, ROLE_DASHBOARD_ROUTES } from './types';
 
 // Platform (super-admin) console — separate auth model (Bearer + MFA),
@@ -64,6 +65,28 @@ function ProtectedRoute({
   // dashboard their role earns them and the change screen appears THERE —
   // not at a URL of its own. One wrap here covers every internal page.
   return <PasswordChangeGuard>{children}</PasswordChangeGuard>;
+}
+
+// A tenant-internal PAGE (not a redirect): ProtectedRoute → (its inner
+// PasswordChangeGuard) → BillingGuard → the page, with the what's-new modal
+// as the page's sibling INSIDE BillingGuard. Both guards render children only
+// once they are satisfied, so the modal can never paint over the forced
+// password change or the billing wall — and /admin/billing (deliberately
+// outside BillingGuard, it's where a blocked admin lands) never mounts it.
+function GuardedPage({
+  children, allowedRoles,
+}: {
+  children: React.ReactNode;
+  allowedRoles?: CanonicalRole[];
+}) {
+  return (
+    <ProtectedRoute allowedRoles={allowedRoles}>
+      <BillingGuard>
+        {children}
+        <WhatsNewModal />
+      </BillingGuard>
+    </ProtectedRoute>
+  );
 }
 
 // Role dashboard redirect
@@ -116,11 +139,9 @@ export const routes = [
   {
     path: '/admin/dashboard',
     element: (
-      <ProtectedRoute allowedRoles={['ADMIN']}>
-        <BillingGuard>
-          <AdminDashboard />
-        </BillingGuard>
-      </ProtectedRoute>
+      <GuardedPage allowedRoles={['ADMIN']}>
+        <AdminDashboard />
+      </GuardedPage>
     ),
   },
   // Admin time-approvals is a section inside AdminDashboard (no separate route needed)
@@ -139,21 +160,17 @@ export const routes = [
   {
     path: '/supervisor/dashboard',
     element: (
-      <ProtectedRoute allowedRoles={['SUPERVISOR']}>
-        <BillingGuard>
-          <SupervisorDashboard />
-        </BillingGuard>
-      </ProtectedRoute>
+      <GuardedPage allowedRoles={['SUPERVISOR']}>
+        <SupervisorDashboard />
+      </GuardedPage>
     ),
   },
   {
     path: '/supervisor/time-approvals',
     element: (
-      <ProtectedRoute allowedRoles={['SUPERVISOR']}>
-        <BillingGuard>
-          <SupervisorDashboard />
-        </BillingGuard>
-      </ProtectedRoute>
+      <GuardedPage allowedRoles={['SUPERVISOR']}>
+        <SupervisorDashboard />
+      </GuardedPage>
     ),
   },
 
@@ -161,21 +178,17 @@ export const routes = [
   {
     path: '/worker/dashboard',
     element: (
-      <ProtectedRoute allowedRoles={['WORKER']}>
-        <BillingGuard>
-          <WorkerDashboard />
-        </BillingGuard>
-      </ProtectedRoute>
+      <GuardedPage allowedRoles={['WORKER']}>
+        <WorkerDashboard />
+      </GuardedPage>
     ),
   },
   {
     path: '/worker/time',
     element: (
-      <ProtectedRoute allowedRoles={['WORKER']}>
-        <BillingGuard>
-          <WorkerDashboard />
-        </BillingGuard>
-      </ProtectedRoute>
+      <GuardedPage allowedRoles={['WORKER']}>
+        <WorkerDashboard />
+      </GuardedPage>
     ),
   },
 
@@ -183,11 +196,9 @@ export const routes = [
   {
     path: '/finance/dashboard',
     element: (
-      <ProtectedRoute allowedRoles={['FINANCE']}>
-        <BillingGuard>
-          <FinanceDashboard />
-        </BillingGuard>
-      </ProtectedRoute>
+      <GuardedPage allowedRoles={['FINANCE']}>
+        <FinanceDashboard />
+      </GuardedPage>
     ),
   },
   // Deep-link routes into the finance dashboard — they open the real module
@@ -195,21 +206,17 @@ export const routes = [
   {
     path: '/finance/expenses',
     element: (
-      <ProtectedRoute allowedRoles={['FINANCE']}>
-        <BillingGuard>
-          <FinanceDashboard initialSection="approved-expenses" />
-        </BillingGuard>
-      </ProtectedRoute>
+      <GuardedPage allowedRoles={['FINANCE']}>
+        <FinanceDashboard initialSection="approved-expenses" />
+      </GuardedPage>
     ),
   },
   {
     path: '/finance/budgets',
     element: (
-      <ProtectedRoute allowedRoles={['FINANCE']}>
-        <BillingGuard>
-          <FinanceDashboard initialSection="budgets" />
-        </BillingGuard>
-      </ProtectedRoute>
+      <GuardedPage allowedRoles={['FINANCE']}>
+        <FinanceDashboard initialSection="budgets" />
+      </GuardedPage>
     ),
   },
 
@@ -217,11 +224,9 @@ export const routes = [
   {
     path: '/warehouse/dashboard',
     element: (
-      <ProtectedRoute allowedRoles={['WAREHOUSE']}>
-        <BillingGuard>
-          <WarehouseDashboard />
-        </BillingGuard>
-      </ProtectedRoute>
+      <GuardedPage allowedRoles={['WAREHOUSE']}>
+        <WarehouseDashboard />
+      </GuardedPage>
     ),
   },
   // Deep-link into the warehouse dashboard's tool-inventory section. The
@@ -229,11 +234,9 @@ export const routes = [
   {
     path: '/warehouse/inventory',
     element: (
-      <ProtectedRoute allowedRoles={['WAREHOUSE']}>
-        <BillingGuard>
-          <WarehouseDashboard initialSection="tool-inventory" />
-        </BillingGuard>
-      </ProtectedRoute>
+      <GuardedPage allowedRoles={['WAREHOUSE']}>
+        <WarehouseDashboard initialSection="tool-inventory" />
+      </GuardedPage>
     ),
   },
 
@@ -243,11 +246,9 @@ export const routes = [
   {
     path: '/subcontractor/info',
     element: (
-      <ProtectedRoute allowedRoles={['SUBCONTRACTOR']}>
-        <BillingGuard>
-          <SubcontractorWebInfo />
-        </BillingGuard>
-      </ProtectedRoute>
+      <GuardedPage allowedRoles={['SUBCONTRACTOR']}>
+        <SubcontractorWebInfo />
+      </GuardedPage>
     ),
   },
 

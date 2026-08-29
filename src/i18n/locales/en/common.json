@@ -14,6 +14,23 @@
   "termsOfService": "Terms of Service",
   "poweredBy": "Powered by",
 
+  "whatsNew.badge": "What's new",
+  "whatsNew.dialogLabel": "What's new in BuildTrack",
+  "whatsNew.done": "Got it!",
+  "whatsNew.dot": "Go to update {{num}}",
+  "whatsNew.intro.title": "We updated BuildTrack",
+  "whatsNew.intro.body": "These are the panel's latest improvements. Use the arrow to see them one by one.",
+  "whatsNew.tm.title": "Extra work signed at the site",
+  "whatsNew.tm.body": "When the client asks for something beyond the agreement, record it in Time & Material: capture it at the site, their foreman signs right there on the phone, and the office turns it into a charge.",
+  "whatsNew.sign.title": "Signatures without chasing anyone",
+  "whatsNew.sign.body": "Send the document as a link and the other party signs from their phone — no account, no paperwork. If the amount changed after you sent it, the panel warns you before they sign the wrong thing.",
+  "whatsNew.payroll.title": "Payroll in Excel, for QuickBooks",
+  "whatsNew.payroll.body": "In Payroll, the \"Payments to Excel\" button downloads the period's payments: one line per payment, with the breakdown by job, ready to key into QuickBooks.",
+  "whatsNew.budget.title": "The budget tells you the truth",
+  "whatsNew.budget.body": "Each project separates what it costs you from what you charge the client, and shows how much you have been paid and what you are still owed. If a job runs over, you see the overrun instead of getting stuck.",
+  "whatsNew.look.title": "The panel has a new face",
+  "whatsNew.look.body": "We gave the panel a clearer, more orderly look. Everything is still in its place — and if you get lost, the \"?\" button on each screen gives you a guided tour.",
+
   "contractBar.ofContract": "of {{amount}}",
   "contractBar.ofBudget": "of {{amount}} budget",
 
