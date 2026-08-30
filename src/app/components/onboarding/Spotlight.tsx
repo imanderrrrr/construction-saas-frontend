@@ -27,6 +27,7 @@ export function Spotlight({
   onBack,
   onNext,
   onSkip,
+  firstRunId,
 }: {
   /** `data-tour` value of the element to highlight. */
   anchor: string;
@@ -37,6 +38,10 @@ export function Spotlight({
   onBack: () => void;
   onNext: () => void;
   onSkip: () => void;
+  /** Set when this spotlight is one of the first-run notices queued in
+   *  lib/firstRunQueue (the dashboard tour). Section tours run on demand,
+   *  after the row has drained, and leave it unset. */
+  firstRunId?: string;
 }) {
   const { t } = useTranslation(['admin']);
   const [rect, setRect] = useState<DOMRect | null>(null);
@@ -119,7 +124,12 @@ export function Spotlight({
   const isLast = index >= total - 1;
 
   return (
-    <div className="fixed inset-0 z-[90]" role="dialog" aria-modal="true">
+    <div
+      className="fixed inset-0 z-[90]"
+      role="dialog"
+      aria-modal="true"
+      data-first-run={firstRunId}
+    >
       {/* Click shield: keeps the page inert while touring. Deliberately does
           NOT exit — a stray click must not kill the tour; exits are the
           explicit "skip" link and Escape. */}
