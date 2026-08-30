@@ -77,6 +77,10 @@ export async function installHermeticBase(page: Page, opts: BaseOpts = {}) {
   await page.addInitScript(({ username, showFirstRun }) => {
     try {
       localStorage.setItem('ofjr_language', 'en');
+      // Mark the what's-new carousel as seen even in showFirstRun specs:
+      // those exercise intro + tour, and this dialog would sit on top of
+      // both. Key/value must track WhatsNewModal.seenKey()/WHATS_NEW_VERSION.
+      localStorage.setItem(`bt.whatsnew.${username ?? 'anon'}`, '2026-08');
       if (!showFirstRun) {
         // Mark the one-time overlays as already seen. Keys must track
         // IntroOverlay.STORAGE_KEY and OnboardingTour.seenKey().
