@@ -74,6 +74,16 @@ export interface RecordAlert {
 }
 
 /**
+ * An OPEN shift: clock-in without a clock-out yet. Mirrors the backend's
+ * isShiftOpen — record-level approve/observe answers 409 SHIFT_STILL_OPEN for
+ * these until the worker clocks out (approving one would strand it at 0
+ * payable minutes). The list uses this to warn before a bulk approve.
+ */
+export function isOpenShift(r: TimeRecordResponse): boolean {
+  return r.events.some(isIn) && !r.events.some(isOut);
+}
+
+/**
  * What's off with this day. Order matters — the first one becomes the row's
  * inline reason, so the most actionable comes first.
  */
@@ -89,9 +99,7 @@ export function alertsFor(r: TimeRecordResponse): RecordAlert[] {
   const dispute = r.events.find(e => e.disputeStatus === 'PENDING');
   if (dispute) out.push({ key: 'dispute' });
 
-  const hasIn = r.events.some(isIn);
-  const hasOut = r.events.some(isOut);
-  if (hasIn && !hasOut) out.push({ key: 'noCheckout' });
+  if (isOpenShift(r)) out.push({ key: 'noCheckout' });
 
   if (r.isLate) out.push({ key: 'late' });
 

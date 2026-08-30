@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, CalendarPlus, Check, ChevronRight, Loader2, Search } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   approveRecord, getAllTimeRecords, type TimeRecordResponse,
 } from '../../services/time';
+import { ApiError } from '../../lib/api';
 import { RecordDrawer } from './RecordDrawer';
 import { ModalCreateDay } from '../phase2/ModalCreateDay';
 import {
-  Mono, alertsFor, dayHours, initials, sequenceOf, statusPillClass,
+  Mono, alertsFor, dayHours, initials, isOpenShift, sequenceOf, statusPillClass,
 } from './shared';
 
 /**
@@ -126,17 +128,47 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
   async function approveOne(id: number) {
     setRowBusy(id);
     try { await approveRecord(id); await load(); setSelected(p => { const n = new Set(p); n.delete(id); return n; }); }
-    catch { /* stays in the list */ }
+    catch (err) {
+      // The record stays in the list — but the admin must hear WHY. The one
+      // rejection that matters here is SHIFT_STILL_OPEN: the worker hasn't
+      // clocked out yet, so approving would strand the shift at 0 minutes.
+      toast.error(err instanceof Error && err.message ? err.message : t('admin:apr.bulk.genericError'));
+    }
     finally { setRowBusy(null); }
   }
 
   async function approveBulk() {
     setBulkBusy(true);
     const ids = [...selected];
-    await Promise.allSettled(ids.map(id => approveRecord(id)));
-    setSelected(new Set());
+    const results = await Promise.allSettled(ids.map(id => approveRecord(id)));
+    // The backend is the referee, per record: an open shift (no clock-out yet)
+    // answers 409 SHIFT_STILL_OPEN and must be reported as "left pending", not
+    // silently dropped — that silence is how open shifts got stranded at 0
+    // minutes in production. Anything else that failed is a real error.
+    const openShiftIds: number[] = [];
+    const failedIds: number[] = [];
+    results.forEach((r, i) => {
+      if (r.status !== 'rejected') return;
+      if (r.reason instanceof ApiError && r.reason.code === 'SHIFT_STILL_OPEN') openShiftIds.push(ids[i]);
+      else failedIds.push(ids[i]);
+    });
+    const approved = ids.length - openShiftIds.length - failedIds.length;
+    // Keep the not-approved ones selected so the admin sees exactly which
+    // rows the summary is talking about; the approved ones leave the set.
+    setSelected(new Set([...openShiftIds, ...failedIds]));
     await load();
     setBulkBusy(false);
+
+    if (openShiftIds.length === 0 && failedIds.length === 0) {
+      toast.success(t('admin:apr.bulk.allApproved', { count: approved }));
+    } else {
+      const parts = [t('admin:apr.bulk.approved', { count: approved })];
+      if (openShiftIds.length > 0) parts.push(t('admin:apr.bulk.openSkipped', { count: openShiftIds.length }));
+      if (failedIds.length > 0) parts.push(t('admin:apr.bulk.failed', { count: failedIds.length }));
+      const report = parts.join(' · ');
+      if (failedIds.length > 0) toast.error(report);
+      else toast.warning(`${report} — ${t('admin:apr.bulk.openHint')}`);
+    }
   }
 
   // Keyboard: J/K move, X select, A approve, Enter open.
@@ -157,6 +189,9 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
   }, [flat, cursor, openId]);
 
   const selectedHours = flat.filter(r => selected.has(r.id)).reduce((s, r) => s + dayHours(r), 0);
+  // Open shifts (no clock-out yet) in the selection: warn BEFORE the bulk
+  // approve — the backend will leave them pending (SHIFT_STILL_OPEN).
+  const selectedOpen = flat.filter(r => selected.has(r.id) && isOpenShift(r)).length;
 
   function setF<K extends keyof Filters>(k: K, v: Filters[K]) {
     setFilters(f => ({ ...f, [k]: v }));
@@ -385,6 +420,14 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
                 <Mono className="block text-[9.5px] tracking-[0.06em] text-[#F5F1E8]/60">
                   {t('admin:apr.selectedHours', { hours: selectedHours.toFixed(1) })}
                 </Mono>
+                {selectedOpen > 0 && (
+                  <span data-testid="bulk-open-warning" className="flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3 text-[#F97316]" />
+                    <Mono className="text-[9.5px] tracking-[0.06em] text-[#F97316]">
+                      {t('admin:apr.bulk.openWarning', { count: selectedOpen })}
+                    </Mono>
+                  </span>
+                )}
               </div>
             </div>
             <span className="w-px h-7 bg-[#F5F1E8]/20" />

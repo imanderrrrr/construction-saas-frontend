@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, Check, Loader2, X } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   approveEvent, approveRecord, correctEvent, correctRecord, editEventTime,
   getTimeRecord, rejectRecord, resolveTransitDispute, type TimeRecordResponse,
@@ -49,7 +50,11 @@ export function RecordDrawer({ recordId, onClose, onChanged }: {
     try {
       await fn();
       if (close) onChanged(); else load();
-    } catch { /* the drawer stays open with current state */ }
+    } catch (err) {
+      // The drawer stays open with current state — but say why the action
+      // bounced (e.g. SHIFT_STILL_OPEN: no clock-out yet, approve refused).
+      toast.error(err instanceof Error && err.message ? err.message : t('admin:apr.bulk.genericError'));
+    }
     finally { setBusy(null); }
   }
 
