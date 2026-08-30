@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowRight, Compass } from 'lucide-react';
 import {
@@ -10,6 +10,7 @@ import {
 } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Spotlight } from './Spotlight';
+import { useFirstRunTurn } from '../../lib/firstRunQueue';
 
 /**
  * First-login onboarding for the paying admin: a welcome dialog with the three
@@ -19,6 +20,13 @@ import { Spotlight } from './Spotlight';
  * version to re-show after a redesign). The topbar help button replays it via
  * `replayNonce`. Desktop-first: on mobile the sidebar is a closed drawer, so
  * the welcome shows without the tour option.
+ *
+ * SECOND IN THE FIRST-RUN ROW (see lib/firstRunQueue), after the brand intro
+ * and before the what's-new carousel: someone arriving for the first time has
+ * to understand the system before being told what changed in it. The row is
+ * handed on by `finish()` — which is why FINISHING and SKIPPING both go
+ * through it, and why a mobile viewport never claims a turn at all (the tour
+ * is suppressed below 768px and must not hold up the notices behind it).
  */
 
 // v2 — re-anchored to the redesigned dashboard (money-first blocks + pulse +
@@ -58,6 +66,15 @@ function hasSeen(username: string | null): boolean {
   }
 }
 
+/** Desktop only. jsdom (tests) and tiny viewports never auto-open the tour. */
+function canAutoStart(): boolean {
+  if (typeof window.matchMedia !== 'function') return false;
+  return window.matchMedia('(min-width: 768px)').matches;
+}
+
+/** Let the dashboard paint before the welcome lands on top of it. */
+const WELCOME_DELAY_MS = 600;
+
 /** Steps whose target is present AND visible (display:none → offsetParent null). */
 function availableSteps(): string[] {
   return STEP_KEYS.filter(key => {
@@ -78,48 +95,60 @@ export function OnboardingTour({
   const [stage, setStage] = useState<'idle' | 'welcome' | 'tour'>('idle');
   const [steps, setSteps] = useState<string[]>([]);
   const [stepIdx, setStepIdx] = useState(0);
+  const [handedOn, setHandedOn] = useState(false);
 
-  // First visit: open the welcome after the dashboard has painted. Guarded by
-  // matchMedia so jsdom (tests) and tiny viewports never auto-open.
+  // Our claim on the row: a first visit we have not given up yet, on a
+  // viewport where the tour can actually run.
+  const pending = useMemo(
+    () => !handedOn && !hasSeen(username) && canAutoStart(),
+    [handedOn, username],
+  );
+  const myTurn = useFirstRunTurn('onboardingTour', pending);
+
+  // Our turn: open the welcome once the dashboard has painted.
   useEffect(() => {
-    if (hasSeen(username)) return;
-    if (typeof window.matchMedia !== 'function') return;
-    if (!window.matchMedia('(min-width: 768px)').matches) return;
-    const timer = setTimeout(() => setStage('welcome'), 600);
+    if (!myTurn) return;
+    const timer = setTimeout(() => setStage('welcome'), WELCOME_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [username]);
+  }, [myTurn]);
 
-  // Help-button replay.
+  // Help-button replay. User-initiated and off the row: the notices behind us
+  // are unreachable while a first-run overlay is up, so a replay can only ever
+  // happen once the row has already drained.
   useEffect(() => {
     if (replayNonce > 0) setStage('welcome');
   }, [replayNonce]);
 
-  const close = useCallback(() => {
+  /** Done with the tour — finished, skipped or nothing to show. Marks it seen
+   *  and hands the row to whoever is next, in this session, with no reload. */
+  const finish = useCallback(() => {
     markSeen(username);
     setStage('idle');
+    setHandedOn(true);
   }, [username]);
 
   const startTour = useCallback(() => {
-    markSeen(username);
     const found = availableSteps();
     if (found.length === 0) {
-      setStage('idle');
+      finish();
       return;
     }
+    markSeen(username);
     setSteps(found);
     setStepIdx(0);
     setStage('tour');
-  }, [username]);
+  }, [username, finish]);
 
   return (
     <>
       <WelcomeDialog
         open={stage === 'welcome'}
-        onClose={close}
+        onClose={finish}
         onStartTour={startTour}
       />
       {stage === 'tour' && steps.length > 0 && (
         <Spotlight
+          firstRunId="onboardingTour"
           anchor={steps[stepIdx]}
           title={t(`admin:tour.step.${steps[stepIdx]}.title`)}
           body={t(`admin:tour.step.${steps[stepIdx]}.body`)}
@@ -127,11 +156,9 @@ export function OnboardingTour({
           total={steps.length}
           onBack={() => setStepIdx(i => Math.max(0, i - 1))}
           onNext={() =>
-            stepIdx >= steps.length - 1
-              ? setStage('idle')
-              : setStepIdx(i => i + 1)
+            stepIdx >= steps.length - 1 ? finish() : setStepIdx(i => i + 1)
           }
-          onSkip={() => setStage('idle')}
+          onSkip={finish}
         />
       )}
     </>
@@ -162,7 +189,7 @@ function WelcomeDialog({
 
   return (
     <Dialog open={open} onOpenChange={isOpen => { if (!isOpen) onClose(); }}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md" data-first-run="onboardingTour">
         <DialogHeader>
           <div className="w-11 h-11 bg-[#F97316]/10 rounded-xl flex items-center justify-center mb-1">
             <Compass className="w-6 h-6 text-[#F97316]" />
