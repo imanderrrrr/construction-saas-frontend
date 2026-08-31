@@ -67,8 +67,7 @@ export function AccessDenied() {
   };
 
   const handleContactSupport = () => {
-    // UI-only: in production, open mailto or support link
-    window.open('mailto:support@ofjrconstruction.com', '_blank');
+    window.open('mailto:andersonaguirre794@gmail.com', '_blank');
   };
 
   // The actual card (shared between desktop and mobile)

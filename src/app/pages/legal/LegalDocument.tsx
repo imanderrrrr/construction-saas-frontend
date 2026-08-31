@@ -92,6 +92,9 @@ const STYLES = `
 .ld-sections ul{margin:6px 0 12px; padding:0; list-style:none; max-width:68ch;}
 .ld-sections ul li{position:relative; padding-left:20px; margin:0 0 9px;}
 .ld-sections ul li::before{content:""; position:absolute; left:3px; top:11px; width:6px; height:6px; border-radius:50%; background:var(--ld-accent);}
+.ld-sections ol{margin:6px 0 12px; padding:0; list-style:none; counter-reset:ld-step; max-width:68ch;}
+.ld-sections ol li{position:relative; padding-left:24px; margin:0 0 9px; counter-increment:ld-step;}
+.ld-sections ol li::before{content:counter(ld-step) "."; position:absolute; left:0; top:0; min-width:18px; font-family:var(--ld-sans); font-weight:640; font-size:14px; font-variant-numeric:tabular-nums; color:var(--ld-accent);}
 .ld-sections strong{font-weight:640;}
 .ld-caps{font-family:var(--ld-sans); font-size:13.5px; line-height:1.55; color:var(--ld-ink-soft); letter-spacing:0.01em; text-transform:uppercase;}
 .ld-a{color:var(--ld-accent-deep); text-decoration:underline; text-underline-offset:2px;}

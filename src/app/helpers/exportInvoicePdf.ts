@@ -2,9 +2,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 /* ───────────────────────── Brand colours (RGB) ───────────────────────── */
-const BRAND_DARK: [number, number, number] = [8, 59, 109];
 const BRAND_PRIMARY: [number, number, number] = [11, 130, 199];
-const WHITE: [number, number, number] = [255, 255, 255];
 const GRAY_TEXT: [number, number, number] = [139, 148, 158];
 const BLACK: [number, number, number] = [11, 15, 22];
 const BORDER_GRAY: [number, number, number] = [200, 205, 212];
@@ -41,9 +39,9 @@ export interface InvoicePdfData {
 /**
  * Issuer block printed in the PDF header — the tenant's "invoice template"
  * configured once in Configuración → Plantilla de factura (see the
- * invoiceBranding service, which loads it). When omitted/undefined the
- * legacy hardcoded [COMPANY] header is used, so tenants that never
- * configured a template keep today's PDFs unchanged.
+ * invoiceBranding service, which loads it). BuildTrack is multi-tenant, so
+ * there is no hardcoded issuer: when omitted/undefined the header simply
+ * carries no issuer identity, and the tenant fills it in from that screen.
  */
 export interface InvoiceIssuerPdf {
   name?: string | null;
@@ -54,15 +52,6 @@ export interface InvoiceIssuerPdf {
   /** PNG/JPEG data URL; drawn in place of the legacy vector logo. */
   logoDataUrl?: string | null;
 }
-
-/* ───────────────────────── Company info (legacy fallback) ───────────────────────── */
-const COMPANY = {
-  name: 'OFJR Construction LLC',
-  contact: 'Oscar Figueroa',
-  address: '5601 Hicks Lane, Oklahoma City, Oklahoma, EE. UU.',
-  phone: '4056986131',
-  email: 'ofjrconstruction@gmail.com',
-};
 
 /* ───────────────────────── Helpers ───────────────────────── */
 
@@ -81,48 +70,6 @@ function fmtDateDisplay(iso: string): string {
 }
 
 /* ───────────────────────── Logo drawing ───────────────────────── */
-
-function drawCompanyLogo(doc: jsPDF, x: number, y: number, size: number) {
-  // Draw a simplified OFJR Construction logo placeholder
-  const cx = x + size / 2;
-  const cy = y + size / 2;
-  const r = size / 2;
-
-  // Outer circle
-  doc.setFillColor(240, 245, 250);
-  doc.setDrawColor(...BRAND_DARK);
-  doc.setLineWidth(0.8);
-  doc.circle(cx, cy, r, 'FD');
-
-  // Inner building icon — simplified version
-  const bx = cx - r * 0.5;
-  const bw = r * 1;
-  const bh = r * 1.1;
-  const by = cy - bh * 0.4;
-
-  // Building body
-  doc.setFillColor(...BRAND_DARK);
-  doc.rect(bx + bw * 0.15, by, bw * 0.7, bh, 'F');
-
-  // White window lines
-  doc.setFillColor(...WHITE);
-  const windowH = bh * 0.08;
-  const windowGap = bh * 0.16;
-  for (let i = 0; i < 4; i++) {
-    const wy = by + bh * 0.12 + i * windowGap;
-    doc.rect(bx + bw * 0.25, wy, bw * 0.2, windowH, 'F');
-    doc.rect(bx + bw * 0.55, wy, bw * 0.2, windowH, 'F');
-  }
-
-  // Text below circle
-  doc.setFontSize(5.5);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...BRAND_DARK);
-  doc.text('OFJR', cx, cy + r + 3.5, { align: 'center' });
-  doc.setFontSize(3.8);
-  doc.setFont('helvetica', 'normal');
-  doc.text('CONSTRUCTION LLC', cx, cy + r + 6, { align: 'center' });
-}
 
 /**
  * Draw the tenant's uploaded logo (PNG/JPEG data URL) aspect-fitted and
@@ -168,19 +115,16 @@ export function generateInvoicePdf(data: InvoicePdfData, issuer?: InvoiceIssuerP
 
   /* ═══════════════════ Header ═══════════════════ */
 
-  // Issuer block: the tenant's configured template, or the legacy hardcoded
-  // COMPANY block (incl. its vector logo) when no template exists.
+  // Issuer block: strictly the tenant's own configured template. A tenant that
+  // has not filled it in gets an empty issuer block — never another tenant's
+  // company name, address or phone number on its invoices.
   if (issuer?.logoDataUrl) {
     drawLogoImage(doc, issuer.logoDataUrl, margin, y - 2, 18);
-  } else if (!issuer) {
-    drawCompanyLogo(doc, margin, y - 2, 18);
   }
 
-  const issuerName = issuer ? (issuer.name ?? '') : COMPANY.name;
-  const issuerLines = issuer
-    ? [issuer.contact, issuer.address, issuer.phone, issuer.email]
-        .filter((line): line is string => Boolean(line && line.trim()))
-    : [COMPANY.contact, COMPANY.address, COMPANY.phone, COMPANY.email];
+  const issuerName = issuer?.name ?? '';
+  const issuerLines = [issuer?.contact, issuer?.address, issuer?.phone, issuer?.email]
+    .filter((line): line is string => Boolean(line && line.trim()));
 
   // Company name & info (to the right of logo)
   const infoX = margin + 24;
