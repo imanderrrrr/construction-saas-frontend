@@ -7,7 +7,7 @@ import { BuildTrackLogo } from '../components/landing/BuildTrackLogo';
 import { DemoVideos } from '../components/landing/DemoVideos';
 import { PhoneMock } from '../components/landing/PhoneMock';
 import { DashboardSheet, PayablesSheet, DailyLogSheet } from '../components/landing/PlatformSheets';
-import { BETA_EMAIL, DEMO_EMAIL, mailtoWithSubject } from '../components/landing/contact';
+import { SUPPORT_EMAIL, supportMailto } from '../lib/contact';
 import { usePublicPageTitle } from '../hooks/usePublicPageTitle';
 
 /**
@@ -39,8 +39,8 @@ export function Landing() {
   const { t } = useTranslation('landing');
   usePublicPageTitle(t('meta.title'));
 
-  const mailtoDemo = mailtoWithSubject(DEMO_EMAIL, t('demo.emailSubject'));
-  const mailtoBeta = mailtoWithSubject(BETA_EMAIL, t('beta.emailSubject'));
+  const mailtoDemo = supportMailto(t('demo.emailSubject'));
+  const mailtoBeta = supportMailto(t('beta.emailSubject'));
 
   return (
     <div className="bt-public bg-bt-paper font-bt-body text-base text-bt-ink">
@@ -417,7 +417,7 @@ export function Landing() {
                 href={mailtoDemo}
                 className="border-b border-[rgba(168,154,135,0.4)] pb-0.5 font-bt-mono text-xs tracking-[0.06em] text-bt-muted-2 transition-colors hover:border-bt-orange hover:text-bt-orange"
               >
-                {DEMO_EMAIL}
+                {SUPPORT_EMAIL}
               </a>
             </div>
             <p className="mt-[22px] font-bt-mono text-[11px] tracking-[0.08em] text-bt-muted">
@@ -475,7 +475,7 @@ export function Landing() {
                 href={mailtoBeta}
                 className="border-b border-[rgba(168,154,135,0.4)] pb-0.5 font-bt-mono text-xs tracking-[0.06em] text-bt-muted-2 transition-colors hover:border-bt-orange hover:text-bt-orange"
               >
-                {BETA_EMAIL}
+                {SUPPORT_EMAIL}
               </a>
             </div>
           </div>
@@ -544,7 +544,7 @@ export function Landing() {
                 href={mailtoBeta}
                 className="border-b border-bt-muted-2 font-semibold text-bt-ink transition-colors hover:border-bt-orange hover:text-bt-orange"
               >
-                {BETA_EMAIL}
+                {SUPPORT_EMAIL}
               </a>
             </p>
           </div>
@@ -647,7 +647,7 @@ export function Landing() {
                 {t('footer.terms')}
               </Link>
               <a href={mailtoBeta} className={NAV_LINK}>
-                {BETA_EMAIL}
+                {SUPPORT_EMAIL}
               </a>
             </div>
           </div>

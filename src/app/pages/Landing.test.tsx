@@ -22,6 +22,7 @@ vi.mock('react-router', () => ({
 }));
 
 import { Landing } from './Landing';
+import { SUPPORT_EMAIL } from '../lib/contact';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -83,18 +84,27 @@ describe('Landing — public CTAs and content rules', () => {
     expect(hrefs().filter((h) => h.includes('/signup'))).toHaveLength(0);
   });
 
-  it('books the demo by email to demo@buildtrack.gt', async () => {
+  // Demo and beta used to have a mailbox each, on a domain that was never
+  // registered. Both now reach the one real inbox, so the subject is what keeps
+  // the two conversations apart — assert the destination AND that separation.
+  it('books the demo by email to the support inbox', async () => {
     await render();
-    const demo = hrefs().filter((h) => h.startsWith('mailto:demo@buildtrack.gt'));
-    expect(demo.length).toBeGreaterThan(0);
-    expect(demo[0]).toContain('subject=');
+    const demo = hrefs().filter((h) => h.startsWith(`mailto:${SUPPORT_EMAIL}?subject=`));
+    expect(demo.some((h) => h.includes('demo.emailSubject'))).toBe(true);
   });
 
-  it('joins the beta by email to beta@buildtrack.gt', async () => {
+  it('joins the beta by email to the support inbox, under its own subject', async () => {
     await render();
-    const beta = hrefs().filter((h) => h.startsWith('mailto:beta@buildtrack.gt'));
-    expect(beta.length).toBeGreaterThan(0);
-    expect(beta[0]).toContain('subject=');
+    const beta = hrefs().filter((h) => h.startsWith(`mailto:${SUPPORT_EMAIL}?subject=`));
+    expect(beta.some((h) => h.includes('beta.emailSubject'))).toBe(true);
+  });
+
+  it('publishes no address other than the support inbox', async () => {
+    await render();
+    const foreign = hrefs()
+      .filter((h) => h.startsWith('mailto:'))
+      .filter((h) => !h.startsWith(`mailto:${SUPPORT_EMAIL}`));
+    expect(foreign).toEqual([]);
   });
 
   // "Precios" is a nav label, not a price list: it scrolls to the demo section.

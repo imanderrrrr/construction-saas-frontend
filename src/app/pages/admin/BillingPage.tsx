@@ -42,7 +42,7 @@ import {
   CardTitle,
 } from '../../components/ui/card';
 import { LanguageSwitcher } from '../../components/LanguageSwitcher';
-import { BETA_EMAIL, mailtoWithSubject } from '../../components/landing/contact';
+import { supportMailto } from '../../lib/contact';
 import { isBillingAllowed } from '../../lib/billing-access';
 import { AuthService } from '../../services/auth';
 import {
@@ -337,7 +337,7 @@ function SubscriptionStatusPanel({
   // Offered in every state on purpose: activating, reactivating and
   // moving plan all happen by email now, so there is no state in which
   // "email us" is the wrong next step.
-  const contactHref = mailtoWithSubject(BETA_EMAIL, t('contact.subject'));
+  const contactHref = supportMailto(t('contact.subject'));
 
   return (
     <Card
