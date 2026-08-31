@@ -69,6 +69,11 @@ interface BaseOpts {
    * spec that navigates would spend its whole timeout clicking through them.
    */
   showFirstRun?: boolean;
+  // NOTE: the first-run notices queue behind one another (src/app/lib/
+  // firstRunQueue.ts) — they no longer stack. Seeding a key still suppresses
+  // its notice; a notice left unseeded now DELAYS the ones after it in the row
+  // instead of opening on top of them. A new first-run notice needs its seen
+  // key seeded below, or specs will wait behind it.
 }
 
 /** Install the default hermetic network layer. Call once per test before goto. */
@@ -78,11 +83,13 @@ export async function installHermeticBase(page: Page, opts: BaseOpts = {}) {
     try {
       localStorage.setItem('ofjr_language', 'en');
       // Mark the what's-new carousel as seen even in showFirstRun specs:
-      // those exercise intro + tour, and this dialog would sit on top of
-      // both. Key/value must track WhatsNewModal.seenKey()/WHATS_NEW_VERSION.
+      // those exercise intro + tour, and this dialog is last in the first-run
+      // row, so it would open the moment the tour is finished or skipped.
+      // Key/value must track WhatsNewModal.seenKey()/WHATS_NEW_VERSION.
       localStorage.setItem(`bt.whatsnew.${username ?? 'anon'}`, '2026-08');
       if (!showFirstRun) {
-        // Mark the one-time overlays as already seen. Keys must track
+        // Mark the one-time overlays as already seen — an unseeded one holds
+        // the first-run row and nothing behind it opens. Keys must track
         // IntroOverlay.STORAGE_KEY and OnboardingTour.seenKey().
         localStorage.setItem('buildtrack:intro-v2-seen', '1');
         const seenAt = '2026-01-01T00:00:00.000Z';
