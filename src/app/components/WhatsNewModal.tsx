@@ -14,8 +14,13 @@
 // guards render their children only once they are satisfied, so this modal
 // can never paint over the forced-password-change screen or the billing wall.
 // Keep it there — never mount it as a sibling of a guard.
+//
+// LAST IN THE FIRST-RUN ROW (see lib/firstRunQueue): a user meeting BuildTrack
+// for the first time needs the guided tour before being told what changed, so
+// this waits for the intro and the tour to hand the row over. Waiting is not
+// losing it — the turn arrives in the same session, no reload.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft, ArrowRight, FileSpreadsheet, HardHat, LayoutDashboard,
@@ -23,6 +28,7 @@ import {
 } from 'lucide-react';
 
 import { AuthService } from '../services/auth';
+import { useFirstRunTurn } from '../lib/firstRunQueue';
 
 export const WHATS_NEW_VERSION = '2026-08';
 
@@ -52,10 +58,10 @@ const SLIDES: Slide[] = [
   { icon: LayoutDashboard, key: 'look' },
 ];
 
-// Decided once, at mount: authenticated, in-audience, and unseen BY THIS
-// USER. A missing username means we cannot remember the dismissal per user,
-// so we stay quiet rather than nag on every load.
-function shouldShowOnMount(): boolean {
+// Authenticated, in-audience, and unseen BY THIS USER. A missing username
+// means we cannot remember the dismissal per user, so we stay quiet rather
+// than nag on every load.
+function hasNewsForThisUser(): boolean {
   if (!AuthService.isAuthenticated()) return false;
   const role = AuthService.getRole();
   if (!role || !AUDIENCE.has(role)) return false;
@@ -72,9 +78,14 @@ function shouldShowOnMount(): boolean {
 
 export function WhatsNewModal() {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(shouldShowOnMount);
+  const [dismissed, setDismissed] = useState(false);
   const [index, setIndex] = useState(0);
   const trackRef = useRef<HTMLDivElement | null>(null);
+
+  // Decided once, at mount, and re-read only when the user dismisses. The
+  // queue — not this component — decides WHEN that pending news is shown.
+  const pending = useMemo(() => !dismissed && hasNewsForThisUser(), [dismissed]);
+  const open = useFirstRunTurn('whatsNew', pending);
 
   const dismiss = useCallback(() => {
     const username = AuthService.getUsername();
@@ -83,7 +94,7 @@ export function WhatsNewModal() {
     } catch {
       /* storage unavailable — the modal simply may show again next load */
     }
-    setOpen(false);
+    setDismissed(true);
   }, []);
 
   const go = useCallback((next: number) => {
@@ -125,6 +136,7 @@ export function WhatsNewModal() {
       role="dialog"
       aria-modal="true"
       aria-label={t('whatsNew.dialogLabel')}
+      data-first-run="whatsNew"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       onClick={dismiss}
     >
