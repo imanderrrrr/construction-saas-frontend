@@ -1,5 +1,6 @@
 ﻿import { useNavigate } from 'react-router';
 import { AuthService } from '../services/auth';
+import { supportMailto } from '../lib/contact';
 import { Button } from '../components/ui/button';
 import {
   Building2,
@@ -67,7 +68,7 @@ export function AccessDenied() {
   };
 
   const handleContactSupport = () => {
-    window.open('mailto:andersonaguirre794@gmail.com', '_blank');
+    window.open(supportMailto(), '_blank');
   };
 
   // The actual card (shared between desktop and mobile)

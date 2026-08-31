@@ -4,10 +4,11 @@ import {
   type LegalSection,
   type LegalVersion,
 } from './legal/LegalDocument';
+import { SUPPORT_EMAIL, supportMailto } from '../lib/contact';
 
 const CONTACT = (
-  <a className="ld-a" href="mailto:andersonaguirre794@gmail.com">
-    andersonaguirre794@gmail.com
+  <a className="ld-a" href={supportMailto()}>
+    {SUPPORT_EMAIL}
   </a>
 );
 

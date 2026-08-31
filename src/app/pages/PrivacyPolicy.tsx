@@ -1,4 +1,5 @@
 import { LegalDocument, type LegalVersion } from './legal/LegalDocument';
+import { SUPPORT_EMAIL, supportMailto } from '../lib/contact';
 
 const es: LegalVersion = {
   lang: 'es',
@@ -13,8 +14,8 @@ const es: LegalVersion = {
     {
       label: 'Contacto',
       value: (
-        <a className="ld-a" href="mailto:andersonaguirre794@gmail.com">
-          andersonaguirre794@gmail.com
+        <a className="ld-a" href={supportMailto()}>
+          {SUPPORT_EMAIL}
         </a>
       ),
     },
@@ -273,8 +274,8 @@ const es: LegalVersion = {
             <li>
               Para datos de los que Archlogic es responsable (cuenta de administración, facturación de la
               suscripción), escriba a{' '}
-              <a className="ld-a" href="mailto:andersonaguirre794@gmail.com">
-                andersonaguirre794@gmail.com
+              <a className="ld-a" href={supportMailto()}>
+                {SUPPORT_EMAIL}
               </a>{' '}
               con el asunto «Solicitud de privacidad». Responderemos dentro de un plazo razonable.
             </li>
@@ -313,8 +314,8 @@ const es: LegalVersion = {
           Podemos actualizar esta política; los cambios se publicarán en esta misma página con su fecha y
           versión, y los cambios materiales se avisarán a través de la aplicación. Para cualquier consulta sobre
           privacidad, contáctenos en{' '}
-          <a className="ld-a" href="mailto:andersonaguirre794@gmail.com">
-            andersonaguirre794@gmail.com
+          <a className="ld-a" href={supportMailto()}>
+            {SUPPORT_EMAIL}
           </a>
           .
         </p>
@@ -337,8 +338,8 @@ const en: LegalVersion = {
     {
       label: 'Contact',
       value: (
-        <a className="ld-a" href="mailto:andersonaguirre794@gmail.com">
-          andersonaguirre794@gmail.com
+        <a className="ld-a" href={supportMailto()}>
+          {SUPPORT_EMAIL}
         </a>
       ),
     },
@@ -590,8 +591,8 @@ const en: LegalVersion = {
             </li>
             <li>
               For data of which Archlogic is the controller (administration account, subscription billing), email{' '}
-              <a className="ld-a" href="mailto:andersonaguirre794@gmail.com">
-                andersonaguirre794@gmail.com
+              <a className="ld-a" href={supportMailto()}>
+                {SUPPORT_EMAIL}
               </a>{' '}
               with the subject "Privacy request". We will respond within a reasonable timeframe.
             </li>
@@ -628,8 +629,8 @@ const en: LegalVersion = {
         <p>
           We may update this policy; changes will be posted on this page with their date and version, and
           material changes will be announced through the application. For any privacy inquiries, contact us at{' '}
-          <a className="ld-a" href="mailto:andersonaguirre794@gmail.com">
-            andersonaguirre794@gmail.com
+          <a className="ld-a" href={supportMailto()}>
+            {SUPPORT_EMAIL}
           </a>
           .
         </p>

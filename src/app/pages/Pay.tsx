@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { CircleAlert, CircleCheck, LockKeyhole, RefreshCw } from 'lucide-react';
 
 import { PublicTopbar, TopbarBackLink } from '../components/landing/PublicTopbar';
-import { BETA_EMAIL } from '../components/landing/contact';
+import { SUPPORT_EMAIL, supportMailto } from '../lib/contact';
 import { usePublicPageTitle } from '../hooks/usePublicPageTitle';
 import { getPaddle, openCheckout } from '../lib/paddle';
 
@@ -193,10 +193,10 @@ function ContactLine() {
     <p className="text-[13.5px] leading-relaxed text-bt-muted-2">
       {t('contact.lead')}{' '}
       <a
-        href={`mailto:${BETA_EMAIL}`}
+        href={supportMailto()}
         className="font-semibold text-bt-orange transition-colors hover:text-bt-orange-hover"
       >
-        {BETA_EMAIL}
+        {SUPPORT_EMAIL}
       </a>
     </p>
   );
