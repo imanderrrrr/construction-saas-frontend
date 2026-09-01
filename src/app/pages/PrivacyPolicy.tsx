@@ -4,7 +4,7 @@ import { SUPPORT_EMAIL, supportMailto } from '../lib/contact';
 const es: LegalVersion = {
   lang: 'es',
   docTitle: 'Política de Privacidad',
-  updatedLabel: 'Última actualización: 4 de julio de 2026 — v2.0',
+  updatedLabel: 'Última actualización: 1 de septiembre de 2026 — v2.1',
   tocLabel: 'Contenido',
   meta: [
     { label: 'Proveedor', value: 'Archlogic Systems' },
@@ -73,18 +73,24 @@ const es: LegalVersion = {
       body: (
         <ul>
           <li>
-            <strong>Datos de cuenta:</strong> nombre de usuario, nombre completo, correo electrónico, número
-            de teléfono y rol asignado (trabajador, subcontratista, supervisor, administrador, etc.).
+            <strong>Datos de cuenta:</strong> nombre de usuario, nombre completo y rol asignado (trabajador,
+            subcontratista, supervisor, administrador, etc.). La aplicación móvil no solicita ni transmite
+            correo electrónico ni número de teléfono. El correo electrónico se recoge únicamente en el alta web
+            de la empresa, donde lo escribe la persona administradora que la registra, para permitirle
+            restablecer su propia contraseña.
           </li>
           <li>
             <strong>Ubicación (GPS):</strong> se usa exclusivamente para verificar la presencia en el sitio de
             obra asignado (geocerca). Se captura únicamente al registrar entrada o salida de la jornada y no se
-            rastrea en segundo plano. Se utiliza ubicación precisa para asegurar la exactitud de la verificación.
+            rastrea en segundo plano. Se utiliza ubicación precisa para asegurar la exactitud de la
+            verificación.
           </li>
           <li>
-            <strong>Cámara y galería:</strong> para capturar recibos de gastos, evidencia fotográfica del
-            avance de obra y documentos de facturación. Las imágenes se almacenan en servidores seguros y no
-            se comparten con terceros ajenos al servicio.
+            <strong>Cámara, micrófono y galería:</strong> para capturar recibos de gastos, evidencia del
+            avance de obra y documentos de facturación. La evidencia de avance puede grabarse como video, y esos
+            videos se graban con sonido, por lo que incluyen el audio captado por el micrófono durante la
+            grabación. Las imágenes y los videos se almacenan en servidores seguros y no se comparten con
+            terceros ajenos al servicio.
           </li>
           <li>
             <strong>Registro de jornada:</strong> hora de entrada, hora de salida, proyecto asignado y
@@ -137,7 +143,7 @@ const es: LegalVersion = {
           </li>
           <li>
             <strong>Consentimiento:</strong> para el acceso a permisos del dispositivo (ubicación, cámara,
-            galería), revocables en cualquier momento desde la configuración del sistema.
+            micrófono, galería), revocables en cualquier momento desde la configuración del sistema.
           </li>
           <li>
             <strong>Obligación legal:</strong> conservación de registros laborales y fiscales según la ley
@@ -233,7 +239,12 @@ const es: LegalVersion = {
           </li>
           <li>
             <strong>Cámara:</strong> escanear el código QR de inicio de sesión y capturar recibos y evidencia
-            fotográfica.
+            del avance de obra, en foto o en video.
+          </li>
+          <li>
+            <strong>Micrófono:</strong> grabar el sonido de los videos de evidencia de avance de obra. Solo se
+            activa mientras se graba un video desde la app; la aplicación no graba audio en segundo plano ni
+            fuera de esa acción.
           </li>
           <li>
             <strong>Galería / almacenamiento:</strong> adjuntar imágenes existentes como evidencia o recibos.
@@ -248,12 +259,27 @@ const es: LegalVersion = {
       num: 11,
       title: 'Retención de datos',
       body: (
-        <p>
-          Los datos personales se conservan mientras la cuenta esté activa. Al darse de baja una cuenta, los
-          datos operativos se retienen durante el período que exijan las obligaciones legales, laborales y
-          fiscales aplicables a la empresa Cliente, tras lo cual se eliminan de forma segura. La empresa
-          Cliente, como responsable, define los plazos aplicables a los datos de su personal.
-        </p>
+        <>
+          <p>
+            Los datos personales se conservan mientras la cuenta esté activa.
+          </p>
+          <p>
+            Al solicitar la eliminación de su cuenta, esta se desactiva de inmediato: se cierran todas sus
+            sesiones y ya no es posible iniciar sesión con su contraseña, su PIN ni su código QR. Durante los 30
+            días siguientes la cuenta permanece «pendiente de eliminación» y solo un administrador de su empresa
+            puede reactivarla; pasado ese plazo, la eliminación se vuelve permanente e irreversible: su nombre
+            de usuario, su nombre completo, su correo electrónico, su contraseña y su PIN se eliminan de forma
+            definitiva y sus códigos QR quedan invalidados. Los registros operativos generados durante su
+            trabajo (jornadas, gastos, asignaciones de herramientas y la bitácora de auditoría) se conservan
+            porque la empresa los necesita para su nómina, su contabilidad y la seguridad del sistema, pero
+            quedan desvinculados de su perfil, que deja de contener datos personales.
+          </p>
+          <p>
+            Los plazos de conservación de esos registros operativos los define la empresa Cliente, como
+            responsable, según las obligaciones legales, laborales y fiscales que le apliquen; transcurridos, se
+            eliminan de forma segura.
+          </p>
+        </>
       ),
     },
     {
@@ -328,7 +354,7 @@ const es: LegalVersion = {
 const en: LegalVersion = {
   lang: 'en',
   docTitle: 'Privacy Policy',
-  updatedLabel: 'Last updated: July 4, 2026 — v2.0',
+  updatedLabel: 'Last updated: September 1, 2026 — v2.1',
   tocLabel: 'Contents',
   meta: [
     { label: 'Provider', value: 'Archlogic Systems' },
@@ -359,7 +385,8 @@ const en: LegalVersion = {
             administration panel. This policy explains how personal data is handled within BuildTrack.
           </p>
           <p>
-            Because it is a platform used by multiple companies at once, it distinguishes two situations depending
+            Because it is a platform used by multiple companies at once, it distinguishes two situations
+            depending
             on who decides about the data, detailed in section 2.
           </p>
         </>
@@ -374,15 +401,19 @@ const en: LegalVersion = {
           <ul>
             <li>
               <strong>Workers' operational data</strong> (attendance, clock-in location, hours, expenses,
-              photographic evidence, and invoices): the Customer company that employs or contracts you is the data
+              photographic evidence, and invoices): the Customer company that employs or contracts you is the
+              data
               controller; it decides what is recorded and for what purpose, within its employment or commercial
-              relationship with you. Archlogic acts as the data processor, meaning it processes that data on behalf
-              of and following the instructions of that company. If you are a worker, subcontractor, or supervisor,
+              relationship with you. Archlogic acts as the data processor, meaning it processes that data on
+              behalf
+              of and following the instructions of that company. If you are a worker, subcontractor, or
+              supervisor,
               your employer or contractor is the one who controls this data.
             </li>
             <li>
               <strong>Administration account, subscription, and platform data</strong> (data of the administrator
-              who subscribes to BuildTrack, subscription billing, and technical and security data of the service):
+              who subscribes to BuildTrack, subscription billing, and technical and security data of the
+              service):
               with respect to these, Archlogic is the data controller.
             </li>
           </ul>
@@ -396,8 +427,10 @@ const en: LegalVersion = {
       body: (
         <ul>
           <li>
-            <strong>Account data:</strong> username, full name, email address, phone number, and assigned role
-            (worker, subcontractor, supervisor, administrator, etc.).
+            <strong>Account data:</strong> username, full name, and assigned role (worker, subcontractor,
+            supervisor, administrator, etc.). The mobile app neither asks for nor transmits an email address or
+            a phone number. An email address is collected only during the company&rsquo;s web sign-up, where it
+            is typed by the administrator registering the company, so that they can reset their own password.
           </li>
           <li>
             <strong>Location (GPS):</strong> used exclusively to verify presence at the assigned construction
@@ -405,9 +438,11 @@ const en: LegalVersion = {
             Precise location is used to ensure verification accuracy.
           </li>
           <li>
-            <strong>Camera and gallery:</strong> to capture expense receipts, photographic evidence of
-            construction progress, and invoicing documents. Images are stored on secure servers and are not
-            shared with third parties outside the service.
+            <strong>Camera, microphone and gallery:</strong> to capture expense receipts, evidence of
+            construction progress, and invoicing documents. Progress evidence may be recorded as video, and such
+            videos are recorded with sound, so they include the audio picked up by the microphone while
+            recording. Images and videos are stored on secure servers and are not shared with third parties
+            outside the service.
           </li>
           <li>
             <strong>Work records:</strong> clock-in time, clock-out time, assigned project, and check-in
@@ -457,8 +492,8 @@ const en: LegalVersion = {
             <strong>Legitimate interest:</strong> platform security, fraud prevention, and service improvement.
           </li>
           <li>
-            <strong>Consent:</strong> for access to device permissions (location, camera, gallery), revocable at
-            any time from system settings.
+            <strong>Consent:</strong> for access to device permissions (location, camera, microphone, gallery),
+            revocable at any time from system settings.
           </li>
           <li>
             <strong>Legal obligation:</strong> retention of labor and tax records as required by the law
@@ -495,7 +530,8 @@ const en: LegalVersion = {
             </li>
           </ul>
           <p>
-            If error diagnostics (Sentry) are enabled, minimal technical data is processed for stability purposes;
+            If error diagnostics (Sentry) are enabled, minimal technical data is processed for stability
+            purposes;
             this feature is disabled unless otherwise indicated.
           </p>
         </>
@@ -552,7 +588,13 @@ const en: LegalVersion = {
             (geofence).
           </li>
           <li>
-            <strong>Camera:</strong> scan the sign-in QR code and capture receipts and photographic evidence.
+            <strong>Camera:</strong> scan the sign-in QR code and capture receipts and evidence of construction
+            progress, as photos or video.
+          </li>
+          <li>
+            <strong>Microphone:</strong> record the sound of progress-evidence videos. It is active only while a
+            video is being recorded from the app; the app does not record audio in the background or outside
+            that action.
           </li>
           <li>
             <strong>Gallery / storage:</strong> attach existing images as evidence or receipts.
@@ -567,12 +609,27 @@ const en: LegalVersion = {
       num: 11,
       title: 'Data retention',
       body: (
-        <p>
-          Personal data is retained while the account is active. Upon account deactivation, operational data is
-          retained for the period required by the legal, labor, and tax obligations applicable to the Customer
-          company, after which it is securely deleted. The Customer company, as controller, defines the
-          applicable retention periods for its personnel's data.
-        </p>
+        <>
+          <p>
+            Personal data is retained while the account is active.
+          </p>
+          <p>
+            When you request deletion of your account, it is deactivated immediately: all your sessions are
+            closed and it is no longer possible to sign in with your password, your PIN, or your QR code. For
+            the next 30 days the account remains "pending deletion" and only an administrator of your company
+            can reactivate it; after that period, deletion becomes permanent and irreversible: your username,
+            full name, email address, password, and PIN are permanently erased and your QR codes are
+            invalidated. Operational records generated during your work (time records, expenses, tool
+            assignments, and the audit log) are retained because your company needs them for payroll,
+            accounting, and system security, but they are unlinked from your profile, which no longer contains
+            any personal data.
+          </p>
+          <p>
+            The retention periods for those operational records are defined by the Customer company, as
+            controller, according to the legal, labor, and tax obligations applicable to it; once elapsed, the
+            records are securely deleted.
+          </p>
+        </>
       ),
     },
     {
@@ -581,16 +638,19 @@ const en: LegalVersion = {
       body: (
         <>
           <p>
-            You have the right to access your data, request its correction or deletion, request its portability in
+            You have the right to access your data, request its correction or deletion, request its
+            portability in
             a machine-readable format, and revoke device permissions at any time.
           </p>
           <ul>
             <li>
-              If your data is controlled by your company (attendance, hours, expenses, evidence), contact it first
+              If your data is controlled by your company (attendance, hours, expenses, evidence), contact it
+              first
               as the controller. Archlogic will assist it in its capacity as processor.
             </li>
             <li>
-              For data of which Archlogic is the controller (administration account, subscription billing), email{' '}
+              For data of which Archlogic is the controller (administration account, subscription billing),
+              email{' '}
               <a className="ld-a" href={supportMailto()}>
                 {SUPPORT_EMAIL}
               </a>{' '}
@@ -628,7 +688,8 @@ const en: LegalVersion = {
       body: (
         <p>
           We may update this policy; changes will be posted on this page with their date and version, and
-          material changes will be announced through the application. For any privacy inquiries, contact us at{' '}
+          material changes will be announced through the application. For any privacy inquiries, contact us
+          at{' '}
           <a className="ld-a" href={supportMailto()}>
             {SUPPORT_EMAIL}
           </a>
