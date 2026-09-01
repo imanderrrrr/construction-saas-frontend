@@ -78,8 +78,10 @@ const esSections: LegalSection[] = [
         <p><strong>¿Cómo elimino mi cuenta?</strong></p>
         <p>
           Puedes solicitar la eliminación de tu cuenta desde <strong>Perfil › Eliminar cuenta</strong> dentro
-          de la app, o enviando un correo a {CONTACT}. Se aplica un período de gracia de 30 días antes de la
-          eliminación permanente.
+          de la app, o enviando un correo a {CONTACT}. Tu cuenta se desactiva de inmediato y ya no podrás
+          iniciar sesión con tu contraseña, tu PIN ni tu código QR. Durante los 30 días siguientes solo un
+          administrador de tu empresa puede reactivarla; pasado ese plazo, la eliminación es permanente e
+          irreversible.
         </p>
 
         <p><strong>¿Por qué la app no detecta mi ubicación?</strong></p>
@@ -186,7 +188,9 @@ const enSections: LegalSection[] = [
         <p><strong>How do I delete my account?</strong></p>
         <p>
           You can request account deletion from <strong>Profile › Delete Account</strong> within the app, or
-          by emailing {CONTACT}. A 30-day grace period applies before permanent deletion.
+          by emailing {CONTACT}. Your account is deactivated immediately and you will no longer be able to sign
+          in with your password, your PIN, or your QR code. For the next 30 days only an administrator of your
+          company can reactivate it; after that period, deletion is permanent and irreversible.
         </p>
 
         <p><strong>Why is the app not detecting my location?</strong></p>

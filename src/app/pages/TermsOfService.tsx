@@ -95,14 +95,29 @@ const esSections: LegalSection[] = [
     num: 7,
     title: 'Eliminación de cuenta',
     body: (
-      <p>
-        Usted puede solicitar la eliminación de su cuenta en cualquier momento desde la sección de perfil
-        de la app o escribiendo a {CONTACT}.
-        Al eliminarla, sus datos personales se tratan conforme a la{' '}
-        <Link className="ld-a" to="/privacy">Política de Privacidad</Link>.
-        Ciertos registros (horas, gastos) pueden conservarse según lo exijan las obligaciones legales y
-        fiscales aplicables a su Cliente.
-      </p>
+      <>
+        <p>
+          Usted puede solicitar la eliminación de su cuenta en cualquier momento desde la sección de perfil
+          de la app, sin pasos externos, o escribiendo a {CONTACT}.
+          Sus datos personales se tratan conforme a la{' '}
+          <Link className="ld-a" to="/privacy">Política de Privacidad</Link>.
+        </p>
+        <p>
+          Al solicitar la eliminación de su cuenta, esta se desactiva de inmediato: se cierran todas sus
+          sesiones y ya no es posible iniciar sesión con su contraseña, su PIN ni su código QR. Durante los 30
+          días siguientes la cuenta permanece «pendiente de eliminación» y solo un administrador de su empresa
+          puede reactivarla; pasado ese plazo, la eliminación se vuelve permanente e irreversible: su nombre
+          de usuario, su nombre completo, su correo electrónico, su contraseña y su PIN se eliminan de forma
+          definitiva y sus códigos QR quedan invalidados. Los registros operativos generados durante su
+          trabajo (jornadas, gastos, asignaciones de herramientas y la bitácora de auditoría) se conservan
+          porque la empresa los necesita para su nómina, su contabilidad y la seguridad del sistema, pero
+          quedan desvinculados de su perfil, que deja de contener datos personales.
+        </p>
+        <p>
+          Los plazos de conservación de esos registros los define su Cliente según las obligaciones legales y
+          fiscales que le apliquen.
+        </p>
+      </>
     ),
   },
   {
@@ -343,14 +358,29 @@ const enSections: LegalSection[] = [
     num: 7,
     title: 'Account deletion',
     body: (
-      <p>
-        You may request deletion of your account at any time from the app’s profile section or by
-        writing to {CONTACT}.
-        Upon deletion, your personal data is handled in accordance with the{' '}
-        <Link className="ld-a" to="/privacy">Privacy Policy</Link>.
-        Certain records (hours, expenses) may be retained as required by the legal and tax obligations
-        applicable to your Customer.
-      </p>
+      <>
+        <p>
+          You may request deletion of your account at any time from the app’s profile section, with no
+          external steps, or by writing to {CONTACT}.
+          Your personal data is handled in accordance with the{' '}
+          <Link className="ld-a" to="/privacy">Privacy Policy</Link>.
+        </p>
+        <p>
+          When you request deletion of your account, it is deactivated immediately: all your sessions are
+          closed and it is no longer possible to sign in with your password, your PIN, or your QR code. For
+          the next 30 days the account remains "pending deletion" and only an administrator of your company
+          can reactivate it; after that period, deletion becomes permanent and irreversible: your username,
+          full name, email address, password, and PIN are permanently erased and your QR codes are
+          invalidated. Operational records generated during your work (time records, expenses, tool
+          assignments, and the audit log) are retained because your company needs them for payroll,
+          accounting, and system security, but they are unlinked from your profile, which no longer contains
+          any personal data.
+        </p>
+        <p>
+          The retention periods for those records are defined by your Customer according to the legal and tax
+          obligations applicable to it.
+        </p>
+      </>
     ),
   },
   {
@@ -510,7 +540,7 @@ const enSections: LegalSection[] = [
 const es: LegalVersion = {
   lang: 'es',
   docTitle: 'Términos de Servicio',
-  updatedLabel: 'Última actualización: 4 de julio de 2026 — v2.0',
+  updatedLabel: 'Última actualización: 1 de septiembre de 2026 — v2.1',
   tocLabel: 'Contenido',
   meta: [
     { label: 'Proveedor', value: 'Archlogic Systems' },
@@ -527,7 +557,7 @@ const es: LegalVersion = {
 const en: LegalVersion = {
   lang: 'en',
   docTitle: 'Terms of Service',
-  updatedLabel: 'Last updated: July 4, 2026 — v2.0',
+  updatedLabel: 'Last updated: September 1, 2026 — v2.1',
   tocLabel: 'Contents',
   meta: [
     { label: 'Provider', value: 'Archlogic Systems' },
