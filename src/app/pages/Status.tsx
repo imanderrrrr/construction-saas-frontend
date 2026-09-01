@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
 import { PublicTopbar, TopbarBackLink, TopbarLink } from '../components/landing/PublicTopbar';
-import { BETA_EMAIL } from '../components/landing/contact';
+import { SUPPORT_EMAIL, supportMailto } from '../lib/contact';
 import { usePublicPageTitle } from '../hooks/usePublicPageTitle';
 import { useSystemHealth, type Health } from '../hooks/useSystemHealth';
 
@@ -235,8 +235,8 @@ export function Status() {
 
           <p className="mt-[22px] font-bt-mono text-[10px] leading-[1.8] tracking-[0.1em] text-bt-muted">
             {t('incidents.report')}{' '}
-            <a href={`mailto:${BETA_EMAIL}`} className="text-bt-orange">
-              {BETA_EMAIL.toUpperCase()}
+            <a href={supportMailto()} className="text-bt-orange">
+              {SUPPORT_EMAIL.toUpperCase()}
             </a>
           </p>
         </div>

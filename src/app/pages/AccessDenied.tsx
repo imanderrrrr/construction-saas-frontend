@@ -1,5 +1,6 @@
 ﻿import { useNavigate } from 'react-router';
 import { AuthService } from '../services/auth';
+import { supportMailto } from '../lib/contact';
 import { Button } from '../components/ui/button';
 import {
   Building2,
@@ -67,8 +68,7 @@ export function AccessDenied() {
   };
 
   const handleContactSupport = () => {
-    // UI-only: in production, open mailto or support link
-    window.open('mailto:support@ofjrconstruction.com', '_blank');
+    window.open(supportMailto(), '_blank');
   };
 
   // The actual card (shared between desktop and mobile)

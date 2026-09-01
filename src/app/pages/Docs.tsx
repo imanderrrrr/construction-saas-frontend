@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { PublicTopbar, TopbarBackLink, TopbarLink } from '../components/landing/PublicTopbar';
-import { BETA_EMAIL } from '../components/landing/contact';
+import { SUPPORT_EMAIL, supportMailto } from '../lib/contact';
 import { usePublicPageTitle } from '../hooks/usePublicPageTitle';
 import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
@@ -147,8 +147,8 @@ export function Docs() {
               {t('aside.notFound')}
               <br />
               {t('aside.writeUs')}{' '}
-              <a href={`mailto:${BETA_EMAIL}`} className="text-bt-orange">
-                {BETA_EMAIL.toUpperCase()}
+              <a href={supportMailto()} className="text-bt-orange">
+                {SUPPORT_EMAIL.toUpperCase()}
               </a>
             </p>
           </div>

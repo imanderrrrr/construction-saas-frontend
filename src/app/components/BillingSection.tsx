@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, ArrowRight, Mail, Pen, Zap } from 'lucide-react';
 import { BillingService, type BillingStatusResponse } from '../services/billing';
+import { supportMailto } from '../lib/contact';
 
 /**
  * Suscripción — now a normal section INSIDE the panel (the old standalone page
@@ -11,14 +12,10 @@ import { BillingService, type BillingStatusResponse } from '../services/billing'
  * contact CTA. No prices, no checkout — billing is negotiated by email.
  */
 
-// Support inbox for plan/method changes. Change here if it ever moves.
-const SUPPORT_EMAIL = 'hola@buildtrack.gt';
-
 type VisualState = 'active' | 'trialing' | 'past_due' | 'canceling' | 'none';
 
 function mailtoHref(orgHint: string | null): string {
-  const subject = `Suscripción — ${orgHint ?? 'BuildTrack'}`;
-  return `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}`;
+  return supportMailto(`Suscripción — ${orgHint ?? 'BuildTrack'}`);
 }
 
 /** Backend billing snapshot → one of the five designed states. */

@@ -11,7 +11,7 @@ import {
 
 import enBilling from '../../../i18n/locales/en/billing.json';
 import esBilling from '../../../i18n/locales/es/billing.json';
-import { BETA_EMAIL } from '../../components/landing/contact';
+import { SUPPORT_EMAIL } from '../../lib/contact';
 
 const mocks = vi.hoisted(() => ({
   changeLanguage: vi.fn(),
@@ -438,7 +438,7 @@ describe('BillingPage sells nothing', () => {
     expect(cta).not.toBeNull();
     // Reuses the shared public-site inbox + subject helper.
     expect(cta?.getAttribute('href')).toBe(
-      `mailto:${BETA_EMAIL}?subject=My%20BuildTrack%20subscription`,
+      `mailto:${SUPPORT_EMAIL}?subject=My%20BuildTrack%20subscription`,
     );
   });
 

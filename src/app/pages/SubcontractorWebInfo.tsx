@@ -1,12 +1,13 @@
 // Landing page for users with the SUBCONTRACTOR role.
 // The web admin panel does not include a subcontractor workspace —
-// subcontractors interact with the company through the OFJR mobile app.
+// subcontractors interact with the company through the BuildTrack mobile app.
 // This page replaces the previous infinite redirect / blank screen with a
 // clear explanation and a sign-out button.
 
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { AuthService } from '../services/auth';
+import { supportMailto } from '../lib/contact';
 import { Button } from '../components/ui/button';
 import {
   Building2,
@@ -28,7 +29,7 @@ export function SubcontractorWebInfo() {
   };
 
   const handleContactAdmin = () => {
-    window.open('mailto:support@ofjrconstruction.com', '_blank');
+    window.open(supportMailto(), '_blank');
   };
 
   return (
