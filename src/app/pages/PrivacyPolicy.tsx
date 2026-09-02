@@ -8,7 +8,7 @@ const es: LegalVersion = {
   tocLabel: 'Contenido',
   meta: [
     { label: 'Proveedor', value: 'Archlogic Systems' },
-    { label: 'Producto', value: 'BuildTrack · app «BuildTrack Mobile»' },
+    { label: 'Producto', value: 'BuildTrack · app «BuildTrack Field»' },
     { label: 'Domicilio', value: '2a calle, zona 3, Huehuetenango, Guatemala' },
     { label: 'Ley aplicable', value: 'República de Guatemala' },
     {
@@ -19,7 +19,7 @@ const es: LegalVersion = {
         </a>
       ),
     },
-    { label: 'Versión', value: '2.0' },
+    { label: 'Versión', value: '2.1' },
   ],
   sections: [
     {
@@ -32,7 +32,7 @@ const es: LegalVersion = {
             <strong>2a calle, zona 3, Huehuetenango, Guatemala</strong>, desarrolla y opera BuildTrack, una
             plataforma de gestión de fuerza laboral para la construcción que se ofrece como servicio por
             suscripción (SaaS) a empresas («Clientes»). BuildTrack se compone de la aplicación móvil
-            BuildTrack Mobile y un panel web de administración. Esta política explica cómo se tratan los datos
+            BuildTrack Field y un panel web de administración. Esta política explica cómo se tratan los datos
             personales dentro de BuildTrack.
           </p>
           <p>
@@ -358,7 +358,7 @@ const en: LegalVersion = {
   tocLabel: 'Contents',
   meta: [
     { label: 'Provider', value: 'Archlogic Systems' },
-    { label: 'Product', value: 'BuildTrack · "BuildTrack Mobile" app' },
+    { label: 'Product', value: 'BuildTrack · "BuildTrack Field" app' },
     { label: 'Address', value: '2a calle, zona 3, Huehuetenango, Guatemala' },
     { label: 'Governing law', value: 'Republic of Guatemala' },
     {
@@ -369,7 +369,7 @@ const en: LegalVersion = {
         </a>
       ),
     },
-    { label: 'Version', value: '2.0' },
+    { label: 'Version', value: '2.1' },
   ],
   sections: [
     {
@@ -381,7 +381,7 @@ const en: LegalVersion = {
             <strong>Archlogic Systems</strong> ("Archlogic", "we"), located at{' '}
             <strong>2a calle, zona 3, Huehuetenango, Guatemala</strong>, develops and operates BuildTrack, a
             construction workforce management platform offered as a subscription service (SaaS) to companies
-            ("Customers"). BuildTrack consists of the BuildTrack Mobile application and a web
+            ("Customers"). BuildTrack consists of the BuildTrack Field application and a web
             administration panel. This policy explains how personal data is handled within BuildTrack.
           </p>
           <p>
