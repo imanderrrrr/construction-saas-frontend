@@ -23,8 +23,18 @@ const SRC_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
  */
 const OWNERS = ['app/lib/contact.ts', 'app/lib/contact.singleSource.test.ts'];
 
-/** Domains that must never come back: retired brand, and one that never existed. */
-const RETIRED_DOMAINS = ['buildtrack.gt', 'ofjrconstruction.com'];
+/**
+ * Addresses that must never come back: a retired brand, a domain that never
+ * existed, and the founder's personal Gmail, which stood in as the published
+ * support address until `buildtrackfield.com` was registered. The Gmail is the
+ * one a reviewer would not flag as broken — it delivers — so nothing but this
+ * list stops it from being pasted back in.
+ */
+const RETIRED_CONTACTS = [
+  'buildtrack.gt',
+  'ofjrconstruction.com',
+  'andersonaguirre794@gmail.com',
+];
 
 /** `mailto:` followed by a literal address, rather than an interpolated one. */
 const HARDCODED_MAILTO = /mailto:[A-Za-z0-9._%+-]/g;
@@ -49,7 +59,7 @@ it('finds source files to scan (the walk still matches)', () => {
 });
 
 it('exports the canonical address on a domain we actually control', () => {
-  expect(SUPPORT_EMAIL).toBe('andersonaguirre794@gmail.com');
+  expect(SUPPORT_EMAIL).toBe('support@buildtrackfield.com');
 });
 
 it('no file outside lib/contact.ts hardcodes a published address', () => {
@@ -60,9 +70,9 @@ it('no file outside lib/contact.ts hardcodes a published address', () => {
   expect(offenders).toEqual([]);
 });
 
-describe.each(RETIRED_DOMAINS)('%s never appears in src/', domain => {
+describe.each(RETIRED_CONTACTS)('%s never appears in src/', contact => {
   it('is gone', () => {
-    const found = files.filter(f => f.source.includes(domain)).map(f => f.path);
+    const found = files.filter(f => f.source.includes(contact)).map(f => f.path);
     expect(found).toEqual([]);
   });
 });
