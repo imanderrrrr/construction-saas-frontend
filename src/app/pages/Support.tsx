@@ -19,7 +19,7 @@ const esSections: LegalSection[] = [
     body: (
       <>
         <p>
-          Si necesitas ayuda con BuildTrack —la aplicación móvil BuildTrack Mobile o el panel web de
+          Si necesitas ayuda con BuildTrack —la aplicación móvil BuildTrack Field o el panel web de
           administración—, puedes comunicarte con <strong>Archlogic Systems</strong>, el proveedor de la
           plataforma:
         </p>
@@ -130,7 +130,7 @@ const enSections: LegalSection[] = [
     body: (
       <>
         <p>
-          If you need help with BuildTrack —the BuildTrack Mobile app or the web administration panel— you
+          If you need help with BuildTrack —the BuildTrack Field app or the web administration panel— you
           can reach <strong>Archlogic Systems</strong>, the provider of the platform:
         </p>
         <ul>
@@ -238,7 +238,7 @@ const es: LegalVersion = {
   tocLabel: 'Contenido',
   meta: [
     { label: 'Proveedor', value: 'Archlogic Systems' },
-    { label: 'Producto', value: 'BuildTrack · app «BuildTrack Mobile»' },
+    { label: 'Producto', value: 'BuildTrack · app «BuildTrack Field»' },
     { label: 'Domicilio', value: '2a calle, zona 3, Huehuetenango, Guatemala' },
     { label: 'Ley aplicable', value: 'República de Guatemala' },
     { label: 'Contacto', value: CONTACT },
@@ -255,7 +255,7 @@ const en: LegalVersion = {
   tocLabel: 'Contents',
   meta: [
     { label: 'Provider', value: 'Archlogic Systems' },
-    { label: 'Product', value: 'BuildTrack · "BuildTrack Mobile" app' },
+    { label: 'Product', value: 'BuildTrack · "BuildTrack Field" app' },
     { label: 'Address', value: '2a calle, zona 3, Huehuetenango, Guatemala' },
     { label: 'Governing law', value: 'Republic of Guatemala' },
     { label: 'Contact', value: CONTACT },

@@ -19,7 +19,7 @@ const esSections: LegalSection[] = [
     body: (
       <p>
         Estos Términos de Servicio («Términos») regulan el uso de BuildTrack —la aplicación
-        móvil BuildTrack Mobile y el panel web—, operada por Archlogic Systems, con domicilio en
+        móvil BuildTrack Field y el panel web—, operada por Archlogic Systems, con domicilio en
         2a calle, zona 3, Huehuetenango, Guatemala. Al acceder o usar BuildTrack, usted acepta estos
         Términos. Si no está de acuerdo, no use la plataforma.
       </p>
@@ -281,7 +281,7 @@ const enSections: LegalSection[] = [
     title: 'Acceptance and scope',
     body: (
       <p>
-        These Terms of Service («Terms») govern the use of BuildTrack —the BuildTrack Mobile
+        These Terms of Service («Terms») govern the use of BuildTrack —the BuildTrack Field
         application and the web panel—, operated by Archlogic Systems, located at 2a calle, zona 3,
         Huehuetenango, Guatemala. By accessing or using BuildTrack, you agree to these Terms. If you do not
         agree, do not use the platform.
@@ -544,11 +544,11 @@ const es: LegalVersion = {
   tocLabel: 'Contenido',
   meta: [
     { label: 'Proveedor', value: 'Archlogic Systems' },
-    { label: 'Producto', value: 'BuildTrack · app «BuildTrack Mobile»' },
+    { label: 'Producto', value: 'BuildTrack · app «BuildTrack Field»' },
     { label: 'Domicilio', value: '2a calle, zona 3, Huehuetenango, Guatemala' },
     { label: 'Ley aplicable', value: 'República de Guatemala' },
     { label: 'Contacto', value: CONTACT },
-    { label: 'Versión', value: '2.0' },
+    { label: 'Versión', value: '2.1' },
   ],
   sections: esSections,
   signature: <>Archlogic Systems — 2a calle, zona 3, Huehuetenango, Guatemala</>,
@@ -561,11 +561,11 @@ const en: LegalVersion = {
   tocLabel: 'Contents',
   meta: [
     { label: 'Provider', value: 'Archlogic Systems' },
-    { label: 'Product', value: 'BuildTrack · "BuildTrack Mobile" app' },
+    { label: 'Product', value: 'BuildTrack · "BuildTrack Field" app' },
     { label: 'Address', value: '2a calle, zona 3, Huehuetenango, Guatemala' },
     { label: 'Governing law', value: 'Republic of Guatemala' },
     { label: 'Contact', value: CONTACT },
-    { label: 'Version', value: '2.0' },
+    { label: 'Version', value: '2.1' },
   ],
   sections: enSections,
   signature: <>Archlogic Systems — 2a calle, zona 3, Huehuetenango, Guatemala</>,
