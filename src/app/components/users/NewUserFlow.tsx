@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import QRCode from 'qrcode';
-import { ChevronLeft, ChevronRight, Check, Loader2, RefreshCw, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, FileDown, Loader2, RefreshCw, X } from 'lucide-react';
 import { createUser, getWorkerQr, setWorkerPin, type UserDTO } from '../../services/users';
 import { getStoredTenantSlug } from '../../lib/api';
+import { loadInvoiceIssuer } from '../../services/invoiceBranding';
+import { businessToday, fmtDate } from '../../helpers/dateTime';
+import { credentialPdfLabels, downloadCredentialPdf } from '../../helpers/exportCredentialPdf';
 import { GRID_INK, Mono, isFieldRole, randomPassword, randomPin } from './shared';
 
 /**
@@ -22,7 +25,7 @@ export function NewUserFlow({ existingUsernames, onClose, onCreated }: {
   onClose: () => void;
   onCreated: () => void;
 }) {
-  const { t } = useTranslation(['admin', 'common']);
+  const { t, i18n } = useTranslation(['admin', 'common']);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
@@ -35,6 +38,7 @@ export function NewUserFlow({ existingUsernames, onClose, onCreated }: {
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<UserDTO | null>(null);
   const [qrToken, setQrToken] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const field = isFieldRole(role);
@@ -96,6 +100,32 @@ export function NewUserFlow({ existingUsernames, onClose, onCreated }: {
       setError(e instanceof Error ? e.message : t('admin:usr.new.error'));
     } finally {
       setSaving(false);
+    }
+  }
+
+  // The hand-over sheet is the same PDF the user drawer re-downloads later,
+  // so the credential looks the same the first time and every time after.
+  // This is the one moment the PIN is known in the clear — it was just typed
+  // here — which is why it goes on this sheet and on no re-download.
+  async function downloadSheet() {
+    if (!created) return;
+    setDownloading(true);
+    try {
+      const issuer = await loadInvoiceIssuer();
+      downloadCredentialPdf({
+        fullName: created.fullName,
+        username: created.username,
+        roleLabel: t(`common:roles.${created.role}`),
+        workspaceSlug,
+        qrToken: field ? qrToken : null,
+        secret: field ? { kind: 'pin', value: pin, replaced: false } : { kind: 'password', value: password },
+      }, credentialPdfLabels(t, {
+        access: field ? 'FIELD' : 'OFFICE',
+        date: fmtDate(businessToday(), i18n.language),
+        panelUrl: window.location.origin,
+      }), issuer);
+    } finally {
+      setDownloading(false);
     }
   }
 
@@ -314,8 +344,9 @@ export function NewUserFlow({ existingUsernames, onClose, onCreated }: {
               </div>
 
               <div className="flex gap-2.5 justify-center mt-6 flex-wrap">
-                <button onClick={() => window.print()}
-                  className="border border-[#DBD0BB] bg-white px-4 py-2.5 font-bt-mono text-[10.5px] uppercase tracking-[0.06em] font-semibold text-[#0A0A0A] hover:border-[#F97316] hover:text-[#C2410C]">
+                <button onClick={downloadSheet} disabled={downloading || (field && !qrToken)}
+                  className="inline-flex items-center gap-2 border border-[#DBD0BB] bg-white px-4 py-2.5 font-bt-mono text-[10.5px] uppercase tracking-[0.06em] font-semibold text-[#0A0A0A] hover:border-[#F97316] hover:text-[#C2410C] disabled:opacity-50">
+                  {downloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />}
                   {t('admin:usr.new.print')}
                 </button>
                 <button onClick={reset}

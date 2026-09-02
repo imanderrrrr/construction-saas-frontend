@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import QRCode from 'qrcode';
-import { AlertTriangle, KeyRound, Loader2, Mail, RefreshCw, X } from 'lucide-react';
+import { AlertTriangle, FileDown, KeyRound, Loader2, Mail, RefreshCw, X } from 'lucide-react';
 import {
   getWorkerQr, listUserActivity, listUserSessions, regenerateWorkerQr,
   resetPassword, revokeAllSessions, revokeSession, setWorkerPin, updateUser,
   type AuditEntryDTO, type SessionDTO, type UserDTO, type WorkerQrDTO,
 } from '../../services/users';
-import { fmtDateTime } from '../../helpers/dateTime';
+import { loadInvoiceIssuer } from '../../services/invoiceBranding';
+import { businessToday, fmtDate, fmtDateTime } from '../../helpers/dateTime';
+import { credentialPdfLabels, downloadCredentialPdf, type CredentialSecret } from '../../helpers/exportCredentialPdf';
 import { Mono, initials, isFieldRole, randomPin } from './shared';
 
 /**
@@ -32,6 +34,15 @@ export function UserDrawer({ user, onClose, onChanged }: {
   const [pinValue, setPinValue] = useState('');
   const [pinSaved, setPinSaved] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Credential sheet (PDF). Two deliberate modes, chosen before anything
+  // happens: re-print the QR + identifier (nothing changes server-side), or
+  // reset the PIN through the existing hashed endpoint and print the new one.
+  // The PIN can never be read back — only its BCrypt hash exists — so a sheet
+  // that carries a PIN is always the sheet of a PIN that was just set.
+  const [dlOpen, setDlOpen] = useState(false);
+  const [dlMode, setDlMode] = useState<'plain' | 'reset'>('plain');
+  const [dlError, setDlError] = useState<string | null>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -70,6 +81,54 @@ export function UserDrawer({ user, onClose, onChanged }: {
   const [dirty, setDirty] = useState(false);
   const onChangedSoft = () => setDirty(true);
   const close = () => { if (dirty) onChanged(); else onClose(); };
+
+  const hasPin = Boolean(qr?.hasPin || pinSaved);
+
+  const toggleDownload = () => {
+    setDlError(null);
+    // Without a PIN the plain sheet is one they cannot get in with, so the
+    // reset mode is the sensible starting point there.
+    setDlMode(hasPin ? 'plain' : 'reset');
+    setDlOpen(v => !v);
+  };
+
+  async function downloadCredentials() {
+    if (!qr) return;
+    setBusy('dl'); setDlError(null);
+    let secret: CredentialSecret = { kind: 'pinUnavailable' };
+    if (dlMode === 'reset') {
+      const pin = randomPin();
+      try {
+        // Same endpoint as the PIN editor: BCrypt-hashed server-side. The
+        // sheet prints a PIN only once the backend has confirmed it stored it.
+        await setWorkerPin(user.id, pin);
+      } catch {
+        setDlError(t('admin:usr.d.dl.resetError')); setBusy(null);
+        return;
+      }
+      secret = { kind: 'pin', value: pin, replaced: true };
+      setPinSaved(true); setPinEditing(false); setPinValue('');
+      onChangedSoft();
+    }
+    try {
+      const issuer = await loadInvoiceIssuer();
+      downloadCredentialPdf({
+        fullName: user.fullName,
+        username: user.username,
+        roleLabel: t(`common:roles.${user.role}`),
+        // Legacy single-tenant deployment: its users leave the identifier
+        // blank, so "default" must not be printed as something to type.
+        workspaceSlug: qr.tenant && qr.tenant !== 'default' ? qr.tenant : null,
+        qrToken: qr.qrToken,
+        secret,
+      }, credentialPdfLabels(t, { access: 'FIELD', date: fmtDate(businessToday(), lang) }), issuer);
+      setDlOpen(false);
+    } catch {
+      setDlError(t(secret.kind === 'pin' ? 'admin:usr.d.dl.pdfError' : 'admin:usr.d.dl.error'));
+    } finally {
+      setBusy(null);
+    }
+  }
 
   const toggleStatus = () =>
     run('status', () => updateUser(user.id, { status: user.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' }), onChanged);
@@ -193,6 +252,54 @@ export function UserDrawer({ user, onClose, onChanged }: {
                   {busy === 'qr' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
                   {t('admin:usr.d.regenerate')}
                 </button>
+
+                <button onClick={toggleDownload} disabled={!qr || busy === 'dl'} aria-expanded={dlOpen}
+                  className="w-full mt-2 inline-flex items-center justify-center gap-2 border border-[#DBD0BB] bg-[#FAF7F0] px-3 py-2.5 font-bt-mono text-[10.5px] uppercase tracking-[0.06em] font-semibold text-[#0A0A0A] hover:border-[#F97316] hover:text-[#C2410C] disabled:opacity-50">
+                  <FileDown className="w-3.5 h-3.5" />
+                  {t('admin:usr.d.download')}
+                </button>
+
+                {dlOpen && qr && (
+                  <div className="mt-3.5 pt-3.5 border-t border-dashed border-[#DED4C2]">
+                    <Mono className="block text-[10px] text-[#8A8175] mb-2">{t('admin:usr.d.dl.title')}</Mono>
+                    <div role="radiogroup" aria-label={t('admin:usr.d.dl.title')} className="grid gap-2">
+                      <DownloadOption selected={dlMode === 'plain'} onSelect={() => setDlMode('plain')}
+                        title={t('admin:usr.d.dl.plain')} sub={t('admin:usr.d.dl.plainSub')} />
+                      <DownloadOption selected={dlMode === 'reset'} onSelect={() => setDlMode('reset')}
+                        title={t('admin:usr.d.dl.reset')} sub={t('admin:usr.d.dl.resetSub')}
+                        warn={t('admin:usr.d.dl.resetWarn')} />
+                    </div>
+                    {!hasPin && (
+                      <div className="flex items-center gap-2 bg-[#FBEDE0] border border-[#F6CFA6] px-2.5 py-2 mt-2.5">
+                        <AlertTriangle className="w-3.5 h-3.5 text-[#EA580C] flex-shrink-0" />
+                        <span className="text-[12px] text-[#43301F] leading-snug">{t('admin:usr.d.dl.noPinHint')}</span>
+                      </div>
+                    )}
+                    <Mono className="block text-[9.5px] normal-case tracking-[0.04em] text-[#B4A992] mt-2.5">{t('admin:usr.d.dl.sensitive')}</Mono>
+                    {dlError && (
+                      <div className="mt-2.5 bg-[#FBEDE0] border border-[#F6CFA6] border-l-[3px] border-l-[#F97316] px-3 py-2.5">
+                        <span className="text-[12.5px] text-[#43301F]">{dlError}</span>
+                      </div>
+                    )}
+                    <div className="flex gap-2.5 items-center flex-wrap mt-3">
+                      <button onClick={downloadCredentials} disabled={busy === 'dl'}
+                        className={`inline-flex items-center gap-2 px-3.5 py-2 font-bt-mono text-[10px] uppercase tracking-[0.06em] font-semibold disabled:opacity-40 ${
+                          dlMode === 'reset'
+                            ? 'bg-[#F97316] hover:bg-[#EA580C] text-[#0A0A0A]'
+                            : 'bg-[#0A0A0A] hover:bg-[#F97316] text-[#F5F1E8] hover:text-[#0A0A0A]'
+                        }`}>
+                        {busy === 'dl'
+                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          : dlMode === 'reset' ? <KeyRound className="w-3.5 h-3.5" /> : <FileDown className="w-3.5 h-3.5" />}
+                        {t(dlMode === 'reset' ? 'admin:usr.d.dl.goReset' : 'admin:usr.d.dl.go')}
+                      </button>
+                      <button onClick={() => setDlOpen(false)}
+                        className="px-2 py-2 font-bt-mono text-[10px] uppercase tracking-[0.06em] font-semibold text-[#8A8175] hover:text-[#C2410C]">
+                        {t('common:buttons.cancel')}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -289,5 +396,31 @@ export function UserDrawer({ user, onClose, onChanged }: {
         </div>
       </aside>
     </div>
+  );
+}
+
+/**
+ * One of the two credential-sheet modes. Styled like the role cards of the
+ * new-user wizard; the warning is part of the card, not of the selected
+ * state, so the admin reads what "reset" costs before choosing it.
+ */
+function DownloadOption({ selected, onSelect, title, sub, warn }: {
+  selected: boolean; onSelect: () => void; title: string; sub: string; warn?: string;
+}) {
+  return (
+    <button type="button" role="radio" aria-checked={selected} onClick={onSelect}
+      className={`text-left border p-3 transition-colors ${selected ? 'border-[#F97316] bg-[#FBEDE0]' : 'border-[#DBD0BB] bg-white hover:border-[#F97316]'}`}>
+      <div className="flex items-center justify-between gap-3">
+        <Mono className="text-[11px] tracking-[0.05em] font-semibold text-[#0A0A0A]">{title}</Mono>
+        <span className={`w-2.5 h-2.5 flex-shrink-0 ${selected ? 'bg-[#F97316]' : 'bg-[#E4E4E7]'}`} />
+      </div>
+      <p className="text-[12px] text-[#5A5346] leading-snug mt-1.5">{sub}</p>
+      {warn && (
+        <p className="flex items-start gap-1.5 text-[12px] font-semibold text-[#C2410C] leading-snug mt-2">
+          <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-px" />
+          <span>{warn}</span>
+        </p>
+      )}
+    </button>
   );
 }
