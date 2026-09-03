@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Spotlight } from './Spotlight';
 import { SectionIntro } from './SectionIntro';
 import { SECTION_TOUR_STEPS } from './sectionTourSteps';
+import { useFirstRunIdle } from '../../lib/firstRunQueue';
 
 /**
  * Per-section guided tour — the same spotlight the dashboard uses, for every
@@ -20,6 +21,13 @@ import { SECTION_TOUR_STEPS } from './sectionTourSteps';
  * the wrong element.
  *
  * Copy: `admin:sec.<section>.step.<key>.title|body`.
+ *
+ * NOT IN THE FIRST-RUN ROW, BUT BEHIND IT: a section tour runs on every first
+ * visit to a section (not once per user), so it has no place in
+ * FIRST_RUN_ORDER. It still must not paint over a notice that does — the
+ * welcome's quick steps jump straight into Proyectos / Usuarios, and the
+ * what's-new carousel takes its turn right there. So the spotlight waits for
+ * the row to be idle; the steps it already found are kept, not dropped.
  *
  * FALLBACK: the banner survives for the cases a spotlight cannot serve —
  * mobile (where the dashboard tour is already suppressed: a dimmed hole on a
@@ -71,13 +79,17 @@ export function SectionTour({
   section,
   username,
   replayNonce,
+  sectionLabel,
 }: {
   section: string;
   username: string | null;
   /** Increment (with the section current) to replay on demand (topbar "?"). */
   replayNonce: number;
+  /** The section's display title, for the banner's kicker. */
+  sectionLabel?: string;
 }) {
   const { t } = useTranslation(['admin']);
+  const rowIdle = useFirstRunIdle();
   const [steps, setSteps] = useState<string[] | null>(null);
   const [stepIdx, setStepIdx] = useState(0);
   /** True once we've decided this section can't be toured → show the banner. */
@@ -156,10 +168,12 @@ export function SectionTour({
   // Banner fallback (mobile / no visible anchors). The scoped nonce keeps the
   // "?" button working there without leaking replays across sections.
   if (fellBack || !SECTION_TOUR_STEPS[section]) {
-    return <SectionIntro section={section} username={username} replayNonce={introNonce} />;
+    return <SectionIntro section={section} username={username} replayNonce={introNonce} sectionLabel={sectionLabel} />;
   }
 
   if (!steps || steps.length === 0) return null;
+  // A first-run notice has the screen: hold the tour, keep the steps.
+  if (!rowIdle) return null;
 
   const key = steps[stepIdx];
   return (

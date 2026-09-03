@@ -184,7 +184,7 @@ export function SupervisorDashboard() {
         }
       >
         {onboardingKey && (
-          <SectionTour section={onboardingKey} username={username} replayNonce={introReplay} />
+          <SectionTour section={onboardingKey} username={username} replayNonce={introReplay} sectionLabel={t(metaKeys.titleKey)} />
         )}
         <Suspense fallback={<SectionSpinner />}>
           {active === 'dashboard'       && <SupervisorDashboardContent username={username} onNavigate={s => setActive(s as Section)} />}

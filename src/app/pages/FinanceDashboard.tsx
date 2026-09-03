@@ -347,7 +347,7 @@ export function FinanceDashboard({ initialSection }: { initialSection?: ActiveSe
         }
       >
         {onboardingKey && (
-          <SectionTour section={onboardingKey} username={username} replayNonce={introReplay} />
+          <SectionTour section={onboardingKey} username={username} replayNonce={introReplay} sectionLabel={t(metaKeys.titleKey)} />
         )}
         {activeSection === 'dashboard' && (
           <DashboardView username={username} onNavigate={handleNavigate} />

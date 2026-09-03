@@ -1604,6 +1604,7 @@
   "dash.act.PAYABLE_CREATED": "logged a vendor bill",
   "dash.act.PAYABLE_PAYMENT_RECORDED": "recorded a payment",
   "sec.gotIt": "Got it",
+  "sec.kicker": "Section guide",
   "sec.hours.step.kpis.title": "This screen never talks about money",
   "sec.hours.step.kpis.body": "Time only. \"Pending hours\" are entries you have not approved yet in the Approvals inbox, which is why they do not count as approved here.",
   "sec.hours.step.filters.title": "Project means where they clocked in",

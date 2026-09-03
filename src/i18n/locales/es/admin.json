@@ -1604,6 +1604,7 @@
   "dash.act.PAYABLE_CREATED": "registró una factura de proveedor",
   "dash.act.PAYABLE_PAYMENT_RECORDED": "registró un pago",
   "sec.gotIt": "Entendido",
+  "sec.kicker": "Guía de sección",
   "sec.hours.step.kpis.title": "Esta pantalla nunca habla de dinero",
   "sec.hours.step.kpis.body": "Solo tiempo. Las «horas pendientes» son partes que todavía no aprobaste en la bandeja de Aprobaciones, y por eso no cuentan como aprobadas aquí.",
   "sec.hours.step.filters.title": "El proyecto es donde fichó, no donde está asignado",
