@@ -40,7 +40,7 @@ import { cn } from './ui/utils';
 
 export const WHATS_NEW_VERSION = '2026-08';
 
-// Per-user, same shape as the onboarding tour's key (bt.onboarding.v2.<user>).
+// Per-user, same shape as the onboarding tour's key (bt.onboarding.v3.<user>).
 // Also seeded by the e2e harness (e2e/support/mock-api.ts) — keep in sync.
 const seenKey = (username: string) => `bt.whatsnew.${username}`;
 
