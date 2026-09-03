@@ -259,7 +259,7 @@ describe('first-run row — intro, then tour, then what\'s new', () => {
 
   it('leaves the row empty for a user who has already seen everything', async () => {
     localStorage.setItem('buildtrack:intro-v2-seen', '1');
-    localStorage.setItem('bt.onboarding.v2.ana', '2026-01-01T00:00:00.000Z');
+    localStorage.setItem('bt.onboarding.v3.ana', '2026-01-01T00:00:00.000Z');
     localStorage.setItem('bt.whatsnew.ana', WHATS_NEW_VERSION);
 
     await render();
