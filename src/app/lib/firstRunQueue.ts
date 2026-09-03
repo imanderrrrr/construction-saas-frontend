@@ -72,6 +72,17 @@ function subscribe(listener: () => void) {
 
 const getHolder = () => holder;
 
+/**
+ * True while NO first-run notice holds the screen. For overlays that live
+ * OUTSIDE the row — the per-section tours run on every first visit to a
+ * section, not once per user, so they have no place in FIRST_RUN_ORDER — but
+ * must still not paint over a notice that does. This asks "is the row busy?",
+ * never "is notice X up?", so nothing here knows the notices by name.
+ */
+export function useFirstRunIdle(): boolean {
+  return useSyncExternalStore(subscribe, getHolder, getHolder) === null;
+}
+
 /** Who holds the row right now. For tests and debugging — not for components:
  *  a component must never branch on another notice's state, that is the bug
  *  this module exists to prevent. Ask `useFirstRunTurn` instead. */

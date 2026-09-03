@@ -1,16 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowRight, Compass } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '../ui/dialog';
-import { Button } from '../ui/button';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
+import { ArrowRight } from 'lucide-react';
 import { Spotlight } from './Spotlight';
+import {
+  CloseButton, FOCUS_RING, InkBar, PrimaryButton, SecondaryButton, WINDOW_SHADOW,
+} from './chrome';
 import { useFirstRunTurn } from '../../lib/firstRunQueue';
+import { getBranding } from '../../services/branding';
+import { cn } from '../ui/utils';
 
 /**
  * First-login onboarding for the paying admin: a welcome dialog with the three
@@ -27,11 +25,16 @@ import { useFirstRunTurn } from '../../lib/firstRunQueue';
  * handed on by `finish()` — which is why FINISHING and SKIPPING both go
  * through it, and why a mobile viewport never claims a turn at all (the tour
  * is suppressed below 768px and must not hold up the notices behind it).
+ *
+ * Look: the Claude Design sheet "Onboarding BuildTrack" (2026-09-03) — ink
+ * header with the blueprint grid, display title, mono kicker, square controls.
+ * The chrome is shared with the other guide windows in ./chrome.tsx.
  */
 
 // v2 — re-anchored to the redesigned dashboard (money-first blocks + pulse +
 // sidebar favorites). Bumping the version re-shows the tour once to users who
-// saw v1: the screen they learned no longer exists.
+// saw v1: the screen they learned no longer exists. The 2026-09 restyle did
+// NOT bump it: the chrome changed, the screen being taught did not.
 const SEEN_VERSION = 'v2';
 const seenKey = (username: string | null) =>
   `bt.onboarding.${SEEN_VERSION}.${username ?? 'anon'}`;
@@ -48,6 +51,17 @@ const STEP_KEYS = [
   'pulse',
   'favorites',
   'help',
+] as const;
+
+/**
+ * The three quick steps of the welcome and the section each one opens. Copy
+ * lives at `admin:tour.welcome.quickN`. The third step (hand over the QR
+ * badge) happens in Usuarios too — the badge is printed from the user's card.
+ */
+const QUICK_STEPS = [
+  { key: 'quick1', section: 'projects' },
+  { key: 'quick2', section: 'users' },
+  { key: 'quick3', section: 'users' },
 ] as const;
 
 function markSeen(username: string | null) {
@@ -86,10 +100,15 @@ function availableSteps(): string[] {
 export function OnboardingTour({
   username,
   replayNonce,
+  onNavigate,
 }: {
   username: string | null;
   /** Increment to re-open the welcome (topbar help button). 0 = untouched. */
   replayNonce: number;
+  /** Opens a sidebar section. When set, the welcome's three quick steps are
+   *  rows that jump straight to Proyectos / Usuarios; without it they are
+   *  plain text (the row has nowhere to go). */
+  onNavigate?: (section: string) => void;
 }) {
   const { t } = useTranslation(['admin']);
   const [stage, setStage] = useState<'idle' | 'welcome' | 'tour'>('idle');
@@ -139,12 +158,20 @@ export function OnboardingTour({
     setStage('tour');
   }, [username, finish]);
 
+  /** A quick step was clicked: the user chose to act instead of touring.
+   *  Same exit as "explore on my own", then the section opens. */
+  const goTo = useCallback((section: string) => {
+    finish();
+    onNavigate?.(section);
+  }, [finish, onNavigate]);
+
   return (
     <>
       <WelcomeDialog
         open={stage === 'welcome'}
         onClose={finish}
         onStartTour={startTour}
+        onNavigate={onNavigate ? goTo : undefined}
       />
       {stage === 'tour' && steps.length > 0 && (
         <Spotlight
@@ -169,68 +196,147 @@ function WelcomeDialog({
   open,
   onClose,
   onStartTour,
+  onNavigate,
 }: {
   open: boolean;
   onClose: () => void;
   onStartTour: () => void;
+  onNavigate?: (section: string) => void;
 }) {
-  const { t } = useTranslation(['admin']);
-  // Decide per-open whether the sidebar targets are actually visible (desktop).
+  const { t } = useTranslation(['admin', 'common']);
+  // Decide per-open whether a tour can be offered: desktop width AND the
+  // dashboard targets on screen. Phones get the single-action variant — a
+  // dimmed hole on a 375px screen hides the very thing it points at, which is
+  // why the section tours are desktop-only too.
   const [tourAvailable, setTourAvailable] = useState(false);
   useEffect(() => {
-    if (open) setTourAvailable(availableSteps().length > 0);
+    if (open) setTourAvailable(canAutoStart() && availableSteps().length > 0);
   }, [open]);
 
-  const quickSteps = [
-    t('admin:tour.welcome.quick1'),
-    t('admin:tour.welcome.quick2'),
-    t('admin:tour.welcome.quick3'),
-  ];
+  // Company name for the kicker (white-label, same as the dashboard header).
+  // Decorative: a failure just leaves the generic kicker.
+  const [orgName, setOrgName] = useState<string | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    try {
+      getBranding().then(b => setOrgName(b.organizationName)).catch(() => {});
+    } catch {
+      /* no client available — the kicker stays generic */
+    }
+  }, [open]);
 
   return (
-    <Dialog open={open} onOpenChange={isOpen => { if (!isOpen) onClose(); }}>
-      <DialogContent className="sm:max-w-md" data-first-run="onboardingTour">
-        <DialogHeader>
-          <div className="w-11 h-11 bg-[#F97316]/10 rounded-xl flex items-center justify-center mb-1">
-            <Compass className="w-6 h-6 text-[#F97316]" />
-          </div>
-          <DialogTitle className="text-lg">{t('admin:tour.welcome.title')}</DialogTitle>
-          <DialogDescription className="text-sm leading-relaxed">
-            {t('admin:tour.welcome.body')}
-          </DialogDescription>
-        </DialogHeader>
+    <DialogPrimitive.Root open={open} onOpenChange={isOpen => { if (!isOpen) onClose(); }}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-[rgba(11,10,9,0.40)]" />
+        <DialogPrimitive.Content
+          data-first-run="onboardingTour"
+          className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-32px)] max-w-[520px] -translate-x-1/2 -translate-y-1/2 outline-none"
+        >
+          <div className={cn('bt-modal-in bg-white', WINDOW_SHADOW)}>
+            {/* Ink header: kicker + display title + square close */}
+            <InkBar className="px-4 pt-4 pb-5 sm:px-[22px] sm:pt-5 sm:pb-6">
+              <div className="relative flex items-start justify-between gap-3 sm:gap-4">
+                <div className="min-w-0">
+                  <p className="font-bt-mono text-[9px] sm:text-[10px] font-semibold uppercase tracking-[0.14em] text-[#F97316] leading-relaxed sm:leading-normal">
+                    {t('admin:dash.kicker')}
+                    {orgName && (
+                      <>
+                        <span className="hidden sm:inline"> · </span>
+                        <br className="sm:hidden" />
+                        {orgName}
+                      </>
+                    )}
+                  </p>
+                  <DialogPrimitive.Title className="font-bt-display font-extrabold uppercase text-[28px] sm:text-[36px] leading-none tracking-[0.01em] text-[#F5F1E8] mt-2 sm:mt-2.5">
+                    {t('admin:tour.welcome.title')}
+                  </DialogPrimitive.Title>
+                </div>
+                <DialogPrimitive.Close asChild>
+                  <CloseButton onDark aria-label={t('common:buttons.close')} className="w-8 h-8 sm:w-7 sm:h-7" />
+                </DialogPrimitive.Close>
+              </div>
+            </InkBar>
 
-        <div className="rounded-lg border border-[#E4E4E7] bg-[#FAFAFA] p-4">
-          <p className="text-xs font-semibold text-[#0A0A0A] uppercase tracking-wide mb-3">
-            {t('admin:tour.welcome.quickTitle')}
-          </p>
-          <ol className="space-y-2.5">
-            {quickSteps.map((label, i) => (
-              <li key={i} className="flex items-start gap-2.5">
-                <span className="w-5 h-5 rounded-full bg-[#F97316] text-white text-[11px] font-bold flex items-center justify-center flex-shrink-0 mt-px">
-                  {i + 1}
+            {/* Body: intro + the three quick steps */}
+            <div className="px-4 pt-[18px] pb-1 sm:px-[22px] sm:pt-[22px] sm:pb-1.5">
+              <DialogPrimitive.Description className="text-sm leading-[1.6] text-[#5A5346] max-w-[430px]">
+                {t('admin:tour.welcome.body')}
+              </DialogPrimitive.Description>
+
+              <p className="flex items-center gap-2 mt-[18px] mb-0.5 sm:mt-[22px] sm:mb-1">
+                <span className="w-2 h-2 bg-[#F97316] flex-shrink-0" aria-hidden="true" />
+                <span className="font-bt-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5A5346]">
+                  {t('admin:tour.welcome.quickTitle')}
                 </span>
-                <span className="text-sm text-[#3F3F46] leading-snug">{label}</span>
-              </li>
-            ))}
-          </ol>
-        </div>
+              </p>
 
-        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-1">
-          <Button variant="outline" onClick={onClose} className="sm:min-w-36">
-            {t('admin:tour.welcome.skip')}
-          </Button>
-          {tourAvailable && (
-            <Button
-              onClick={onStartTour}
-              className="bg-[#F97316] hover:bg-[#EA580C] text-white sm:min-w-36"
-            >
-              {t('admin:tour.welcome.start')}
-              <ArrowRight className="w-4 h-4 ml-1.5" />
-            </Button>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+              <ol>
+                {QUICK_STEPS.map((step, i) => {
+                  const rowClass = cn(
+                    'w-full flex items-start gap-3 text-left border-t border-[#EDE7DB] py-[13px] px-1 sm:gap-[13px] sm:px-2.5',
+                    i === QUICK_STEPS.length - 1 && 'border-b',
+                  );
+                  const inner = (
+                    <>
+                      <span className="w-5 h-5 flex-shrink-0 bg-[#F97316] text-[#0A0A0A] font-bt-mono text-[11px] font-semibold flex items-center justify-center mt-px">
+                        {i + 1}
+                      </span>
+                      <span className="flex-1 text-sm leading-normal text-[#2E2A24]">
+                        {t(`admin:tour.welcome.${step.key}`)}
+                      </span>
+                      {onNavigate && (
+                        <span className="hidden sm:block font-bt-mono text-[11px] text-[#B4A992] group-hover:text-[#C2410C] mt-[3px]" aria-hidden="true">
+                          →
+                        </span>
+                      )}
+                    </>
+                  );
+                  return (
+                    <li key={step.key}>
+                      {onNavigate ? (
+                        <button
+                          type="button"
+                          onClick={() => onNavigate(step.section)}
+                          className={cn(
+                            rowClass,
+                            'group border-l-2 border-l-transparent hover:border-l-[#F97316] hover:bg-[#F3EEE4] transition-colors',
+                            FOCUS_RING,
+                          )}
+                        >
+                          {inner}
+                        </button>
+                      ) : (
+                        <div className={rowClass}>{inner}</div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+
+            {/* Paper footer with the actions. Without a tour to offer, the
+                only action is the primary one. */}
+            <div className="bg-[#FAF7F0] border-t border-[#EDE7DB] mt-4 px-4 py-3.5 sm:mt-5 sm:px-[22px] sm:py-4 flex flex-col-reverse gap-2.5 sm:flex-row sm:items-center sm:justify-end">
+              {tourAvailable ? (
+                <>
+                  <SecondaryButton onClick={onClose} className="w-full sm:w-auto py-3.5 sm:py-2.5">
+                    {t('admin:tour.welcome.skip')}
+                  </SecondaryButton>
+                  <PrimaryButton onClick={onStartTour} className="w-full sm:w-auto py-3.5 sm:py-2.5">
+                    {t('admin:tour.welcome.start')}
+                    <ArrowRight className="w-3.5 h-3.5" strokeWidth={2} />
+                  </PrimaryButton>
+                </>
+              ) : (
+                <PrimaryButton onClick={onClose} className="w-full sm:w-auto py-3.5 sm:py-2.5">
+                  {t('admin:tour.welcome.skip')}
+                </PrimaryButton>
+              )}
+            </div>
+          </div>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }
