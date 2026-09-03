@@ -29,6 +29,9 @@ vi.mock('react-router', () => ({
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
+  // The welcome dialog reaches lib/api (company name for its kicker), which
+  // boots src/i18n on import — that needs this export to exist on the mock.
+  initReactI18next: { type: '3rdParty', init: () => {} },
 }));
 
 vi.mock('../services/auth', () => ({

@@ -18,6 +18,7 @@
   "whatsNew.dialogLabel": "What's new in BuildTrack",
   "whatsNew.done": "Got it!",
   "whatsNew.dot": "Go to update {{num}}",
+  "whatsNew.revStamp": "Rev {{rev}}",
   "whatsNew.intro.title": "We updated BuildTrack",
   "whatsNew.intro.body": "These are the panel's latest improvements. Use the arrow to see them one by one.",
   "whatsNew.tm.title": "Extra work signed at the site",

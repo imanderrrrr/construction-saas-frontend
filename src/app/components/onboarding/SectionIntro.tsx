@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Compass, X } from 'lucide-react';
+import { Compass } from 'lucide-react';
+import { CloseButton, PrimaryButton } from './chrome';
 
 /**
  * Per-section purpose card: the first time a user opens a section, a slim
@@ -12,6 +13,12 @@ import { Compass, X } from 'lucide-react';
  *
  * Copy lives in admin.json under `sec.<key>.title|body|b1|b2`. A section
  * without copy simply never shows a card.
+ *
+ * Look (Claude Design "Onboarding BuildTrack", 2026-09): paper card with a
+ * 3 px orange left edge, compass in an ink square, mono kicker, display title.
+ * On phones the icon, kicker and close share one header row and the button
+ * spans the width; on desktop the close sits top-right and the button
+ * bottom-right, in their own column.
  */
 
 const SEEN_VERSION = 'v1';
@@ -34,11 +41,14 @@ export function SectionIntro({
   section,
   username,
   replayNonce,
+  sectionLabel,
 }: {
   section: string;
   username: string | null;
   /** Increment (with the section current) to re-show the card on demand. */
   replayNonce: number;
+  /** The section's display title, for the kicker ("Guía de sección · Usuarios"). */
+  sectionLabel?: string;
 }) {
   const { t } = useTranslation(['admin']);
   const [visible, setVisible] = useState(false);
@@ -65,32 +75,59 @@ export function SectionIntro({
 
   if (!visible || !INTRO_SECTIONS.has(section)) return null;
 
+  const icon = (
+    <span className="w-8 h-8 bg-[#0A0A0A] flex items-center justify-center flex-shrink-0" aria-hidden="true">
+      <Compass className="w-4 h-4 text-[#F97316]" strokeWidth={1.9} />
+    </span>
+  );
+  const kicker = t('admin:sec.kicker');
+
   return (
-    <div className="mx-4 md:mx-6 mt-4 border border-[#F97316]/30 bg-[#F97316]/5 rounded-xl p-4 flex items-start gap-3">
-      <div className="w-9 h-9 bg-[#F97316]/10 rounded-lg flex items-center justify-center flex-shrink-0">
-        <Compass className="w-5 h-5 text-[#F97316]" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-[#0A0A0A]">{t(`admin:sec.${section}.title`)}</p>
-        <p className="text-xs text-[#3F3F46] mt-0.5 leading-relaxed">{t(`admin:sec.${section}.body`)}</p>
-        <ul className="mt-1.5 space-y-0.5">
+    <div className="mx-4 md:mx-6 mt-4 bg-[#FAF7F0] border border-[#DBD0BB] border-l-[3px] border-l-[#F97316] p-4 pl-[17px] md:py-[18px] md:pr-[18px] md:pl-5 md:flex md:items-stretch md:gap-[18px]">
+      {/* Desktop: the icon is its own column. */}
+      <div className="hidden md:block">{icon}</div>
+
+      <div className="flex-1 min-w-0">
+        {/* Phone header: icon + two-line kicker, close at the right. */}
+        <div className="flex items-start justify-between gap-3 md:hidden">
+          <div className="flex items-center gap-[11px]">
+            {icon}
+            <span className="font-bt-mono text-[9.5px] font-semibold uppercase tracking-[0.14em] text-[#8A8175] leading-snug">
+              {kicker}
+              {sectionLabel && (<><br />{sectionLabel}</>)}
+            </span>
+          </div>
+          <CloseButton onClick={dismiss} aria-label={t('admin:sec.close')} className="w-8 h-8" />
+        </div>
+
+        <p className="hidden md:block font-bt-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-[#8A8175]">
+          {kicker}{sectionLabel && ` · ${sectionLabel}`}
+        </p>
+        <h3 className="font-bt-display font-extrabold uppercase text-[28px] md:text-[30px] leading-none tracking-[0.01em] text-[#0A0A0A] mt-3.5 md:mt-2">
+          {t(`admin:sec.${section}.title`)}
+        </h3>
+        <p className="text-sm leading-[1.6] text-[#5A5346] mt-[9px] md:max-w-[720px]">
+          {t(`admin:sec.${section}.body`)}
+        </p>
+        <ul className="mt-3.5 space-y-2 md:space-y-[7px]">
           {(['b1', 'b2'] as const).map(b => (
-            <li key={b} className="text-xs text-[#52525B] flex items-start gap-1.5">
-              <span className="text-[#F97316] mt-px">▸</span>
-              <span>{t(`admin:sec.${section}.${b}`)}</span>
+            <li key={b} className="flex items-baseline gap-2.5">
+              <span className="font-bt-mono text-[11px] text-[#F97316] flex-shrink-0" aria-hidden="true">▸</span>
+              <span className="text-[13.5px] leading-normal text-[#5A5346]">{t(`admin:sec.${section}.${b}`)}</span>
             </li>
           ))}
         </ul>
-        <button
-          onClick={dismiss}
-          className="mt-2.5 font-bt-mono text-[10px] uppercase tracking-[0.1em] bg-[#F97316] hover:bg-[#EA580C] text-white px-3 py-1.5 transition-colors">
+
+        <PrimaryButton onClick={dismiss} className="md:hidden w-full mt-[18px] py-3.5">
           {t('admin:sec.gotIt')}
-        </button>
+        </PrimaryButton>
       </div>
-      <button onClick={dismiss} aria-label={t('admin:sec.close')}
-        className="text-[#A1A1AA] hover:text-[#0A0A0A] transition-colors flex-shrink-0">
-        <X className="w-4 h-4" />
-      </button>
+
+      {/* Desktop: close on top, the action at the bottom, in their own column. */}
+      <div className="hidden md:flex flex-col items-end justify-between flex-shrink-0 gap-3.5">
+        <CloseButton onClick={dismiss} aria-label={t('admin:sec.close')} />
+        <PrimaryButton onClick={dismiss}>{t('admin:sec.gotIt')}</PrimaryButton>
+      </div>
     </div>
   );
 }

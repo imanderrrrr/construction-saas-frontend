@@ -576,7 +576,7 @@ export function AdminDashboard() {
 
         {/* Content area */}
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
-          <SectionTour section={activeSection} username={username} replayNonce={introReplay} />
+          <SectionTour section={activeSection} username={username} replayNonce={introReplay} sectionLabel={t(meta.titleKey)} />
           {activeSection === 'dashboard'    && <DashboardContent onNavigate={handleNavigate} />}
           {activeSection === 'billing'      && <BillingSection />}
           {activeSection === 'tm-field'     && (
@@ -678,7 +678,7 @@ export function AdminDashboard() {
       </div>
 
       <Toaster position="top-right" richColors />
-      <OnboardingTour username={username} replayNonce={tourReplay} />
+      <OnboardingTour username={username} replayNonce={tourReplay} onNavigate={handleNavigate} />
     </div>
   );
 }
