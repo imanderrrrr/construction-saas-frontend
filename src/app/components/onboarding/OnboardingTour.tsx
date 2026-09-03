@@ -33,9 +33,12 @@ import { cn } from '../ui/utils';
 
 // v2 — re-anchored to the redesigned dashboard (money-first blocks + pulse +
 // sidebar favorites). Bumping the version re-shows the tour once to users who
-// saw v1: the screen they learned no longer exists. The 2026-09 restyle did
-// NOT bump it: the chrome changed, the screen being taught did not.
-const SEEN_VERSION = 'v2';
+// saw v1: the screen they learned no longer exists.
+// v3 — the 2026-09 restyle of the guide windows. Anderson wanted everyone to
+// meet the new welcome once, so the key moved on although the screen being
+// taught did not change. Keep e2e/support/mock-api.ts and firstRunOrder.test
+// in step with this value.
+const SEEN_VERSION = 'v3';
 const seenKey = (username: string | null) =>
   `bt.onboarding.${SEEN_VERSION}.${username ?? 'anon'}`;
 
