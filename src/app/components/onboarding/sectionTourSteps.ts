@@ -25,7 +25,7 @@ export const SECTION_TOUR_STEPS: Record<string, string[]> = {
   hours: ['kpis', 'filters', 'list'],
   'labor-cost': ['kpis', 'filters', 'list'],
   'labor-payroll': ['kpis', 'filters', 'list'],
-  projects: ['create', 'filters', 'table'],
+  projects: ['kpis', 'filters', 'table', 'menu'],
   clients: ['add-client', 'search'],
   subcontractors: ['tabs', 'job-kpis', 'job-filters', 'jobs-table'],
   schedules: ['project-picker', 'add-task'],
