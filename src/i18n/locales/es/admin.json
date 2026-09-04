@@ -1626,7 +1626,7 @@
   "dash.todayStamp": "Hoy · {{date}}",
   "dash.refreshed": "Actualizado {{time}}",
   "dash.partialError": "Un bloque no cargó. Los demás siguen vivos — reintenta cuando quieras.",
-  "dash.revStamp": "Rev 07.2026",
+  "dash.revStamp": "Rev {{rev}}",
   "dash.review": "Revisar",
   "dash.money.label": "Dinero · Requiere atención",
   "dash.money.overdue": "Por cobrar · Vencido",

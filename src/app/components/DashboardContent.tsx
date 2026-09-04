@@ -7,6 +7,7 @@ import {
 import { Skeleton } from './ui/skeleton';
 import { searchAuditLogs, type AuditLogDTO } from '../services/audit';
 import { getBranding } from '../services/branding';
+import { PANEL_REV } from '../lib/panelRev';
 import { listProjects } from '../services/projects';
 import {
   getBudgetBlock, getMoneyBlock, getProjectPulse, getTodayBlock,
@@ -156,7 +157,7 @@ export function DashboardContent({ onNavigate }: { onNavigate: (section: string)
             <MonoLabel className="text-white/90">
               <span className="text-[#F97316] mr-2">■</span>{t('admin:dash.money.label')}
             </MonoLabel>
-            <MonoLabel className="text-white/25 hidden sm:block">{t('admin:dash.revStamp')}</MonoLabel>
+            <MonoLabel className="text-white/25 hidden sm:block">{t('admin:dash.revStamp', { rev: PANEL_REV })}</MonoLabel>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6 md:gap-0 md:divide-x md:divide-white/10">

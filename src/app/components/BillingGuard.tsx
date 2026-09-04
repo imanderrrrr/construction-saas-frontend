@@ -18,6 +18,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Navigate, useLocation } from 'react-router';
 
 import { AuthService } from '../services/auth';
+import { Splash } from './WelcomeOverlay';
 import { BillingService } from '../services/billing';
 import {
   billingBlockReason,
@@ -89,15 +90,7 @@ export function BillingGuard({ children }: BillingGuardProps) {
 
   if (state.phase === 'loading') {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div
-            className="w-10 h-10 border-3 border-[#F97316] border-t-transparent rounded-full animate-spin"
-            aria-hidden="true"
-          />
-          <p className="text-sm text-[#71717A]">Loading…</p>
-        </div>
-      </div>
+      <Splash />
     );
   }
 

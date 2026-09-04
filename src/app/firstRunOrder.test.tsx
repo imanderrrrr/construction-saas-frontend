@@ -41,6 +41,9 @@ vi.mock('react-i18next', () => ({
 }));
 
 import { IntroOverlay } from './components/IntroOverlay';
+import { WelcomeOverlay, WELCOME_MIN_MS, WELCOME_FADE_MS } from './components/WelcomeOverlay';
+import { resetWelcome, startWelcome } from './lib/welcome';
+import { DASHBOARD_READY_ATTR } from './lib/dashboardReady';
 import { INTRO_ANIMATION_DURATION_MS } from './components/IntroAnimation';
 import { OnboardingTour } from './components/onboarding/OnboardingTour';
 import { WhatsNewModal } from './components/WhatsNewModal';
@@ -65,6 +68,7 @@ function FirstRunStack() {
   return (
     <>
       <IntroOverlay />
+      <WelcomeOverlay />
       <div data-testid="router">
         <div data-testid="billing-guard">
           <div data-testid="admin-dashboard">
@@ -153,6 +157,8 @@ describe('first-run row — intro, then tour, then what\'s new', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     resetFirstRunQueue();
+    resetWelcome();
+    document.body.removeAttribute(DASHBOARD_READY_ATTR);
     localStorage.clear();
     auth.isAuthenticated.mockReturnValue(true);
     auth.getRole.mockReturnValue('ADMIN');
@@ -255,6 +261,27 @@ describe('first-run row — intro, then tour, then what\'s new', () => {
     await render();
 
     expect(visibleNotices()).toEqual(['whatsNew']);
+  });
+
+  it('on a sign-in the welcome plays after the intro and before the tour', async () => {
+    // The login page starts the ceremony the instant credentials pass; on a
+    // first desktop visit the brand intro is already on screen, so the
+    // greeting waits, plays in full, and only then the tour gets its turn.
+    document.body.setAttribute(DASHBOARD_READY_ATTR, '1');
+    await render();
+    await act(async () => startWelcome('Ana Ruiz'));
+    expect(visibleNotices()).toEqual(['brandIntro']);
+
+    await advance(INTRO_TOTAL_MS);
+    expect(visibleNotices()).toEqual(['welcome']);
+
+    // Past the tour's paint delay: still the welcome, alone.
+    await advance(WELCOME_DELAY_MS);
+    expect(visibleNotices()).toEqual(['welcome']);
+
+    await advance(WELCOME_MIN_MS + WELCOME_FADE_MS);
+    await advance(WELCOME_DELAY_MS);
+    expect(visibleNotices()).toEqual(['onboardingTour']);
   });
 
   it('leaves the row empty for a user who has already seen everything', async () => {

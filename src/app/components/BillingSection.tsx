@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { AlertTriangle, ArrowRight, Mail, Pen, Zap } from 'lucide-react';
 import { BillingService, type BillingStatusResponse } from '../services/billing';
 import { supportMailto } from '../lib/contact';
+import { PANEL_REV } from '../lib/panelRev';
 
 /**
  * Suscripción — now a normal section INSIDE the panel (the old standalone page
@@ -158,7 +159,7 @@ export function BillingSection() {
                 <span className="w-2.5 h-2.5 block" style={{ background: hero.dot }} />
                 <Mono className="text-[12px] tracking-[0.14em] text-[#F5F1E8]">{hero.label}</Mono>
               </div>
-              <Mono className="text-[10px] tracking-[0.14em] text-[#F5F1E8]/40 border border-[#F5F1E8]/20 px-2.5 py-1">REV 07.2026</Mono>
+              <Mono className="text-[10px] tracking-[0.14em] text-[#F5F1E8]/40 border border-[#F5F1E8]/20 px-2.5 py-1">REV {PANEL_REV}</Mono>
             </div>
             <div className="relative flex items-end justify-between gap-6 flex-wrap">
               <div className="min-w-0">

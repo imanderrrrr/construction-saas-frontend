@@ -29,6 +29,8 @@ export interface LoginResponse {
    * "not blocked" rather than crashing the login.
    */
   passwordChangeRequired?: boolean;
+  /** Display name for the welcome screen; null/absent → greet by username. */
+  fullName?: string | null;
 }
 
 /**
@@ -47,6 +49,7 @@ export interface SignupPayload {
 export interface MeResponse {
   username: string;
   role: CanonicalRole;
+  fullName?: string | null;
   /** See {@link LoginResponse.passwordChangeRequired}. */
   passwordChangeRequired?: boolean;
 }
