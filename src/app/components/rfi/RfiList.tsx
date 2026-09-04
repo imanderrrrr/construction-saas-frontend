@@ -143,15 +143,14 @@ export function RfiList({ projects }: { projects: RfiProject[] }) {
   const visibleItems = mineOnly ? items.filter((it) => it.ballInCourt === 'COMPANY') : items;
 
   return (
-    <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden">
-      {/* Header */}
-      <div className="px-6 py-4 border-b border-[#D4D4D8] bg-[#FAFAFA]/50 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-semibold text-[#0A0A0A] inline-flex items-center gap-2">
-            <HelpCircle className="w-4 h-4 text-[#F97316]" />
+    <div className="bg-white border border-[#E7E1D5] overflow-hidden">
+      {/* Header — the subventana's title and purpose (sheet 03E) */}
+      <div className="px-4 pt-4 md:px-[22px] md:pt-5 flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="font-bt-display font-extrabold uppercase text-[24px] md:text-[26px] leading-none text-[#0A0A0A]">
             {t('internal.title')}
           </h3>
-          <p className="text-xs text-[#71717A] mt-0.5">{t('internal.subtitle')}</p>
+          <p className="text-[13.5px] leading-[1.55] text-[#5A5346] mt-1.5">{t('internal.subtitle')}</p>
         </div>
         <div className="flex items-center gap-2">
           {projects.length > 1 && (
@@ -169,7 +168,7 @@ export function RfiList({ projects }: { projects: RfiProject[] }) {
           <button
             type="button"
             onClick={() => setCreateOpen((v) => !v)}
-            className="h-9 px-4 rounded-lg bg-[#F97316] hover:bg-[#C2410C] text-white text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3.5 py-[10px] bg-[#0A0A0A] text-[#F5F1E8] hover:bg-[#F97316] hover:text-[#0A0A0A] font-bt-mono text-[10px] font-semibold uppercase tracking-[0.1em] transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
             {t('internal.new')}
@@ -177,7 +176,7 @@ export function RfiList({ projects }: { projects: RfiProject[] }) {
         </div>
       </div>
 
-      <div className="p-4 sm:p-6 space-y-4">
+      <div className="px-4 py-4 md:px-[22px] md:pb-5 space-y-4">
         {/* Create form */}
         {createOpen && project && (
           <RfiForm
@@ -370,6 +369,7 @@ function RfiCard({ rfi, detail, fmtDate, fmtDay, onChanged, onDeleted, onLoadDet
           )}
           {rfi.ballInCourt !== 'NONE' && (
             <span
+              data-tour="sec.projects-ficha-consultas.turn"
               className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
                 rfi.ballInCourt === 'CLIENT'
                   ? 'bg-[#F97316]/10 text-[#C2410C] border-[#F97316]/30'
@@ -384,6 +384,7 @@ function RfiCard({ rfi, detail, fmtDate, fmtDay, onChanged, onDeleted, onLoadDet
           <div className="flex items-center gap-1">
             <button
               type="button"
+              data-tour="sec.projects-ficha-consultas.official"
               onClick={() => { setThreadOpen((v) => !v); ensureDetail(); }}
               className="h-7 px-2.5 rounded-lg text-[11px] font-medium text-[#71717A] hover:bg-white inline-flex items-center gap-1.5 border border-transparent hover:border-[#D4D4D8] transition-colors"
             >
@@ -450,7 +451,7 @@ function RfiCard({ rfi, detail, fmtDate, fmtDay, onChanged, onDeleted, onLoadDet
 
         {/* Impacts summary (always visible once decided) */}
         {!isDraft && (
-          <div className="flex flex-wrap items-center gap-2 text-xs text-[#71717A]">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-[#71717A]" data-tour="sec.projects-ficha-consultas.impacts">
             <span className="font-semibold uppercase tracking-wide text-[11px]">{t('internal.impacts')}:</span>
             <span>{impactsSummary() ?? t('impact.none')}</span>
             {inThread && (
@@ -468,7 +469,7 @@ function RfiCard({ rfi, detail, fmtDate, fmtDay, onChanged, onDeleted, onLoadDet
 
         {/* Draft actions */}
         {isDraft && !editOpen && (
-          <div className="flex flex-wrap items-center gap-2 pt-1">
+          <div data-tour="sec.projects-ficha-consultas.draft" className="flex flex-wrap items-center gap-2 pt-1">
             <button
               type="button"
               disabled={busy}

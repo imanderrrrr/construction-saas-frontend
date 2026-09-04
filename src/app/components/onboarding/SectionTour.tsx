@@ -4,6 +4,7 @@ import { Spotlight } from './Spotlight';
 import { SectionIntro } from './SectionIntro';
 import { SECTION_TOUR_STEPS } from './sectionTourSteps';
 import { useFirstRunIdle } from '../../lib/firstRunQueue';
+import { useTourScope } from '../../lib/tourScope';
 
 /**
  * Per-section guided tour — the same spotlight the dashboard uses, for every
@@ -76,10 +77,10 @@ function canSpotlight(): boolean {
 }
 
 export function SectionTour({
-  section,
+  section: navSection,
   username,
   replayNonce,
-  sectionLabel,
+  sectionLabel: navLabel,
 }: {
   section: string;
   username: string | null;
@@ -89,6 +90,13 @@ export function SectionTour({
   sectionLabel?: string;
 }) {
   const { t } = useTranslation(['admin']);
+  // A screen inside the section (a ficha tab, the create window) claims the
+  // tour while it is in front — lib/tourScope. Everything below keys off the
+  // claimed scope exactly as it would off the nav section, so the "?" replays
+  // what the user is looking at, not the list behind it.
+  const scope = useTourScope();
+  const section = scope?.key ?? navSection;
+  const sectionLabel = scope?.label ?? navLabel;
   const rowIdle = useFirstRunIdle();
   const [steps, setSteps] = useState<string[] | null>(null);
   const [stepIdx, setStepIdx] = useState(0);

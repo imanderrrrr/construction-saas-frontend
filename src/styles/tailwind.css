@@ -174,3 +174,7 @@
   outline: 2px solid #f97316;
   outline-offset: 4px;
 }
+
+/* Ficha tabs on phones: scroll sideways without a scrollbar. */
+.bt-scroll-none { scrollbar-width: none; -ms-overflow-style: none; }
+.bt-scroll-none::-webkit-scrollbar { display: none; }

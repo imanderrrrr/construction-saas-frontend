@@ -64,7 +64,7 @@
   "client.comments.failed": "The message couldn't be sent. Try again.",
   "client.comments.loadFailed": "Couldn't load the comments.",
   "internal.title": "Punch list",
-  "internal.subtitle": "Things to finish or fix on this project",
+  "internal.subtitle": "The fixes still owed, from the client or from your crew, with their evidence.",
   "internal.new": "New item",
   "internal.empty.title": "No punch items",
   "internal.empty.subtitle": "Client-reported and internal items show up here.",
