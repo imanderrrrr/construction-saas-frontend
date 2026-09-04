@@ -26,6 +26,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { WHATS_NEW_VERSION, revStamp } from '../lib/panelRev';
 import {
   ArrowLeft, ArrowRight, FileSpreadsheet, HardHat, LayoutDashboard,
   PenLine, Sparkles, TrendingUp, type LucideIcon,
@@ -38,7 +39,7 @@ import {
 } from './onboarding/chrome';
 import { cn } from './ui/utils';
 
-export const WHATS_NEW_VERSION = '2026-08';
+export { WHATS_NEW_VERSION } from '../lib/panelRev';
 
 // Per-user, same shape as the onboarding tour's key (bt.onboarding.v3.<user>).
 // Also seeded by the e2e harness (e2e/support/mock-api.ts) — keep in sync.
@@ -87,11 +88,6 @@ function hasNewsForThisUser(): boolean {
   return !seen;
 }
 
-/** "2026-08" → "08.2026", the stamp style the dashboard uses ("Rev 07.2026"). */
-function revStamp(version: string): string {
-  const [year, month] = version.split('-');
-  return month && year ? `${month}.${year}` : version;
-}
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
 

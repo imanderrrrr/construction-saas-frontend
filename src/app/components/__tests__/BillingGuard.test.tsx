@@ -258,7 +258,8 @@ describe('BillingGuard', () => {
       container.querySelector('[data-testid="protected-content"]'),
     ).toBeNull();
     expect(container.querySelector('[data-testid="navigate"]')).toBeNull();
-    expect(container.textContent ?? '').toContain('Loading');
+    // The loading state is the splash (the welcome screen without its greeting), not a spinner with copy.
+    expect(container.querySelector('[data-testid="splash"]')).not.toBeNull();
 
     await act(async () => {
       resolve(fullStatus('ACTIVE'));

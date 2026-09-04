@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { useMarkDashboardReady } from '../lib/dashboardReady';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -261,6 +262,8 @@ function DashboardView({ username, onNavigate }: { username: string; onNavigate:
 // Main component
 
 export function WarehouseDashboard({ initialSection }: { initialSection?: ActiveSection } = {}) {
+  // The welcome overlay fades once this page is on screen (lib/dashboardReady).
+  useMarkDashboardReady();
   const { t }      = useTranslation('inventory');
   const navigate   = useNavigate();
   const username   = AuthService.getUsername() ?? 'warehouse';

@@ -10,8 +10,11 @@
 //
 //   1. brandIntro     — the 5s brand animation; it plays before anything else
 //                       because it is not skippable and covers the viewport.
-//   2. onboardingTour — teach the system BEFORE announcing what changed in it.
-//   3. whatsNew       — the release carousel; last, and it waits its turn
+//   2. welcome        — the sign-in ceremony (every login, not once): it covers
+//                       the route change from /login, so the guidance behind
+//                       it must wait until it has faded.
+//   3. onboardingTour — teach the system BEFORE announcing what changed in it.
+//   4. whatsNew       — the release carousel; last, and it waits its turn
 //                       rather than being lost.
 //
 // Adding a fourth notice is one line HERE plus `useFirstRunTurn` in the
@@ -28,7 +31,7 @@
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
 
 /** The row. Index = priority; earlier wins. This is the source of truth. */
-export const FIRST_RUN_ORDER = ['brandIntro', 'onboardingTour', 'whatsNew'] as const;
+export const FIRST_RUN_ORDER = ['brandIntro', 'welcome', 'onboardingTour', 'whatsNew'] as const;
 
 export type FirstRunId = (typeof FIRST_RUN_ORDER)[number];
 
