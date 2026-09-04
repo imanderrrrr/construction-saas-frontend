@@ -1,6 +1,7 @@
 // SupervisorDashboard.tsx — Supervisor panel (budget access removed per policy)
 
 import { useState, useMemo, lazy, Suspense, useEffect, useCallback } from 'react';
+import { useMarkDashboardReady } from '../lib/dashboardReady';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import {
@@ -109,6 +110,8 @@ function SectionSpinner() {
 // ——— Main component ——————————————————————————————————————————————————
 
 export function SupervisorDashboard() {
+  // The welcome overlay fades once this page is on screen (lib/dashboardReady).
+  useMarkDashboardReady();
   const navigate = useNavigate();
   // `admin` is on the list because the onboarding chrome (the "?" tooltip)
   // lives there — SectionTour reads that namespace itself.

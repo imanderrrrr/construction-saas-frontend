@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useRef, lazy, Suspense, Component, type ComponentType, type ReactNode } from 'react';
+import { useMarkDashboardReady } from '../lib/dashboardReady';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { AuthService } from '../services/auth';
@@ -270,6 +271,8 @@ const SECTION_META: Record<ActiveSection, { titleKey: string; subtitleKey: strin
 };
 
 export function AdminDashboard() {
+  // The welcome overlay fades once this page is on screen (lib/dashboardReady).
+  useMarkDashboardReady();
   const navigate = useNavigate();
   const { t } = useTranslation(['admin', 'common', 'tm']);
   const username = AuthService.getUsername();

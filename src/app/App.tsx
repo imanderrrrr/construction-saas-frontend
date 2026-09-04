@@ -3,6 +3,7 @@ import { RouterProvider } from 'react-router';
 import { router } from './routes';
 import { AuthService } from './services/auth';
 import { IntroOverlay } from './components/IntroOverlay';
+import { Splash, WelcomeOverlay } from './components/WelcomeOverlay';
 import { ErrorFallback } from './components/ErrorFallback';
 import { getBaseUrl, isAuthenticated } from './lib/api';
 import { SentryErrorBoundary } from './lib/sentry';
@@ -44,15 +45,12 @@ export default function App() {
   }, []);
 
   if (!ready) {
+    // A reload with an open session: the splash (the welcome without its
+    // greeting) instead of a spinner — a reload is not a sign-in.
     return (
       <>
         <IntroOverlay />
-        <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-10 h-10 border-3 border-[#F97316] border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm text-[#71717A]">Loading…</p>
-          </div>
-        </div>
+        <Splash />
       </>
     );
   }
@@ -60,6 +58,7 @@ export default function App() {
   return (
     <>
       <IntroOverlay />
+      <WelcomeOverlay />
       {/* SentryErrorBoundary catches uncaught render-time errors anywhere
           in the route tree. The fallback never throws and is render-only,
           so it cannot trigger a second-level error loop. When Sentry is

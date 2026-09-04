@@ -33,8 +33,8 @@ export const BILLING_ACTIVE = {
 };
 
 // A login/complete/accept success body (same shape across all three).
-export function sessionResponse(role: string, username = 'tester') {
-  return { role, username, expiresInMinutes: 480 };
+export function sessionResponse(role: string, username = 'tester', fullName: string | null = null) {
+  return { role, username, expiresInMinutes: 480, fullName };
 }
 
 /** Fulfill helper: JSON body + status. */

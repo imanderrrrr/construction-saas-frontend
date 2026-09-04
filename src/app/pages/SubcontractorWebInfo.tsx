@@ -5,6 +5,7 @@
 // clear explanation and a sign-out button.
 
 import { useTranslation } from 'react-i18next';
+import { useMarkDashboardReady } from '../lib/dashboardReady';
 import { useNavigate } from 'react-router';
 import { AuthService } from '../services/auth';
 import { supportMailto } from '../lib/contact';
@@ -17,6 +18,8 @@ import {
 } from 'lucide-react';
 
 export function SubcontractorWebInfo() {
+  // The welcome overlay fades once this page is on screen (lib/dashboardReady).
+  useMarkDashboardReady();
   const { t } = useTranslation('common');
   const navigate = useNavigate();
 

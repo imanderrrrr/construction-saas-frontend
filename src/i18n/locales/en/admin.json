@@ -1626,7 +1626,7 @@
   "dash.todayStamp": "Today · {{date}}",
   "dash.refreshed": "Updated {{time}}",
   "dash.partialError": "One block failed to load. The rest are live — retry anytime.",
-  "dash.revStamp": "Rev 07.2026",
+  "dash.revStamp": "Rev {{rev}}",
   "dash.review": "Review",
   "dash.money.label": "Money · Needs attention",
   "dash.money.overdue": "Receivable · Overdue",

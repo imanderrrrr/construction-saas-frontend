@@ -2,6 +2,7 @@
 // All sidebar items are functional — zero "SOON" labels.
 
 import { useState, useEffect, lazy, Suspense, Component } from 'react';
+import { useMarkDashboardReady } from '../lib/dashboardReady';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
@@ -409,6 +410,8 @@ function DashboardView({ username, onNavigate }: { username: string; onNavigate:
 // Main component
 
 export function WorkerDashboard() {
+  // The welcome overlay fades once this page is on screen (lib/dashboardReady).
+  useMarkDashboardReady();
   const { t } = useTranslation('worker');
   const navigate = useNavigate();
   const username = AuthService.getUsername() ?? 'worker';
