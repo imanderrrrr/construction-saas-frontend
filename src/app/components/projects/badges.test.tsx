@@ -1,15 +1,19 @@
-// ContractBar's job is to make an over-budget project readable at a glance.
-// It used to clamp the remainder at zero, so a job that landed exactly on
-// budget and one that blew $500 past it both rendered "$0.00 · 0%" — the
-// overrun, which is the number the client actually wants, was unreadable.
-//
-// The figure and the percentage now carry the sign; only the bar's width is
-// clamped, since a negative width draws nothing and >100% overflows its track.
+// The contract gauge reads consumption against the budget base — 78 % means
+// nearly spent, 104 % means over — and it never hides an overrun: past the
+// base the bar turns red and the negative balance is printed underneath.
+// Only the bar's width is clamped (a negative width draws nothing and >100 %
+// would overflow its track); the percentage itself stays uncapped.
 
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { ContractBar } from './badges';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({ t: (key: string, opts?: Record<string, unknown>) => (opts?.amount ? `${key} ${opts.amount}` : key), i18n: { language: 'es' } }),
+  initReactI18next: { type: '3rdParty', init: () => {} },
+}));
+
+import { ContractBar, gaugeReading } from './badges';
 
 let host: HTMLDivElement;
 let root: Root;
@@ -30,114 +34,50 @@ function render(props: Parameters<typeof ContractBar>[0]) {
   return host;
 }
 
-/** The rendered bar's inline width, e.g. "0%". */
-function barWidth(el: HTMLElement): string {
-  const bar = el.querySelector<HTMLElement>('.rounded-full > .h-full');
-  return bar?.style.width ?? '';
-}
+const pct = (el: HTMLElement) => el.querySelector('[data-testid="contract-gauge-pct"]')?.textContent;
+const barWidth = (el: HTMLElement) => el.querySelector<HTMLElement>('[data-testid="contract-gauge-bar"]')?.style.width;
+const barClass = (el: HTMLElement) => el.querySelector<HTMLElement>('[data-testid="contract-gauge-bar"]')?.className ?? '';
 
 describe('ContractBar', () => {
-  it('shows a negative remainder instead of clamping it to zero', () => {
+  it('reads consumption, not the remainder: $200 left of $1,000 is 80 % spent', () => {
+    const el = render({ originalContractCents: 100_000, remainingCents: 20_000 });
+    expect(pct(el)).toBe('80%');
+    expect(barWidth(el)).toBe('80%');
+    expect(barClass(el)).toContain('bg-[#0A0A0A]');
+    expect(el.textContent).toContain('$1,000.00');
+  });
+
+  it('turns orange from 90 % on', () => {
+    const el = render({ originalContractCents: 100_000, remainingCents: 8_000 });
+    expect(pct(el)).toBe('92%');
+    expect(barClass(el)).toContain('bg-[#F97316]');
+  });
+
+  it('shows an overrun as more than 100 %, in red, with the negative balance', () => {
     // $1,000 contract, $500 past it.
     const el = render({ originalContractCents: 100_000, remainingCents: -50_000 });
-
+    expect(pct(el)).toBe('150%');
+    expect(barWidth(el)).toBe('100%');
+    expect(barClass(el)).toContain('bg-[#B3402A]');
     expect(el.textContent).toContain('-$500.00');
-    expect(el.textContent).not.toContain('$0.00');
-    expect(el.textContent).toContain('-50%');
-  });
-
-  it('keeps the bar width inside 0–100% when the remainder is negative', () => {
-    const el = render({ originalContractCents: 100_000, remainingCents: -50_000 });
-    expect(barWidth(el)).toBe('0%');
-  });
-
-  it('paints a negative remainder red', () => {
-    const el = render({ originalContractCents: 100_000, remainingCents: -50_000 });
-    const figure = el.querySelector('p');
-    expect(figure?.className).toContain('text-red-700');
-  });
-
-  it('still renders a healthy project unchanged', () => {
-    const el = render({ originalContractCents: 100_000, remainingCents: 80_000 });
-
-    expect(el.textContent).toContain('$800.00');
-    expect(el.textContent).toContain('80%');
-    expect(barWidth(el)).toBe('80%');
-    expect(el.querySelector('p')?.className).toContain('text-[#0A0A0A]');
   });
 
   it('measures against the revised contract when change orders exist', () => {
     // $1,000 original + $1,000 of change orders, $200 left of the revised $2,000.
-    const el = render({
-      originalContractCents: 100_000,
-      revisedContractCents: 200_000,
-      remainingCents: 20_000,
-    });
-
-    expect(el.textContent).toContain('$200.00');
-    expect(el.textContent).toContain('10%');
+    const el = render({ originalContractCents: 100_000, revisedContractCents: 200_000, remainingCents: 20_000 });
+    expect(pct(el)).toBe('90%');
     expect(el.textContent).toContain('$2,000.00');
   });
 
-  it('renders a dash when the project has no contract to measure against', () => {
+  it('prefers the cost budget the backend resolved as the base', () => {
+    const r = gaugeReading({ originalContractCents: 100_000, revisedContractCents: 100_000, budgetBaseCents: 50_000, remainingCents: 10_000 });
+    expect(r?.baseCents).toBe(50_000);
+    expect(r?.pct).toBe(80);
+  });
+
+  it('has no reading without a base', () => {
     const el = render({ originalContractCents: null });
-    expect(el.textContent).toBe('—');
-  });
-});
-
-// V93 — the gauge divides by the cost budget once one exists. Before it, a
-// project's spend was drawn against the sale price: on a $100,000 contract with
-// a $70,000 cost budget, $35,000 spent read as "65% left" when in truth half
-// the money for the job was gone.
-describe('ContractBar with a cost budget', () => {
-  it('measures against the cost budget instead of the contract', () => {
-    const el = render({
-      originalContractCents: 10_000_000,
-      revisedContractCents: 10_000_000,
-      budgetBaseCents: 7_000_000,
-      remainingCents: 3_500_000,
-    });
-
-    expect(el.textContent).toContain('$35,000.00');
-    expect(el.textContent).toContain('50%');
-    expect(el.textContent).toContain('$70,000.00');
-    expect(el.textContent).not.toContain('$100,000.00');
-  });
-
-  it('says which of the two numbers it is measuring against', () => {
-    const withBudget = render({
-      originalContractCents: 10_000_000,
-      revisedContractCents: 10_000_000,
-      budgetBaseCents: 7_000_000,
-      remainingCents: 3_500_000,
-    });
-    expect(withBudget.textContent).toContain('budget');
-  });
-
-  it('reads exactly as before when no budget is set', () => {
-    // budgetBaseCents comes back equal to the revised contract, so nothing on
-    // screen may move for a project that predates the field.
-    const el = render({
-      originalContractCents: 10_000_000,
-      revisedContractCents: 10_000_000,
-      budgetBaseCents: 10_000_000,
-      remainingCents: 6_500_000,
-    });
-
-    expect(el.textContent).toContain('$65,000.00');
-    expect(el.textContent).toContain('65%');
-    expect(el.textContent).not.toContain('budget');
-  });
-
-  it('shows an overrun of the cost budget uncapped', () => {
-    const el = render({
-      originalContractCents: 10_000_000,
-      revisedContractCents: 10_000_000,
-      budgetBaseCents: 7_000_000,
-      remainingCents: -1_000_000,
-    });
-
-    expect(el.textContent).toContain('-$10,000.00');
-    expect(barWidth(el)).toBe('0%');
+    expect(el.querySelector('[data-testid="contract-gauge"]')).toBeNull();
+    expect(el.textContent).toContain('projectMgmt.row.notDefined');
   });
 });

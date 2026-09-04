@@ -114,3 +114,63 @@
   .bt-modal-in,
   .bt-card-in { animation: none; }
 }
+
+/* Loading skeletons of the redesigned sections: a slow sand sweep. */
+@keyframes bt-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.bt-skeleton {
+  background: linear-gradient(90deg, #eae4d8 25%, #f5f0e7 50%, #eae4d8 75%);
+  background-size: 200% 100%;
+  animation: bt-shimmer 1.4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bt-skeleton { animation: none; }
+}
+
+/* Leaflet pin of the project window: a square orange marker with an ink edge
+   (Claude Design "Proyectos BuildTrack"). Leaflet positions the element; we
+   only paint it. */
+.bt-map-pin {
+  width: 18px;
+  height: 18px;
+  background: #f97316;
+  border: 2px solid #0a0a0a;
+  box-sizing: border-box;
+}
+
+/* Range input of the geofence slider: 4 px sand track, ink square thumb. */
+.bt-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  background: #dbd0bb;
+  outline: none;
+  cursor: pointer;
+}
+.bt-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 20px;
+  background: #0a0a0a;
+  border: 0;
+  border-radius: 0;
+  cursor: pointer;
+}
+.bt-range::-moz-range-thumb {
+  width: 14px;
+  height: 20px;
+  background: #0a0a0a;
+  border: 0;
+  border-radius: 0;
+  cursor: pointer;
+}
+.bt-range:focus-visible {
+  outline: 2px solid #f97316;
+  outline-offset: 4px;
+}
