@@ -1,6 +1,6 @@
 import { useCallback, useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronLeft, ChevronRight, Download, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Download, X } from 'lucide-react';
 import { AuthImage } from './AuthImage';
 import { cn } from '../ui/utils';
 
@@ -34,14 +34,20 @@ const DEFAULT_LABELS: Required<LightboxLabels> = {
   close: 'Cerrar',
 };
 
+const FOCUS = 'focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-[#F97316] focus-visible:outline-offset-[3px]';
+const BAR_BUTTON = cn('inline-flex items-center gap-1.5 font-bt-mono text-[10px] font-semibold uppercase tracking-[0.1em] px-3 py-2 border border-[rgba(245,241,232,0.25)] text-[#F5F1E8] hover:border-[#F97316] hover:text-[#F97316] transition-colors disabled:opacity-40 disabled:pointer-events-none', FOCUS);
+
 /**
- * Generic full-screen image lightbox: dimmed backdrop, centered image,
- * prev/next (arrow keys + buttons), thumbnail strip, ESC / backdrop-click to
- * close, and a built-in authenticated Download. Extra actions (e.g. delete)
+ * Generic full-screen image viewer (Claude Design "Proyectos Ventanas" 04M):
+ * an ink overlay at 92 %, a mono counter, square controls, the caption and
+ * its meta line under the image, "← Anterior / Siguiente →" and the thumbnail
+ * strip at the foot. Prev/next also on the arrow keys, Escape / backdrop-click
+ * closes, and a built-in authenticated Download. Extra actions (e.g. delete)
  * mount via `actions`. Images load through <AuthImage> (blob + session cookie).
  *
- * Shared by the site-log PhotoLightbox and the Kanban task-attachment modal —
- * hence "image URLs + start index" rather than any domain-specific shape.
+ * Shared by the site-log PhotoLightbox, the punch list, the RFIs and the
+ * Kanban task-attachment modal — hence "image URLs + start index" rather than
+ * any domain-specific shape.
  */
 export function Lightbox({
   images,
@@ -118,110 +124,97 @@ export function Lightbox({
   // a true full-screen overlay regardless of any transformed ancestor.
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex flex-col bg-black/90"
+      className="fixed inset-0 z-[100] flex flex-col bg-[rgba(11,10,9,0.92)] text-[#F5F1E8]"
       role="dialog"
       aria-modal="true"
       onClick={onClose}
     >
       {/* Top bar: counter + actions (stop propagation so clicks here don't close) */}
       <div
-        className="flex items-center justify-between px-4 py-3 text-white/90"
+        className="flex items-center justify-between gap-3 px-4 md:px-6 py-3"
         onClick={(e) => e.stopPropagation()}
       >
-        <span className="font-mono text-sm tabular-nums">{l.counter(index + 1, total)}</span>
-        <div className="flex items-center gap-1">
+        <span className="font-bt-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-[#F97316] tabular-nums">{l.counter(index + 1, total)}</span>
+        <div className="flex items-center gap-2">
           {actions?.(image)}
           {showDownload && (
-            <button
-              type="button"
-              onClick={handleDownload}
-              title={l.download}
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-white/80 transition-colors hover:bg-white/10 hover:text-white"
-            >
-              <Download className="h-5 w-5" />
+            <button type="button" onClick={handleDownload} title={l.download} className={BAR_BUTTON}>
+              <Download className="h-3.5 w-3.5" strokeWidth={2} />
+              <span className="hidden sm:inline">{l.download}</span>
             </button>
           )}
           <button
             type="button"
             onClick={onClose}
             title={l.close}
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+            aria-label={l.close}
+            className={cn('flex h-8 w-8 items-center justify-center border border-[rgba(245,241,232,0.3)] text-[#F5F1E8] hover:border-[#F97316] hover:text-[#F97316] transition-colors', FOCUS)}
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" strokeWidth={2} />
           </button>
         </div>
       </div>
 
-      {/* Main image + arrows. This container has NO onClick, so clicking the
-          dark margin beside the image bubbles to the backdrop and closes. The
-          image and arrows stop propagation so they don't close. */}
+      {/* Main image. This container has NO onClick, so clicking the dark margin
+          beside the image bubbles to the backdrop and closes; the image itself
+          stops propagation. */}
       <div className="relative flex min-h-0 flex-1 items-center justify-center px-4">
-        {total > 1 && (
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); goPrev(); }}
-            title={l.prev}
-            className="absolute left-4 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
-          >
-            <ChevronLeft className="h-6 w-6" />
-          </button>
-        )}
-
-        <div
-          onClick={(e) => e.stopPropagation()}
-          className="flex max-h-full max-w-full items-center justify-center"
-        >
+        <div onClick={(e) => e.stopPropagation()} className="flex max-h-full max-w-full items-center justify-center">
           <AuthImage
             key={image.id}
             src={image.url}
             alt={image.alt ?? ''}
-            className="max-h-full max-w-full rounded-md object-contain"
+            className="max-h-full max-w-full object-contain"
             headers={imageHeaders}
           />
         </div>
-
-        {total > 1 && (
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); goNext(); }}
-            title={l.next}
-            className="absolute right-4 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
-          >
-            <ChevronRight className="h-6 w-6" />
-          </button>
-        )}
       </div>
 
-      {/* Caption footer */}
+      {/* Caption */}
       {(image.caption || image.meta) && (
-        <div className="px-4 py-3 text-white/90" onClick={(e) => e.stopPropagation()}>
-          {image.caption && <p className="text-sm font-semibold">{image.caption}</p>}
+        <div className="px-4 md:px-6 pt-3" onClick={(e) => e.stopPropagation()}>
+          {image.caption && <p className="text-[15px] font-semibold text-[#F5F1E8]">{image.caption}</p>}
           {image.meta && (
-            <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/60">
+            <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 font-bt-mono text-[9.5px] uppercase tracking-[0.1em] text-[rgba(245,241,232,0.65)]">
               {image.meta}
             </div>
           )}
         </div>
       )}
 
-      {/* Thumbnail strip */}
-      {total > 1 && (
-        <div className="flex items-center gap-2 overflow-x-auto px-4 pb-4" onClick={(e) => e.stopPropagation()}>
-          {images.map((img, i) => (
-            <button
-              key={img.id}
-              type="button"
-              onClick={() => onIndexChange(i)}
-              className={cn(
-                'h-16 w-16 flex-shrink-0 overflow-hidden rounded-md border-2 transition-colors',
-                i === index ? 'border-[#F97316]' : 'border-transparent opacity-60 hover:opacity-100',
-              )}
-            >
-              <AuthImage src={img.url} alt="" className="h-full w-full object-cover" headers={imageHeaders} />
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Foot: prev / thumbnails / next */}
+      <div className="flex items-center justify-between gap-3 px-4 md:px-6 py-4" onClick={(e) => e.stopPropagation()}>
+        <button type="button" onClick={goPrev} disabled={total <= 1} title={l.prev} className={BAR_BUTTON}>
+          <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2} />
+          <span className="hidden sm:inline">{l.prev}</span>
+        </button>
+        {total > 1 ? (
+          <div className="flex items-center gap-2 overflow-x-auto bt-scroll-none min-w-0">
+            {images.map((img, i) => (
+              <button
+                key={img.id}
+                type="button"
+                onClick={() => onIndexChange(i)}
+                aria-label={l.counter(i + 1, total)}
+                aria-current={i === index || undefined}
+                className={cn(
+                  'h-14 w-14 flex-shrink-0 overflow-hidden border-2 transition-colors',
+                  i === index ? 'border-[#F97316]' : 'border-transparent opacity-60 hover:opacity-100',
+                  FOCUS,
+                )}
+              >
+                <AuthImage src={img.url} alt="" className="h-full w-full object-cover" headers={imageHeaders} />
+              </button>
+            ))}
+          </div>
+        ) : (
+          <span className="font-bt-mono text-[10px] uppercase tracking-[0.12em] text-[rgba(245,241,232,0.5)]">{l.counter(index + 1, total)}</span>
+        )}
+        <button type="button" onClick={goNext} disabled={total <= 1} title={l.next} className={BAR_BUTTON}>
+          <span className="hidden sm:inline">{l.next}</span>
+          <ArrowRight className="h-3.5 w-3.5" strokeWidth={2} />
+        </button>
+      </div>
     </div>,
     document.body,
   );
