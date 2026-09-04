@@ -32,7 +32,7 @@ import { FIELD_LIMITS } from '../../shared/fieldLimits';
  * ceremony's seal when it arrives.
  */
 
-type LoginError = '401' | '403' | 'server';
+type LoginError = '401' | '403' | 'server' | 'staleSession';
 type ErrorCode = 'USER_INACTIVE' | 'TENANT_INACTIVE' | null;
 
 /** 01B — panel of paper with a red edge; the expired-session variant is orange. */
@@ -114,7 +114,15 @@ export function Login() {
       navigate(AuthService.getDashboardRoute(response.role));
     } catch (err) {
       if (err instanceof ApiError) {
-        if (err.status === 401) {
+        if (err.status === 401 && err.code && err.code !== 'INVALID_CREDENTIALS') {
+          // No password was checked: a 401 whose code is not
+          // INVALID_CREDENTIALS (SESSION_REVOKED, INVALID_TOKEN) is the JWT
+          // filter refusing a dead session cookie this browser still carries.
+          // Blaming the password — and wiping it — sent someone with the
+          // right password off to reset it (2026-09-04). Keep what they typed
+          // and say what actually happened.
+          setError('staleSession');
+        } else if (err.status === 401) {
           setError('401');
           resetField('password');
           setPasswordCleared(true);
@@ -145,6 +153,9 @@ export function Login() {
   function renderNotice() {
     if (error === '401') {
       return <Notice tone="red" title={t('auth:login.error.invalidCredentials.title')}>{t('auth:login.error.invalidCredentials.message')}</Notice>;
+    }
+    if (error === 'staleSession') {
+      return <Notice tone="red" title={t('auth:login.error.staleSession.title')}>{t('auth:login.error.staleSession.message')}</Notice>;
     }
     if (error === '403') {
       return (
