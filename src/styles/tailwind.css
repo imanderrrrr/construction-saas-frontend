@@ -178,3 +178,14 @@
 /* Ficha tabs on phones: scroll sideways without a scrollbar. */
 .bt-scroll-none { scrollbar-width: none; -ms-overflow-style: none; }
 .bt-scroll-none::-webkit-scrollbar { display: none; }
+
+/* Auxiliary windows (fase 3): the modal scales in, the drawer slides in. */
+@keyframes bt-window-in { from { opacity: 0; transform: scale(.98); } to { opacity: 1; transform: scale(1); } }
+@keyframes bt-drawer-in { from { transform: translateX(100%); } to { transform: none; } }
+@keyframes bt-fade-in { from { opacity: 0; } to { opacity: 1; } }
+.bt-window-in { animation: bt-window-in 220ms cubic-bezier(.2,.7,.3,1); }
+.bt-drawer-in { animation: bt-drawer-in 280ms cubic-bezier(.2,.7,.3,1); }
+.bt-fade-in { animation: bt-fade-in 220ms ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .bt-window-in, .bt-drawer-in, .bt-fade-in { animation: none; }
+}

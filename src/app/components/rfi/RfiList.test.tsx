@@ -171,13 +171,14 @@ describe('RfiList (internal view)', () => {
     await render(root);
 
     await click(buttonByText(container, i18n.t('rfi:internal.new')));
-    const subject = container.querySelector<HTMLInputElement>('#rfi-subject-new')!;
-    const question = container.querySelector<HTMLTextAreaElement>('#rfi-question-new')!;
+    // The form is a drawer, portaled to <body>.
+    const subject = document.querySelector<HTMLInputElement>('#rfi-subject-new')!;
+    const question = document.querySelector<HTMLTextAreaElement>('#rfi-question-new')!;
     await act(async () => {
       setValue(subject, 'Nueva consulta de prueba');
       setValue(question, '¿Cómo va esto?');
     });
-    await click(buttonByText(container, i18n.t('rfi:internal.form.saveDraft')));
+    await click(buttonByText(document.body, i18n.t('rfi:internal.form.saveDraft')));
 
     expect(svc.createRfi).toHaveBeenCalledWith(7, expect.objectContaining({
       subject: 'Nueva consulta de prueba',
@@ -205,14 +206,15 @@ describe('RfiList (internal view)', () => {
       rfi({ status: 'DRAFT', rfiNumber: null, displayNumber: null, subject: 'Borrador descartable', ballInCourt: 'COMPANY' }),
     ]);
     svc.deleteRfiDraft.mockResolvedValue(undefined);
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     await render(root);
 
     await click(buttonByText(container, i18n.t('rfi:internal.draft.delete')));
-    expect(confirmSpy).toHaveBeenCalled();
+    // First click only opens the 440 px confirmation; nothing is deleted yet.
+    expect(svc.deleteRfiDraft).not.toHaveBeenCalled();
+    expect(document.body.textContent).toContain(i18n.t('rfi:internal.draft.deleteTitle'));
+    await click(buttonByText(document.body, i18n.t('common:buttons.delete')));
     expect(svc.deleteRfiDraft).toHaveBeenCalledWith(1);
     expect(container.textContent).not.toContain('Borrador descartable');
-    confirmSpy.mockRestore();
   });
 
   it('shows the thread with both faces and posts an internal follow-up', async () => {
@@ -269,13 +271,13 @@ describe('RfiList (internal view)', () => {
     await render(root);
 
     await click(buttonByText(container, i18n.t('rfi:internal.close')));
-    // The confirm button stays disabled until a response is picked.
-    const confirmBtn = buttonByText(container, i18n.t('rfi:internal.close.confirm'));
+    // Closing is a modal (portaled): the confirm button stays disabled until a response is picked.
+    const confirmBtn = buttonByText(document.body, i18n.t('rfi:internal.close.confirm'));
     expect(confirmBtn.disabled).toBe(true);
 
-    const radio = container.querySelector<HTMLInputElement>(`input[name="rfi-official-1"]`)!;
+    const radio = document.querySelector<HTMLInputElement>(`input[name="rfi-official-1"]`)!;
     await click(radio);
-    await click(buttonByText(container, i18n.t('rfi:internal.close.confirm')));
+    await click(buttonByText(document.body, i18n.t('rfi:internal.close.confirm')));
 
     expect(svc.closeRfi).toHaveBeenCalledWith(1, expect.objectContaining({ officialResponseId: clientEntry.id }));
     expect(container.textContent).toContain(i18n.t('rfi:status.CLOSED'));
@@ -287,12 +289,8 @@ describe('RfiList (internal view)', () => {
     await render(root);
 
     await click(buttonByText(container, i18n.t('rfi:internal.impacts.edit')));
-    const costSelect = container.querySelector<HTMLSelectElement>('#rfi-impact-cost')!;
-    await act(async () => {
-      const setter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value')!.set!;
-      setter.call(costSelect, 'YES');
-      costSelect.dispatchEvent(new Event('change', { bubbles: true }));
-    });
+    // Sí / No / Por definir are joined squares; the amount wakes up on "Sí".
+    await click(container.querySelector<HTMLButtonElement>('[data-testid="rfi-impact-cost-YES"]')!);
     const amount = container.querySelector<HTMLInputElement>(
       `input[aria-label="${i18n.t('rfi:impact.amount')}"]`,
     )!;

@@ -77,6 +77,22 @@ export function SecondaryButton({ className, type = 'button', ...rest }: ButtonP
   );
 }
 
+/** Destroy tier: #B3402A outline that fills on hover — deactivate, close, delete, revoke. */
+export function DestroyButton({ className, type = 'button', ...rest }: ButtonProps) {
+  return (
+    <button
+      type={type}
+      className={cn(
+        MONO_BUTTON,
+        'border border-[#B3402A] text-[#B3402A] hover:bg-[#B3402A] hover:text-white px-[15px] py-[10px] text-[10px]',
+        FOCUS_RING,
+        className,
+      )}
+      {...rest}
+    />
+  );
+}
+
 /** Text only — "Saltar recorrido". */
 export function TertiaryButton({ className, type = 'button', ...rest }: ButtonProps) {
   return (

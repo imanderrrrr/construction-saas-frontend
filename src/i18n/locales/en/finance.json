@@ -696,6 +696,10 @@
   "invoice.preview.download": "Download PDF",
   "invoice.preview.empty": "Add a line item with a description or price to see the document preview.",
 
+  "createClient.kicker": "New jobsite · client",
+  "createClient.nameHint": "Max 200 characters",
+  "createClient.phoneHint": "Max 30 characters",
+  "createClient.note": "Once created you return to the jobsite form with the client already picked.",
   "createClient.title": "Create client",
   "createClient.description": "Add a new client to associate with projects.",
   "createClient.nameLabel": "Name",
