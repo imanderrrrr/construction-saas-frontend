@@ -16,7 +16,7 @@
   "impact.days": "Delay days",
   "impact.none": "No impacts recorded",
   "internal.title": "RFIs",
-  "internal.subtitle": "Formal questions to the client: numbered, with a due date and a record of who decided what",
+  "internal.subtitle": "The formal questions to the client and the answer that stays on record.",
   "internal.project": "Project",
   "internal.new": "New RFI",
   "internal.filter.all": "All",

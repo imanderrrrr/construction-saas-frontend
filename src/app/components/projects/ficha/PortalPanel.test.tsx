@@ -1,8 +1,9 @@
-// "Compartir portal del cliente" modal: status load, generate (with
-// defaults), the regenerate label switch, the two-step revoke, and the three
-// PIN states — no link yet / link without PIN (checkbox + security hint) /
-// link with PIN (badge, no re-ask, regenerate preserves). Services and the QR
-// painter are mocked (jsdom has no canvas).
+// Portal tab of the ficha: status load, generate (with defaults), the
+// regenerate / "add PIN" label switch, the two-step revoke, and the three PIN
+// states — no link yet / link without PIN (checkbox + security hint) / link
+// with PIN (badge, no re-ask, regenerate preserves). Services and the QR
+// painter are mocked (jsdom has no canvas). Ported from the share modal's
+// suite: the rules did not change, only where they live.
 
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -14,8 +15,8 @@ const svc = vi.hoisted(() => ({
   revokeClientAccess: vi.fn(),
 }));
 
-vi.mock('../../services/clientAccess', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../services/clientAccess')>();
+vi.mock('../../../services/clientAccess', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../services/clientAccess')>();
   return {
     ...actual,
     getClientAccessStatus: svc.getClientAccessStatus,
@@ -28,8 +29,8 @@ vi.mock('qrcode', () => ({
   default: { toCanvas: vi.fn().mockResolvedValue(undefined) },
 }));
 
-import i18n from '../../../i18n';
-import { ShareSiteLogModal } from './ShareSiteLogModal';
+import i18n from '../../../../i18n';
+import { PortalPanel } from './PortalPanel';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -60,7 +61,7 @@ async function flush() {
   });
 }
 
-describe('ShareSiteLogModal', () => {
+describe('PortalPanel', () => {
   let container: HTMLDivElement;
   let root: Root;
 
@@ -80,44 +81,33 @@ describe('ShareSiteLogModal', () => {
     container.remove();
   });
 
-  async function renderModal() {
+  async function renderPanel(props: Partial<React.ComponentProps<typeof PortalPanel>> = {}) {
     await act(async () => {
-      root.render(
-        <ShareSiteLogModal
-          open
-          onClose={() => {}}
-          projectId={7}
-          projectName="Casa Roble"
-          clientName="Don Roberto"
-        />,
-      );
+      root.render(<PortalPanel projectId={7} clientName="Don Roberto" {...props} />);
     });
     await flush();
   }
 
-  it('loads the status on open and offers to generate when inactive', async () => {
+  it('loads the status on mount and offers to generate when inactive', async () => {
     svc.getClientAccessStatus.mockResolvedValueOnce(INACTIVE);
-    await renderModal();
+    await renderPanel();
 
     expect(svc.getClientAccessStatus).toHaveBeenCalledWith(7);
     expect(container.textContent).toContain(i18n.t('clientView:share.status.inactive'));
+    expect(container.textContent).toContain(i18n.t('admin:projectFicha.portal.intro'));
     expect(container.textContent).toContain(i18n.t('clientView:share.generate'));
-    // First share: the PIN option is offered, with the security recommendation.
+    // First share: the PIN option is offered.
     expect(pinCheckbox(container)).toBeTruthy();
     expect(container.textContent).toContain(i18n.t('clientView:share.pin.toggle'));
-    expect(container.textContent).toContain(i18n.t('clientView:share.pin.recommend'));
     expect(container.textContent).not.toContain(i18n.t('clientView:share.pin.badgeNote'));
   });
 
-  it('is titled after the client portal, not the bitácora', async () => {
+  it('is the Portal subventana, titled after the client portal', async () => {
     svc.getClientAccessStatus.mockResolvedValueOnce(INACTIVE);
-    await renderModal();
-
-    expect(container.textContent).toContain(i18n.t('clientView:share.title'));
-    expect(i18n.t('clientView:share.title', { lng: 'es' })).toBe('Compartir portal del cliente');
-    expect(i18n.t('clientView:share.title', { lng: 'en' })).toBe('Share client portal');
-    expect(i18n.t('clientView:share.button', { lng: 'es' })).toBe('Compartir portal del cliente');
-    expect(i18n.t('clientView:share.button', { lng: 'en' })).toBe('Share client portal');
+    await renderPanel();
+    expect(container.textContent).toContain(i18n.t('admin:projectFicha.title.portal'));
+    expect(container.textContent).toContain(i18n.t('admin:projectFicha.purpose.portal'));
+    expect(i18n.t('admin:projectFicha.title.portal', { lng: 'es' })).toBe('Portal del cliente');
   });
 
   it('generates with the default expiry and then shows the link', async () => {
@@ -129,7 +119,7 @@ describe('ShareSiteLogModal', () => {
       pinRequired: false, version: 1, clientName: 'Don Roberto',
     });
 
-    await renderModal();
+    await renderPanel();
     await act(async () => {
       findButton(container, i18n.t('clientView:share.generate')).click();
     });
@@ -140,23 +130,22 @@ describe('ShareSiteLogModal', () => {
       { pin: undefined, expiresInDays: 90, preservePin: undefined },
     );
     expect(container.textContent).toContain('/client-view/tok-v1');
-    expect(container.textContent).toContain(i18n.t('clientView:share.status.active'));
+    expect(container.textContent).toContain(i18n.t('admin:projectFicha.portal.pinOff'));
     // With an existing share, the primary action reads "regenerate".
     expect(container.textContent).toContain(i18n.t('clientView:share.regenerate'));
   });
 
   it('with an active UNPROTECTED link still offers the PIN, with the security hint', async () => {
     svc.getClientAccessStatus.mockResolvedValueOnce(ACTIVE);
-    await renderModal();
+    await renderPanel();
 
-    // "Si no lo coloqué la primera vez, me debe preguntar otra vez."
     expect(pinCheckbox(container)).toBeTruthy();
     expect(container.textContent).toContain(i18n.t('clientView:share.pin.toggle'));
     expect(container.textContent).toContain(i18n.t('clientView:share.pin.recommend'));
     expect(container.textContent).not.toContain(i18n.t('clientView:share.pin.badgeNote'));
   });
 
-  it('regenerating an unprotected link with the PIN checked protects it (no preservePin)', async () => {
+  it('adding a PIN to an unprotected link says so on the button and sends the PIN (no preservePin)', async () => {
     svc.getClientAccessStatus
       .mockResolvedValueOnce(ACTIVE)
       .mockResolvedValueOnce({ ...ACTIVE_PIN, version: 2, shareToken: 'tok-v2' });
@@ -165,21 +154,25 @@ describe('ShareSiteLogModal', () => {
       pinRequired: true, version: 2, clientName: 'Don Roberto',
     });
 
-    await renderModal();
+    await renderPanel();
     await act(async () => {
       pinCheckbox(container)!.click();
     });
-    const pinInput = container.querySelector<HTMLInputElement>('input[inputmode="numeric"]');
-    expect(pinInput).toBeTruthy();
+    // Six boxes that behave like one field: a pasted / autofilled string
+    // landing in the first box spreads across all six.
+    const boxes = container.querySelectorAll<HTMLInputElement>('input[inputmode="numeric"]');
+    expect(boxes.length).toBe(6);
     await act(async () => {
-      const setValue = Object.getOwnPropertyDescriptor(
-        window.HTMLInputElement.prototype, 'value',
-      )!.set!;
-      setValue.call(pinInput, '135790');
-      pinInput!.dispatchEvent(new Event('input', { bubbles: true }));
+      const setValue = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')!.set!;
+      setValue.call(boxes[0], '135790');
+      boxes[0].dispatchEvent(new Event('input', { bubbles: true }));
     });
+    expect(Array.from(container.querySelectorAll<HTMLInputElement>('input[inputmode="numeric"]')).map(b => b.value).join('')).toBe('135790');
+
+    // Adding a PIN is a regeneration — the button must not pretend otherwise.
+    expect(container.textContent).toContain(i18n.t('admin:projectFicha.portal.addPin'));
     await act(async () => {
-      findButton(container, i18n.t('clientView:share.regenerate')).click();
+      findButton(container, i18n.t('admin:projectFicha.portal.addPin')).click();
     });
     await flush();
 
@@ -198,40 +191,36 @@ describe('ShareSiteLogModal', () => {
       pinRequired: true, version: 2, clientName: 'Don Roberto',
     });
 
-    await renderModal();
+    await renderPanel();
 
-    // "Si ya lo coloqué una vez, no me lo pregunta": badge instead of checkbox.
     expect(pinCheckbox(container)).toBeNull();
     expect(container.textContent).not.toContain(i18n.t('clientView:share.pin.toggle'));
-    expect(container.textContent).not.toContain(i18n.t('clientView:share.pin.recommend'));
     expect(container.textContent).toContain(i18n.t('clientView:share.pin.badge'));
     expect(container.textContent).toContain(i18n.t('clientView:share.pin.badgeNote'));
+    expect(container.textContent).toContain(i18n.t('admin:projectFicha.portal.pinOn'));
 
     await act(async () => {
       findButton(container, i18n.t('clientView:share.regenerate')).click();
     });
     await flush();
 
-    // The regeneration carries the stored PIN over instead of dropping it.
     expect(svc.generateClientAccess).toHaveBeenCalledWith(
       7,
       { pin: undefined, expiresInDays: 90, preservePin: true },
     );
     expect(pinCheckbox(container)).toBeNull();
-    expect(container.textContent).toContain(i18n.t('clientView:share.pin.badge'));
   });
 
-  it('revokes only after the confirm step', async () => {
+  it('revokes only after the in-line confirm step', async () => {
     svc.getClientAccessStatus
       .mockResolvedValueOnce(ACTIVE)
       .mockResolvedValueOnce(INACTIVE);
     svc.revokeClientAccess.mockResolvedValueOnce(undefined);
 
-    await renderModal();
+    await renderPanel();
 
-    const revokeBtn = findButton(container, i18n.t('clientView:share.revoke'));
     await act(async () => {
-      revokeBtn.click();
+      findButton(container, i18n.t('clientView:share.revoke')).click();
     });
     // First click only arms the confirmation.
     expect(svc.revokeClientAccess).not.toHaveBeenCalled();
@@ -244,5 +233,23 @@ describe('ShareSiteLogModal', () => {
 
     expect(svc.revokeClientAccess).toHaveBeenCalledWith(7);
     expect(container.textContent).toContain(i18n.t('clientView:share.revoked'));
+  });
+
+  it('a closed project shows the state and nothing to change', async () => {
+    svc.getClientAccessStatus.mockResolvedValueOnce(ACTIVE);
+    await renderPanel({ readOnly: true });
+
+    expect(container.textContent).toContain('/client-view/tok-v1');
+    expect(pinCheckbox(container)).toBeNull();
+    expect(container.textContent).not.toContain(i18n.t('clientView:share.regenerate'));
+    expect(container.textContent).not.toContain(i18n.t('clientView:share.revoke'));
+  });
+
+  it('without a client the link cannot be generated', async () => {
+    svc.getClientAccessStatus.mockResolvedValueOnce({ ...INACTIVE, clientName: null });
+    await renderPanel({ clientName: null });
+
+    expect(container.textContent).toContain(i18n.t('clientView:share.noClient'));
+    expect(findButton(container, i18n.t('clientView:share.generate')).disabled).toBe(true);
   });
 });

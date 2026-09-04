@@ -146,7 +146,8 @@ export function Spotlight({
 
   return (
     <div
-      className="fixed inset-0 z-[90]"
+      // Above the full-screen project window (z-90): its tour runs on top of it.
+      className="fixed inset-0 z-[100]"
       role="dialog"
       aria-modal="true"
       data-first-run={firstRunId}

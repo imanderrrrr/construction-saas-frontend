@@ -49,3 +49,8 @@ export function apiErrorMsg(err: unknown): string {
   if (err instanceof Error) return err.message;
   return 'An unexpected error occurred';
 }
+
+/** Missing client, cost code or contract — accounting is blocked until all three exist. Closed projects are never "incomplete". */
+export function isIncomplete(p: Project): boolean {
+  return p.status !== 'CLOSED' && (!p.clientId || !p.costCode || p.originalContractCents == null || p.originalContractCents <= 0);
+}

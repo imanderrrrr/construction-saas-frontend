@@ -197,15 +197,14 @@ export function PunchList({ projects }: { projects: PunchProject[] }) {
   if (projects.length === 0) return null;
 
   return (
-    <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden">
-      {/* Header */}
-      <div className="px-6 py-4 border-b border-[#D4D4D8] bg-[#FAFAFA]/50 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-semibold text-[#0A0A0A] inline-flex items-center gap-2">
-            <ClipboardList className="w-4 h-4 text-[#F97316]" />
+    <div className="bg-white border border-[#E7E1D5] overflow-hidden">
+      {/* Header — the subventana's title and purpose (sheet 03D) */}
+      <div className="px-4 pt-4 md:px-[22px] md:pt-5 flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="font-bt-display font-extrabold uppercase text-[24px] md:text-[26px] leading-none text-[#0A0A0A]">
             {t('internal.title')}
           </h3>
-          <p className="text-xs text-[#71717A] mt-0.5">{t('internal.subtitle')}</p>
+          <p className="text-[13.5px] leading-[1.55] text-[#5A5346] mt-1.5">{t('internal.subtitle')}</p>
         </div>
         <div className="flex items-center gap-2">
           {projects.length > 1 && (
@@ -224,7 +223,7 @@ export function PunchList({ projects }: { projects: PunchProject[] }) {
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="h-8 px-3 rounded-lg border border-[#D4D4D8] bg-white text-xs font-medium text-[#0A0A0A] hover:text-[#F97316] inline-flex items-center gap-1.5 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3.5 py-[10px] border border-[#DBD0BB] bg-white font-bt-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-[#0A0A0A] hover:border-[#F97316] hover:text-[#C2410C] transition-colors"
               >
                 <Download className="w-3.5 h-3.5" />
                 {t('internal.export')}
@@ -244,7 +243,7 @@ export function PunchList({ projects }: { projects: PunchProject[] }) {
           <button
             type="button"
             onClick={() => setCreateOpen((v) => !v)}
-            className="h-8 px-3 rounded-lg bg-[#F97316] hover:bg-[#C2410C] text-white text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3.5 py-[10px] bg-[#0A0A0A] text-[#F5F1E8] hover:bg-[#F97316] hover:text-[#0A0A0A] font-bt-mono text-[10px] font-semibold uppercase tracking-[0.1em] transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
             {t('internal.new')}
@@ -252,7 +251,7 @@ export function PunchList({ projects }: { projects: PunchProject[] }) {
         </div>
       </div>
 
-      <div className="p-4 sm:p-6 space-y-4">
+      <div className="px-4 py-4 md:px-[22px] md:pb-5 space-y-4">
         {/* Create form */}
         {createOpen && project && (
           <InternalCreateForm
@@ -266,7 +265,7 @@ export function PunchList({ projects }: { projects: PunchProject[] }) {
         )}
 
         {/* Status filter chips */}
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label={t('internal.filter.all')}>
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label={t('internal.filter.all')} data-tour="sec.projects-ficha-pendientes.states">
           {STATUS_FILTERS.map((sf) => (
             <button
               key={sf}
@@ -402,7 +401,7 @@ function PunchItemCard({ item, assignees, detail, fmtDate, onChanged, onToggleTi
           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_STYLES[item.status]}`}>
             {t(`status.${item.status}`)}
           </span>
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-white text-[#71717A] border-[#D4D4D8]">
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-white text-[#71717A] border-[#D4D4D8]" data-tour="sec.projects-ficha-pendientes.origin">
             {t(`internal.origin.${item.origin}`)}
           </span>
           {item.reopenCount > 0 && (
@@ -414,6 +413,7 @@ function PunchItemCard({ item, assignees, detail, fmtDate, onChanged, onToggleTi
         <div className="flex items-center gap-1">
           <button
             type="button"
+            data-tour="sec.projects-ficha-pendientes.review"
             onClick={() => void toggleThread()}
             className="h-7 px-2.5 rounded-lg text-[11px] font-medium text-[#71717A] hover:bg-white inline-flex items-center gap-1.5 border border-transparent hover:border-[#D4D4D8] transition-colors"
           >
@@ -506,6 +506,7 @@ function PunchItemCard({ item, assignees, detail, fmtDate, onChanged, onToggleTi
             {canReady && (
               <button
                 type="button"
+                data-tour="sec.projects-ficha-pendientes.ready"
                 disabled={busy}
                 onClick={() => { setReadyOpen((v) => !v); setCloseOpen(false); }}
                 className="h-8 px-3 rounded-lg bg-[#F97316] hover:bg-[#C2410C] disabled:opacity-50 text-white text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"

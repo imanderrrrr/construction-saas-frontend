@@ -13,10 +13,15 @@ import { Mono } from '../bt';
  * circle; click or drag sets the coordinates. Square zoom buttons replace
  * Leaflet's rounded control so the map speaks the panel's language.
  */
-export function LocationMap({ lat, lng, radius, onLocationChange, className }: {
+export function LocationMap({ lat, lng, radius, onLocationChange, className, readOnly = false, stamp: stampOverride, zoom: initialZoom = 14 }: {
   lat: string; lng: string; radius: number;
-  onLocationChange: (lat: string, lng: string) => void;
+  onLocationChange?: (lat: string, lng: string) => void;
   className?: string;
+  /** The ficha's map: pin fixed, no click-to-move; the stamp says so. */
+  readOnly?: boolean;
+  /** Replaces the `lat · lng · geocerca` stamp at the bottom-left. */
+  stamp?: string;
+  zoom?: number;
 }) {
   const { t } = useTranslation('admin');
   const mapRef = useRef<HTMLDivElement>(null);
@@ -47,22 +52,24 @@ export function LocationMap({ lat, lng, radius, onLocationChange, className }: {
     const defaultLat = lat ? parseFloat(lat) : 20.674;
     const defaultLng = lng ? parseFloat(lng) : -103.338;
 
-    const map = L.map(mapRef.current, { zoomControl: false }).setView([defaultLat, defaultLng], 14);
+    const map = L.map(mapRef.current, { zoomControl: false }).setView([defaultLat, defaultLng], initialZoom);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }).addTo(map);
     const icon = L.divIcon({ className: 'bt-map-pin', iconSize: [18, 18], iconAnchor: [9, 9] });
-    const marker = L.marker([defaultLat, defaultLng], { draggable: true, icon }).addTo(map);
+    const marker = L.marker([defaultLat, defaultLng], { draggable: !readOnly, icon }).addTo(map);
     const circle = L.circle([defaultLat, defaultLng], { radius, color: '#F97316', weight: 2, fillColor: '#F97316', fillOpacity: 0.14 }).addTo(map);
 
-    marker.on('dragend', () => {
-      const pos = marker.getLatLng();
-      circle.setLatLng(pos);
-      onLocationChange(pos.lat.toFixed(6), pos.lng.toFixed(6));
-    });
-    map.on('click', (e: any) => {
-      marker.setLatLng(e.latlng);
-      circle.setLatLng(e.latlng);
-      onLocationChange(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6));
-    });
+    if (!readOnly) {
+      marker.on('dragend', () => {
+        const pos = marker.getLatLng();
+        circle.setLatLng(pos);
+        onLocationChange?.(pos.lat.toFixed(6), pos.lng.toFixed(6));
+      });
+      map.on('click', (e: any) => {
+        marker.setLatLng(e.latlng);
+        circle.setLatLng(e.latlng);
+        onLocationChange?.(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6));
+      });
+    }
 
     mapInstanceRef.current = map;
     markerRef.current = marker;
@@ -116,7 +123,7 @@ export function LocationMap({ lat, lng, radius, onLocationChange, className }: {
         <button type="button" onClick={() => zoom(-1)} aria-label="−" className={cn('w-7 h-7 border border-t-0 border-[#DBD0BB] bg-[#FAF7F0] font-bt-mono text-[14px] text-[#0A0A0A] hover:border-[#F97316] hover:text-[#C2410C]', FOCUS_RING)}>−</button>
       </div>
       <Mono className="absolute left-3 bottom-3 z-[1] text-[9px] tracking-[0.08em] text-[#5A5346] bg-[#FAF7F0] border border-[#DBD0BB] px-2 py-[5px] max-w-[calc(100%-24px)] truncate">
-        {stamp}{t('projectForm.geofenceStamp', { meters: radius.toLocaleString('en-US') })}
+        {stampOverride ?? <>{stamp}{t('projectForm.geofenceStamp', { meters: radius.toLocaleString('en-US') })}</>}
       </Mono>
     </div>
   );

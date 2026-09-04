@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { useTourScopeWhileMounted } from '../../lib/tourScope';
 import { useTranslation } from 'react-i18next';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -150,9 +151,18 @@ export function ProjectWindow({ onClose, onSaved, editProject }: {
     if (key === 'contractAmount') setContractError('');
   };
 
-  // Escape closes, unless a save is in flight.
+  // The window covers the section, so its four-stop tour takes over while it
+  // is open (lib/tourScope) — the "?" replays it, not the list's.
+  useTourScopeWhileMounted('projects-crear', t('admin:projectForm.createTitle'));
+
+  // Escape closes, unless a save is in flight or the tour is on top (its own
+  // Escape is "skip"; closing the window under it would strand the spotlight).
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !saving && !clientCreateOpen) onClose(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || saving || clientCreateOpen) return;
+      if (document.querySelector('[data-testid="tour-spotlight-card"]')) return;
+      onClose();
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose, saving, clientCreateOpen]);
@@ -302,7 +312,7 @@ export function ProjectWindow({ onClose, onSaved, editProject }: {
                   <MoneyInput id="project-contract-m" value={form.contractAmount} onChange={v => update('contractAmount', v)} onBlur={() => { if (form.contractAmount) update('contractAmount', formatUSD(form.contractAmount)); }} placeholder="0.00" disabled={saving} />
                   {contractError && <FieldError>{contractError}</FieldError>}
                 </div>
-                <div className="flex gap-3.5 flex-wrap">
+                <div className="flex gap-3.5 flex-wrap" data-tour="sec.projects-crear.identity">
                   <div className="w-full md:w-[200px]">
                     <FieldLabel htmlFor="project-code">{t('admin:projectForm.costCode')}</FieldLabel>
                     <input id="project-code" value={form.costCode} onChange={e => update('costCode', e.target.value.toUpperCase())} placeholder={t('admin:projectForm.costCodePlaceholder')}
@@ -319,7 +329,7 @@ export function ProjectWindow({ onClose, onSaved, editProject }: {
 
             <section className="hidden md:block">
               <SectionRule n="02" label={t('admin:projectForm.sec2')} />
-              <div className="flex gap-5 flex-wrap">
+              <div className="flex gap-5 flex-wrap" data-tour="sec.projects-crear.money">
                 <div className="w-[220px]">
                   <FieldLabel htmlFor="project-contract" required={!isEdit}>{t('admin:projectForm.contractAmount')}</FieldLabel>
                   <MoneyInput id="project-contract" value={form.contractAmount} onChange={v => update('contractAmount', v)} onBlur={() => { if (form.contractAmount) update('contractAmount', formatUSD(form.contractAmount)); }} placeholder="0.00" disabled={saving} />
@@ -344,9 +354,11 @@ export function ProjectWindow({ onClose, onSaved, editProject }: {
 
           {/* Right: address, map, geofence (desktop, sticky) */}
           <div className="hidden md:flex flex-col gap-3.5 min-w-0 md:sticky md:top-0 self-start">
-            {addressField}
-            {mapField('h-[380px] flex-shrink-0 xl:h-[440px]')}
-            {geofenceField}
+            <div className="flex flex-col gap-3.5" data-tour="sec.projects-crear.address">
+              {addressField}
+              {mapField('h-[380px] flex-shrink-0 xl:h-[440px]')}
+            </div>
+            <div data-tour="sec.projects-crear.geofence">{geofenceField}</div>
           </div>
 
           {/* Phone: one column, the map between the address and the coordinates */}

@@ -19,14 +19,14 @@ import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 import { FOCUS_RING, SecondaryButton, PrimaryButton } from '../onboarding/chrome';
 
 import type { Project, UserForAssign, Role, ProjectView } from './types';
-import { toProject, apiErrorMsg } from './helpers';
+import { toProject, apiErrorMsg, isIncomplete } from './helpers';
 import { AssignedAvatars, ContractBar, IncompleteChip, StatusBadge } from './badges';
 import { Bone, CreateButton, EmptyWord, Mono, MonoSelect, PaperNote, stampDate, stampDay } from './bt';
 import { AssignUsersModal } from './AssignUsersModal';
 import { ToggleStatusModal } from './ToggleStatusModal';
 import { CloseProjectModal } from './CloseProjectModal';
 import { DeleteProjectModal } from './DeleteProjectModal';
-import { ProjectDetailsView } from './ProjectDetailsView';
+import { ProjectFicha } from './ProjectFicha';
 import { ProjectWindow } from './ProjectWindow';
 
 /**
@@ -60,11 +60,7 @@ function missingParts(p: Project, t: (k: string) => string): string[] {
   return out;
 }
 
-export function isIncomplete(p: Project): boolean {
-  return p.status !== 'CLOSED' && (!p.clientId || !p.costCode || p.originalContractCents == null || p.originalContractCents <= 0);
-}
-
-export function ProjectManagement() {
+export function ProjectManagement({ onNavigate }: { onNavigate?: (section: 'billing') => void } = {}) {
   const { t, i18n } = useTranslation(['admin', 'common']);
   const lang = i18n.language;
   const [projects, setProjects] = useState<Project[]>([]);
@@ -222,7 +218,7 @@ export function ProjectManagement() {
   if (view === 'details' && selectedProject) {
     return (
       <>
-        <ProjectDetailsView
+        <ProjectFicha
           project={selectedProject}
           allUsers={allUsers}
           usersLoading={usersLoading}
@@ -230,7 +226,9 @@ export function ProjectManagement() {
           onAssign={() => setAssignOpen(true)}
           onToggleStatus={() => setToggleStatusOpen(true)}
           onCloseProject={() => setCloseProjectOpen(true)}
+          onDelete={() => setDeleteProjectOpen(true)}
           onEdit={() => setEditOpen(true)}
+          onPlans={onNavigate ? () => onNavigate('billing') : undefined}
         />
         {editOpen && (
           <ProjectWindow onClose={() => setEditOpen(false)} onSaved={handleProjectSaved} editProject={selectedProject} />
@@ -238,6 +236,7 @@ export function ProjectManagement() {
         <AssignUsersModal project={selectedProject} open={assignOpen} onClose={() => setAssignOpen(false)} onAssigned={handleAssigned} />
         <ToggleStatusModal project={selectedProject} open={toggleStatusOpen} onClose={() => setToggleStatusOpen(false)} onConfirmed={replaceProject} />
         <CloseProjectModal project={selectedProject} open={closeProjectOpen} onClose={() => setCloseProjectOpen(false)} onConfirmed={replaceProject} />
+        <DeleteProjectModal project={selectedProject} open={deleteProjectOpen} onClose={() => setDeleteProjectOpen(false)} onDeleted={handleProjectDeleted} />
       </>
     );
   }

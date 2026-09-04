@@ -121,7 +121,8 @@ export function stampDate(iso: string, lang: string): string {
 /** "03 SEPT 2026" — the header's business-date stamp. */
 export function stampDay(iso: string, lang: string): string {
   try {
-    return new Date(`${iso}T00:00:00`)
+    // A bare business date gets a local midnight; a full ISO timestamp is used as is.
+    return new Date(/^\d{4}-\d{2}-\d{2}$/.test(iso) ? `${iso}T00:00:00` : iso)
       .toLocaleDateString(lang.startsWith('es') ? 'es-GT' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' })
       .replace(/\./g, '')
       .toUpperCase();

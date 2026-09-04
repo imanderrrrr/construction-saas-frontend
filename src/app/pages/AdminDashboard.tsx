@@ -670,7 +670,7 @@ export function AdminDashboard() {
               <SubcontractorManagement />
             </Suspense></SectionErrorBoundary>
           )}
-          {activeSection === 'projects'     && <ProjectManagement />}
+          {activeSection === 'projects'     && <ProjectManagement onNavigate={handleNavigate} />}
           {activeSection === 'clients'      && <ClientManagement />}
           {activeSection === 'audit'        && <AuditLog />}
           {activeSection === 'time-approvals'&& <ApprovalsInbox />}
