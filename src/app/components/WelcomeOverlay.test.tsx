@@ -1,8 +1,11 @@
 // The welcome ceremony: starts when the login asks for it, greets by name
 // (username when there is no full name), shows the company once branding
 // answers, holds the screen at least the sheet's minimum, leaves when the
-// dashboard says it painted, never later than the cap — and takes its turn
-// in the first-run row (after the brand intro, before the tour).
+// route behind it has settled (the dashboard painted, or nothing is loading
+// any more), holds while a splash is still loading behind it, never later
+// than the cap — and takes its turn in the first-run row (after the brand
+// intro, before the tour). The splash is the same stage without the
+// greeting, and it tells the welcome that something is loading.
 
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -16,7 +19,7 @@ vi.mock('react-i18next', () => ({
 import { WelcomeOverlay, Splash, WELCOME_MIN_MS, WELCOME_MAX_MS, WELCOME_FADE_MS } from './WelcomeOverlay';
 import { endWelcome, resetWelcome, setWelcomeCompany, startWelcome } from '../lib/welcome';
 import { FIRST_RUN_ORDER, firstRunHolder, resetFirstRunQueue, useFirstRunTurn } from '../lib/firstRunQueue';
-import { DASHBOARD_READY_ATTR } from '../lib/dashboardReady';
+import { DASHBOARD_READY_ATTR, SPLASH_ACTIVE_ATTR, isSplashActive } from '../lib/dashboardReady';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -27,6 +30,7 @@ function FakeIntro({ pending }: { pending: boolean }) {
 }
 
 const overlay = () => document.querySelector<HTMLElement>('[data-testid="welcome-overlay"]');
+const splash = () => document.querySelector<HTMLElement>('[data-testid="splash"]');
 
 describe('WelcomeOverlay', () => {
   let container: HTMLDivElement;
@@ -44,6 +48,7 @@ describe('WelcomeOverlay', () => {
     resetFirstRunQueue();
     resetWelcome();
     document.body.removeAttribute(DASHBOARD_READY_ATTR);
+    document.body.removeAttribute(SPLASH_ACTIVE_ATTR);
     window.matchMedia = ((query: string) => ({
       matches: false, media: query, onchange: null,
       addListener: vi.fn(), removeListener: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn(), dispatchEvent: vi.fn(),
@@ -59,6 +64,7 @@ describe('WelcomeOverlay', () => {
     resetFirstRunQueue();
     resetWelcome();
     document.body.removeAttribute(DASHBOARD_READY_ATTR);
+    document.body.removeAttribute(SPLASH_ACTIVE_ATTR);
     vi.useRealTimers();
   });
 
@@ -104,23 +110,38 @@ describe('WelcomeOverlay', () => {
     expect(firstRunHolder()).toBeNull();
   });
 
-  it('waits for the dashboard past the minimum, and leaves the moment it is ready', async () => {
-    await render(<WelcomeOverlay />);
+  it('holds while a splash is still loading behind it, and leaves the moment the dashboard paints', async () => {
+    await render(<><WelcomeOverlay /><Splash /></>);
     await act(async () => startWelcome('Ana Ruiz'));
+    expect(isSplashActive()).toBe(true);
 
-    await advance(WELCOME_MIN_MS + 1_000);
+    await advance(WELCOME_MIN_MS + 3_000);
     expect(overlay()!.getAttribute('data-fading')).toBe('false');
 
+    // The guard resolves: its splash goes, the dashboard mounts and marks itself ready.
     document.body.setAttribute(DASHBOARD_READY_ATTR, '1');
+    await render(<WelcomeOverlay />);
     await advance(200);
     expect(overlay()!.getAttribute('data-fading')).toBe('true');
   });
 
-  it('never holds the screen past the cap, dashboard or not', async () => {
+  it('leaves after the minimum when nothing behind is loading, even without a dashboard (a page outside the panels)', async () => {
     await render(<WelcomeOverlay />);
     await act(async () => startWelcome('Ana Ruiz'));
 
-    await advance(WELCOME_MAX_MS + 200);
+    await advance(WELCOME_MIN_MS - 50);
+    expect(overlay()!.getAttribute('data-fading')).toBe('false');
+    await advance(100);
+    expect(overlay()!.getAttribute('data-fading')).toBe('true');
+  });
+
+  it('never holds the screen past the cap, splash or not', async () => {
+    await render(<><WelcomeOverlay /><Splash /></>);
+    await act(async () => startWelcome('Ana Ruiz'));
+
+    await advance(WELCOME_MAX_MS - 200);
+    expect(overlay()!.getAttribute('data-fading')).toBe('false');
+    await advance(400);
     expect(overlay()!.getAttribute('data-fading')).toBe('true');
     await advance(WELCOME_FADE_MS + 10);
     expect(overlay()).toBeNull();
@@ -152,11 +173,27 @@ describe('WelcomeOverlay', () => {
     expect(firstRunHolder()).toBeNull();
   });
 
-  it('the splash is the same screen without the greeting', async () => {
+  it('the splash is the same stage without the greeting, and says it is loading while mounted', async () => {
     await render(<Splash />);
-    const splash = document.querySelector('[data-testid="splash"]')!;
-    expect(splash.textContent).toContain('auth:welcome.loading');
-    expect(splash.textContent).not.toContain('auth:welcome.kicker');
-    expect(splash.getAttribute('data-first-run')).toBeNull();
+    expect(splash()!.textContent).toContain('auth:welcome.loading');
+    expect(splash()!.textContent).not.toContain('auth:welcome.entering');
+    expect(splash()!.getAttribute('data-first-run')).toBeNull();
+    // Same geometry: the greeting's slots are there, just invisible.
+    expect(splash()!.querySelectorAll('.invisible').length).toBe(3);
+    expect(isSplashActive()).toBe(true);
+
+    await render(null);
+    expect(isSplashActive()).toBe(false);
+  });
+
+  it('a welcome that opens over a splash does not replay the entrance — only the greeting arrives', async () => {
+    await render(<><Splash /><WelcomeOverlay /></>);
+    await act(async () => startWelcome('Ana Ruiz'));
+    expect(overlay()!.getAttribute('data-over-splash')).toBe('true');
+
+    await render(<WelcomeOverlay />);
+    await act(async () => { resetWelcome(); });
+    await act(async () => startWelcome('Ana Ruiz'));
+    expect(overlay()!.getAttribute('data-over-splash')).toBeNull();
   });
 });
