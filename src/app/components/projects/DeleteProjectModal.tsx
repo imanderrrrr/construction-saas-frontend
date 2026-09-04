@@ -1,24 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertCircle, Loader2, Check, AlertTriangle, Trash2 } from 'lucide-react';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import {
-  Dialog, DialogContent, DialogDescription,
-  DialogFooter, DialogHeader, DialogTitle,
-} from '../ui/dialog';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { deleteProject as apiDeleteProject } from '../../services/projects';
 import { ApiError } from '../../lib/api';
+import { DestroyButton, SecondaryButton } from '../onboarding/chrome';
+import { BtModal, BulletList } from '../bt/windows';
 import { apiErrorMsg } from './helpers';
-import { FIELD_LIMITS } from '../../../shared/fieldLimits';
+import { PaperNote } from './bt';
+import { NameChallenge, nameMatches } from './NameChallenge';
 
 /**
- * AP Block 4 — soft-delete a project, guarded by a type-the-name challenge
- * (same pattern as CloseProjectModal). The backend refuses (409
- * PROJECT_HAS_ACTIVE_RECORDS) while the project still has bills, expenses,
- * time records or any other financial/operational history — that message
- * lists what is blocking and is surfaced verbatim.
+ * 04D — soft-delete a project, 520 px, guarded by a type-the-name challenge.
+ * The backend refuses (409 PROJECT_HAS_ACTIVE_RECORDS) while the project
+ * still has bills, expenses, time records or any other history — that
+ * message lists what is blocking and is shown verbatim, followed by the way
+ * out ("desactívalo o ciérralo").
  */
 // Only id + name are needed, so the Budgets screen (which works with its own
 // Budget shape) can reuse this modal alongside ProjectManagement.
@@ -32,7 +29,7 @@ export function DeleteProjectModal({ project, open, onClose, onDeleted }: {
   const [blockedMsg, setBlockedMsg] = useState<string | null>(null);
 
   const projectName = project?.name ?? '';
-  const isMatch = confirmation.trim() === projectName;
+  const isMatch = nameMatches(confirmation, projectName);
 
   useEffect(() => {
     if (open) { setConfirmation(''); setBlockedMsg(null); }
@@ -58,7 +55,7 @@ export function DeleteProjectModal({ project, open, onClose, onDeleted }: {
       handleClose();
     } catch (err) {
       if (err instanceof ApiError && err.code === 'PROJECT_HAS_ACTIVE_RECORDS') {
-        // Keep the dialog open and show exactly what blocks the deletion.
+        // Keep the window open and show exactly what blocks the deletion.
         setBlockedMsg(err.message);
       } else {
         toast.error(t('admin:projectModals.delete.toastError'), { description: apiErrorMsg(err) });
@@ -70,80 +67,50 @@ export function DeleteProjectModal({ project, open, onClose, onDeleted }: {
   if (!project) return null;
 
   return (
-    <Dialog open={open} onOpenChange={o => { if (!o && !isLoading) handleClose(); }}>
-      <DialogContent className="sm:max-w-md bg-white">
-        <DialogHeader>
-          <div className="w-14 h-14 rounded-xl bg-red-50 flex items-center justify-center mx-auto mb-2">
-            <Trash2 className="w-7 h-7 text-red-600" />
-          </div>
-          <DialogTitle className="text-center text-[#0A0A0A]">
-            {t('admin:projectModals.delete.title')}
-          </DialogTitle>
-          <DialogDescription className="text-center">
-            {t('admin:projectModals.delete.description')}
-          </DialogDescription>
-        </DialogHeader>
+    <BtModal
+      open={open}
+      onOpenChange={o => { if (!o && !isLoading) handleClose(); }}
+      width={520}
+      kicker={t('admin:projectModals.close.kicker')}
+      kickerTone="red"
+      title={t('admin:projectModals.delete.title')}
+      description={t('admin:projectModals.delete.description')}
+      closeDisabled={isLoading}
+      dismissible={false}
+      footer={(
+        <>
+          <SecondaryButton onClick={handleClose} disabled={isLoading} className="px-4 py-[11px]">{t('common:buttons.cancel')}</SecondaryButton>
+          <DestroyButton onClick={handleConfirm} disabled={!isMatch || isLoading} className="px-4 py-[11px]">
+            {isLoading ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />{t('admin:projectModals.delete.deleting')}</> : t('admin:projectModals.delete.submit')}
+          </DestroyButton>
+        </>
+      )}
+    >
+      <PaperNote tone="red">
+        <p className="text-[13.5px] font-semibold text-[#0A0A0A] mb-2">{t('admin:projectModals.delete.warningTitle')}</p>
+        <BulletList items={[1, 2, 3].map(n => t(`admin:projectModals.delete.point${n}`))} />
+      </PaperNote>
 
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-2">
-          <div className="flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
-            <div className="text-xs text-red-800 space-y-1">
-              <p className="font-semibold">{t('admin:projectModals.delete.warningTitle')}</p>
-              <ul className="list-disc ml-4 space-y-0.5 text-red-700">
-                <li>{t('admin:projectModals.delete.point1')}</li>
-                <li>{t('admin:projectModals.delete.point2')}</li>
-                <li>{t('admin:projectModals.delete.point3')}</li>
-              </ul>
-            </div>
-          </div>
-        </div>
+      <div className="mt-5">
+        <NameChallenge
+          id="delete-project-name"
+          name={projectName}
+          value={confirmation}
+          onChange={setConfirmation}
+          label={t('admin:projectModals.delete.confirmLabel')}
+          placeholder={t('admin:projectModals.delete.confirmPlaceholder')}
+          mismatchText={t('admin:projectModals.delete.mismatch')}
+          confirmedText={t('admin:projectModals.delete.confirmed')}
+          disabled={isLoading}
+        />
+      </div>
 
-        {blockedMsg && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-            <p className="text-xs font-semibold text-amber-800 mb-1">{t('admin:projectModals.delete.blockedTitle')}</p>
-            <p className="text-xs text-amber-800">{blockedMsg}</p>
-          </div>
-        )}
-
-        <div className="space-y-2">
-          <label className="text-xs font-semibold text-[#0A0A0A]">
-            {t('admin:projectModals.delete.confirmLabel')}
-          </label>
-          <div className="bg-[#FAFAFA] border border-[#D4D4D8] rounded-lg px-3 py-2 mb-1">
-            <p className="text-sm font-mono font-semibold text-[#0A0A0A] select-all break-all">{projectName}</p>
-          </div>
-          <Input
-            value={confirmation}
-            onChange={e => setConfirmation(e.target.value)}
-            placeholder={t('admin:projectModals.delete.confirmPlaceholder')}
-            maxLength={FIELD_LIMITS.SHORT_NAME}
-            className={`h-10 text-sm ${isMatch ? 'border-emerald-400 bg-emerald-50/30 focus-visible:ring-emerald-200' : 'border-[#D4D4D8]'}`}
-            disabled={isLoading}
-            autoComplete="off"
-          />
-          {confirmation.length > 0 && !isMatch && (
-            <p className="flex items-center gap-1 text-[11px] text-red-600">
-              <AlertCircle className="w-3 h-3" />{t('admin:projectModals.delete.mismatch')}
-            </p>
-          )}
-          {isMatch && (
-            <p className="flex items-center gap-1 text-[11px] text-emerald-600">
-              <Check className="w-3 h-3" />{t('admin:projectModals.delete.confirmed')}
-            </p>
-          )}
-        </div>
-
-        <DialogFooter className="flex-col sm:flex-row gap-2 pt-2">
-          <Button type="button" variant="outline" onClick={handleClose} disabled={isLoading}
-              className="flex-1 border-[#D4D4D8] text-[#0A0A0A]">{t('common:buttons.cancel')}</Button>
-          <Button type="button" onClick={handleConfirm} disabled={!isMatch || isLoading}
-            className="flex-1 gap-2 bg-red-600 hover:bg-red-700 text-white disabled:opacity-40">
-            {isLoading
-              ? <><Loader2 className="w-4 h-4 animate-spin" />{t('admin:projectModals.delete.deleting')}</>
-              : <><Trash2 className="w-4 h-4" />{t('admin:projectModals.delete.submit')}</>}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      {blockedMsg && (
+        <PaperNote tone="red" className="mt-4" data-testid="delete-blocked">
+          <p className="text-[13.5px] font-semibold text-[#0A0A0A]">{t('admin:projectModals.delete.blockedTitle')}</p>
+          <p className="text-[13px] leading-[1.5] text-[#5A5346] mt-1">{blockedMsg} {t('admin:projectModals.delete.blockedHint')}</p>
+        </PaperNote>
+      )}
+    </BtModal>
   );
 }

@@ -25,7 +25,21 @@ export const SECTION_TOUR_STEPS: Record<string, string[]> = {
   hours: ['kpis', 'filters', 'list'],
   'labor-cost': ['kpis', 'filters', 'list'],
   'labor-payroll': ['kpis', 'filters', 'list'],
-  projects: ['create', 'filters', 'table'],
+  projects: ['kpis', 'filters', 'table', 'menu'],
+  // Screens inside Proyectos that claim the tour while on screen (see
+  // lib/tourScope): the create/edit window and each tab of the ficha. Keyed
+  // like sections so the seen-flag, the copy and the banner fallback need no
+  // special case. The Pendientes / Consultas stops sit on cards, so with no
+  // items only the stable stops survive and an empty tab degrades to the
+  // banner — the sheet's stated behaviour for a subventana with nothing to
+  // point at.
+  'projects-crear': ['identity', 'money', 'address', 'geofence'],
+  'projects-ficha-resumen': ['bar', 'map', 'team'],
+  'projects-ficha-dinero': ['billing', 'contract', 'co-form', 'history'],
+  'projects-ficha-equipo': ['table', 'assign'],
+  'projects-ficha-pendientes': ['states', 'origin', 'ready', 'review'],
+  'projects-ficha-consultas': ['draft', 'turn', 'impacts', 'official'],
+  'projects-ficha-portal': ['link', 'pin', 'expiry'],
   clients: ['add-client', 'search'],
   subcontractors: ['tabs', 'job-kpis', 'job-filters', 'jobs-table'],
   schedules: ['project-picker', 'add-task'],

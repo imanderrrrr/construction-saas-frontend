@@ -96,16 +96,43 @@ function buildQuery(params: Record<string, string | number | undefined | null>):
 export async function listProjects(params: {
   search?: string;
   status?: ProjectStatus;
+  /** Only projects of this client. */
+  clientId?: number;
+  /** Only open projects missing client, cost code or contract (the ficha's banner rule). */
+  incomplete?: boolean;
+  /** Only projects whose budget remainder is negative. */
+  overBudget?: boolean;
   page?: number;   // 0-based for backend
   size?: number;
 } = {}): Promise<ProjectsPage> {
   const q = buildQuery({
     search: params.search,
     status: params.status,
+    clientId: params.clientId,
+    // Booleans travel only when set: the backend defaults them to false and
+    // an explicit "false" would just be noise in every request.
+    incomplete: params.incomplete ? 'true' : undefined,
+    overBudget: params.overBudget ? 'true' : undefined,
     page: params.page,
     size: params.size,
   });
   return api<ProjectsPage>(`/api/v1/admin/projects${q}`);
+}
+
+/** The list's leading numbers, counted over every project of the tenant. */
+export interface ProjectSummary {
+  total: number;
+  active: number;
+  inactive: number;
+  closed: number;
+  /** Open projects missing client, cost code or contract — accounting is blocked on them. */
+  incomplete: number;
+  /** Projects whose budget remainder is below zero, any status. */
+  overBudget: number;
+}
+
+export async function getProjectsSummary(): Promise<ProjectSummary> {
+  return api<ProjectSummary>('/api/v1/admin/projects/summary');
 }
 
 export async function getProject(id: number): Promise<ProjectResponse> {

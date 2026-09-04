@@ -1,14 +1,17 @@
 // BuildTrack — Internal RFI view ("Consultas de obra", Procore-style).
-// Shared by the admin project-details card and the supervisor section:
-// drafts (edit/send/discard), the answer thread with the client, impacts,
-// and closing with THE official response. Look & feel mirrors the punch list.
+// Shared by the admin project ficha (Consultas tab) and the supervisor
+// section: drafts (edit/send/discard), the answer thread with the client,
+// impacts, and closing with THE official response.
+//
+// Look (Claude Design "Proyectos BuildTrack" 03E + "Proyectos Ventanas"
+// 04J–04L): cards with an edge only when it is our move (orange) or the answer
+// is overdue (red); the draft card is dashed on paper; the new / edit form is
+// a 492 px drawer; impacts and replies are in-line panels; closing is a modal
+// because it freezes the record.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  Camera, CheckCircle2, HelpCircle, History, Loader2, MessageSquare,
-  Pencil, Plus, Send, Trash2, X,
-} from 'lucide-react';
+import { ArrowRight, Loader2, MessageSquare, Plus, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   addRfiResponse,
@@ -30,6 +33,12 @@ import {
 } from '../../services/rfis';
 import { AuthImage } from '../sitelog/AuthImage';
 import { Lightbox, type LightboxImage } from '../sitelog/Lightbox';
+import { cn } from '../ui/utils';
+import { DestroyButton, FOCUS_RING, PrimaryButton, SecondaryButton, TertiaryButton } from '../onboarding/chrome';
+import { BtDrawer, BtModal } from '../bt/windows';
+import { PhotoGrid, usePhotoPicker, type PickerMessages } from '../bt/PhotoPicker';
+import { Bone, CreateButton, EmptyWord, FieldError, FieldHint, FieldLabel, INPUT, INPUT_MONO, Mono, MonoSelect, PaperNote } from '../projects/bt';
+import { initialsOf } from '../projects/badges';
 
 export interface RfiProject {
   id: number;
@@ -38,12 +47,16 @@ export interface RfiProject {
 
 const STATUS_FILTERS: (RfiStatus | 'ALL')[] = ['ALL', 'DRAFT', 'OPEN', 'RESPONDED', 'CLOSED'];
 
-const STATUS_STYLES: Record<RfiStatus, string> = {
-  DRAFT: 'bg-zinc-100 text-zinc-600 border-zinc-200',
-  OPEN: 'bg-amber-50 text-amber-700 border-amber-200',
-  RESPONDED: 'bg-blue-50 text-blue-700 border-blue-200',
-  CLOSED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+const CHIP = 'inline-flex items-center font-bt-mono text-[9.5px] uppercase tracking-[0.1em] leading-none px-2 py-[5px] whitespace-nowrap';
+const STATUS_LOOK: Record<RfiStatus, string> = {
+  DRAFT: 'border border-[#CDBFA6] text-[#8A8175]',
+  OPEN: 'border border-[#DBD0BB] text-[#5A5346]',
+  RESPONDED: 'bg-[#F3EEE4] text-[#0A0A0A]',
+  CLOSED: 'bg-[#0A0A0A] text-[#F5F1E8]',
 };
+const CHIP_FILTER = 'px-3 py-[7px] border font-bt-mono text-[10px] font-semibold uppercase tracking-[0.1em] whitespace-nowrap transition-colors';
+const TEXTAREA = cn(INPUT, 'h-auto min-h-[62px] py-2 resize-y text-[13.5px] leading-[1.5]');
+const IMPACT_OPTIONS: RfiImpact[] = ['YES', 'NO', 'TBD'];
 
 const fmtUsd = (cents: number): string =>
   `$${(cents / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
@@ -131,7 +144,8 @@ export function RfiList({ projects }: { projects: RfiProject[] }) {
       id: p.id,
       url: rfiPhotoUrl(rfi.id, p.id),
       alt: rfi.subject,
-      caption: p.fileName,
+      caption: t('internal.photoOf', { number: rfi.displayNumber ?? rfi.subject }),
+      meta: t('internal.photoBy', { name: p.uploadedByName ?? '—', date: fmtDate(p.createdAt) }),
       downloadName: p.fileName ?? `rfi-${rfi.id}-${p.id}`,
     }));
     const index = Math.max(0, images.findIndex((img) => img.id === photoId));
@@ -143,110 +157,85 @@ export function RfiList({ projects }: { projects: RfiProject[] }) {
   const visibleItems = mineOnly ? items.filter((it) => it.ballInCourt === 'COMPANY') : items;
 
   return (
-    <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden">
-      {/* Header */}
-      <div className="px-6 py-4 border-b border-[#D4D4D8] bg-[#FAFAFA]/50 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-semibold text-[#0A0A0A] inline-flex items-center gap-2">
-            <HelpCircle className="w-4 h-4 text-[#F97316]" />
+    <div className="bg-white border border-[#E7E1D5] overflow-hidden">
+      {/* Header — the subventana's title and purpose (sheet 03E) */}
+      <div className="px-4 pt-4 md:px-[22px] md:pt-5 flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="font-bt-display font-extrabold uppercase text-[24px] md:text-[26px] leading-none text-[#0A0A0A]">
             {t('internal.title')}
           </h3>
-          <p className="text-xs text-[#71717A] mt-0.5">{t('internal.subtitle')}</p>
+          <p className="text-[13.5px] leading-[1.55] text-[#5A5346] mt-1.5">{t('internal.subtitle')}</p>
         </div>
         <div className="flex items-center gap-2">
           {projects.length > 1 && (
-            <select
+            <MonoSelect
               aria-label={t('internal.project')}
               value={projectId ?? ''}
               onChange={(e) => setProjectId(Number(e.target.value))}
-              className="h-8 rounded-lg border border-[#D4D4D8] bg-white px-2 text-xs font-medium text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[#F97316]"
+              className="h-[38px] py-0"
             >
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
-            </select>
+            </MonoSelect>
           )}
-          <button
-            type="button"
-            onClick={() => setCreateOpen((v) => !v)}
-            className="h-9 px-4 rounded-lg bg-[#F97316] hover:bg-[#C2410C] text-white text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
-          >
+          <CreateButton onClick={() => setCreateOpen(true)} className="px-3.5 py-[10px] text-[10px]">
             <Plus className="w-3.5 h-3.5" />
             {t('internal.new')}
-          </button>
+          </CreateButton>
         </div>
       </div>
 
-      <div className="p-4 sm:p-6 space-y-4">
-        {/* Create form */}
-        {createOpen && project && (
-          <RfiForm
-            mode="create"
-            projectId={project.id}
-            onDone={(rfi) => {
-              setCreateOpen(false);
-              setItems((prev) => [rfi, ...prev]);
-            }}
-            onCancel={() => setCreateOpen(false)}
-          />
-        )}
-
+      <div className="px-4 py-4 md:px-[22px] md:pb-5 space-y-3">
         {/* Filters: status chips + "my move" toggle */}
         <div className="flex flex-wrap gap-1.5" role="group" aria-label={t('internal.filter.all')}>
           {STATUS_FILTERS.map((sf) => (
             <button
               key={sf}
               type="button"
+              aria-pressed={statusFilter === sf}
               onClick={() => setStatusFilter(sf)}
-              className={`h-7 px-3 rounded-full text-[11px] font-semibold border transition-colors ${
-                statusFilter === sf
-                  ? 'bg-[#0A0A0A] text-white border-[#0A0A0A]'
-                  : 'bg-white text-[#71717A] border-[#D4D4D8] hover:border-[#0A0A0A]'
-              }`}
+              className={cn(
+                CHIP_FILTER,
+                statusFilter === sf ? 'bg-[#0A0A0A] text-[#F5F1E8] border-[#0A0A0A]' : 'bg-white text-[#5A5346] border-[#DBD0BB] hover:border-[#F97316] hover:text-[#C2410C]',
+                FOCUS_RING,
+              )}
             >
               {sf === 'ALL' ? t('internal.filter.all') : t(`status.${sf}`)}
             </button>
           ))}
           <button
             type="button"
+            aria-pressed={mineOnly}
             onClick={() => setMineOnly((v) => !v)}
-            className={`h-7 px-3 rounded-full text-[11px] font-semibold border transition-colors ${
-              mineOnly
-                ? 'bg-[#F97316] text-white border-[#F97316]'
-                : 'bg-white text-[#71717A] border-[#D4D4D8] hover:border-[#F97316]'
-            }`}
+            className={cn(
+              CHIP_FILTER,
+              mineOnly ? 'bg-[#F97316] text-[#0A0A0A] border-[#F97316]' : 'bg-white text-[#5A5346] border-[#DBD0BB] hover:border-[#F97316] hover:text-[#C2410C]',
+              FOCUS_RING,
+            )}
           >
             {t('internal.filter.mine')}
           </button>
         </div>
 
         {loadError && (
-          <div className="rounded-lg border border-red-200 p-4 text-center">
-            <p className="text-sm text-red-700 mb-2">{t('internal.loadFailed')}</p>
-            <button
-              type="button"
-              onClick={() => void load()}
-              className="h-8 px-3 rounded-lg border border-[#D4D4D8] text-xs font-medium text-[#0A0A0A] hover:bg-[#FAFAFA]"
-            >
+          <PaperNote tone="red" className="flex items-center justify-between gap-3">
+            <span className="text-[13px] text-[#0A0A0A]">{t('internal.loadFailed')}</span>
+            <button type="button" onClick={() => void load()} className={cn('font-bt-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-[#C2410C] hover:text-[#F97316]', FOCUS_RING)}>
               {t('internal.retry')}
             </button>
-          </div>
+          </PaperNote>
         )}
 
         {loading && (
-          <div className="flex justify-center py-6">
-            <Loader2 className="w-6 h-6 text-[#F97316] animate-spin" />
+          <div className="flex flex-col gap-3" aria-busy="true">
+            <Bone className="h-24 w-full" />
+            <Bone className="h-24 w-full" />
           </div>
         )}
 
         {!loading && !loadError && visibleItems.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-10 text-center">
-            <div className="w-11 h-11 bg-[#FAFAFA] rounded-full flex items-center justify-center mb-3">
-              <HelpCircle className="w-5 h-5 text-[#D4D4D8]" />
-            </div>
-            <p className="text-sm font-medium text-[#0A0A0A]">{t('internal.empty.title')}</p>
-            <p className="text-xs text-[#71717A] mt-1">{t('internal.empty.subtitle')}</p>
-          </div>
+          <EmptyWord word={t('internal.empty.title')} title={t('internal.empty.title')} hint={t('internal.empty.subtitle')} className="border-0 py-9" />
         )}
 
         {!loading && visibleItems.map((rfi) => (
@@ -263,6 +252,20 @@ export function RfiList({ projects }: { projects: RfiProject[] }) {
           />
         ))}
       </div>
+
+      {project && (
+        <RfiDrawer
+          open={createOpen}
+          mode="create"
+          projectId={project.id}
+          projectName={project.name}
+          onDone={(rfi) => {
+            setCreateOpen(false);
+            setItems((prev) => [rfi, ...prev]);
+          }}
+          onClose={() => setCreateOpen(false)}
+        />
+      )}
 
       {lightbox && (
         <Lightbox
@@ -295,9 +298,10 @@ function RfiCard({ rfi, detail, fmtDate, fmtDay, onChanged, onDeleted, onLoadDet
   onLoadDetail: () => void;
   onOpenPhoto: (photos: Rfi['questionPhotos'], photoId: number) => void;
 }) {
-  const { t } = useTranslation(['rfi']);
+  const { t } = useTranslation(['rfi', 'common']);
   const [busy, setBusy] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [threadOpen, setThreadOpen] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [impactsOpen, setImpactsOpen] = useState(false);
@@ -325,11 +329,11 @@ function RfiCard({ rfi, detail, fmtDate, fmtDay, onChanged, onDeleted, onLoadDet
   };
 
   const removeDraft = async () => {
-    if (!window.confirm(t('internal.draft.deleteConfirm'))) return;
     setBusy(true);
     try {
       await deleteRfiDraft(rfi.id);
       toast.success(t('internal.draft.deleted'));
+      setDeleteOpen(false);
       onDeleted(rfi.id);
     } catch {
       toast.error(t('internal.actionFailed'));
@@ -352,96 +356,90 @@ function RfiCard({ rfi, detail, fmtDate, fmtDay, onChanged, onDeleted, onLoadDet
     return parts.length ? parts.join(' · ') : null;
   };
 
+  const edge = isDraft
+    ? 'border-dashed border-[#CDBFA6] bg-[#FBF8F2]'
+    : rfi.overdue
+      ? 'border-[#E4E4E7] border-l-[3px] border-l-[#B3402A]'
+      : rfi.ballInCourt === 'COMPANY'
+        ? 'border-[#E4E4E7] border-l-[3px] border-l-[#F97316]'
+        : 'border-[#E4E4E7]';
+
+  const meta: string[] = [];
+  if (rfi.dueDate) meta.push(`${t('internal.dueDate')} ${fmtDay(rfi.dueDate)}`);
+  if (!isDraft && rfi.submittedAt) meta.push(t('internal.sentBy', { name: rfi.submittedByName ?? '—', date: fmtDate(rfi.submittedAt) }));
+  if (rfi.respondedAt) meta.push(t('internal.respondedAt', { date: fmtDate(rfi.respondedAt) }));
+  if (isClosed && rfi.closedAt) meta.push(t('internal.closedBy', { name: rfi.closedByName ?? '—', date: fmtDate(rfi.closedAt) }));
+
   return (
-    <article className="rounded-lg border border-[#D4D4D8] overflow-hidden">
-      <header className="px-4 py-3 bg-[#FAFAFA]/60 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2 min-w-0">
-          {rfi.displayNumber && (
-            <span className="text-sm font-semibold text-[#F97316] tabular-nums">{rfi.displayNumber}</span>
-          )}
-          <h4 className="text-sm font-semibold text-[#0A0A0A]">{rfi.subject}</h4>
-          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_STYLES[rfi.status]}`}>
-            {t(`status.${rfi.status}`)}
-          </span>
-          {rfi.overdue && (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-red-50 text-red-700 border-red-200">
-              {t('status.overdue')}
-            </span>
-          )}
-          {rfi.ballInCourt !== 'NONE' && (
-            <span
-              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
-                rfi.ballInCourt === 'CLIENT'
-                  ? 'bg-[#F97316]/10 text-[#C2410C] border-[#F97316]/30'
-                  : 'bg-[#0A0A0A] text-white border-[#0A0A0A]'
-              }`}
-            >
-              {t(`ball.${rfi.ballInCourt}`)}
-            </span>
-          )}
-        </div>
-        {!isDraft && (
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => { setThreadOpen((v) => !v); ensureDetail(); }}
-              className="h-7 px-2.5 rounded-lg text-[11px] font-medium text-[#71717A] hover:bg-white inline-flex items-center gap-1.5 border border-transparent hover:border-[#D4D4D8] transition-colors"
-            >
-              <MessageSquare className="w-3.5 h-3.5" />
-              {t('internal.responses.toggle', { count: loadedDetail ? loadedDetail.responses.length : rfi.responseCount })}
-            </button>
-            <button
-              type="button"
-              onClick={() => { setTimelineOpen((v) => !v); ensureDetail(); }}
-              className="h-7 px-2.5 rounded-lg text-[11px] font-medium text-[#71717A] hover:bg-white inline-flex items-center gap-1.5 border border-transparent hover:border-[#D4D4D8] transition-colors"
-            >
-              <History className="w-3.5 h-3.5" />
-              {timelineOpen ? t('internal.timeline.hide') : t('internal.timeline.show')}
-            </button>
+    <article className={cn('border bg-white', edge)}>
+      <div className="px-4 py-3.5 md:px-[18px] md:py-4 flex flex-col gap-3">
+        <header className="flex flex-wrap items-start justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
+            {rfi.displayNumber && (
+              <span className="font-bt-display font-extrabold text-[22px] leading-none text-[#C2410C] tabular-nums">{rfi.displayNumber}</span>
+            )}
+            <span className={cn(CHIP, STATUS_LOOK[rfi.status])}>{t(`status.${rfi.status}`)}</span>
+            {rfi.ballInCourt !== 'NONE' && (
+              <span
+                data-tour="sec.projects-ficha-consultas.turn"
+                className={cn(CHIP, rfi.ballInCourt === 'CLIENT' ? 'bg-[#F97316] text-[#0A0A0A]' : 'bg-[#0A0A0A] text-[#F5F1E8]')}
+              >
+                {t(`ball.${rfi.ballInCourt}`)}
+              </span>
+            )}
+            {rfi.overdue && (
+              <span className={cn(CHIP, 'border border-[#B3402A] text-[#B3402A]')}>{t('status.overdue')}</span>
+            )}
           </div>
-        )}
-      </header>
+          {!isDraft && (
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <button
+                type="button"
+                data-tour="sec.projects-ficha-consultas.official"
+                onClick={() => { setThreadOpen((v) => !v); ensureDetail(); }}
+                className={cn('inline-flex items-center gap-1.5 font-bt-mono text-[9.5px] font-semibold uppercase tracking-[0.1em] text-[#5A5346] hover:text-[#C2410C] transition-colors', FOCUS_RING)}
+              >
+                <MessageSquare className="w-3.5 h-3.5" strokeWidth={2} />
+                {t('internal.responses.toggle', { count: loadedDetail ? loadedDetail.responses.length : rfi.responseCount })}
+              </button>
+              <TertiaryButton onClick={() => { setTimelineOpen((v) => !v); ensureDetail(); }} className="inline-flex items-center gap-1 text-[9.5px] font-semibold text-[#5A5346]">
+                {timelineOpen ? t('internal.timeline.hide') : t('internal.timeline.show')}
+                {!timelineOpen && <ArrowRight className="w-3 h-3" strokeWidth={2.2} />}
+              </TertiaryButton>
+            </div>
+          )}
+        </header>
 
-      <div className="p-4 space-y-3">
-        <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-[#71717A]">
-          {isDraft ? (
-            <span>{fmtDate(rfi.createdAt)} · {t('internal.createdBy')} {rfi.createdByName}</span>
-          ) : (
-            rfi.submittedAt && <span>{t('internal.sentBy', { name: rfi.submittedByName ?? '—', date: fmtDate(rfi.submittedAt) })}</span>
-          )}
-          {rfi.dueDate && (
-            <span className={rfi.overdue ? 'text-red-700 font-semibold' : ''}>
-              {t('internal.dueDate')}: {fmtDay(rfi.dueDate)}
-            </span>
-          )}
-          {rfi.respondedAt && <span>{t('internal.respondedAt', { date: fmtDate(rfi.respondedAt) })}</span>}
-          {isClosed && rfi.closedAt && (
-            <span>{t('internal.closedBy', { name: rfi.closedByName ?? '—', date: fmtDate(rfi.closedAt) })}</span>
-          )}
+        <div>
+          <h4 className="text-[15px] font-semibold text-[#0A0A0A] leading-snug">{rfi.subject}</h4>
+          <Mono className="block text-[9.5px] tracking-[0.1em] text-[#8A8175] leading-[1.7] mt-1">
+            {isDraft
+              ? <>{fmtDate(rfi.createdAt)} · {t('internal.createdBy')} {rfi.createdByName}</>
+              : meta.map((part, i) => (
+                <span key={i} className={cn(i === 0 && rfi.overdue && rfi.dueDate && 'text-[#B3402A] font-semibold')}>
+                  {i > 0 && ' · '}{part}
+                </span>
+              ))}
+          </Mono>
+          {isDraft && <Mono className="block text-[9.5px] tracking-[0.1em] text-[#C2410C] mt-1">{t('internal.draft.hint')}</Mono>}
         </div>
 
-        {isDraft && <p className="text-[11px] text-[#71717A] italic">{t('internal.draft.hint')}</p>}
-
-        <p className="text-sm text-[#0A0A0A] whitespace-pre-wrap">{rfi.question}</p>
+        <p className="text-[13.5px] leading-[1.55] text-[#0A0A0A] whitespace-pre-wrap">{rfi.question}</p>
 
         {rfi.questionPhotos.length > 0 && (
           <div>
-            <span className="block text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1.5">
-              {t('internal.photos.question')}
-            </span>
+            <Mono className="block text-[9.5px] font-semibold tracking-[0.12em] text-[#5A5346] mb-1.5">
+              {t('internal.photos.question')} · {rfi.questionPhotos.length}
+            </Mono>
             <div className="flex flex-wrap gap-2">
               {rfi.questionPhotos.map((photo) => (
                 <button
                   key={photo.id}
                   type="button"
                   onClick={() => onOpenPhoto(rfi.questionPhotos, photo.id)}
-                  className="w-16 h-16 overflow-hidden rounded-lg border border-[#D4D4D8] hover:opacity-90 transition-opacity"
+                  className={cn('w-14 h-14 overflow-hidden border border-[#DBD0BB] hover:opacity-90 transition-opacity', FOCUS_RING)}
                 >
-                  <AuthImage
-                    src={rfiPhotoUrl(rfi.id, photo.id)}
-                    alt={photo.fileName ?? ''}
-                    className="w-full h-full object-cover"
-                  />
+                  <AuthImage src={rfiPhotoUrl(rfi.id, photo.id)} alt={photo.fileName ?? ''} className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>
@@ -450,79 +448,76 @@ function RfiCard({ rfi, detail, fmtDate, fmtDay, onChanged, onDeleted, onLoadDet
 
         {/* Impacts summary (always visible once decided) */}
         {!isDraft && (
-          <div className="flex flex-wrap items-center gap-2 text-xs text-[#71717A]">
-            <span className="font-semibold uppercase tracking-wide text-[11px]">{t('internal.impacts')}:</span>
-            <span>{impactsSummary() ?? t('impact.none')}</span>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1" data-tour="sec.projects-ficha-consultas.impacts">
+            <Mono className="text-[9.5px] font-semibold tracking-[0.12em] text-[#5A5346]">{t('internal.impacts')}:</Mono>
+            <span className="text-[13px] text-[#0A0A0A]">{impactsSummary() ?? t('impact.none')}</span>
             {inThread && (
-              <button
-                type="button"
-                onClick={() => { setImpactsOpen((v) => !v); setCloseOpen(false); }}
-                className="h-6 px-2 rounded-lg border border-[#D4D4D8] bg-white text-[11px] font-medium text-[#0A0A0A] hover:bg-[#FAFAFA] inline-flex items-center gap-1 transition-colors"
-              >
-                <Pencil className="w-3 h-3" />
+              <TertiaryButton onClick={() => { setImpactsOpen((v) => !v); }} className="text-[9.5px] font-semibold text-[#C2410C]">
                 {t('internal.impacts.edit')}
-              </button>
+              </TertiaryButton>
             )}
           </div>
         )}
 
         {/* Draft actions */}
-        {isDraft && !editOpen && (
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void sendDraft()}
-              className="h-9 px-4 rounded-lg bg-[#F97316] hover:bg-[#C2410C] disabled:opacity-50 text-white text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
-            >
-              {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-              {t('internal.draft.send')}
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => setEditOpen(true)}
-              className="h-9 px-3.5 rounded-lg border border-[#D4D4D8] bg-white disabled:opacity-50 text-xs font-medium text-[#0A0A0A] hover:bg-[#FAFAFA] inline-flex items-center gap-1.5 transition-colors"
-            >
-              <Pencil className="w-3.5 h-3.5" />
-              {t('internal.draft.edit')}
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void removeDraft()}
-              className="h-9 px-3.5 rounded-lg border border-red-200 text-red-700 bg-white disabled:opacity-50 text-xs font-medium hover:bg-red-50 inline-flex items-center gap-1.5 transition-colors"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
+        {isDraft && (
+          <div data-tour="sec.projects-ficha-consultas.draft" className="flex flex-wrap items-center gap-2.5 pt-1">
+            <DestroyButton disabled={busy} onClick={() => setDeleteOpen(true)} className="px-3.5 py-[10px] text-[10px]">
               {t('internal.draft.delete')}
-            </button>
+            </DestroyButton>
+            <SecondaryButton disabled={busy} onClick={() => setEditOpen(true)} className="px-3.5 py-[10px] text-[10px]">
+              {t('internal.draft.edit')}
+            </SecondaryButton>
+            <PrimaryButton disabled={busy} onClick={() => void sendDraft()} className="px-3.5 py-[10px] text-[10px] gap-1.5">
+              {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" strokeWidth={2} />}
+              {t('internal.draft.send')}
+            </PrimaryButton>
           </div>
         )}
 
-        {isDraft && editOpen && (
-          <RfiForm
+        {isDraft && (
+          <RfiDrawer
+            open={editOpen}
             mode="edit"
             rfi={rfi}
             onDone={(updated) => {
               setEditOpen(false);
               onChanged(updated);
             }}
-            onCancel={() => setEditOpen(false)}
+            onClose={() => setEditOpen(false)}
           />
+        )}
+
+        {isDraft && (
+          <BtModal
+            open={deleteOpen}
+            onOpenChange={(o) => { if (!o && !busy) setDeleteOpen(false); }}
+            width={440}
+            kicker={t('status.DRAFT')}
+            kickerTone="red"
+            title={t('internal.draft.deleteTitle')}
+            description={t('internal.draft.deleteBody')}
+            closeDisabled={busy}
+            footer={(
+              <>
+                <SecondaryButton onClick={() => setDeleteOpen(false)} disabled={busy} className="px-4 py-[11px]">{t('common:buttons.cancel')}</SecondaryButton>
+                <DestroyButton onClick={() => void removeDraft()} disabled={busy} className="px-4 py-[11px]">
+                  {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  {t('common:buttons.delete')}
+                </DestroyButton>
+              </>
+            )}
+          >
+            <p className="text-[15px] font-semibold text-[#0A0A0A]">{rfi.subject}</p>
+          </BtModal>
         )}
 
         {/* Open/responded actions */}
         {inThread && (
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => { setCloseOpen((v) => !v); setImpactsOpen(false); ensureDetail(); }}
-              className="h-9 px-4 rounded-lg border border-emerald-600 text-emerald-700 bg-white disabled:opacity-50 text-xs font-semibold hover:bg-emerald-50 inline-flex items-center gap-1.5 transition-colors"
-            >
-              <CheckCircle2 className="w-3.5 h-3.5" />
+          <div className="flex flex-wrap items-center gap-2.5 pt-1">
+            <SecondaryButton disabled={busy} onClick={() => { setCloseOpen(true); ensureDetail(); }} className="px-3.5 py-[10px] text-[10px]">
               {t('internal.close')}
-            </button>
+            </SecondaryButton>
           </div>
         )}
 
@@ -538,16 +533,18 @@ function RfiCard({ rfi, detail, fmtDate, fmtDay, onChanged, onDeleted, onLoadDet
           />
         )}
 
-        {closeOpen && inThread && (
-          <CloseRfiForm
+        {inThread && (
+          <CloseRfiModal
+            open={closeOpen}
             rfi={rfi}
             detail={loadedDetail}
+            fmtDate={fmtDate}
             onClosed={(updated) => {
               setCloseOpen(false);
               onChanged(updated);
               toast.success(t('internal.close.done'));
             }}
-            onCancel={() => setCloseOpen(false)}
+            onClose={() => setCloseOpen(false)}
           />
         )}
 
@@ -558,12 +555,13 @@ function RfiCard({ rfi, detail, fmtDate, fmtDay, onChanged, onDeleted, onLoadDet
           </div>
         )}
         {threadOpen && detail === 'error' && (
-          <p className="text-xs text-red-600">{t('internal.responses.loadFailed')}</p>
+          <FieldError>{t('internal.responses.loadFailed')}</FieldError>
         )}
         {threadOpen && loadedDetail && (
           <RfiThread
             rfi={loadedDetail}
             canReply={inThread}
+            fmtDate={fmtDate}
             onPosted={(entry) => onChanged({
               ...loadedDetail,
               responses: [...loadedDetail.responses, entry],
@@ -580,21 +578,24 @@ function RfiCard({ rfi, detail, fmtDate, fmtDay, onChanged, onDeleted, onLoadDet
           </div>
         )}
         {timelineOpen && detail === 'error' && (
-          <p className="text-xs text-red-600">{t('internal.timeline.loadFailed')}</p>
+          <FieldError>{t('internal.timeline.loadFailed')}</FieldError>
         )}
         {timelineOpen && loadedDetail && (
-          <div className="rounded-lg bg-[#FAFAFA] border border-[#F4F4F5] px-3 py-2">
-            <p className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1.5">{t('internal.timeline')}</p>
-            <ul className="space-y-1">
+          <div className="border-t border-[#F0EBE1] pt-3">
+            <Mono className="block text-[10px] font-semibold tracking-[0.12em] text-[#0A0A0A] mb-2.5">{t('internal.timeline')}</Mono>
+            <ol className="relative ml-[5px] pl-4 border-l border-[#DBD0BB] flex flex-col gap-2.5">
               {loadedDetail.events.map((event, i) => (
-                <li key={i} className="text-xs text-[#0A0A0A] flex flex-wrap items-baseline gap-x-1.5">
-                  <span className="text-[#71717A] tabular-nums">{fmtDate(event.createdAt)}</span>
-                  <span className="font-medium">{event.byClient ? t('internal.timeline.client') : (event.actorName ?? '—')}</span>
-                  <span>{t(`internal.event.${event.type}`)}</span>
-                  {event.note && <span className="text-[#71717A]">— “{event.note}”</span>}
+                <li key={i} className="relative">
+                  <span className={cn('absolute -left-[21px] top-[3px] w-[9px] h-[9px]', i === 0 ? 'bg-[#F97316]' : 'bg-white border border-[#CDBFA6]')} aria-hidden="true" />
+                  <Mono className="block text-[9.5px] tracking-[0.1em] text-[#8A8175]">{fmtDate(event.createdAt)}</Mono>
+                  <p className="text-[13px] leading-[1.5] text-[#0A0A0A]">
+                    <span className="font-semibold">{event.byClient ? t('internal.timeline.client') : (event.actorName ?? '—')}</span>{' '}
+                    {t(`internal.event.${event.type}`)}
+                    {event.note && <span className="text-[#8A8175]"> — “{event.note}”</span>}
+                  </p>
                 </li>
               ))}
-            </ul>
+            </ol>
           </div>
         )}
       </div>
@@ -607,24 +608,23 @@ function RfiCard({ rfi, detail, fmtDate, fmtDay, onChanged, onDeleted, onLoadDet
 /**
  * The RFI's conversation, internal face: full author names; the client's
  * answers labelled as the client. The hint reminds the team the OWNER READS
- * THIS THREAD on their portal. The official answer (once chosen) is starred.
+ * THIS THREAD on their portal. The official answer (once chosen) carries the
+ * orange edge and the chip.
  */
-function RfiThread({ rfi, canReply, onPosted, onOpenPhoto }: {
+function RfiThread({ rfi, canReply, fmtDate, onPosted, onOpenPhoto }: {
   rfi: Rfi;
   canReply: boolean;
+  fmtDate: (iso: string) => string;
   onPosted: (entry: RfiResponseEntry) => void;
   onOpenPhoto: (photos: Rfi['questionPhotos'], photoId: number) => void;
 }) {
-  const { t, i18n } = useTranslation(['rfi']);
+  const { t } = useTranslation(['rfi']);
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
-  const picker = usePhotoPicker(MAX_INTERNAL_PHOTOS, MAX_INTERNAL_PHOTO_BYTES);
+  const picker = useRfiPicker();
 
   const fmtDateTime = (iso: string): string =>
-    new Date(iso).toLocaleString(
-      i18n.language.startsWith('en') ? 'en-US' : 'es',
-      { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' },
-    );
+    `${fmtDate(iso)} · ${new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
 
   const submit = async () => {
     if (!body.trim() || sending) return;
@@ -643,82 +643,74 @@ function RfiThread({ rfi, canReply, onPosted, onOpenPhoto }: {
   };
 
   return (
-    <div className="rounded-lg bg-[#FAFAFA] border border-[#F4F4F5] px-3 py-2 space-y-2">
-      <p className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide">
-        {t('internal.responses')}
-        <span className="ml-1.5 normal-case font-normal tracking-normal">{t('internal.responses.visibleHint')}</span>
-      </p>
+    <div className="border-t border-[#F0EBE1] pt-3 flex flex-col gap-3">
+      <Mono className="block text-[10px] font-semibold tracking-[0.12em] text-[#0A0A0A]">
+        {t('internal.responses')} ({rfi.responses.length})
+        <span className="ml-2 font-normal text-[#8A8175]">{t('internal.responses.visibleHint')}</span>
+      </Mono>
 
       {rfi.responses.length === 0 && (
-        <p className="text-xs text-[#71717A]">{t('internal.responses.empty')}</p>
+        <p className="text-[12.5px] italic text-[#A69C8D]">{t('internal.responses.empty')}</p>
       )}
-      <ul className="space-y-1.5">
-        {rfi.responses.map((entry) => (
-          <li
-            key={entry.id}
-            className={`rounded-lg border px-3 py-2 ${
-              entry.official
-                ? 'bg-emerald-50 border-emerald-300'
-                : entry.byClient ? 'bg-[#F97316]/5 border-[#F97316]/20' : 'bg-white border-[#F4F4F5]'
-            }`}
-          >
-            <p className="text-[11px] mb-0.5 flex flex-wrap items-center gap-1.5">
-              <span className="font-semibold text-[#0A0A0A]">
-                {entry.byClient ? t('internal.responses.client') : (entry.authorName ?? '—')}
+      <ul className="flex flex-col gap-2.5">
+        {rfi.responses.map((entry) => {
+          const author = entry.byClient ? t('internal.responses.client') : (entry.authorName ?? '—');
+          return (
+            <li key={entry.id} className={cn('flex items-start gap-2.5', entry.byClient && 'flex-row-reverse')}>
+              <span className={cn('w-[26px] h-[26px] flex items-center justify-center flex-shrink-0 font-bt-mono text-[9px]', entry.byClient ? 'bg-[#F97316] text-[#0A0A0A]' : 'bg-[#0A0A0A] text-[#F5F1E8]')} aria-hidden="true">
+                {entry.byClient ? 'CL' : initialsOf(author)}
               </span>
-              <span className="text-[#71717A]">{fmtDateTime(entry.createdAt)}</span>
-              {entry.official && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-emerald-100 text-emerald-800 border-emerald-300">
-                  {t('internal.responses.official')}
-                </span>
-              )}
-            </p>
-            <p className="text-sm text-[#0A0A0A] whitespace-pre-wrap">{entry.body}</p>
-            {entry.photos.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-1.5">
-                {entry.photos.map((photo) => (
-                  <button
-                    key={photo.id}
-                    type="button"
-                    onClick={() => onOpenPhoto(entry.photos, photo.id)}
-                    className="w-14 h-14 overflow-hidden rounded-lg border border-[#D4D4D8] hover:opacity-90 transition-opacity"
-                  >
-                    <AuthImage
-                      src={rfiPhotoUrl(rfi.id, photo.id)}
-                      alt={photo.fileName ?? ''}
-                      className="w-full h-full object-cover"
-                    />
-                  </button>
-                ))}
+              <div className={cn('max-w-[78%] px-3 py-2.5', entry.byClient ? 'bg-[#FBEDE0] border border-[#F6CFA6]' : 'bg-[#FAF7F0]', entry.official && 'border-l-2 border-l-[#F97316]')}>
+                <Mono className="flex flex-wrap items-center gap-2 text-[9.5px] tracking-[0.1em] text-[#8A8175] mb-1">
+                  <span>{author} · {fmtDateTime(entry.createdAt)}</span>
+                  {entry.official && <span className={cn(CHIP, 'bg-[#F97316] text-[#0A0A0A]')}>{t('internal.responses.official')}</span>}
+                </Mono>
+                <p className="text-[13.5px] leading-[1.5] text-[#0A0A0A] whitespace-pre-wrap">{entry.body}</p>
+                {entry.photos.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {entry.photos.map((photo) => (
+                      <button
+                        key={photo.id}
+                        type="button"
+                        onClick={() => onOpenPhoto(entry.photos, photo.id)}
+                        className={cn('w-11 h-11 overflow-hidden border border-[#DBD0BB] hover:opacity-90 transition-opacity', FOCUS_RING)}
+                      >
+                        <AuthImage src={rfiPhotoUrl(rfi.id, photo.id)} alt={photo.fileName ?? ''} className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ul>
 
       {canReply && (
-        <div className="space-y-2">
-          <div className="flex items-end gap-2">
-            <textarea
-              aria-label={t('internal.responses.placeholder')}
-              maxLength={2000}
-              rows={2}
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder={t('internal.responses.placeholder')}
-              className="flex-1 px-3 py-2 rounded-lg border border-[#D4D4D8] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#F97316] resize-y"
+        <div className="flex flex-col gap-2.5">
+          <Mono className="block text-[10px] font-semibold tracking-[0.12em] text-[#0A0A0A]">{t('internal.responses.reply')}</Mono>
+          <textarea
+            aria-label={t('internal.responses.placeholder')}
+            maxLength={2000}
+            rows={2}
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder={t('internal.responses.placeholder')}
+            className={TEXTAREA}
+          />
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+            <PhotoGrid
+              picker={picker}
+              size={44}
+              label={t('internal.photos.count', { count: picker.photos.length, max: MAX_INTERNAL_PHOTOS })}
+              addLabel={t('internal.photos.add')}
+              removeLabel={t('internal.photos.remove')}
             />
-            <button
-              type="button"
-              disabled={sending || !body.trim()}
-              onClick={() => void submit()}
-              className="h-9 px-3.5 rounded-lg bg-[#F97316] hover:bg-[#C2410C] disabled:opacity-50 text-white text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
-            >
-              {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+            <PrimaryButton disabled={sending || !body.trim()} onClick={() => void submit()} className="px-3.5 py-[10px] text-[10px] gap-1.5">
+              {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" strokeWidth={2} />}
               {t('internal.responses.send')}
-            </button>
+            </PrimaryButton>
           </div>
-          <PhotoPickerRow picker={picker} label={t('internal.responses.photosLabel', { max: MAX_INTERNAL_PHOTOS })} />
         </div>
       )}
     </div>
@@ -727,105 +719,51 @@ function RfiThread({ rfi, canReply, onPosted, onOpenPhoto }: {
 
 // ──────────────────────────── forms ────────────────────────────
 
-function usePhotoPicker(max: number, maxBytes: number) {
+function useRfiPicker() {
   const { t } = useTranslation(['rfi']);
-  const [photos, setPhotos] = useState<File[]>([]);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const addFiles = (list: FileList | null) => {
-    if (!list) return;
-    setPhotos((prev) => {
-      const next = [...prev];
-      for (const file of Array.from(list)) {
-        if (!file.type.startsWith('image/')) {
-          toast.error(t('internal.photoInvalidType'));
-          continue;
-        }
-        if (file.size > maxBytes) {
-          toast.error(t('internal.photoTooLarge', { mb: maxBytes / (1024 * 1024) }));
-          continue;
-        }
-        if (next.length >= max) {
-          toast.error(t('internal.tooManyPhotos', { max }));
-          break;
-        }
-        next.push(file);
-      }
-      return next;
-    });
-    if (inputRef.current) inputRef.current.value = '';
+  const messages: PickerMessages = {
+    invalidType: t('internal.photoInvalidType'),
+    tooLarge: t('internal.photoTooLarge', { mb: MAX_INTERNAL_PHOTO_BYTES / (1024 * 1024) }),
+    tooMany: t('internal.tooManyPhotos', { max: MAX_INTERNAL_PHOTOS }),
   };
-
-  return { photos, setPhotos, inputRef, addFiles };
+  return usePhotoPicker(MAX_INTERNAL_PHOTOS, MAX_INTERNAL_PHOTO_BYTES, messages);
 }
 
-function PhotoPickerRow({ picker, label }: {
-  picker: ReturnType<typeof usePhotoPicker>;
-  label: string;
-}) {
-  return (
-    <div>
-      <div className="flex flex-wrap items-center gap-2">
-        {picker.photos.map((file, i) => (
-          <span key={`${file.name}-${i}`} className="inline-flex items-center gap-1.5 h-8 pl-2.5 pr-1.5 rounded-lg bg-[#FAFAFA] border border-[#D4D4D8] text-xs text-[#0A0A0A] max-w-48">
-            <span className="truncate">{file.name}</span>
-            <button
-              type="button"
-              aria-label={`remove-${file.name}`}
-              onClick={() => picker.setPhotos((prev) => prev.filter((_, idx) => idx !== i))}
-              className="w-4 h-4 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center flex-shrink-0"
-            >
-              <X className="w-2.5 h-2.5" />
-            </button>
-          </span>
-        ))}
-        <button
-          type="button"
-          onClick={() => picker.inputRef.current?.click()}
-          className="h-8 px-2.5 rounded-lg border-2 border-dashed border-[#D4D4D8] hover:border-[#F97316] text-xs font-medium text-[#71717A] hover:text-[#F97316] inline-flex items-center gap-1.5 transition-colors"
-        >
-          <Camera className="w-3.5 h-3.5" />
-          {label}
-        </button>
-      </div>
-      <input
-        ref={picker.inputRef}
-        type="file"
-        accept="image/*"
-        multiple
-        className="hidden"
-        onChange={(e) => picker.addFiles(e.target.files)}
-      />
-    </div>
-  );
-}
-
-/** Create (draft or direct-send) and edit-draft share one minimal form. */
-function RfiForm(props:
-  | { mode: 'create'; projectId: number; onDone: (rfi: Rfi) => void; onCancel: () => void }
-  | { mode: 'edit'; rfi: Rfi; onDone: (rfi: Rfi) => void; onCancel: () => void }
+/** 04J — create (draft or direct send) and edit-draft share the 492 px drawer. */
+function RfiDrawer(props:
+  | { open: boolean; mode: 'create'; projectId: number; projectName: string; onDone: (rfi: Rfi) => void; onClose: () => void }
+  | { open: boolean; mode: 'edit'; rfi: Rfi; onDone: (rfi: Rfi) => void; onClose: () => void }
 ) {
   const { t } = useTranslation(['rfi']);
   const editing = props.mode === 'edit' ? props.rfi : null;
   const [subject, setSubject] = useState(editing?.subject ?? '');
   const [question, setQuestion] = useState(editing?.question ?? '');
   const [dueDate, setDueDate] = useState(editing?.dueDate ?? '');
-  const [submitting, setSubmitting] = useState<false | 'draft' | 'send' | 'save'>(false);
-  const picker = usePhotoPicker(MAX_INTERNAL_PHOTOS, MAX_INTERNAL_PHOTO_BYTES);
+  const [subjectError, setSubjectError] = useState('');
+  const [questionError, setQuestionError] = useState('');
+  const [submitting, setSubmitting] = useState<false | 'draft' | 'send' | 'save' | 'saveSend'>(false);
+  const picker = useRfiPicker();
+
+  // Fresh form on every open (an edit drawer re-reads the draft).
+  useEffect(() => {
+    if (!props.open) return;
+    setSubject(editing?.subject ?? '');
+    setQuestion(editing?.question ?? '');
+    setDueDate(editing?.dueDate ?? '');
+    setSubjectError('');
+    setQuestionError('');
+    picker.setPhotos([]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.open]);
 
   const validate = (): boolean => {
-    if (!subject.trim()) {
-      toast.error(t('internal.form.subjectRequired'));
-      return false;
-    }
-    if (!question.trim()) {
-      toast.error(t('internal.form.questionRequired'));
-      return false;
-    }
-    return true;
+    let ok = true;
+    if (!subject.trim()) { setSubjectError(t('internal.form.subjectRequired')); ok = false; }
+    if (!question.trim()) { setQuestionError(t('internal.form.questionRequired')); ok = false; }
+    return ok;
   };
 
-  const run = async (kind: 'draft' | 'send' | 'save') => {
+  const run = async (kind: 'draft' | 'send' | 'save' | 'saveSend') => {
     if (!validate()) return;
     setSubmitting(kind);
     try {
@@ -845,8 +783,14 @@ function RfiForm(props:
           question: question.trim(),
           dueDate: dueDate || undefined,
         });
-        toast.success(t('internal.form.updated'));
-        props.onDone(updated);
+        if (kind === 'saveSend') {
+          const sent = await submitRfi(updated.id);
+          toast.success(t('internal.form.sent'));
+          props.onDone(sent);
+        } else {
+          toast.success(t('internal.form.updated'));
+          props.onDone(updated);
+        }
       }
     } catch {
       toast.error(t('internal.form.failed'));
@@ -855,105 +799,101 @@ function RfiForm(props:
     }
   };
 
+  const idSuffix = editing?.id ?? 'new';
+  const busy = submitting !== false;
+
   return (
-    <form
-      onSubmit={(e) => { e.preventDefault(); void run(props.mode === 'edit' ? 'save' : 'send'); }}
-      className="rounded-lg border border-[#D4D4D8] bg-[#FAFAFA]/50 px-4 py-4 space-y-3"
+    <BtDrawer
+      open={props.open}
+      onOpenChange={(o) => { if (!o) props.onClose(); }}
+      kicker={props.mode === 'create' ? props.projectName : `${t('internal.form.editTitle')} · ${editing?.subject ?? ''}`}
+      title={props.mode === 'create' ? t('internal.form.title') : t('internal.form.editTitle')}
+      closeDisabled={busy}
+      footer={props.mode === 'create' ? (
+        <>
+          <SecondaryButton disabled={busy} onClick={() => void run('draft')} className="px-4 py-[11px]">
+            {submitting === 'draft' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            {t('internal.form.saveDraft')}
+          </SecondaryButton>
+          <PrimaryButton type="submit" form={`rfi-form-${idSuffix}`} disabled={busy} className="px-[18px] py-[11px] gap-1.5">
+            {submitting === 'send' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" strokeWidth={2} />}
+            {submitting === 'send' ? t('internal.form.sending') : t('internal.form.send')}
+          </PrimaryButton>
+        </>
+      ) : (
+        <>
+          <SecondaryButton type="submit" form={`rfi-form-${idSuffix}`} disabled={busy} className="px-4 py-[11px]">
+            {submitting === 'save' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            {t('internal.form.saveChanges')}
+          </SecondaryButton>
+          <PrimaryButton disabled={busy} onClick={() => void run('saveSend')} className="px-[18px] py-[11px] gap-1.5">
+            {submitting === 'saveSend' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" strokeWidth={2} />}
+            {t('internal.form.saveAndSend')}
+          </PrimaryButton>
+        </>
+      )}
     >
-      <p className="text-xs font-semibold text-[#0A0A0A]">
-        {t(props.mode === 'edit' ? 'internal.form.editTitle' : 'internal.form.title')}
-      </p>
-      <div className="grid sm:grid-cols-2 gap-3">
-        <div className="sm:col-span-2">
-          <label htmlFor={`rfi-subject-${editing?.id ?? 'new'}`} className="block text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1">
-            {t('internal.form.subjectLabel')}
-          </label>
+      <form
+        id={`rfi-form-${idSuffix}`}
+        onSubmit={(e) => { e.preventDefault(); void run(props.mode === 'edit' ? 'save' : 'send'); }}
+        className="flex flex-col gap-4"
+      >
+        <div>
+          <FieldLabel htmlFor={`rfi-subject-${idSuffix}`} required>{t('internal.form.subjectLabel')}</FieldLabel>
           <input
-            id={`rfi-subject-${editing?.id ?? 'new'}`}
+            id={`rfi-subject-${idSuffix}`}
             type="text"
             maxLength={200}
             value={subject}
-            onChange={(e) => setSubject(e.target.value)}
+            onChange={(e) => { setSubject(e.target.value); setSubjectError(''); }}
             placeholder={t('internal.form.subjectPlaceholder')}
-            className="w-full h-9 px-3 rounded-lg border border-[#D4D4D8] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#F97316]"
+            className={cn(INPUT, 'h-[38px]', subjectError && 'border-[#F97316]')}
             autoFocus
           />
-        </div>
-        <div className="sm:col-span-2">
-          <label htmlFor={`rfi-question-${editing?.id ?? 'new'}`} className="block text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1">
-            {t('internal.form.questionLabel')}
-          </label>
-          <textarea
-            id={`rfi-question-${editing?.id ?? 'new'}`}
-            maxLength={10000}
-            rows={3}
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            placeholder={t('internal.form.questionPlaceholder')}
-            className="w-full px-3 py-2 rounded-lg border border-[#D4D4D8] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#F97316] resize-y"
-          />
+          {subjectError && <FieldError>{subjectError}</FieldError>}
         </div>
         <div>
-          <label htmlFor={`rfi-due-${editing?.id ?? 'new'}`} className="block text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1">
-            {t('internal.form.dueDateLabel')}
-          </label>
+          <FieldLabel htmlFor={`rfi-question-${idSuffix}`} required>{t('internal.form.questionLabel')}</FieldLabel>
+          <textarea
+            id={`rfi-question-${idSuffix}`}
+            maxLength={10000}
+            rows={5}
+            value={question}
+            onChange={(e) => { setQuestion(e.target.value); setQuestionError(''); }}
+            placeholder={t('internal.form.questionPlaceholder')}
+            className={cn(TEXTAREA, 'min-h-[130px]', questionError && 'border-[#F97316]')}
+          />
+          <div className="flex items-start justify-between gap-3">
+            {questionError ? <FieldError>{questionError}</FieldError> : <FieldHint>{t('internal.form.questionHint')}</FieldHint>}
+            <FieldHint className="flex-shrink-0">{t('internal.form.counter', { n: question.length.toLocaleString('en-US') })}</FieldHint>
+          </div>
+        </div>
+        <div className="w-[170px]">
+          <FieldLabel htmlFor={`rfi-due-${idSuffix}`}>{t('internal.form.dueDateLabel')}</FieldLabel>
           <input
-            id={`rfi-due-${editing?.id ?? 'new'}`}
+            id={`rfi-due-${idSuffix}`}
             type="date"
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
-            className="w-full h-9 px-3 rounded-lg border border-[#D4D4D8] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#F97316]"
+            className={cn(INPUT, INPUT_MONO, 'h-[38px]')}
           />
         </div>
-      </div>
-      {props.mode === 'create' && (
-        <PhotoPickerRow picker={picker} label={t('internal.form.photosLabel', { max: MAX_INTERNAL_PHOTOS })} />
-      )}
-      <div className="flex flex-wrap items-center gap-2">
-        {props.mode === 'create' ? (
-          <>
-            <button
-              type="submit"
-              disabled={submitting !== false}
-              className="h-9 px-4 rounded-lg bg-[#F97316] hover:bg-[#C2410C] disabled:opacity-50 text-white text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
-            >
-              {submitting === 'send' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-              {submitting === 'send' ? t('internal.form.sending') : t('internal.form.send')}
-            </button>
-            <button
-              type="button"
-              disabled={submitting !== false}
-              onClick={() => void run('draft')}
-              className="h-9 px-3.5 rounded-lg border border-[#D4D4D8] bg-white disabled:opacity-50 text-xs font-medium text-[#0A0A0A] hover:bg-[#FAFAFA] inline-flex items-center gap-1.5 transition-colors"
-            >
-              {submitting === 'draft' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              {t('internal.form.saveDraft')}
-            </button>
-          </>
-        ) : (
-          <button
-            type="submit"
-            disabled={submitting !== false}
-            className="h-9 px-4 rounded-lg bg-[#F97316] hover:bg-[#C2410C] disabled:opacity-50 text-white text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
-          >
-            {submitting === 'save' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-            {t('internal.form.saveChanges')}
-          </button>
+        {props.mode === 'create' && (
+          <PhotoGrid
+            picker={picker}
+            label={t('internal.photos.count', { count: picker.photos.length, max: MAX_INTERNAL_PHOTOS })}
+            hint={t('internal.photos.hint')}
+            addLabel={t('internal.photos.add')}
+            removeLabel={t('internal.photos.remove')}
+          />
         )}
-        <button
-          type="button"
-          onClick={props.onCancel}
-          className="h-9 px-3.5 rounded-lg border border-[#D4D4D8] bg-white text-xs font-medium text-[#0A0A0A] hover:bg-[#FAFAFA] transition-colors"
-        >
-          {t('internal.form.cancel')}
-        </button>
-      </div>
-    </form>
+      </form>
+    </BtDrawer>
   );
 }
 
-/** Shared impact fields: YES/NO/TBD selects + conditional quantification. */
-function ImpactFields({ cost, setCost, amountQ, setAmountQ, schedule, setSchedule, days, setDays }: {
+/** Sí / No / Por definir as joined squares; the quantity field wakes up only on "Sí". */
+function ImpactFields({ cost, setCost, amountQ, setAmountQ, schedule, setSchedule, days, setDays, idPrefix }: {
   cost: RfiImpact;
   setCost: (v: RfiImpact) => void;
   amountQ: string;
@@ -962,65 +902,78 @@ function ImpactFields({ cost, setCost, amountQ, setAmountQ, schedule, setSchedul
   setSchedule: (v: RfiImpact) => void;
   days: string;
   setDays: (v: string) => void;
+  idPrefix: string;
 }) {
   const { t } = useTranslation(['rfi']);
-  const impactOptions: RfiImpact[] = ['TBD', 'YES', 'NO'];
+
+  const toggle = (name: 'cost' | 'schedule', value: RfiImpact, set: (v: RfiImpact) => void, label: string) => (
+    <div className="flex" role="group" aria-label={label}>
+      {IMPACT_OPTIONS.map((opt) => (
+        <button
+          key={opt}
+          type="button"
+          data-testid={`rfi-impact-${name}-${opt}`}
+          aria-pressed={value === opt}
+          onClick={() => set(opt)}
+          className={cn(
+            'h-[34px] px-3 border border-[#DBD0BB] -ml-px first:ml-0 font-bt-mono text-[10px] font-semibold uppercase tracking-[0.1em] transition-colors',
+            value === opt ? 'bg-[#0A0A0A] text-[#F5F1E8] border-[#0A0A0A] relative z-[1]' : 'bg-white text-[#5A5346] hover:text-[#0A0A0A]',
+            FOCUS_RING,
+          )}
+        >
+          {t(`impact.${opt}`)}
+        </button>
+      ))}
+    </div>
+  );
 
   return (
-    <div className="grid sm:grid-cols-2 gap-3">
-      <div>
-        <label htmlFor="rfi-impact-cost" className="block text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1">
-          {t('impact.cost')}
-        </label>
-        <select
-          id="rfi-impact-cost"
-          value={cost}
-          onChange={(e) => setCost(e.target.value as RfiImpact)}
-          className="w-full h-9 px-2 rounded-lg border border-[#D4D4D8] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#F97316]"
-        >
-          {impactOptions.map((opt) => (
-            <option key={opt} value={opt}>{t(`impact.${opt}`)}</option>
-          ))}
-        </select>
-        {cost === 'YES' && (
-          <input
-            aria-label={t('impact.amount')}
-            type="number"
-            min="0"
-            step="0.01"
-            value={amountQ}
-            onChange={(e) => setAmountQ(e.target.value)}
-            placeholder={t('impact.amount')}
-            className="mt-1.5 w-full h-9 px-3 rounded-lg border border-[#D4D4D8] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#F97316]"
-          />
-        )}
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="flex flex-col gap-3">
+        <div>
+          <FieldLabel>{t('impact.cost')}</FieldLabel>
+          {toggle('cost', cost, setCost, t('impact.cost'))}
+        </div>
+        <div className="w-[180px]">
+          <FieldLabel htmlFor={`${idPrefix}-amount`}>{t('impact.amount')}</FieldLabel>
+          <div className="flex">
+            <span className="w-7 h-[34px] flex items-center justify-center border border-r-0 border-[#DBD0BB] bg-[#FAF7F0] font-bt-mono text-[12px] text-[#5A5346]">$</span>
+            <input
+              id={`${idPrefix}-amount`}
+              aria-label={t('impact.amount')}
+              type="number"
+              min="0"
+              step="0.01"
+              value={amountQ}
+              disabled={cost !== 'YES'}
+              onChange={(e) => setAmountQ(e.target.value)}
+              placeholder="0.00"
+              className={cn(INPUT, INPUT_MONO, 'h-[34px] py-0 text-right')}
+            />
+          </div>
+        </div>
       </div>
-      <div>
-        <label htmlFor="rfi-impact-schedule" className="block text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1">
-          {t('impact.schedule')}
-        </label>
-        <select
-          id="rfi-impact-schedule"
-          value={schedule}
-          onChange={(e) => setSchedule(e.target.value as RfiImpact)}
-          className="w-full h-9 px-2 rounded-lg border border-[#D4D4D8] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#F97316]"
-        >
-          {impactOptions.map((opt) => (
-            <option key={opt} value={opt}>{t(`impact.${opt}`)}</option>
-          ))}
-        </select>
-        {schedule === 'YES' && (
+      <div className="flex flex-col gap-3">
+        <div>
+          <FieldLabel>{t('impact.schedule')}</FieldLabel>
+          {toggle('schedule', schedule, setSchedule, t('impact.schedule'))}
+        </div>
+        <div className="w-[120px]">
+          <FieldLabel htmlFor={`${idPrefix}-days`}>{t('impact.days')}</FieldLabel>
           <input
+            id={`${idPrefix}-days`}
             aria-label={t('impact.days')}
             type="number"
             min="0"
             step="1"
             value={days}
+            disabled={schedule !== 'YES'}
             onChange={(e) => setDays(e.target.value)}
-            placeholder={t('impact.days')}
-            className="mt-1.5 w-full h-9 px-3 rounded-lg border border-[#D4D4D8] text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#F97316]"
+            placeholder="0"
+            className={cn(INPUT, INPUT_MONO, 'h-[34px] py-0 text-right')}
           />
-        )}
+          <FieldHint>{t('internal.impacts.daysHint')}</FieldHint>
+        </div>
       </div>
     </div>
   );
@@ -1036,6 +989,7 @@ const daysFromInput = (d: string): number | null => {
   return d.trim() !== '' && Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
 };
 
+/** 04K — in-line panel inside the card. */
 function ImpactsForm({ rfi, onSaved, onCancel }: {
   rfi: Rfi;
   onSaved: (rfi: Rfi) => void;
@@ -1064,42 +1018,34 @@ function ImpactsForm({ rfi, onSaved, onCancel }: {
   };
 
   return (
-    <div className="rounded-lg border border-[#D4D4D8] bg-[#FAFAFA]/50 px-3 py-3 space-y-3">
-      <p className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide">{t('internal.impacts')}</p>
+    <div className="border border-[#DBD0BB] bg-[#FAF7F0] px-4 py-4 flex flex-col gap-3.5 max-w-[560px]">
+      <Mono className="block text-[10px] font-semibold tracking-[0.12em] text-[#0A0A0A]">{t('internal.impacts.title', { number: rfi.displayNumber ?? '' })}</Mono>
       <ImpactFields
+        idPrefix={`rfi-impacts-${rfi.id}`}
         cost={cost} setCost={setCost} amountQ={amountQ} setAmountQ={setAmountQ}
         schedule={schedule} setSchedule={setSchedule} days={days} setDays={setDays}
       />
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void save()}
-          className="h-9 px-3.5 rounded-lg bg-[#F97316] hover:bg-[#C2410C] disabled:opacity-50 text-white text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
-        >
+      <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2.5">
+        <SecondaryButton onClick={onCancel} disabled={busy} className="px-3.5 py-[10px] text-[10px]">{t('internal.form.cancel')}</SecondaryButton>
+        <PrimaryButton disabled={busy} onClick={() => void save()} className="px-3.5 py-[10px] text-[10px]">
           {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
           {t('internal.impacts.save')}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="h-9 px-3.5 rounded-lg border border-[#D4D4D8] bg-white text-xs font-medium text-[#0A0A0A] hover:bg-[#FAFAFA] transition-colors"
-        >
-          {t('internal.form.cancel')}
-        </button>
+        </PrimaryButton>
       </div>
     </div>
   );
 }
 
-/** Close = pick THE official answer from the thread + settle the impacts. */
-function CloseRfiForm({ rfi, detail, onClosed, onCancel }: {
+/** 04L — close = pick THE official answer from the thread + settle the impacts. Modal: it freezes the record. */
+function CloseRfiModal({ open, rfi, detail, fmtDate, onClosed, onClose }: {
+  open: boolean;
   rfi: Rfi;
   detail: Rfi | null;
+  fmtDate: (iso: string) => string;
   onClosed: (rfi: Rfi) => void;
-  onCancel: () => void;
+  onClose: () => void;
 }) {
-  const { t, i18n } = useTranslation(['rfi']);
+  const { t } = useTranslation(['rfi', 'common']);
   const [officialId, setOfficialId] = useState<number | null>(null);
   const [cost, setCost] = useState<RfiImpact>(rfi.costImpact);
   const [amountQ, setAmountQ] = useState(rfi.costImpactAmountCents != null ? String(rfi.costImpactAmountCents / 100) : '');
@@ -1107,11 +1053,18 @@ function CloseRfiForm({ rfi, detail, onClosed, onCancel }: {
   const [days, setDays] = useState(rfi.scheduleImpactDays != null ? String(rfi.scheduleImpactDays) : '');
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    if (!open) return;
+    setOfficialId(null);
+    setCost(rfi.costImpact);
+    setAmountQ(rfi.costImpactAmountCents != null ? String(rfi.costImpactAmountCents / 100) : '');
+    setSchedule(rfi.scheduleImpact);
+    setDays(rfi.scheduleImpactDays != null ? String(rfi.scheduleImpactDays) : '');
+    setBusy(false);
+  }, [open, rfi]);
+
   const fmtDateTime = (iso: string): string =>
-    new Date(iso).toLocaleString(
-      i18n.language.startsWith('en') ? 'en-US' : 'es',
-      { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' },
-    );
+    `${fmtDate(iso)} · ${new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`;
 
   const submit = async () => {
     if (officialId == null || busy) return;
@@ -1131,71 +1084,72 @@ function CloseRfiForm({ rfi, detail, onClosed, onCancel }: {
   };
 
   return (
-    <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-3 space-y-3">
-      <p className="text-xs font-semibold text-emerald-800">{t('internal.close.title')}</p>
+    <BtModal
+      open={open}
+      onOpenChange={(o) => { if (!o && !busy) onClose(); }}
+      width={520}
+      kicker={`${rfi.displayNumber ?? ''} · ${rfi.subject}`}
+      title={t('internal.close.title')}
+      closeDisabled={busy}
+      dismissible={false}
+      footer={(
+        <>
+          <SecondaryButton onClick={onClose} disabled={busy} className="px-4 py-[11px]">{t('internal.form.cancel')}</SecondaryButton>
+          <PrimaryButton disabled={busy || officialId == null} onClick={() => void submit()} className="px-[18px] py-[11px]">
+            {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            {t('internal.close.confirm')}
+          </PrimaryButton>
+        </>
+      )}
+    >
+      <Mono className="block text-[10px] font-semibold tracking-[0.12em] text-[#0A0A0A] mb-2.5">{t('internal.close.pick')}</Mono>
 
       {!detail && (
-        <div className="flex justify-center py-2">
-          <Loader2 className="w-4 h-4 text-emerald-700 animate-spin" />
+        <div className="flex justify-center py-3">
+          <Loader2 className="w-4 h-4 text-[#F97316] animate-spin" />
         </div>
       )}
       {detail && detail.responses.length === 0 && (
-        <p className="text-xs text-emerald-800">{t('internal.close.needResponse')}</p>
+        <Mono className="block text-[9.5px] font-semibold tracking-[0.1em] text-[#C2410C]">{t('internal.close.needResponse')}</Mono>
       )}
       {detail && detail.responses.length > 0 && (
         <>
-          <p className="text-[11px] font-semibold text-emerald-700 uppercase tracking-wide">{t('internal.close.pick')}</p>
-          <ul className="space-y-1.5">
-            {detail.responses.map((entry) => (
-              <li key={entry.id}>
-                <label className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-white px-3 py-2 cursor-pointer hover:border-emerald-400 transition-colors">
-                  <input
-                    type="radio"
-                    name={`rfi-official-${rfi.id}`}
-                    checked={officialId === entry.id}
-                    onChange={() => setOfficialId(entry.id)}
-                    className="mt-0.5 accent-emerald-600"
-                  />
-                  <span className="min-w-0">
-                    <span className="block text-[11px] font-semibold text-[#0A0A0A]">
-                      {entry.byClient ? t('internal.responses.client') : (entry.authorName ?? '—')}
-                      <span className="text-[#71717A] font-normal ml-1.5">{fmtDateTime(entry.createdAt)}</span>
+          <ul className="flex flex-col gap-2">
+            {detail.responses.map((entry) => {
+              const chosen = officialId === entry.id;
+              return (
+                <li key={entry.id}>
+                  <label className={cn('flex items-start gap-2.5 border px-3 py-2.5 cursor-pointer transition-colors', chosen ? 'border-[#F97316] bg-[#FBEDE0]' : 'border-[#DBD0BB] bg-white hover:border-[#F97316]')}>
+                    <input
+                      type="radio"
+                      name={`rfi-official-${rfi.id}`}
+                      checked={chosen}
+                      onChange={() => setOfficialId(entry.id)}
+                      className="mt-0.5 accent-[#F97316]"
+                    />
+                    <span className="min-w-0 flex-1">
+                      <Mono className="flex flex-wrap items-center gap-2 text-[9.5px] tracking-[0.1em] text-[#8A8175]">
+                        <span>{entry.byClient ? t('internal.responses.client') : (entry.authorName ?? '—')} · {fmtDateTime(entry.createdAt)}</span>
+                        {chosen && <span className={cn(CHIP, 'bg-[#F97316] text-[#0A0A0A]')}>{t('internal.close.chosen')}</span>}
+                      </Mono>
+                      <span className="block text-[13.5px] leading-[1.5] text-[#0A0A0A] whitespace-pre-wrap mt-1">
+                        {entry.body.length > 160 ? `${entry.body.slice(0, 160)}…` : entry.body}
+                      </span>
                     </span>
-                    <span className="block text-sm text-[#0A0A0A] whitespace-pre-wrap">
-                      {entry.body.length > 160 ? `${entry.body.slice(0, 160)}…` : entry.body}
-                    </span>
-                  </span>
-                </label>
-              </li>
-            ))}
+                  </label>
+                </li>
+              );
+            })}
           </ul>
 
-          <p className="text-[11px] font-semibold text-emerald-700 uppercase tracking-wide">{t('internal.close.impactsHint')}</p>
+          <Mono className="block text-[10px] font-semibold tracking-[0.12em] text-[#0A0A0A] mt-5 mb-2.5">{t('internal.close.impactsHint')}</Mono>
           <ImpactFields
+            idPrefix={`rfi-close-${rfi.id}`}
             cost={cost} setCost={setCost} amountQ={amountQ} setAmountQ={setAmountQ}
             schedule={schedule} setSchedule={setSchedule} days={days} setDays={setDays}
           />
         </>
       )}
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          disabled={busy || officialId == null}
-          onClick={() => void submit()}
-          className="h-9 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
-        >
-          {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-          {t('internal.close.confirm')}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="h-9 px-3.5 rounded-lg border border-[#D4D4D8] bg-white text-xs font-medium text-[#0A0A0A] hover:bg-[#FAFAFA] transition-colors"
-        >
-          {t('internal.form.cancel')}
-        </button>
-      </div>
-    </div>
+    </BtModal>
   );
 }

@@ -1,134 +1,143 @@
-﻿import { Lock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { ProjectStatus } from '../../services/projects';
 import type { Role, UserForAssign } from './types';
 import { fmtUSD } from './helpers';
+import { cn } from '../ui/utils';
 
-// STYLE MAPS
+/**
+ * Chips, avatars and the contract gauge of the Projects section, in the
+ * panel's industrial language (Claude Design "Proyectos BuildTrack", 2026-09):
+ * mono uppercase chips, square ink avatars, a 5 px gauge that turns orange
+ * past 90 % and red once the remainder is negative.
+ */
 
-export const ROLE_STYLES: Record<Role, { bg: string; text: string; border: string }> = {
-  ADMIN: { bg: 'bg-[#C2410C]/10', text: 'text-[#C2410C]', border: 'border-[#C2410C]/20' },
-  SUPERVISOR: { bg: 'bg-[#F97316]/10', text: 'text-[#F97316]', border: 'border-[#F97316]/20' },
-  WORKER: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
-  FINANCE: { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
-  WAREHOUSE: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
-  SUBCONTRACTOR: { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
-};
+const CHIP = 'inline-flex items-center font-bt-mono text-[9.5px] uppercase tracking-[0.1em] whitespace-nowrap';
 
-export const AVATAR_BG: Record<Role, string> = {
-  ADMIN: 'bg-[#C2410C]', SUPERVISOR: 'bg-[#F97316]',
-  WORKER: 'bg-emerald-600', FINANCE: 'bg-purple-600', WAREHOUSE: 'bg-amber-600',
-  SUBCONTRACTOR: 'bg-orange-600',
-};
+/** Activo on sand, Inactivo bordered, Cerrado on ink. */
+export function StatusBadge({ status, className }: { status: ProjectStatus; className?: string }) {
+  const { t } = useTranslation('common');
+  const look = status === 'ACTIVE'
+    ? 'bg-[#F3EEE4] text-[#0A0A0A] px-2 py-1'
+    : status === 'INACTIVE'
+      ? 'border border-[#DBD0BB] text-[#5A5346] px-[7px] py-[3px]'
+      : 'bg-[#0A0A0A] text-[#F5F1E8] px-2 py-1';
+  return <span className={cn(CHIP, look, className)}>{t(`status.${status.toLowerCase()}`)}</span>;
+}
 
-// BADGE COMPONENTS
+/** The orange "Incompleta" mark next to a project's name. */
+export function IncompleteChip({ className }: { className?: string }) {
+  const { t } = useTranslation('admin');
+  return (
+    <span className={cn(CHIP, 'bg-[#F97316] text-[#0A0A0A] px-1.5 py-0.5 text-[9px]', className)}>
+      {t('projectMgmt.row.incomplete')}
+    </span>
+  );
+}
 
 export function RoleBadge({ role }: { role: Role }) {
   const { t } = useTranslation('common');
-  const s = ROLE_STYLES[role];
-  return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold font-mono border ${s.bg} ${s.text} ${s.border}`}>
-      {t(`roles.${role}`)}
-    </span>
-  );
+  return <span className={cn(CHIP, 'bg-[#F3EEE4] text-[#0A0A0A] px-2 py-1')}>{t(`roles.${role}`)}</span>;
 }
 
-export function StatusBadge({ status }: { status: ProjectStatus }) {
-  const { t } = useTranslation('common');
-  return status === 'ACTIVE' ? (
-    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />{t(`status.${status.toLowerCase()}`)}
-    </span>
-  ) : status === 'INACTIVE' ? (
-    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#FAFAFA] text-[#71717A] border border-[#D4D4D8]">
-      <span className="w-1.5 h-1.5 rounded-full bg-[#71717A]" />{t(`status.${status.toLowerCase()}`)}
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">
-      <Lock className="w-3 h-3" />{t(`status.${status.toLowerCase()}`)}
-    </span>
-  );
+export function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-export function UserAvatar({ user, size = 'sm' }: { user: UserForAssign; size?: 'sm' | 'md' }) {
-  const displayName = user.fullName || user.username;
-  const initials = displayName.split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2);
-  const sz = size === 'sm' ? 'w-7 h-7 text-[10px]' : 'w-9 h-9 text-xs';
+/** Square ink avatar with mono initials: 24 px in tables, 26 px in windows. */
+export function UserAvatar({ user, size = 'sm', className }: { user: UserForAssign; size?: 'sm' | 'md'; className?: string }) {
+  const initials = initialsOf(user.fullName || user.username);
   return (
-    <div className={`${sz} ${AVATAR_BG[user.role]} rounded-full flex items-center justify-center text-white font-bold flex-shrink-0`}>
-      {initials}
-    </div>
-  );
-}
-
-export function AssignedAvatars({ userIds, allUsers }: { userIds: number[]; allUsers: UserForAssign[] }) {
-  const users = userIds.slice(0, 3).map(id => allUsers.find(u => u.id === id)).filter(Boolean) as UserForAssign[];
-  const extra = userIds.length - 3;
-  return (
-    <div className="flex items-center gap-1">
-      <div className="flex -space-x-1.5">
-        {users.map(u => <UserAvatar key={u.id} user={u} size="sm" />)}
-      </div>
-      {extra > 0 && (
-        <span className="text-xs text-[#71717A] ml-1">+{extra}</span>
+    <span
+      className={cn(
+        'flex items-center justify-center flex-shrink-0 bg-[#0A0A0A] text-[#F5F1E8] font-bt-mono text-[9px]',
+        size === 'sm' ? 'w-6 h-6' : 'w-[26px] h-[26px]',
+        className,
       )}
-      <span className="text-xs text-[#71717A] ml-1">
-        {userIds.length === 0 ? '—' : `${userIds.length} user${userIds.length !== 1 ? 's' : ''}`}
-      </span>
+      title={user.fullName || user.username}
+    >
+      {initials}
+    </span>
+  );
+}
+
+/** Up to three squares and a bordered "+N" for the rest. */
+export function AssignedAvatars({ userIds, allUsers, max = 3 }: { userIds: number[]; allUsers: UserForAssign[]; max?: number }) {
+  const users = userIds.slice(0, max).map(id => allUsers.find(u => u.id === id)).filter(Boolean) as UserForAssign[];
+  const extra = userIds.length - users.length;
+  if (userIds.length === 0) return <span className="font-bt-mono text-[10px] text-[#B4A992]">—</span>;
+  return (
+    <div className="flex gap-[3px]">
+      {users.map(u => <UserAvatar key={u.id} user={u} />)}
+      {extra > 0 && (
+        <span className="w-6 h-6 flex items-center justify-center border border-[#DBD0BB] text-[#8A8175] font-bt-mono text-[9px]">
+          +{extra}
+        </span>
+      )}
     </div>
   );
 }
 
-// CONTRACT BUDGET BAR
+/**
+ * What the gauge shows: consumption against the budget base. `pct` is spent
+ * over base (78 % = nearly done, 104 % = over), never the remainder.
+ */
+export function gaugeReading({ budgetBaseCents, revisedContractCents, originalContractCents, remainingCents }: {
+  originalContractCents: number | null;
+  revisedContractCents?: number | null;
+  budgetBaseCents?: number | null;
+  remainingCents?: number | null;
+}): { baseCents: number; remainingCents: number; pct: number; tone: 'ink' | 'orange' | 'red' } | null {
+  // The backend resolves "cost budget, else revised contract" as budgetBaseCents;
+  // the fallbacks only cover a response that predates the field.
+  const baseCents = budgetBaseCents ?? revisedContractCents ?? originalContractCents;
+  if (baseCents == null || baseCents <= 0) return null;
+  const remaining = remainingCents ?? baseCents;
+  const pct = Math.round(((baseCents - remaining) / baseCents) * 100);
+  const tone = remaining < 0 ? 'red' : pct >= 90 ? 'orange' : 'ink';
+  return { baseCents, remainingCents: remaining, pct, tone };
+}
+
+// CONTRACT GAUGE
 
 export function ContractBar({
   originalContractCents,
   revisedContractCents,
   budgetBaseCents,
   remainingCents: remaining,
+  className,
 }: {
   originalContractCents: number | null;
   revisedContractCents?: number | null;
   budgetBaseCents?: number | null;
   remainingCents?: number | null;
+  className?: string;
 }) {
-  const { t } = useTranslation('common');
-  // What the gauge divides by. The backend resolves "cost budget, else revised
-  // contract" and hands the answer over as budgetBaseCents; the two fallbacks
-  // below only cover a response that predates the field.
-  const baseCents = budgetBaseCents ?? revisedContractCents ?? originalContractCents;
-  if (baseCents == null || baseCents === 0) {
-    return <span className="text-xs text-[#71717A]">—</span>;
+  const { t } = useTranslation('admin');
+  const r = gaugeReading({ originalContractCents, revisedContractCents, budgetBaseCents, remainingCents: remaining });
+  if (!r) {
+    return <span className="font-bt-mono text-[11.5px] tracking-[0.04em] text-[#A69C8D]">{t('projectMgmt.row.notDefined')}</span>;
   }
-  // Whether this job is being measured against what it was budgeted to spend
-  // or against the contract — the same "$70,000" means very different things,
-  // and the difference is the whole reason the cost budget exists.
-  const againstBudget = budgetBaseCents != null && budgetBaseCents !== (revisedContractCents ?? originalContractCents);
-
-  // A project may run past its contract, leaving a negative remainder — show it.
-  // Clamping to 0 (as this did) reported "nothing left" for a job that finished
-  // exactly on budget and for one that blew $50k past it, which is the number
-  // the overrun has to be read from.
-  const remainingCents = remaining ?? baseCents;
-  const pct = Math.round((remainingCents / baseCents) * 100);
-  // Geometry only: a negative width draws no bar at all, and above 100% it would
-  // overflow its track. The figure and the percentage stay uncapped.
-  const barPct = Math.min(Math.max(pct, 0), 100);
-
-  const barColor  = pct >= 75 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-400' : 'bg-red-500';
-  const textColor = pct >= 75 ? 'text-emerald-700' : pct >= 40 ? 'text-amber-700' : 'text-red-700';
-
+  const bar = r.tone === 'red' ? 'bg-[#B3402A]' : r.tone === 'orange' ? 'bg-[#F97316]' : 'bg-[#0A0A0A]';
+  const pctColor = r.tone === 'red' ? 'text-[#B3402A]' : r.tone === 'orange' ? 'text-[#EA580C]' : 'text-[#0A0A0A]';
+  // Geometry only: the figure stays uncapped, the bar cannot overflow its track.
+  const width = Math.min(Math.max(r.pct, 0), 100);
   return (
-    <div className="min-w-[130px]">
-      <p className={`text-xs font-semibold mb-0.5 ${remainingCents < 0 ? 'text-red-700' : 'text-[#0A0A0A]'}`}>{fmtUSD(remainingCents)}</p>
-      <p className={`text-[10px] font-medium ${textColor} mb-1`}>
-        {pct}% {againstBudget
-          ? t('contractBar.ofBudget', 'of {{amount}} budget', { amount: fmtUSD(baseCents) })
-          : t('contractBar.ofContract', 'of {{amount}}', { amount: fmtUSD(baseCents) })}
-      </p>
-      <div className="h-1.5 w-full bg-[#E8EDF2] rounded-full overflow-hidden">
-        <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${barPct}%` }} />
+    <div className={cn('min-w-[130px]', className)} data-testid="contract-gauge">
+      <div className="flex justify-between items-baseline gap-2">
+        <span className="font-bt-mono text-[11.5px] tracking-[0.04em] text-[#0A0A0A]">{fmtUSD(r.baseCents)}</span>
+        <span className={cn('font-bt-display font-bold text-[17px] leading-none', pctColor)} data-testid="contract-gauge-pct">{r.pct}%</span>
       </div>
+      <div className="h-[5px] bg-[#EDE5D6] mt-[5px]">
+        <div className={cn('h-full', bar)} style={{ width: `${width}%` }} data-testid="contract-gauge-bar" />
+      </div>
+      {r.remainingCents < 0 && (
+        <p className="font-bt-mono text-[9.5px] tracking-[0.06em] uppercase text-[#B3402A] mt-1">
+          {t('projectMgmt.row.balance', { amount: fmtUSD(r.remainingCents) })}
+        </p>
+      )}
     </div>
   );
 }

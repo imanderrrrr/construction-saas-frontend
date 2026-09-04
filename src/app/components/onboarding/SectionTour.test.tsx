@@ -16,6 +16,7 @@ vi.mock('react-i18next', () => ({
 }));
 
 import { SectionTour } from './SectionTour';
+import { pushTourScope, resetTourScope } from '../../lib/tourScope';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -70,7 +71,27 @@ describe('SectionTour', () => {
     await act(async () => root.unmount());
     container.remove();
     document.querySelectorAll('[data-tour]').forEach(el => el.remove());
+    resetTourScope();
     vi.useRealTimers();
+  });
+
+  it('a claimed scope replaces the nav section: its steps, its copy, its seen-flag', async () => {
+    // The ficha's Resumen tab is on screen inside the Proyectos section.
+    plantAnchor('sec.projects-ficha-resumen.bar');
+    plantAnchor('sec.projects.kpis');
+    pushTourScope({ key: 'projects-ficha-resumen', label: 'Resumen' });
+    await act(async () => {
+      root.render(<SectionTour section="projects" username="ana" replayNonce={0} />);
+    });
+    await advance(600);
+
+    const card = document.querySelector('[data-testid="tour-spotlight-card"]')!;
+    expect(card).not.toBeNull();
+    expect(card.textContent).toContain('sec.projects-ficha-resumen.step.bar.title');
+    expect(card.textContent).not.toContain('sec.projects.step.kpis.title');
+    // Seen is recorded for the scope, not for the section behind it.
+    expect(localStorage.getItem('bt.sectiontour.v1.ana.projects-ficha-resumen')).not.toBeNull();
+    expect(localStorage.getItem('bt.sectiontour.v1.ana.projects')).toBeNull();
   });
 
   it('spotlights the anchored element and blocks the page', async () => {
