@@ -1,5 +1,5 @@
 // Invitation acceptance — the second half of the onboarding path, plus the
-// 429 rate-limit UX we added (AcceptInvite.classify → 'rateLimited'). Hermetic.
+// 429 rate-limit UX (the orange notice with the minutes to wait). Hermetic.
 
 import { test, expect } from '@playwright/test';
 import { installHermeticBase, json, sessionResponse, BASE_URL } from './support/mock-api';
@@ -65,7 +65,7 @@ test.describe('Accept invitation', () => {
     await page.route(previewUrl, json({ message: 'gone', code: 'EXPIRED' }, 410));
 
     await page.goto(`/accept-invite/${TOKEN}`);
-    await expect(page.getByText('Invitation expired')).toBeVisible();
+    await expect(page.getByText('This invitation no longer works')).toBeVisible();
     await expect(page.locator('#password')).toHaveCount(0);
   });
 });

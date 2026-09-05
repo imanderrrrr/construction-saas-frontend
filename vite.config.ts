@@ -11,7 +11,7 @@ export default defineConfig({
     tailwindcss(),
   ],
   server: {
-    port: 5180,
+    port: Number(process.env.E2E_PORT ?? 5180),
     strictPort: true,
     proxy: {
       '/api': {

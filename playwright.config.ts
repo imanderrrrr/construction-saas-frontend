@@ -11,7 +11,9 @@ import { defineConfig, devices } from '@playwright/test';
 // This suite is intentionally separate from the vitest unit suite (`npm test`)
 // — see the `e2e` npm script and the dedicated E2E GitHub workflow.
 
-const PORT = 5180;
+// E2E_PORT lets several worktrees run the suite side by side (each on its own
+// Vite server); vite.config.ts and e2e/support/mock-api.ts read the same variable.
+const PORT = Number(process.env.E2E_PORT ?? 5180);
 const baseURL = `http://localhost:${PORT}`;
 
 export default defineConfig({
