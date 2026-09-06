@@ -33,6 +33,7 @@ export const INTRO_SECTIONS = new Set([
   // banner is their voice on phones and on a tab with nothing to point at.
   'projects-crear', 'projects-ficha-resumen', 'projects-ficha-dinero', 'projects-ficha-equipo',
   'projects-ficha-pendientes', 'projects-ficha-consultas', 'projects-ficha-portal',
+  'clients-ficha',
   'invoices', 'invoice-branding', 'budgets', 'budget-report',
   'expenses', 'expense-report', 'office-expenses',
   'accounts-receivable', 'accounts-payable', 'audit',

@@ -26,7 +26,7 @@ import { UsersRoster } from '../components/users/UsersRoster';
 import { ProjectManagement } from '../components/ProjectManagement';
 import { AuditLog } from '../components/AuditLog';
 import { ApprovalsInbox } from '../components/approvals/ApprovalsInbox';
-import { ClientManagement } from '../components/ClientManagement';
+import { ClientsSection } from '../components/clients/ClientsSection';
 import { Toaster } from '../components/ui/sonner';
 import { TimezoneSwitcher } from '../components/TimezoneSwitcher';
 
@@ -684,7 +684,7 @@ export function AdminDashboard() {
             </Suspense></SectionErrorBoundary>
           )}
           {activeSection === 'projects'     && <ProjectManagement onNavigate={handleNavigate} />}
-          {activeSection === 'clients'      && <ClientManagement />}
+          {activeSection === 'clients'      && <ClientsSection onNavigate={handleNavigate} />}
           {activeSection === 'audit'        && <AuditLog />}
           {activeSection === 'time-approvals'&& <ApprovalsInbox />}
         </main>

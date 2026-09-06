@@ -131,6 +131,19 @@
   .bt-skeleton { animation: none; }
 }
 
+/* A row that was just created (Clientes 01B): paper background and an orange
+   left edge that fade back to white over two seconds. No toast. */
+@keyframes bt-row-flash {
+  0% { background-color: #fbede0; border-left-color: #f97316; }
+  100% { background-color: #ffffff; border-left-color: transparent; }
+}
+
+.bt-row-flash { animation: bt-row-flash 2s ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bt-row-flash { animation: none; }
+}
+
 /* Leaflet pin of the project window: a square orange marker with an ink edge
    (Claude Design "Proyectos BuildTrack"). Leaflet positions the element; we
    only paint it. */
