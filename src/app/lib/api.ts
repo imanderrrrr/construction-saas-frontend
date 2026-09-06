@@ -142,8 +142,8 @@ const ANONYMOUS_ENDPOINTS = [
   '/signup/checkout',
   '/signup/complete',
   '/auth/signup',
-  '/auth/password-reset/request',
-  '/auth/password-reset/confirm',
+  // request, confirm and the GET preview of a link — all before any session.
+  '/auth/password-reset/',
   '/auth/invitations/',
   // Client portal (public read-only site-log view): auth is the portal token,
   // not a user session. A 401/410 here must render inline on the public page,
