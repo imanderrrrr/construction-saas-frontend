@@ -11,7 +11,7 @@ import { ApiError } from '../../lib/api';
 import { fmtDate } from '../../helpers/dateTime';
 import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 import { cn } from '../ui/utils';
-import { CreateClientDialog } from '../CreateClientDialog';
+import { ClientFormModal } from '../clients/ClientFormModal';
 import { CloseButton, InkBar, PrimaryButton, SecondaryButton } from '../onboarding/chrome';
 import { FieldError, FieldHint, FieldLabel, INPUT, INPUT_ERROR, INPUT_MONO, Mono, PaperNote } from './bt';
 import { ClientSelector } from './form/ClientSelector';
@@ -118,11 +118,13 @@ function RequiredNote({ text }: { text: string }) {
   return <>{text.slice(0, i)}<span className="text-[#F97316]">*</span>{text.slice(i + 1)}</>;
 }
 
-export function ProjectWindow({ onClose, onSaved, editProject }: {
+export function ProjectWindow({ onClose, onSaved, editProject, initialClient = null }: {
   onClose: () => void;
   onSaved: (project: ProjectResponse) => void;
   /** If provided, the window edits this project. */
   editProject?: Project | null;
+  /** Create mode only: the client already picked ("Crear obra para este cliente" on the client ficha). */
+  initialClient?: { id: number; name: string } | null;
 }) {
   const { t, i18n } = useTranslation(['admin', 'common']);
   const isEdit = !!editProject;
@@ -138,8 +140,8 @@ export function ProjectWindow({ onClose, onSaved, editProject }: {
     latitude: editProject.latitude != null ? String(editProject.latitude) : '',
     longitude: editProject.longitude != null ? String(editProject.longitude) : '',
     geofenceRadiusMeters: editProject.geofenceRadiusMeters ?? 200,
-  } : INITIAL);
-  const [clientName, setClientName] = useState(editProject?.clientName ?? '');
+  } : { ...INITIAL, clientId: initialClient?.id ?? null });
+  const [clientName, setClientName] = useState(editProject?.clientName ?? initialClient?.name ?? '');
   const [nameError, setNameError] = useState('');
   const [contractError, setContractError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -393,10 +395,11 @@ export function ProjectWindow({ onClose, onSaved, editProject }: {
         </div>
       </div>
 
-      <CreateClientDialog
+      <ClientFormModal
         open={clientCreateOpen}
-        onClose={() => setClientCreateOpen(false)}
-        onCreated={client => { update('clientId', client.id); setClientName(client.name); setClientCreateOpen(false); }}
+        onOpenChange={setClientCreateOpen}
+        origin="project"
+        onSaved={client => { update('clientId', client.id); setClientName(client.name); }}
       />
     </div>
   );

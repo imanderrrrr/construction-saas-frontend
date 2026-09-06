@@ -694,23 +694,5 @@
   "invoice.dialog.corPendingNote": "Change order requests are saved as Pending Approval. They appear in Accounts Receivable only after an admin records the client's approval there.",
   "invoice.preview.title": "Preview",
   "invoice.preview.download": "Download PDF",
-  "invoice.preview.empty": "Add a line item with a description or price to see the document preview.",
-
-  "createClient.kicker": "New jobsite · client",
-  "createClient.nameHint": "Max 200 characters",
-  "createClient.phoneHint": "Max 30 characters",
-  "createClient.note": "Once created you return to the jobsite form with the client already picked.",
-  "createClient.title": "Create client",
-  "createClient.description": "Add a new client to associate with projects.",
-  "createClient.nameLabel": "Name",
-  "createClient.namePlaceholder": "e.g. Acme Construction Corp",
-  "createClient.emailLabel": "Email",
-  "createClient.phoneLabel": "Phone",
-  "createClient.creating": "Creating…",
-  "createClient.nameRequired": "Client name is required.",
-  "createClient.invalidEmail": "Invalid email format.",
-  "createClient.successTitle": "Client created",
-  "createClient.successDesc": "\"{{name}}\" is now available.",
-  "createClient.errorStatus": "Error {{status}}",
-  "createClient.errorGeneric": "Error creating client"
+  "invoice.preview.empty": "Add a line item with a description or price to see the document preview."
 }
