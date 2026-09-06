@@ -8,9 +8,13 @@ const mocks = vi.hoisted(() => ({
 }));
 
 // Passthrough translator: assertions key off the i18n keys themselves so the
-// test never couples to the exact (and tweakable) copy strings.
+// test never couples to the exact (and tweakable) copy strings. Interpolated
+// numbers are appended so a screen that quotes minutes can be checked.
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({
+    t: (key: string, opts?: Record<string, unknown>) => (opts && 'minutes' in opts ? `${key}#${opts.minutes}` : key),
+    i18n: { language: 'es' },
+  }),
 }));
 
 vi.mock('react-router', () => ({
@@ -26,6 +30,7 @@ vi.mock('../lib/api', () => ({
       message: string,
       public details?: unknown,
       public code?: string,
+      public retryAfterSeconds?: number,
     ) {
       super(message);
       this.name = 'ApiError';
@@ -68,11 +73,7 @@ async function submit(container: HTMLElement) {
   await act(async () => {
     button!.click();
     // Flush react-hook-form's async validation + the awaited service call.
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
-    await Promise.resolve();
+    for (let i = 0; i < 6; i++) await Promise.resolve();
   });
 }
 
@@ -81,9 +82,10 @@ async function fillValidForm(container: HTMLElement) {
   await changeInput(container, 'email', 'ada@example.com');
 }
 
-/** Did the page switch to the generic "check your email" success view? */
+/** Did the page switch to the generic "check your email" panel? */
 function showsSuccessView(container: HTMLElement): boolean {
   return (
+    container.querySelector('[data-testid="forgot-sent"]') !== null &&
     container.textContent!.includes('forgotPassword.sentBody') &&
     container.querySelector('button[type="submit"]') === null
   );
@@ -111,12 +113,18 @@ describe('ForgotPassword — transport success vs failure', () => {
     });
   }
 
-  it('renders the "which email" hint on the email field', async () => {
+  it('renders the sheet: ink kicker and stamps, paper kicker, the "which email" hint and the expiry seal', async () => {
     await render();
-    expect(container.textContent).toContain('forgotPassword.email.hint');
+    const text = container.textContent!;
+    expect(text).toContain('forgotPassword.kicker');
+    expect(text).toContain('forgotPassword.hero.ttlValue');
+    expect(text).toContain('forgotPassword.paperKicker');
+    expect(text).toContain('forgotPassword.email.hint');
+    expect(text).toContain('forgotPassword.tenantSlug.help');
+    expect(text).toContain('forgotPassword.expiresSeal');
   });
 
-  it('shows the generic success view when the request resolves (HTTP 204)', async () => {
+  it('shows the generic sent panel when the request resolves (HTTP 204), keeping the composition', async () => {
     mocks.request.mockResolvedValueOnce(undefined);
 
     await render();
@@ -124,36 +132,50 @@ describe('ForgotPassword — transport success vs failure', () => {
     await submit(container);
 
     expect(mocks.request).toHaveBeenCalledTimes(1);
-    // Slug normalised (trim + lowercase) and email trimmed, exactly as before —
-    // the anti-enumeration normalisation is untouched.
-    expect(mocks.request).toHaveBeenCalledWith({
-      tenantSlug: 'acme',
-      email: 'ada@example.com',
-    });
+    // Slug normalised (trim + lowercase) and email trimmed — the
+    // anti-enumeration normalisation is untouched.
+    expect(mocks.request).toHaveBeenCalledWith({ tenantSlug: 'acme', email: 'ada@example.com' });
     expect(showsSuccessView(container)).toBe(true);
-    // No false-failure noise: the error alert must NOT be present.
-    expect(container.querySelector('[role="alert"]')).toBeNull();
+    const text = container.textContent!;
+    expect(text).toContain('forgotPassword.sent.chip');
+    expect(text).toContain('forgotPassword.sent.expires');
+    expect(text).toContain('forgotPassword.sent.once');
+    expect(text).toContain('forgotPassword.sent.again');
+    // The ink column is still there.
+    expect(text).toContain('forgotPassword.hero.title');
   });
 
-  it('keeps the form and shows a generic error when the request rejects (5xx)', async () => {
+  it('"Enviar de nuevo" returns to the form', async () => {
+    mocks.request.mockResolvedValueOnce(undefined);
+    await render();
+    await fillValidForm(container);
+    await submit(container);
+    expect(showsSuccessView(container)).toBe(true);
+
+    const again = Array.from(container.querySelectorAll('button')).find(b => b.textContent?.includes('forgotPassword.sent.again'))!;
+    await act(async () => { again.click(); });
+    expect(container.querySelector('button[type="submit"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="forgot-sent"]')).toBeNull();
+  });
+
+  it('keeps the form and shows the red server notice with a retry when the request rejects (5xx)', async () => {
     mocks.request.mockRejectedValueOnce(new ApiError(500, 'boom'));
 
     await render();
     await fillValidForm(container);
     await submit(container);
 
-    // The false-success bug: success view must NOT show on a real failure.
     expect(showsSuccessView(container)).toBe(false);
     expect(container.querySelector('button[type="submit"]')).not.toBeNull();
     const alert = container.querySelector('[role="alert"]');
     expect(alert).not.toBeNull();
+    expect(alert!.textContent).toContain('forgotPassword.serverError.title');
     expect(alert!.textContent).toContain('forgotPassword.error');
+    expect(alert!.textContent).toContain('forgotPassword.retry');
     expect(container.textContent).not.toContain('forgotPassword.sentBody');
   });
 
   it('shows the generic error (not the rate-limit one) on a network/timeout failure', async () => {
-    // Timeouts (AbortError) and network drops surface as plain Errors, NOT
-    // ApiError — they must fall into the generic bucket, never the 429 copy.
     mocks.request.mockRejectedValueOnce(new Error('The user aborted a request.'));
 
     await render();
@@ -165,21 +187,24 @@ describe('ForgotPassword — transport success vs failure', () => {
     expect(container.textContent).not.toContain('forgotPassword.rateLimited');
   });
 
-  it('shows the rate-limit message when the request rejects with 429', async () => {
-    mocks.request.mockRejectedValueOnce(new ApiError(429, 'Too Many Requests'));
+  it('a 429 shows the orange notice with the minutes to wait and switches the button off', async () => {
+    mocks.request.mockRejectedValueOnce(new ApiError(429, 'Too Many Requests', undefined, 'RATE_LIMITED'));
 
     await render();
     await fillValidForm(container);
     await submit(container);
 
     expect(showsSuccessView(container)).toBe(false);
-    expect(container.querySelector('button[type="submit"]')).not.toBeNull();
-    expect(container.textContent).toContain('forgotPassword.rateLimited');
-    expect(container.textContent).not.toContain('forgotPassword.sentBody');
+    const text = container.textContent!;
+    expect(text).toContain('forgotPassword.rateLimited.title');
+    // No Retry-After reaches the mocked error: the public default of 30 minutes.
+    expect(text).toContain('forgotPassword.rateLimited.message#30');
+    expect(text).toContain('forgotPassword.rateLimited.note');
+    const button = container.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    expect(button.disabled).toBe(true);
   });
 
-  it('clears a prior error and shows success when a retry resolves', async () => {
-    // First attempt fails (e.g. cold-start timeout), second succeeds.
+  it('clears a prior error and shows the sent panel when a retry resolves', async () => {
     mocks.request
       .mockRejectedValueOnce(new ApiError(503, 'cold start'))
       .mockResolvedValueOnce(undefined);

@@ -8,13 +8,14 @@ import { cn } from '../ui/utils';
 import { isProjectClosed } from '../../helpers/project-utils';
 import { businessToday } from '../../helpers/dateTime';
 import {
-  getProjectsSummary, listProjects as apiListProjects,
+  getProject as apiGetProject, getProjectsSummary, listProjects as apiListProjects,
   type ProjectResponse, type ProjectStatus, type ProjectSummary,
 } from '../../services/projects';
 import { listActiveUsers } from '../../services/users';
 import { listClients, type ClientResponse } from '../../services/clients';
 import { getBranding } from '../../services/branding';
 import { ApiError } from '../../lib/api';
+import { clearSectionIntent, peekSectionIntent } from '../../lib/sectionIntent';
 import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 import { FOCUS_RING, SecondaryButton, PrimaryButton } from '../onboarding/chrome';
 
@@ -71,10 +72,17 @@ export function ProjectManagement({ onNavigate }: { onNavigate?: (section: 'bill
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Another section may have sent us here with a client in mind ("Ver sus
+  // obras" on Clientes): read it while initialising — a peek, so StrictMode's
+  // double initializer sees the same value — and clear it once mounted so a
+  // later visit by hand starts clean.
+  const [intent] = useState(() => peekSectionIntent('projects'));
+  useEffect(() => { clearSectionIntent('projects'); }, []);
+
   // Filters
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'' | ProjectStatus>('');
-  const [clientFilter, setClientFilter] = useState<number | ''>('');
+  const [clientFilter, setClientFilter] = useState<number | ''>(intent?.clientId ?? '');
   const [recordFilter, setRecordFilter] = useState<RecordFilter>('');
   const [pageSize, setPageSize] = useState<number>(20);
   const [currentPage, setCurrentPage] = useState(0); // 0-based for backend
@@ -140,6 +148,17 @@ export function ProjectManagement({ onNavigate }: { onNavigate?: (section: 'bill
   }, [debouncedSearch, statusFilter, clientFilter, recordFilter, currentPage, pageSize, t]);
 
   useEffect(() => { fetchProjects(); }, [fetchProjects]);
+
+  // The client ficha can also point at one jobsite: open its ficha straight away.
+  useEffect(() => {
+    const id = intent?.openProjectId;
+    if (id == null) return;
+    let cancelled = false;
+    apiGetProject(id)
+      .then(p => { if (!cancelled) { setSelectedProject(toProject(p)); setView('details'); } })
+      .catch(() => { /* the filtered list is still the right place to land */ });
+    return () => { cancelled = true; };
+  }, [intent]);
 
   /** The counts change whenever a project does; cheap enough to refetch with the list. */
   const fetchSummary = useCallback(() => {
@@ -372,6 +391,8 @@ export function ProjectManagement({ onNavigate }: { onNavigate?: (section: 'bill
             </MonoSelect>
             <MonoSelect value={clientFilter} onChange={e => { setClientFilter(e.target.value === '' ? '' : Number(e.target.value)); setCurrentPage(0); }} className="hidden md:block max-w-[220px]">
               <option value="">{t('admin:projectMgmt.filter.client')}</option>
+              {/* The client we were sent for may be inactive (absent from the active list): keep it selectable. */}
+              {intent && !clients.some(c => c.id === intent.clientId) && <option value={intent.clientId}>{intent.clientName}</option>}
               {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </MonoSelect>
             <MonoSelect value={recordFilter} onChange={e => setRecord(e.target.value as RecordFilter)} className="hidden md:block">

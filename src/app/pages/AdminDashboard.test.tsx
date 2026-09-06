@@ -65,8 +65,8 @@ vi.mock('../components/BillingSection', () => ({
 vi.mock('../components/approvals/ApprovalsInbox', () => ({
   ApprovalsInbox: () => <div data-testid="supervisor-approvals" />,
 }));
-vi.mock('../components/ClientManagement', () => ({
-  ClientManagement: () => <div data-testid="client-mgmt" />,
+vi.mock('../components/clients/ClientsSection', () => ({
+  ClientsSection: () => <div data-testid="client-mgmt" />,
 }));
 vi.mock('../components/ui/sonner', () => ({
   Toaster: () => <span data-testid="toaster" />,

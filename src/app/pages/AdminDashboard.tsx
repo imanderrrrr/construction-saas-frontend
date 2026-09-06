@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { AuthService } from '../services/auth';
 import { Button } from '../components/ui/button';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
+import { AccountDrawer } from '../components/account/AccountDrawer';
 import {
   Building2, LayoutDashboard, Users, FolderOpen,
   Shield, LogOut, User, Menu, X,
@@ -25,7 +26,7 @@ import { UsersRoster } from '../components/users/UsersRoster';
 import { ProjectManagement } from '../components/ProjectManagement';
 import { AuditLog } from '../components/AuditLog';
 import { ApprovalsInbox } from '../components/approvals/ApprovalsInbox';
-import { ClientManagement } from '../components/ClientManagement';
+import { ClientsSection } from '../components/clients/ClientsSection';
 import { Toaster } from '../components/ui/sonner';
 import { TimezoneSwitcher } from '../components/TimezoneSwitcher';
 
@@ -278,6 +279,7 @@ export function AdminDashboard() {
   const username = AuthService.getUsername();
   const [activeSection, setActiveSection] = useState<ActiveSection>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const [tourReplay, setTourReplay] = useState(0);
   const [introReplay, setIntroReplay] = useState(0);
 
@@ -468,6 +470,13 @@ export function AdminDashboard() {
               <LogOut className="w-3.5 h-3.5" />
             </button>
           </div>
+          <button
+            type="button"
+            onClick={() => setAccountOpen(true)}
+            className="w-full flex items-center gap-2 px-2 py-1.5 font-bt-mono text-[9.5px] font-semibold uppercase tracking-[0.12em] text-[#5A5346] hover:text-[#C2410C] hover:bg-[#F3EEE4] transition-colors"
+          >
+            <UserRound className="w-3.5 h-3.5" />{t('common:account')}
+          </button>
           <div className="px-2 mt-2">
             <TimezoneSwitcher />
           </div>
@@ -559,8 +568,8 @@ export function AdminDashboard() {
             <DropdownMenuContent align="end" className="w-56 rounded-none border-[#DBD0BB]">
               <DropdownMenuLabel className="font-bt-mono text-[10px] uppercase tracking-[0.08em] text-[#8A8175]">{t('admin:topbar.signedInAs', { username })}</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="gap-2 text-sm cursor-pointer">
-                <User className="w-4 h-4" />{t('common:profile')}
+              <DropdownMenuItem onClick={() => setAccountOpen(true)} className="gap-2 text-sm cursor-pointer">
+                <User className="w-4 h-4" />{t('common:account')}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => handleNavigate('billing')}
@@ -576,6 +585,7 @@ export function AdminDashboard() {
           </DropdownMenu>
           </div>
         </header>
+        <AccountDrawer open={accountOpen} onOpenChange={setAccountOpen} onSignOut={handleLogout} />
 
         {/* Content area */}
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
@@ -674,7 +684,7 @@ export function AdminDashboard() {
             </Suspense></SectionErrorBoundary>
           )}
           {activeSection === 'projects'     && <ProjectManagement onNavigate={handleNavigate} />}
-          {activeSection === 'clients'      && <ClientManagement />}
+          {activeSection === 'clients'      && <ClientsSection onNavigate={handleNavigate} />}
           {activeSection === 'audit'        && <AuditLog />}
           {activeSection === 'time-approvals'&& <ApprovalsInbox />}
         </main>

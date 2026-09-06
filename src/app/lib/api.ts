@@ -87,12 +87,31 @@ export class ApiError extends Error {
   public code?: string;
   /** Field-level validation details from backend (e.g. { username: "must be 3-50 characters" }) */
   public details?: Record<string, string>;
-  constructor(public status: number, message: string, details?: Record<string, string>, code?: string) {
+  /**
+   * Seconds to wait before retrying, from the `Retry-After` header of a 429.
+   * Undefined when the server sent none; screens fall back to their own default.
+   */
+  public retryAfterSeconds?: number;
+  constructor(public status: number, message: string, details?: Record<string, string>, code?: string, retryAfterSeconds?: number) {
     super(message);
     this.name = 'ApiError';
     this.details = details;
     this.code = code;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
+}
+
+/**
+ * `Retry-After` comes as delta-seconds or as an HTTP date; either way the
+ * caller wants "how long from now", never negative.
+ */
+export function parseRetryAfter(header: string | null): number | undefined {
+  if (!header) return undefined;
+  const seconds = Number(header);
+  if (Number.isFinite(seconds)) return Math.max(0, Math.round(seconds));
+  const at = Date.parse(header);
+  if (Number.isNaN(at)) return undefined;
+  return Math.max(0, Math.round((at - Date.now()) / 1000));
 }
 
 // ── Auto-refresh on 401 ────────────────────────────────────────────────────
@@ -123,8 +142,8 @@ const ANONYMOUS_ENDPOINTS = [
   '/signup/checkout',
   '/signup/complete',
   '/auth/signup',
-  '/auth/password-reset/request',
-  '/auth/password-reset/confirm',
+  // request, confirm and the GET preview of a link — all before any session.
+  '/auth/password-reset/',
   '/auth/invitations/',
   // Client portal (public read-only site-log view): auth is the portal token,
   // not a user session. A 401/410 here must render inline on the public page,
@@ -217,6 +236,7 @@ async function handleErrorResponse(res: Response): Promise<never> {
     backendMessage ?? i18n.t('common:error.requestFailed', { status: res.status }),
     details,
     backendCode,
+    res.status === 429 ? parseRetryAfter(res.headers.get('Retry-After')) : undefined,
   );
 }
 

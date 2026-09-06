@@ -15,7 +15,7 @@
 
 import type { BrowserContext, Page, Route } from '@playwright/test';
 
-export const BASE_URL = 'http://localhost:5180';
+export const BASE_URL = `http://localhost:${process.env.E2E_PORT ?? 5180}`;
 const PADDLE_CDN = 'https://cdn.paddle.com/**';
 
 // A subscription that the billing gate treats as allowed (ACTIVE | TRIALING).

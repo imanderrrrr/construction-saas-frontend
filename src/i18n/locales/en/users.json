@@ -35,13 +35,11 @@
   "dialog.resetPassword": "Reset Password",
   "dialog.newPassword": "New Password",
   "dialog.confirmPassword": "Confirm Password",
-
   "subtitle": "Manage user access and roles",
   "createUser": "Create user",
   "createUserDesc": "Add a new user to the system.",
   "editUser": "Edit user",
   "editingUser": "Editing {{username}}",
-
   "form.username": "Username",
   "form.fullName": "Full name",
   "form.password": "Password",
@@ -58,7 +56,6 @@
   "form.hourlyRateHint": "Used to calculate labor cost (approved hours × rate).",
   "form.rateNegative": "Rate cannot be negative.",
   "form.readOnly": "read-only",
-
   "validation.usernameRequired": "Username is required.",
   "validation.usernameLength": "Username must be between 3 and 50 characters.",
   "validation.usernameFormat": "Username can only contain letters, numbers, dots, underscores, and hyphens.",
@@ -66,7 +63,6 @@
   "validation.passwordTooShort": "Password too short. Minimum 6 characters.",
   "validation.roleRequired": "Role is required.",
   "validation.usernameExists": "Username already exists.",
-
   "toast.userCreated": "User created",
   "toast.userCreatedDesc": "{{username}} has been added to the system.",
   "toast.createFailed": "Failed to create user",
@@ -87,37 +83,21 @@
   "toast.sessionRevokeFailed": "Failed to revoke session",
   "toast.allSessionsRevoked": "All sessions revoked",
   "toast.allSessionsRevokeFailed": "Failed to revoke sessions",
-
   "edit.actionBlocked": "Action blocked",
   "edit.lastAdminWarning": "You can't disable or change the role of the last active ADMIN.",
   "edit.saving": "Saving…",
   "edit.saveChanges": "Save changes",
-
-  "resetPw.title": "Reset password",
-  "resetPw.desc": "Set a new password for {{username}}.",
-  "resetPw.newPassword": "New password",
-  "resetPw.confirmPassword": "Confirm password",
-  "resetPw.placeholderConfirm": "Repeat your new password",
-  "resetPw.passwordTooShort": "Password too short. Minimum 6 characters.",
-  "resetPw.passwordMismatch": "Passwords do not match.",
-  "resetPw.button": "Reset password",
-  "resetPw.resetting": "Resetting…",
-  "resetPw.previewTooShort": "Too short",
-  "resetPw.previewMismatch": "Mismatch",
-
   "disable.titleDisable": "Disable user?",
   "disable.titleEnable": "Enable user?",
   "disable.descDisable": "{{username}} won't be able to sign in until re-enabled.",
   "disable.descEnable": "This will restore access for {{username}}.",
   "disable.disabling": "Disabling…",
   "disable.enabling": "Enabling…",
-
   "details.profile": "Profile",
   "details.notSet": "Not set",
   "details.notDefined": "Not defined",
   "details.lastUpdated": "Last updated",
   "details.userId": "User ID",
-
   "details.sessions": "Sessions",
   "details.revokeAll": "Revoke all",
   "details.revoke": "Revoke",
@@ -130,11 +110,9 @@
   "details.sessionTable.device": "Device",
   "details.sessionTable.status": "Status",
   "details.sessionTable.action": "Action",
-
   "details.recentActivity": "Recent activity",
   "details.noActivity": "No activity yet",
   "details.noActivityDesc": "Audit trail will appear here once available.",
-
   "list.userList": "User list",
   "list.userCount_one": "{{count}} user",
   "list.userCount_other": "{{count}} users",
@@ -153,10 +131,8 @@
   "list.showing": "Showing {{from}}–{{to}} of {{total}}",
   "list.pageOf": "Page {{current}} of {{total}}",
   "list.noFullName": "No full name",
-
   "preview.default": "Default",
   "preview.loading": "Loading",
-
   "qr.access": "QR Access",
   "qr.title": "Worker QR access",
   "qr.subtitle": "Generate the QR code and PIN so {{username}} can sign in to the mobile app.",
@@ -169,7 +145,6 @@
   "qr.print": "Print",
   "qr.download": "Download PNG",
   "qr.printTitle": "QR access — {{username}}",
-
   "qr.pin.section": "Access PIN",
   "qr.pin.set": "PIN set",
   "qr.pin.unset": "No PIN",
@@ -183,7 +158,6 @@
   "qr.pin.updated": "PIN updated",
   "qr.pin.updatedDesc": "{{username}}'s PIN has been set. Hand it to the worker now.",
   "qr.pin.failed": "Failed to set PIN",
-
   "qr.regenerate": "Regenerate QR",
   "qr.regenerating": "Regenerating…",
   "qr.regenerateConfirmTitle": "Regenerate QR code?",
