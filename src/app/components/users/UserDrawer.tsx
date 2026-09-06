@@ -4,12 +4,13 @@ import QRCode from 'qrcode';
 import { AlertTriangle, FileDown, KeyRound, Loader2, Mail, RefreshCw, X } from 'lucide-react';
 import {
   getWorkerQr, listUserActivity, listUserSessions, regenerateWorkerQr,
-  resetPassword, revokeAllSessions, revokeSession, setWorkerPin, updateUser,
+  revokeAllSessions, revokeSession, setWorkerPin, updateUser,
   type AuditEntryDTO, type SessionDTO, type UserDTO, type WorkerQrDTO,
 } from '../../services/users';
 import { loadInvoiceIssuer } from '../../services/invoiceBranding';
 import { businessToday, fmtDate, fmtDateTime } from '../../helpers/dateTime';
 import { credentialPdfLabels, downloadCredentialPdf, type CredentialSecret } from '../../helpers/exportCredentialPdf';
+import { ResetPasswordModal } from './ResetPasswordModal';
 import { Mono, initials, isFieldRole, randomPin } from './shared';
 
 /**
@@ -43,6 +44,8 @@ export function UserDrawer({ user, onClose, onChanged }: {
   const [dlOpen, setDlOpen] = useState(false);
   const [dlMode, setDlMode] = useState<'plain' | 'reset'>('plain');
   const [dlError, setDlError] = useState<string | null>(null);
+  // 06 — the reset window (office users). Replaces the browser prompt.
+  const [resetOpen, setResetOpen] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -312,14 +315,11 @@ export function UserDrawer({ user, onClose, onChanged }: {
                   •••••••••• <span className="text-[#B4A992] text-[10.5px]">· {t('admin:usr.d.passwordOwn')}</span>
                 </Mono>
               </div>
-              <button onClick={() => {
-                const pwd = window.prompt(t('admin:usr.d.resetPrompt'));
-                if (pwd && pwd.length >= 8) run('pw', () => resetPassword(user.id, { newPassword: pwd }));
-              }}
-                disabled={busy === 'pw'}
+              <button onClick={() => setResetOpen(true)}
                 className="w-full mt-4 inline-flex items-center justify-center gap-2 border border-[#DBD0BB] bg-[#FAF7F0] px-3 py-2.5 font-bt-mono text-[10.5px] uppercase tracking-[0.06em] font-semibold text-[#0A0A0A] hover:border-[#F97316] hover:text-[#C2410C] disabled:opacity-50">
                 <KeyRound className="w-3.5 h-3.5" />{t('admin:usr.d.resetPassword')}
               </button>
+              <ResetPasswordModal open={resetOpen} onOpenChange={setResetOpen} user={user} onReset={onChangedSoft} />
             </div>
           )}
 

@@ -35,13 +35,11 @@
   "dialog.resetPassword": "Restablecer Contraseña",
   "dialog.newPassword": "Nueva Contraseña",
   "dialog.confirmPassword": "Confirmar Contraseña",
-
   "subtitle": "Gestionar acceso y roles de usuarios",
   "createUser": "Crear usuario",
   "createUserDesc": "Agregar un nuevo usuario al sistema.",
   "editUser": "Editar usuario",
   "editingUser": "Editando {{username}}",
-
   "form.username": "Usuario",
   "form.fullName": "Nombre completo",
   "form.password": "Contraseña",
@@ -58,7 +56,6 @@
   "form.hourlyRateHint": "Usado para calcular costo de mano de obra (horas aprobadas × tarifa).",
   "form.rateNegative": "La tarifa no puede ser negativa.",
   "form.readOnly": "solo lectura",
-
   "validation.usernameRequired": "El usuario es obligatorio.",
   "validation.usernameLength": "El usuario debe tener entre 3 y 50 caracteres.",
   "validation.usernameFormat": "El usuario solo puede contener letras, números, puntos, guiones bajos y guiones.",
@@ -66,7 +63,6 @@
   "validation.passwordTooShort": "Contraseña muy corta. Mínimo 6 caracteres.",
   "validation.roleRequired": "El rol es obligatorio.",
   "validation.usernameExists": "El nombre de usuario ya existe.",
-
   "toast.userCreated": "Usuario creado",
   "toast.userCreatedDesc": "{{username}} ha sido agregado al sistema.",
   "toast.createFailed": "Error al crear usuario",
@@ -87,37 +83,21 @@
   "toast.sessionRevokeFailed": "Error al revocar sesión",
   "toast.allSessionsRevoked": "Todas las sesiones revocadas",
   "toast.allSessionsRevokeFailed": "Error al revocar sesiones",
-
   "edit.actionBlocked": "Acción bloqueada",
   "edit.lastAdminWarning": "No puedes desactivar o cambiar el rol del último ADMIN activo.",
   "edit.saving": "Guardando…",
   "edit.saveChanges": "Guardar cambios",
-
-  "resetPw.title": "Restablecer contraseña",
-  "resetPw.desc": "Establecer una nueva contraseña para {{username}}.",
-  "resetPw.newPassword": "Nueva contraseña",
-  "resetPw.confirmPassword": "Confirmar contraseña",
-  "resetPw.placeholderConfirm": "Repite tu nueva contraseña",
-  "resetPw.passwordTooShort": "Contraseña muy corta. Mínimo 6 caracteres.",
-  "resetPw.passwordMismatch": "Las contraseñas no coinciden.",
-  "resetPw.button": "Restablecer contraseña",
-  "resetPw.resetting": "Restableciendo…",
-  "resetPw.previewTooShort": "Muy corta",
-  "resetPw.previewMismatch": "No coincide",
-
   "disable.titleDisable": "¿Desactivar usuario?",
   "disable.titleEnable": "¿Activar usuario?",
   "disable.descDisable": "{{username}} no podrá iniciar sesión hasta que se reactive.",
   "disable.descEnable": "Esto restaurará el acceso para {{username}}.",
   "disable.disabling": "Desactivando…",
   "disable.enabling": "Activando…",
-
   "details.profile": "Perfil",
   "details.notSet": "Sin definir",
   "details.notDefined": "No definida",
   "details.lastUpdated": "Última actualización",
   "details.userId": "ID de usuario",
-
   "details.sessions": "Sesiones",
   "details.revokeAll": "Revocar todas",
   "details.revoke": "Revocar",
@@ -130,11 +110,9 @@
   "details.sessionTable.device": "Dispositivo",
   "details.sessionTable.status": "Estado",
   "details.sessionTable.action": "Acción",
-
   "details.recentActivity": "Actividad reciente",
   "details.noActivity": "Sin actividad aún",
   "details.noActivityDesc": "El historial de auditoría aparecerá aquí cuando esté disponible.",
-
   "list.userList": "Lista de usuarios",
   "list.userCount_one": "{{count}} usuario",
   "list.userCount_other": "{{count}} usuarios",
@@ -153,10 +131,8 @@
   "list.showing": "Mostrando {{from}}–{{to}} de {{total}}",
   "list.pageOf": "Página {{current}} de {{total}}",
   "list.noFullName": "Sin nombre completo",
-
   "preview.default": "Predeterminado",
   "preview.loading": "Cargando",
-
   "qr.access": "Acceso QR",
   "qr.title": "Acceso QR del trabajador",
   "qr.subtitle": "Genera el código QR y el PIN para que {{username}} inicie sesión en la app móvil.",
@@ -169,7 +145,6 @@
   "qr.print": "Imprimir",
   "qr.download": "Descargar PNG",
   "qr.printTitle": "Acceso QR — {{username}}",
-
   "qr.pin.section": "PIN de acceso",
   "qr.pin.set": "PIN configurado",
   "qr.pin.unset": "Sin PIN",
@@ -183,7 +158,6 @@
   "qr.pin.updated": "PIN actualizado",
   "qr.pin.updatedDesc": "El PIN de {{username}} ha sido establecido. Entrégaselo al trabajador ahora.",
   "qr.pin.failed": "Error al establecer el PIN",
-
   "qr.regenerate": "Regenerar QR",
   "qr.regenerating": "Regenerando…",
   "qr.regenerateConfirmTitle": "¿Regenerar el código QR?",
