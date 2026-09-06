@@ -6,6 +6,7 @@
   "signOut": "Cerrar sesión",
   "signedInAs": "Conectado como {{username}}",
   "profile": "Perfil",
+  "account": "Mi cuenta",
   "soon": "PRONTO",
   "comingSoon": "Próximamente",
   "version": "v1.0.0 · Fase 1+2",
@@ -13,7 +14,6 @@
   "privacyPolicy": "Política de Privacidad",
   "termsOfService": "Términos de Servicio",
   "poweredBy": "Desarrollado por",
-
   "whatsNew.badge": "Novedades",
   "whatsNew.dialogLabel": "Novedades de BuildTrack",
   "whatsNew.done": "¡Entendido!",
@@ -31,17 +31,14 @@
   "whatsNew.budget.body": "Cada proyecto separa lo que te cuesta de lo que le cobras al cliente, y te muestra cuánto te pagaron y cuánto te deben. Si una obra se pasa, ves el excedente en vez de quedar trabado.",
   "whatsNew.look.title": "El panel tiene cara nueva",
   "whatsNew.look.body": "Le dimos al panel un aspecto más claro y ordenado. Todo sigue en su lugar — y si te pierdes, el botón «?» de cada pantalla te da un recorrido guiado.",
-
   "contractBar.ofContract": "de {{amount}}",
   "contractBar.ofBudget": "de {{amount}} de presupuesto",
-
   "roles.ADMIN": "Administrador",
   "roles.SUPERVISOR": "Supervisor",
   "roles.WORKER": "Trabajador",
   "roles.FINANCE": "Finanzas",
   "roles.WAREHOUSE": "Bodega",
   "roles.SUBCONTRACTOR": "Subcontratista",
-
   "status.active": "Activo",
   "status.inactive": "Inactivo",
   "status.closed": "Cerrado",
@@ -52,7 +49,6 @@
   "status.approved": "Aprobado",
   "status.rejected": "Rechazado",
   "status.observed": "Observado",
-
   "buttons.save": "Guardar",
   "buttons.cancel": "Cancelar",
   "buttons.delete": "Eliminar",
@@ -82,7 +78,6 @@
   "buttons.resetFilters": "Restablecer filtros",
   "buttons.refresh": "Actualizar",
   "stat.unableToLoad": "No se pudo cargar",
-
   "labels.from": "Desde",
   "labels.to": "Hasta",
   "labels.date": "Fecha",
@@ -112,13 +107,11 @@
   "labels.allWorkers": "Todos los trabajadores",
   "labels.code": "Código",
   "labels.issued": "Emitida",
-
   "alerts.onTrack": "En orden",
   "alerts.warning": "Advertencia",
   "alerts.critical": "Crítico",
   "alerts.exceeded": "EXCEDIDO",
   "alerts.ok": "OK",
-
   "error.generic": "Algo salió mal",
   "error.loadingFailed": "Error al cargar datos",
   "error.unexpected": "Ocurrió un error inesperado",
@@ -126,14 +119,11 @@
   "error.invalidCredentials": "Credenciales inválidas o sesión expirada",
   "error.forbidden": "No tienes permiso para realizar esta acción",
   "error.requestFailed": "La solicitud falló ({{status}})",
-
   "language.en": "English",
   "language.es": "Español",
-
   "timezone.change": "Cambiar zona horaria",
   "timezone.current": "Zona horaria: {{tz}}",
   "timezone.select": "Zona horaria del sistema",
-
   "budgetWarning.title": "Pagos de nómina pendientes",
   "budgetWarning.desc": "Presupuesto restante",
   "budgetWarning.insufficient": "no cubre la nómina proyectada"

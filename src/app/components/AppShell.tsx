@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Building2, Menu, X, LogOut } from 'lucide-react';
+import { Building2, Menu, X, LogOut, UserRound } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './ui/button';
 import {
@@ -7,6 +7,8 @@ import {
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import { AccountDrawer } from './account/AccountDrawer';
+import { isFieldRole } from './users/shared';
 import { CanonicalRole } from '../types';
 
 // Industrial chassis — the frame speaks the same language as the content:
@@ -57,6 +59,7 @@ export function AppShell({
 }: AppShellProps) {
   const { t } = useTranslation('common');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const navScrollPos = useRef(0);
 
   // Lock body scroll when mobile sidebar is open
@@ -231,6 +234,13 @@ export function AppShell({
               <DropdownMenuContent align="end" className="w-56 rounded-none border-[#DBD0BB]">
                 <DropdownMenuLabel className="font-bt-mono text-[10px] uppercase tracking-[0.08em] text-[#8A8175]">{t('signedInAs', { username })}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                {/* Field roles sign in with QR + PIN: their credential lives in
+                    the mobile app, so the panel offers them no password to change. */}
+                {!isFieldRole(role) && (
+                  <DropdownMenuItem onClick={() => setAccountOpen(true)} className="gap-2 text-sm cursor-pointer">
+                    <UserRound className="w-4 h-4" />{t('account')}
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={onLogout} className="gap-2 text-sm text-[#C2410C] focus:text-[#C2410C] cursor-pointer">
                   <LogOut className="w-4 h-4" />{t('signOut')}
                 </DropdownMenuItem>
@@ -238,6 +248,9 @@ export function AppShell({
             </DropdownMenu>
           </div>
         </header>
+        {!isFieldRole(role) && (
+          <AccountDrawer open={accountOpen} onOpenChange={setAccountOpen} onSignOut={onLogout} />
+        )}
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto p-4 md:p-8">

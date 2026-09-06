@@ -6,6 +6,7 @@
   "signOut": "Sign out",
   "signedInAs": "Signed in as {{username}}",
   "profile": "Profile",
+  "account": "My account",
   "soon": "SOON",
   "comingSoon": "Coming soon",
   "version": "v1.0.0 · Phase 1+2",
@@ -13,7 +14,6 @@
   "privacyPolicy": "Privacy Policy",
   "termsOfService": "Terms of Service",
   "poweredBy": "Powered by",
-
   "whatsNew.badge": "What's new",
   "whatsNew.dialogLabel": "What's new in BuildTrack",
   "whatsNew.done": "Got it!",
@@ -31,17 +31,14 @@
   "whatsNew.budget.body": "Each project separates what it costs you from what you charge the client, and shows how much you have been paid and what you are still owed. If a job runs over, you see the overrun instead of getting stuck.",
   "whatsNew.look.title": "The panel has a new face",
   "whatsNew.look.body": "We gave the panel a clearer, more orderly look. Everything is still in its place — and if you get lost, the \"?\" button on each screen gives you a guided tour.",
-
   "contractBar.ofContract": "of {{amount}}",
   "contractBar.ofBudget": "of {{amount}} budget",
-
   "roles.ADMIN": "Admin",
   "roles.SUPERVISOR": "Supervisor",
   "roles.WORKER": "Worker",
   "roles.FINANCE": "Finance",
   "roles.WAREHOUSE": "Warehouse",
   "roles.SUBCONTRACTOR": "Subcontractor",
-
   "status.active": "Active",
   "status.inactive": "Inactive",
   "status.closed": "Closed",
@@ -52,7 +49,6 @@
   "status.approved": "Approved",
   "status.rejected": "Rejected",
   "status.observed": "Observed",
-
   "buttons.save": "Save",
   "buttons.cancel": "Cancel",
   "buttons.delete": "Delete",
@@ -82,7 +78,6 @@
   "buttons.resetFilters": "Reset filters",
   "buttons.refresh": "Refresh",
   "stat.unableToLoad": "Unable to load",
-
   "labels.from": "From",
   "labels.to": "To",
   "labels.date": "Date",
@@ -112,13 +107,11 @@
   "labels.allWorkers": "All Workers",
   "labels.code": "Code",
   "labels.issued": "Issued",
-
   "alerts.onTrack": "On track",
   "alerts.warning": "Warning",
   "alerts.critical": "Critical",
   "alerts.exceeded": "EXCEEDED",
   "alerts.ok": "OK",
-
   "error.generic": "Something went wrong",
   "error.loadingFailed": "Error loading data",
   "error.unexpected": "An unexpected error occurred",
@@ -126,14 +119,11 @@
   "error.invalidCredentials": "Invalid credentials or session expired",
   "error.forbidden": "You do not have permission to perform this action",
   "error.requestFailed": "Request failed ({{status}})",
-
   "language.en": "English",
   "language.es": "Español",
-
   "timezone.change": "Change timezone",
   "timezone.current": "Timezone: {{tz}}",
   "timezone.select": "System timezone",
-
   "budgetWarning.title": "Pending labour payments",
   "budgetWarning.desc": "Remaining budget",
   "budgetWarning.insufficient": "cannot cover projected payroll"
