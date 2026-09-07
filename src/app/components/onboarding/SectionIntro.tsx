@@ -34,6 +34,9 @@ export const INTRO_SECTIONS = new Set([
   'projects-crear', 'projects-ficha-resumen', 'projects-ficha-dinero', 'projects-ficha-equipo',
   'projects-ficha-pendientes', 'projects-ficha-consultas', 'projects-ficha-portal',
   'clients-ficha',
+  // The Trabajos tab and the job ficha claim the tour (lib/tourScope); the
+  // banner is their voice on phones.
+  'subcontractors-jobs', 'subcontractors-ficha',
   'invoices', 'invoice-branding', 'budgets', 'budget-report',
   'expenses', 'expense-report', 'office-expenses',
   'accounts-receivable', 'accounts-payable', 'audit',
