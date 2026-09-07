@@ -411,7 +411,7 @@ export function ToolInventory({ onNavigate }: ToolInventoryProps) {
   const [tools, setTools] = useState<Tool[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalElements, setTotalElements] = useState(0);
-  const [summary, setSummary] = useState<ToolSummary>({ total: 0, available: 0, assigned: 0, inReview: 0, damaged: 0, lost: 0 });
+  const [summary, setSummary] = useState<ToolSummary>({ total: 0, available: 0, assigned: 0, pendingAcceptance: 0, inReview: 0, damaged: 0, lost: 0 });
 
   // Modal state
   const [showAdd,      setShowAdd]      = useState(false);

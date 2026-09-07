@@ -125,8 +125,8 @@ const BudgetReport = lazyWithRetry(() =>
 );
 
 // Lazy-loaded phase-5 sections
-const AdminToolView = lazyWithRetry(() =>
-  import('../components/AdminToolView').then(m => ({ default: m.AdminToolView }))
+const ToolsSection = lazyWithRetry(() =>
+  import('../components/tools/ToolsSection').then(m => ({ default: m.ToolsSection }))
 );
 const ToolReport = lazyWithRetry(() =>
   import('../components/ToolReport').then(m => ({ default: m.ToolReport }))
@@ -635,7 +635,7 @@ export function AdminDashboard() {
           )}
           {activeSection === 'tool-inventory' && (
             <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
-              <AdminToolView />
+              <ToolsSection onNavigate={handleNavigate} />
             </Suspense></SectionErrorBoundary>
           )}
           {activeSection === 'tool-report' && (

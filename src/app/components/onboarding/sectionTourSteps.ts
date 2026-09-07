@@ -59,7 +59,7 @@ export const SECTION_TOUR_STEPS: Record<string, string[]> = {
   // The Week claims the tour while it is on screen (lib/tourScope), with a
   // hyphen like the other scoped keys.
   'schedules-semana': ['rows', 'nav', 'undated'],
-  'tool-inventory': ['tabs', 'kpis', 'filters', 'table'],
+  'tool-inventory': ['header', 'counts', 'filters', 'table'],
   'tool-report': ['export', 'filters', 'kpis', 'by-status'],
   invoices: ['doc-type', 'client-project', 'line-items', 'totals'],
   'invoice-branding': ['logo', 'fields', 'save'],

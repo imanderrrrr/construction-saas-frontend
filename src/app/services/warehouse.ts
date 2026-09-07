@@ -67,26 +67,51 @@ export interface ToolResponse {
   id: number;
   code: string;
   name: string;
+  /** The enum's display name, in English: "Power Tools". Named in `tools.category.*`. */
   category: string;
+  /** The enum's display name, in English: "Pending Acceptance". Named in `tools.status.*`. */
   status: string;
   assignedTo: string | null;
   assignedToId: number | null;
   projectName: string | null;
   projectId: number | null;
   lastActivity: string;
+  /**
+   * The same moment, as an instant. The date alone cannot say "out since the
+   * 5th · 2 days unsigned", which is the line this screen exists for.
+   */
+  lastActivityAt?: string | null;
   dateRegistered: string;
   notes: string | null;
   history: ToolHistoryEntry[];
 }
 
+/**
+ * The six state counts of the Returnables tab, and a total that is their exact
+ * sum. `pendingAcceptance` is the one that used to be missing: a tool out of
+ * the warehouse that nobody has signed for fell out of the strip with no
+ * figure to explain it, and the total stopped matching what was underneath.
+ */
 export interface ToolSummary {
   total: number;
   available: number;
   assigned: number;
+  pendingAcceptance: number;
   inReview: number;
   damaged: number;
   lost: number;
 }
+
+/** The four leading figures of the Consumables tab. */
+export interface ConsumableSummary {
+  total: number;
+  inStock: number;
+  lowStock: number;
+  outOfStock: number;
+}
+
+/** The traffic light, as the server decides it: zero is out, at or below the minimum is low. */
+export type StockLight = 'IN' | 'LOW' | 'OUT';
 
 // Assignments
 
@@ -390,6 +415,8 @@ export async function getAdminTools(params?: {
   status?: string;
   category?: string;
   search?: string;
+  /** The filter of the day somebody leaves the company: what do they still have. */
+  assignedToId?: number;
   page?: number;
   size?: number;
 }): Promise<PageResponse<ToolResponse>> {
@@ -397,7 +424,33 @@ export async function getAdminTools(params?: {
   if (params?.status) q.set('status', params.status);
   if (params?.category) q.set('category', params.category);
   if (params?.search) q.set('search', params.search);
+  if (params?.assignedToId != null) q.set('assignedToId', String(params.assignedToId));
   q.set('page', String(params?.page ?? 0));
   q.set('size', String(params?.size ?? 50));
   return api<PageResponse<ToolResponse>>(`/api/v1/admin/tools?${q}`);
+}
+
+// ── Consumables, paged ───────────────────────────────
+// The unpaged `listConsumables` above stays for the warehouse dispatch
+// counter, which needs every supply in one dropdown. The panel's table asks
+// for a page, ordered by the traffic light: what has run out is read first.
+
+export async function searchConsumables(params?: {
+  search?: string;
+  unit?: string;
+  stock?: StockLight;
+  page?: number;
+  size?: number;
+}): Promise<PageResponse<ConsumableResponse>> {
+  const q = new URLSearchParams();
+  if (params?.search) q.set('search', params.search);
+  if (params?.unit) q.set('unit', params.unit);
+  if (params?.stock) q.set('stock', params.stock);
+  q.set('page', String(params?.page ?? 0));
+  q.set('size', String(params?.size ?? 20));
+  return api<PageResponse<ConsumableResponse>>(`/api/v1/warehouse/consumables/search?${q}`);
+}
+
+export async function getConsumableSummary(): Promise<ConsumableSummary> {
+  return api<ConsumableSummary>('/api/v1/warehouse/consumables/summary');
 }
