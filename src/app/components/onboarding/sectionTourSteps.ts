@@ -46,7 +46,7 @@ export const SECTION_TOUR_STEPS: Record<string, string[]> = {
   'clients-ficha': ['bar', 'tabs', 'shortcuts'],
   subcontractors: ['tabs', 'job-kpis', 'job-filters', 'jobs-table'],
   schedules: ['project-picker', 'add-task'],
-  'tool-inventory': ['tabs', 'kpis', 'filters', 'table'],
+  'tool-inventory': ['header', 'counts', 'filters', 'table'],
   'tool-report': ['export', 'filters', 'kpis', 'by-status'],
   invoices: ['doc-type', 'client-project', 'line-items', 'totals'],
   'invoice-branding': ['logo', 'fields', 'save'],
