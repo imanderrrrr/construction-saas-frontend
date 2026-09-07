@@ -16,6 +16,7 @@ import enDashboard from './locales/en/dashboard.json';
 import enWorker from './locales/en/worker.json';
 import enSupervisor from './locales/en/supervisor.json';
 import enSubcontractors from './locales/en/subcontractors.json';
+import enTasks from './locales/en/tasks.json';
 import enLanding from './locales/en/landing.json';
 import enBilling from './locales/en/billing.json';
 import enSiteLog from './locales/en/siteLog.json';
@@ -27,6 +28,7 @@ import enDocs from './locales/en/docs.json';
 import enStatus from './locales/en/status.json';
 import enPay from './locales/en/pay.json';
 import enTm from './locales/en/tm.json';
+import enTools from './locales/en/tools.json';
 
 // Spanish
 import esCommon from './locales/es/common.json';
@@ -42,6 +44,7 @@ import esDashboard from './locales/es/dashboard.json';
 import esWorker from './locales/es/worker.json';
 import esSupervisor from './locales/es/supervisor.json';
 import esSubcontractors from './locales/es/subcontractors.json';
+import esTasks from './locales/es/tasks.json';
 import esLanding from './locales/es/landing.json';
 import esBilling from './locales/es/billing.json';
 import esSiteLog from './locales/es/siteLog.json';
@@ -53,8 +56,9 @@ import esDocs from './locales/es/docs.json';
 import esStatus from './locales/es/status.json';
 import esPay from './locales/es/pay.json';
 import esTm from './locales/es/tm.json';
+import esTools from './locales/es/tools.json';
 
-const ns = ['common', 'auth', 'admin', 'expenses', 'finance', 'projects', 'time', 'inventory', 'users', 'dashboard', 'worker', 'supervisor', 'subcontractors', 'landing', 'billing', 'siteLog', 'clientView', 'signatures', 'punchList', 'rfi', 'docs', 'status', 'pay', 'tm'] as const;
+const ns = ['common', 'auth', 'admin', 'expenses', 'finance', 'projects', 'time', 'inventory', 'users', 'dashboard', 'worker', 'supervisor', 'subcontractors', 'tasks', 'landing', 'billing', 'siteLog', 'clientView', 'signatures', 'punchList', 'rfi', 'docs', 'status', 'pay', 'tm', 'tools'] as const;
 
 i18n
   .use(LanguageDetector)
@@ -75,6 +79,7 @@ i18n
         worker: enWorker,
         supervisor: enSupervisor,
         subcontractors: enSubcontractors,
+        tasks: enTasks,
         landing: enLanding,
         billing: enBilling,
         siteLog: enSiteLog,
@@ -86,6 +91,7 @@ i18n
         status: enStatus,
         pay: enPay,
         tm: enTm,
+        tools: enTools,
       },
       es: {
         common: esCommon,
@@ -101,6 +107,7 @@ i18n
         worker: esWorker,
         supervisor: esSupervisor,
         subcontractors: esSubcontractors,
+        tasks: esTasks,
         landing: esLanding,
         billing: esBilling,
         siteLog: esSiteLog,
@@ -112,6 +119,7 @@ i18n
         status: esStatus,
         pay: esPay,
         tm: esTm,
+        tools: esTools,
       },
     },
     fallbackLng: 'es',

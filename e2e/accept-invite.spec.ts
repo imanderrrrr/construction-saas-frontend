@@ -32,7 +32,12 @@ test.describe('Accept invitation', () => {
     });
 
     await page.goto(`/accept-invite/${TOKEN}`);
-    await expect(page.getByText('Create your account')).toBeVisible();
+    // The heading, not the loose text: the three hero paragraphs of the ink
+    // column all carry the phrase "Create your account" too, so a bare
+    // getByText matches both the <h1> and that <p> the moment the preview
+    // lands — a strict-mode violation. It only passed before when the check
+    // won the race and caught the loading state, asserting nothing.
+    await expect(page.getByRole('heading', { name: 'Create your account' })).toBeVisible();
 
     await page.fill('#fullName', 'Will Worker');
     await page.fill('#username', 'worker1');
