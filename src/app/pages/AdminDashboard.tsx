@@ -101,8 +101,8 @@ const AdminTmOffice = lazyWithRetry(() =>
 );
 
 // Lazy-loaded phase-2 sections
-const KanbanBoard = lazyWithRetry(() =>
-  import('../components/KanbanBoard').then(m => ({ default: m.KanbanBoard }))
+const TasksSection = lazyWithRetry(() =>
+  import('../components/tasks/TasksSection').then(m => ({ default: m.TasksSection }))
 );
 const HoursReport = lazyWithRetry(() =>
   import('../components/labor/HoursReportScreen').then(m => ({ default: m.HoursReportScreen }))
@@ -159,8 +159,8 @@ const OfficeExpenses = lazyWithRetry(() =>
 );
 
 // Lazy-loaded subcontractor management section
-const SubcontractorManagement = lazyWithRetry(() =>
-  import('../components/SubcontractorManagement').then(m => ({ default: m.SubcontractorManagement }))
+const SubcontractorsSection = lazyWithRetry(() =>
+  import('../components/subcontractors/SubcontractorsSection').then(m => ({ default: m.SubcontractorsSection }))
 );
 
 // Lazy-loaded invoice template (issuer branding) settings
@@ -605,7 +605,7 @@ export function AdminDashboard() {
           {activeSection === 'users'        && <UsersRoster />}
           {activeSection === 'schedules'    && (
             <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
-              <KanbanBoard />
+              <TasksSection />
             </Suspense></SectionErrorBoundary>
           )}
           {activeSection === 'hours'        && (
@@ -679,8 +679,11 @@ export function AdminDashboard() {
             </Suspense></SectionErrorBoundary>
           )}
           {activeSection === 'subcontractors' && (
-            <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
-              <SubcontractorManagement />
+            // The section is the only one of the Proyectos block that is code-split.
+            // Its placeholder is the redesign's own skeleton — square, sand, no
+            // rounded white card left over from the old look.
+            <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="bt-skeleton h-64 border border-[#E7E1D5]" />}>
+              <SubcontractorsSection onNavigate={handleNavigate} />
             </Suspense></SectionErrorBoundary>
           )}
           {activeSection === 'projects'     && <ProjectManagement onNavigate={handleNavigate} />}

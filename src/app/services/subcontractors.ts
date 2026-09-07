@@ -1,5 +1,6 @@
-// OFJR Construction — Subcontractor Admin Service
-// All admin API endpoints for subcontractor job & invoice management
+// BuildTrack — Subcontractor admin service.
+// Every admin endpoint of the section: the directory, the jobs, their
+// evidence and history, and the invoices.
 
 import { api, getBaseUrl } from '../lib/api';
 
@@ -45,6 +46,8 @@ export interface CreateJobPayload {
   projectId: number;
   title: string;
   description?: string | null;
+  /** What was agreed for the job, in cents. The model and the endpoint have always taken it; the form never asked. */
+  agreedAmountCents?: number | null;
   dueDate?: string | null;
 }
 
@@ -55,11 +58,34 @@ export interface UpdateJobStatusPayload {
 
 // Timeline
 
+/**
+ * The `i18n` payload a server-written history row carries (backend V99): one
+ * key plus raw, unformatted params, so the sentence is composed in whatever
+ * language the reader has selected right now.
+ */
+export interface SubcontractorI18n {
+  msgKey?: string;
+  params?: Record<string, unknown>;
+}
+
 export interface TimelineEntry {
   id: number;
+  jobId: number;
+  actorId: number;
   action: string;
   actorName: string | null;
-  comment: string | null;
+  fromStatus: string | null;
+  toStatus: string | null;
+  /**
+   * Two different things, both of which must survive: the actor's own words
+   * (a comment, a payment reference), shown verbatim in any language, and the
+   * English fallback of a machine-written row, which [i18n] supersedes.
+   *
+   * The panel used to read `comment`, a field this response has never had, so
+   * the comment written on a status change was never shown to anyone.
+   */
+  message: string | null;
+  i18n: SubcontractorI18n | null;
   createdAt: string;
 }
 
@@ -76,6 +102,8 @@ export interface EvidenceEntry {
   contentType: string;
   originalName: string | null;
   description: string | null;
+  /** Composed description for the row the server creates from an invoice (V99). */
+  i18n: SubcontractorI18n | null;
   createdAt: string;
 }
 
@@ -132,17 +160,13 @@ export interface RegisterPaymentPayload {
 
 // Status transitions
 
-/** Subcontractor-side strict transitions. */
-export const JOB_TRANSITIONS: Record<JobStatus, JobStatus[]> = {
-  ASSIGNED:    ['IN_PROGRESS'],
-  IN_PROGRESS: ['IN_REVIEW'],
-  IN_REVIEW:   ['OBSERVED', 'APPROVED'],
-  OBSERVED:    ['IN_PROGRESS'],
-  APPROVED:    ['CLOSED'],
-  CLOSED:      [],
-};
-
-/** Admin can move a job to any status (except the current one). */
+/**
+ * What the admin may move a job to. The subcontractor walks a strict path
+ * (ASSIGNED→IN_PROGRESS→IN_REVIEW→{OBSERVED|APPROVED}, OBSERVED→IN_PROGRESS,
+ * APPROVED→CLOSED); the admin may jump anywhere, reopening a closed job
+ * included — which is why the window that offers this spells out what each
+ * jump does and paints the reopen in red.
+ */
 export const ADMIN_JOB_TRANSITIONS: Record<JobStatus, JobStatus[]> = {
   ASSIGNED:    ['IN_PROGRESS', 'IN_REVIEW', 'OBSERVED', 'APPROVED', 'CLOSED'],
   IN_PROGRESS: ['ASSIGNED', 'IN_REVIEW', 'OBSERVED', 'APPROVED', 'CLOSED'],
@@ -152,14 +176,31 @@ export const ADMIN_JOB_TRANSITIONS: Record<JobStatus, JobStatus[]> = {
   CLOSED:      ['ASSIGNED', 'IN_PROGRESS', 'IN_REVIEW', 'OBSERVED', 'APPROVED'],
 };
 
-export const INVOICE_TRANSITIONS: Record<InvoiceStatus, InvoiceStatus[]> = {
-  SUBMITTED:       ['IN_REVIEW'],
-  IN_REVIEW:       ['OBSERVED', 'APPROVED'],
-  OBSERVED:        ['IN_REVIEW'],
-  APPROVED:        ['PENDING_PAYMENT'],
-  PENDING_PAYMENT: ['PAID'],
-  PAID:            [],
-};
+/**
+ * The five invoice states the panel shows, in flow order.
+ *
+ * PENDING_PAYMENT is deliberately absent. Nothing in the backend writes it —
+ * `reviewInvoice` only ever produces APPROVED or OBSERVED — so the state was
+ * unreachable, while the panel hung "Registrar pago" off it alone: an approved
+ * invoice could not be paid from the panel at all, and the "Revisar" it
+ * offered instead came back 409. APPROVED is the state that waits for money,
+ * and `APPROVED → PAID` is a transition the server already accepts.
+ */
+export const INVOICE_STATUS_FLOW: InvoiceStatus[] = ['SUBMITTED', 'IN_REVIEW', 'OBSERVED', 'APPROVED', 'PAID'];
+
+/** An invoice waiting on a decision from the admin. */
+export function isReviewable(status: InvoiceStatus): boolean {
+  return status === 'SUBMITTED' || status === 'IN_REVIEW';
+}
+
+/**
+ * An invoice waiting on money. PENDING_PAYMENT is accepted here even though
+ * nothing writes it: were a row ever to land there, `PENDING_PAYMENT → PAID`
+ * is legal on the server and the panel should not be the reason it is stuck.
+ */
+export function isPayable(status: InvoiceStatus): boolean {
+  return status === 'APPROVED' || status === 'PENDING_PAYMENT';
+}
 
 // ── Helper ─────────────────────────────────────────
 
@@ -178,6 +219,8 @@ export async function listJobs(params: {
   subcontractorId?: number;
   projectId?: number;
   status?: string;
+  /** Title or subcontractor name, matched on the server across every page. */
+  search?: string;
   page?: number;
   size?: number;
 } = {}): Promise<PageResponse<SubcontractorJobDTO>> {
@@ -185,6 +228,7 @@ export async function listJobs(params: {
     subcontractorId: params.subcontractorId,
     projectId: params.projectId,
     status: params.status,
+    search: params.search,
     page: params.page ?? 0,
     size: params.size ?? 20,
   });
@@ -231,12 +275,18 @@ export async function addJobObservation(id: number, payload: CreateObservationPa
 
 // ── Evidence helpers ──────────────────────────────
 
+/**
+ * Absolute so an `<img src>` / `<video src>` / `<iframe src>` reaches the API
+ * and not the dev server: in production the base is empty and these stay
+ * relative, which is what keeps the cookie same-origin behind the Vercel
+ * proxy. Both are served `inline` with `nosniff`, so the PDF previews in place.
+ */
 export function getEvidenceFileUrl(evidenceId: number): string {
-  return `/api/v1/subcontractor-evidence/${evidenceId}/file`;
+  return `${getBaseUrl()}/api/v1/subcontractor-evidence/${evidenceId}/file`;
 }
 
 export function getInvoiceFileUrl(invoiceId: number): string {
-  return `/api/v1/admin/subcontractor-invoices/${invoiceId}/file`;
+  return `${getBaseUrl()}/api/v1/admin/subcontractor-invoices/${invoiceId}/file`;
 }
 
 // ── Invoices API ───────────────────────────────────
@@ -244,12 +294,15 @@ export function getInvoiceFileUrl(invoiceId: number): string {
 export async function listInvoices(params: {
   subcontractorId?: number;
   status?: string;
+  /** Invoice number, matched on the server. */
+  search?: string;
   page?: number;
   size?: number;
 } = {}): Promise<PageResponse<SubcontractorInvoiceDTO>> {
   const q = buildQuery({
     subcontractorId: params.subcontractorId,
     status: params.status,
+    search: params.search,
     page: params.page ?? 0,
     size: params.size ?? 20,
   });
@@ -268,4 +321,67 @@ export async function registerPayment(id: number, payload: RegisterPaymentPayloa
     method: 'POST',
     body: JSON.stringify(payload),
   });
+}
+
+// ── Overview: the figures and the directory ────────
+
+/**
+ * The nine leading figures of the three tabs, counted over the whole tenant.
+ *
+ * They are a server call precisely because the panel used to add them up in
+ * the browser over the twenty rows it already had: "Total Trabajos" could
+ * never exceed the page size. When this call fails the panel writes an em
+ * dash — it does not fall back to the page.
+ */
+export interface SubcontractorsSummary {
+  activeSubcontractors: number;
+  openJobs: number;
+  balanceDueCents: number;
+  totalJobs: number;
+  jobsInReview: number;
+  jobsOverdue: number;
+  invoicesToReview: number;
+  invoicesToPayCount: number;
+  invoicesToPayCents: number;
+  paidThisMonthCents: number;
+}
+
+/** One row of the directory tab: a subcontractor and where you stand with them. */
+export interface SubcontractorDirectoryRow {
+  subcontractorId: number;
+  fullName: string | null;
+  username: string;
+  email: string | null;
+  status: 'ACTIVE' | 'INACTIVE' | 'PENDING_DELETION';
+  totalJobs: number;
+  openJobs: number;
+  overdueJobs: number;
+  invoicesToPay: number;
+  balanceCents: number;
+}
+
+export type DirectoryJobsFilter = 'WITH_OPEN' | 'NONE';
+export type DirectoryBalanceFilter = 'WITH_BALANCE' | 'SETTLED';
+
+const OVERVIEW = '/api/v1/admin/subcontractors';
+
+export async function getSubcontractorsSummary(): Promise<SubcontractorsSummary> {
+  return api<SubcontractorsSummary>(`${OVERVIEW}/summary`);
+}
+
+export async function listDirectory(params: {
+  jobs?: DirectoryJobsFilter;
+  balance?: DirectoryBalanceFilter;
+  search?: string;
+  page?: number;
+  size?: number;
+} = {}): Promise<PageResponse<SubcontractorDirectoryRow>> {
+  const q = buildQuery({
+    jobs: params.jobs,
+    balance: params.balance,
+    search: params.search,
+    page: params.page ?? 0,
+    size: params.size ?? 20,
+  });
+  return api<PageResponse<SubcontractorDirectoryRow>>(`${OVERVIEW}/directory${q}`);
 }
