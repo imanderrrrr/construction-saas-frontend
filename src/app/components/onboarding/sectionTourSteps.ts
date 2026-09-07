@@ -44,7 +44,13 @@ export const SECTION_TOUR_STEPS: Record<string, string[]> = {
   // The client ficha claims the tour while on screen (same mechanism as the
   // jobsite ficha): the ink bar, the three tabs and the two shortcuts.
   'clients-ficha': ['bar', 'tabs', 'shortcuts'],
-  subcontractors: ['tabs', 'job-kpis', 'job-filters', 'jobs-table'],
+  // Subcontratistas is split in three, for the same reason Proyectos is:
+  // `visibleSteps()` filters once at start-up, so a stop anchored in a tab
+  // that is not mounted yet is dropped. With the section opening on the
+  // directory, a single eight-stop tour would announce "1 de 4".
+  subcontractors: ['tabs', 'kpis', 'filters', 'directory-table'],
+  'subcontractors-jobs': ['job-kpis', 'job-filters', 'jobs-table'],
+  'subcontractors-ficha': ['job-actions', 'money', 'tabs'],
   schedules: ['project-picker', 'add-task'],
   'tool-inventory': ['tabs', 'kpis', 'filters', 'table'],
   'tool-report': ['export', 'filters', 'kpis', 'by-status'],
