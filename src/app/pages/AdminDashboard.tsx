@@ -128,8 +128,8 @@ const BudgetReport = lazyWithRetry(() =>
 const ToolsSection = lazyWithRetry(() =>
   import('../components/tools/ToolsSection').then(m => ({ default: m.ToolsSection }))
 );
-const ToolReport = lazyWithRetry(() =>
-  import('../components/ToolReport').then(m => ({ default: m.ToolReport }))
+const ToolReportSection = lazyWithRetry(() =>
+  import('../components/toolreport/ToolReportSection').then(m => ({ default: m.ToolReportSection }))
 );
 
 // Lazy-loaded labor cost sections
@@ -640,7 +640,7 @@ export function AdminDashboard() {
           )}
           {activeSection === 'tool-report' && (
             <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
-              <ToolReport />
+              <ToolReportSection onNavigate={handleNavigate} />
             </Suspense></SectionErrorBoundary>
           )}
           {activeSection === 'labor-cost' && (

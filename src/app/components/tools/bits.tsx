@@ -178,8 +178,14 @@ export function Code({ children, className }: { children: ReactNode; className?:
 }
 
 /** One cell of the figure strip. The pressable ones apply their own filter. */
-export function Figure({ value, label, note, tone = 'ink', pressed, onClick, state, className }: {
+export function Figure({ value, text, label, note, tone = 'ink', pressed, onClick, state, className }: {
   value: number | undefined;
+  /**
+   * Drawn instead of [value] when the figure carries its unit — "8,4 días",
+   * "35,0 %". The unit belongs inside the display and is translated together
+   * with the number; split into a label beside it, it came out in English.
+   */
+  text?: string;
   label: string;
   note?: string;
   tone?: 'ink' | 'orange' | 'red' | 'green';
@@ -192,7 +198,7 @@ export function Figure({ value, label, note, tone = 'ink', pressed, onClick, sta
   const body = (
     <>
       <div className={cn('font-bt-display font-extrabold text-[38px] leading-[0.85] tabular-nums', color)}>
-        {state === 'ready' ? value : state === 'failed' ? <span className="text-[#CDBFA6]">—</span> : <Bone className="w-12 h-7" />}
+        {state === 'ready' ? (text ?? value) : state === 'failed' ? <span className="text-[#CDBFA6]">—</span> : <Bone className="w-12 h-7" />}
       </div>
       <Mono className="block text-[9.5px] tracking-[0.1em] text-[#5A5346] mt-1.5">{label}</Mono>
       {note && <Mono className="block text-[8.5px] tracking-[0.08em] text-[#A69C8D] mt-[3px]">{note}</Mono>}
