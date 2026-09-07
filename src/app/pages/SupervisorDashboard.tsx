@@ -35,7 +35,9 @@ const ExpenseReviews = lazy(() =>
   import('../components/ExpenseReviews').then(m => ({ default: m.ExpenseReviews }))
 );
 const SupervisorTaskBoard = lazy(() =>
-  import('../components/SupervisorTaskBoard').then(m => ({ default: m.SupervisorTaskBoard }))
+  // The supervisor reads the admin's list with the admin's permissions removed:
+  // same grouping, same step button, no creating, editing, deleting or assigning.
+  import('../components/tasks/TasksSection').then(m => ({ default: () => <m.TasksSection supervisor /> }))
 );
 const TeamTools = lazy(() =>
   import('../components/TeamTools').then(m => ({ default: m.TeamTools }))

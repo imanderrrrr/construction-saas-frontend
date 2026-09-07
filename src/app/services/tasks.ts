@@ -1,5 +1,7 @@
-// OFJR Construction — Kanban Tasks Service
-// Admin CRUD + Supervisor read/move over /api/v1/admin/tasks and /api/v1/supervisor/tasks
+// BuildTrack — Tasks service.
+// The admin's list and the supervisor's, over /api/v1/admin/tasks and
+// /api/v1/supervisor/tasks. Both roles read the same shape; the supervisor's
+// is narrowed to the projects they are assigned to, on the server.
 
 import { api, apiMultipart, getBaseUrl } from '../lib/api';
 
@@ -25,6 +27,52 @@ export interface TaskResponse {
   createdByName: string;
   createdAt: string;
   updatedAt: string;
+  /**
+   * When the task last changed step — its creation counts as the first move.
+   * The row's "7 d en revisión" is measured from here, not from `updatedAt`,
+   * which also moves when someone edits the title.
+   */
+  stepSince?: string | null;
+  commentCount?: number | null;
+  photoCount?: number | null;
+  documentCount?: number | null;
+  historyCount?: number | null;
+}
+
+/** The header's figures and the counts the chips and the person picker carry. */
+export interface TaskSummary {
+  open: number;
+  overdue: number;
+  dueToday: number;
+  thisWeek: number;
+  noDates: number;
+  unassigned: number;
+  /** Drawn in its own group, never added to `open`. */
+  closedThisWeek: number;
+  openByProject: Record<string, number>;
+  openByAssignee: Record<string, number>;
+}
+
+export interface TaskPage {
+  content: TaskResponse[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+export interface TaskQuery {
+  projectId?: number;
+  assigneeId?: number;
+  /** Only the tasks nobody owns. */
+  unassigned?: boolean;
+  status?: TaskStatus;
+  /** Drop the finished work the header does not count. */
+  openOnly?: boolean;
+  /** Title or assignee name, matched on the server across every page. */
+  search?: string;
+  page?: number;
+  size?: number;
 }
 
 export interface CreateTaskPayload {
@@ -41,6 +89,7 @@ export interface UpdateTaskPayload {
   title?: string;
   description?: string;
   priority?: TaskPriority;
+  /** Never null: clearing the owner goes through `unassignTask`. */
   assignedToId?: number;
   startDate?: string;
   dueDate?: string;
@@ -106,24 +155,54 @@ export const TASK_STATUS_ORDER: Record<TaskStatus, number> = {
   DONE:        3,
 };
 
-export const TASK_STATUS_LABELS: Record<TaskStatus, { en: string; es: string }> = {
-  TODO:        { en: 'To Do',       es: 'Por hacer' },
-  IN_PROGRESS: { en: 'In Progress', es: 'En progreso' },
-  REVIEW:      { en: 'Review',      es: 'Revisión' },
-  DONE:        { en: 'Done',        es: 'Completado' },
-};
+/**
+ * The four steps, in the only order the server allows.
+ *
+ * Their names are not here any more: they used to be a hand-written
+ * `{ en, es }` map in this file — outside i18n, so the panel's language toggle
+ * could not reach them. They live in `tasks.step.*` now.
+ */
+export function nextStep(status: TaskStatus): TaskStatus | null {
+  const i = TASK_STATUSES.indexOf(status);
+  return i >= 0 && i < TASK_STATUSES.length - 1 ? TASK_STATUSES[i + 1] : null;
+}
 
-export const TASK_PRIORITY_LABELS: Record<TaskPriority, { en: string; es: string }> = {
-  LOW:    { en: 'Low',    es: 'Baja' },
-  MEDIUM: { en: 'Medium', es: 'Media' },
-  HIGH:   { en: 'High',   es: 'Alta' },
-  URGENT: { en: 'Urgent', es: 'Urgente' },
-};
+export const TASK_PRIORITIES: TaskPriority[] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
 
 // ── Admin endpoints ──────────────────────────────────
 
-export async function listTasksByProject(projectId: number): Promise<TaskResponse[]> {
-  return api<TaskResponse[]>(`/api/v1/admin/tasks?projectId=${projectId}`);
+function taskQuery(q: TaskQuery): string {
+  const p = new URLSearchParams();
+  if (q.projectId != null) p.set('projectId', String(q.projectId));
+  if (q.assigneeId != null) p.set('assigneeId', String(q.assigneeId));
+  if (q.unassigned) p.set('unassigned', 'true');
+  if (q.status) p.set('status', q.status);
+  if (q.openOnly) p.set('openOnly', 'true');
+  if (q.search) p.set('search', q.search);
+  p.set('page', String(q.page ?? 0));
+  p.set('size', String(q.size ?? 100));
+  return `?${p.toString()}`;
+}
+
+/** The list. Without `projectId` it spans every project — the panel no longer starts by picking one. */
+export async function listTasks(q: TaskQuery = {}): Promise<TaskPage> {
+  return api<TaskPage>(`/api/v1/admin/tasks${taskQuery(q)}`);
+}
+
+export async function getTasksSummary(): Promise<TaskSummary> {
+  return api<TaskSummary>('/api/v1/admin/tasks/summary');
+}
+
+export async function getTask(id: number): Promise<TaskResponse> {
+  return api<TaskResponse>(`/api/v1/admin/tasks/${id}`);
+}
+
+/**
+ * Leave a task with no owner. Its own endpoint because a PATCH cannot say it:
+ * there a null `assignedToId` already means "don't change the assignee".
+ */
+export async function unassignTask(id: number): Promise<TaskResponse> {
+  return api<TaskResponse>(`/api/v1/admin/tasks/${id}/assignee`, { method: 'DELETE' });
 }
 
 export async function createTask(payload: CreateTaskPayload): Promise<TaskResponse> {
@@ -153,8 +232,16 @@ export async function deleteTask(id: number): Promise<void> {
 
 // ── Supervisor endpoints ─────────────────────────────
 
-export async function listSupervisorTasks(): Promise<TaskResponse[]> {
-  return api<TaskResponse[]>('/api/v1/supervisor/tasks');
+export async function listSupervisorTasks(q: TaskQuery = {}): Promise<TaskPage> {
+  return api<TaskPage>(`/api/v1/supervisor/tasks${taskQuery(q)}`);
+}
+
+export async function getSupervisorTasksSummary(): Promise<TaskSummary> {
+  return api<TaskSummary>('/api/v1/supervisor/tasks/summary');
+}
+
+export async function getSupervisorTask(id: number): Promise<TaskResponse> {
+  return api<TaskResponse>(`/api/v1/supervisor/tasks/${id}`);
 }
 
 export async function supervisorMoveTask(id: number, payload: MoveTaskPayload): Promise<TaskResponse> {

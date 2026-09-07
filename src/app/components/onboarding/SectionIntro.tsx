@@ -28,7 +28,7 @@ const seenKey = (username: string | null, section: string) =>
 /** Sections with authored copy. Kept explicit so a typo'd key fails loudly in review. */
 export const INTRO_SECTIONS = new Set([
   'users', 'time-approvals', 'hours', 'labor-cost', 'labor-payroll',
-  'projects', 'clients', 'subcontractors', 'schedules', 'tool-inventory', 'tool-report',
+  'projects', 'clients', 'subcontractors', 'schedules', 'schedules-semana', 'tool-inventory', 'tool-report',
   // The screens inside Proyectos that claim the tour (lib/tourScope) — the
   // banner is their voice on phones and on a tab with nothing to point at.
   'projects-crear', 'projects-ficha-resumen', 'projects-ficha-dinero', 'projects-ficha-equipo',

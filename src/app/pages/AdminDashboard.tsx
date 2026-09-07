@@ -101,8 +101,8 @@ const AdminTmOffice = lazyWithRetry(() =>
 );
 
 // Lazy-loaded phase-2 sections
-const KanbanBoard = lazyWithRetry(() =>
-  import('../components/KanbanBoard').then(m => ({ default: m.KanbanBoard }))
+const TasksSection = lazyWithRetry(() =>
+  import('../components/tasks/TasksSection').then(m => ({ default: m.TasksSection }))
 );
 const HoursReport = lazyWithRetry(() =>
   import('../components/labor/HoursReportScreen').then(m => ({ default: m.HoursReportScreen }))
@@ -605,7 +605,7 @@ export function AdminDashboard() {
           {activeSection === 'users'        && <UsersRoster />}
           {activeSection === 'schedules'    && (
             <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
-              <KanbanBoard />
+              <TasksSection />
             </Suspense></SectionErrorBoundary>
           )}
           {activeSection === 'hours'        && (
