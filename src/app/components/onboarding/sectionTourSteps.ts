@@ -51,7 +51,14 @@ export const SECTION_TOUR_STEPS: Record<string, string[]> = {
   subcontractors: ['tabs', 'kpis', 'filters', 'directory-table'],
   'subcontractors-jobs': ['job-kpis', 'job-filters', 'jobs-table'],
   'subcontractors-ficha': ['job-actions', 'money', 'tabs'],
-  schedules: ['project-picker', 'add-task'],
+  // Tareas. The section key stays `schedules` (renaming it would reset every
+  // account's "seen it" flag); the two old stops pointed at the project picker
+  // and the add button, and the picker is gone. The five anchors are containers
+  // that exist in every state of the screen, so none is filtered out at start-up.
+  schedules: ['header', 'views', 'filters', 'groups', 'shortcuts'],
+  // The Week claims the tour while it is on screen (lib/tourScope), with a
+  // hyphen like the other scoped keys.
+  'schedules-semana': ['rows', 'nav', 'undated'],
   'tool-inventory': ['tabs', 'kpis', 'filters', 'table'],
   'tool-report': ['export', 'filters', 'kpis', 'by-status'],
   invoices: ['doc-type', 'client-project', 'line-items', 'totals'],
