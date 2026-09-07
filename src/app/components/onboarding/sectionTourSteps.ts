@@ -60,7 +60,7 @@ export const SECTION_TOUR_STEPS: Record<string, string[]> = {
   // hyphen like the other scoped keys.
   'schedules-semana': ['rows', 'nav', 'undated'],
   'tool-inventory': ['header', 'counts', 'filters', 'table'],
-  'tool-report': ['export', 'filters', 'kpis', 'by-status'],
+  'tool-report': ['state', 'missing', 'filters', 'export'],
   invoices: ['doc-type', 'client-project', 'line-items', 'totals'],
   'invoice-branding': ['logo', 'fields', 'save'],
   budgets: ['header', 'kpis'],
