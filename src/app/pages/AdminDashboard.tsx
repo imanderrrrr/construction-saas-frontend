@@ -10,7 +10,7 @@ import {
   Building2, LayoutDashboard, Users, FolderOpen,
   Shield, LogOut, User, Menu, X,
   Clock, CalendarClock, ClipboardList, Receipt, FileBarChart,
-  Wallet, PieChart, Wrench, Banknote, HardHat,
+  Wallet, Wrench, Banknote, HardHat,
   ArrowDownToLine, ArrowUpFromLine, UserRound, FileText, Briefcase,
   CreditCard, FileSignature, HelpCircle, Star, PenLine,
 } from 'lucide-react';
@@ -117,11 +117,10 @@ const ExpenseReport = lazyWithRetry(() =>
 );
 
 // Lazy-loaded phase-4 sections
-const BudgetManagement = lazyWithRetry(() =>
-  import('../components/BudgetManagement').then(m => ({ default: m.BudgetManagement }))
-);
-const BudgetReport = lazyWithRetry(() =>
-  import('../components/BudgetReport').then(m => ({ default: m.BudgetReport }))
+// Presupuestos: one screen with two views (Obras | Reporte). The report is no
+// longer a section of its own — see components/budgets/BudgetsSection.
+const BudgetsSection = lazyWithRetry(() =>
+  import('../components/budgets/BudgetsSection').then(m => ({ default: m.BudgetsSection }))
 );
 
 // Lazy-loaded phase-5 sections
@@ -173,7 +172,7 @@ type ActiveSection =
   | 'clients'
   | 'time-approvals'
   | 'expenses' | 'expense-report'
-  | 'budgets'  | 'budget-report'
+  | 'budgets'
   | 'tool-inventory' | 'tool-report'
   | 'labor-cost' | 'labor-payroll'
   | 'invoices' | 'invoice-branding'
@@ -194,6 +193,24 @@ type NavItem = {
   badgeKey?: string;
   to?: string;
 };
+
+/**
+ * Pins survive the sections they were pinned to.
+ *
+ * `budget-report` is now the second view of `budgets`, so a pin on it becomes
+ * a pin on `budgets` — and it has to DEDUPLICATE: an orphan key would simply
+ * vanish (favourites are matched against NAV_ITEMS), but somebody who already
+ * had `budgets` pinned would otherwise end up with the key twice and two
+ * identical entries in the FAVORITES group.
+ */
+export function migrateFavorites(keys: string[]): string[] {
+  const out: string[] = [];
+  for (const key of keys) {
+    const migrated = key === 'budget-report' ? 'budgets' : key;
+    if (!out.includes(migrated)) out.push(migrated);
+  }
+  return out;
+}
 
 const NAV_GENERAL: NavItem[] = [
   { key: 'dashboard', labelKey: 'admin:nav.dashboard', icon: LayoutDashboard },
@@ -223,7 +240,6 @@ const NAV_FINANCE: NavItem[] = [
   { key: 'invoices',             labelKey: 'admin:nav.invoices',            icon: FileText        },
   { key: 'invoice-branding',     labelKey: 'admin:nav.invoiceBranding',     icon: FileSignature   },
   { key: 'budgets',              labelKey: 'admin:nav.budgets',             icon: Wallet          },
-  { key: 'budget-report',        labelKey: 'admin:nav.budgetReport',        icon: PieChart        },
   { key: 'expenses',             labelKey: 'admin:nav.allExpenses',         icon: Receipt         },
   { key: 'expense-report',       labelKey: 'admin:nav.expenseReport',       icon: FileBarChart    },
   { key: 'office-expenses',      labelKey: 'admin:nav.officeExpenses',      icon: Building2       },
@@ -253,7 +269,6 @@ const SECTION_META: Record<ActiveSection, { titleKey: string; subtitleKey: strin
   'expenses':        { titleKey: 'admin:section.expenses.title',        subtitleKey: 'admin:section.expenses.subtitle'        },
   'expense-report':  { titleKey: 'admin:section.expenseReport.title',   subtitleKey: 'admin:section.expenseReport.subtitle'   },
   'budgets':         { titleKey: 'admin:section.budgets.title',         subtitleKey: 'admin:section.budgets.subtitle'         },
-  'budget-report':   { titleKey: 'admin:section.budgetReport.title',    subtitleKey: 'admin:section.budgetReport.subtitle'    },
   'tool-inventory':  { titleKey: 'admin:section.toolInventory.title',   subtitleKey: 'admin:section.toolInventory.subtitle'   },
   'tool-report':     { titleKey: 'admin:section.toolReport.title',      subtitleKey: 'admin:section.toolReport.subtitle'      },
   'labor-cost':           { titleKey: 'admin:section.laborCost.title',           subtitleKey: 'admin:section.laborCost.subtitle'           },
@@ -289,7 +304,8 @@ export function AdminDashboard() {
   const [favorites, setFavorites] = useState<string[]>(() => {
     try {
       const raw = JSON.parse(localStorage.getItem(favStorageKey) ?? '[]');
-      return Array.isArray(raw) ? raw.filter((k): k is string => typeof k === 'string') : [];
+      if (!Array.isArray(raw)) return [];
+      return migrateFavorites(raw.filter((k): k is string => typeof k === 'string'));
     } catch { return []; }
   });
   const toggleFavorite = (key: string) => {
@@ -625,12 +641,7 @@ export function AdminDashboard() {
           )}
           {activeSection === 'budgets'     && (
             <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
-              <BudgetManagement />
-            </Suspense></SectionErrorBoundary>
-          )}
-          {activeSection === 'budget-report' && (
-            <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
-              <BudgetReport />
+              <BudgetsSection onNavigate={handleNavigate} />
             </Suspense></SectionErrorBoundary>
           )}
           {activeSection === 'tool-inventory' && (
@@ -655,7 +666,7 @@ export function AdminDashboard() {
           )}
           {activeSection === 'invoices' && (
             <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
-              <InvoiceManager />
+              <InvoiceManager onNavigate={handleNavigate} />
             </Suspense></SectionErrorBoundary>
           )}
           {activeSection === 'invoice-branding' && (

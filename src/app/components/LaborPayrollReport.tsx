@@ -30,6 +30,7 @@ import { FIELD_LIMITS } from '../../shared/fieldLimits';
 import { listActiveUsers, type UserDTO } from '../services/users';
 import { exportPayrollExcel } from '../helpers/exportPayrollExcel';
 import { exportPayrollPdf } from '../helpers/exportPayrollPdf';
+import { tenantCompanyName } from '../services/branding';
 import { businessToday, nDaysAgo } from '../helpers/dateTime';
 
 // Helpers
@@ -195,11 +196,13 @@ export function LaborPayrollReport() {
     if (!report || filtered.length === 0) return;
     try {
       toast.success(t('admin:payroll.exportStarted'), { description: t('admin:payroll.generatingExcel') });
+      const companyName = await tenantCompanyName();
       await exportPayrollExcel({
         workers: filtered,
         kpis: report.kpis,
         dateFrom,
         dateTo,
+        companyName,
         reportTitle: 'Labor Payroll',
       });
     } catch {
@@ -207,15 +210,17 @@ export function LaborPayrollReport() {
     }
   }
 
-  function handleExportPdf() {
+  async function handleExportPdf() {
     if (!report || filtered.length === 0) return;
     try {
       toast.success(t('admin:payroll.exportStarted'), { description: t('admin:payroll.generatingPdf') });
+      const companyName = await tenantCompanyName();
       exportPayrollPdf({
         workers: filtered,
         kpis: report.kpis,
         dateFrom,
         dateTo,
+        companyName,
         reportTitle: 'Labor Payroll',
       });
     } catch {

@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { AuthService } from '../services/auth';
 import {
   LayoutDashboard, CheckCircle, FileBarChart, DollarSign, Clock,
-  Wallet, PieChart, ArrowDownToLine, ArrowUpFromLine, BarChart3,
+  Wallet, ArrowDownToLine, ArrowUpFromLine, BarChart3,
   TrendingUp, TrendingDown, AlertTriangle, Receipt, Banknote, HardHat, Loader2, FileText,
   FileSignature, HelpCircle,
 } from 'lucide-react';
@@ -27,12 +27,6 @@ const FinanceExpenses = lazy(() =>
 const ExpenseReport = lazy(() =>
   import('../components/ExpenseReport').then(m => ({ default: m.ExpenseReport }))
 );
-const FinanceBudgets = lazy(() =>
-  import('../components/FinanceBudgets').then(m => ({ default: m.FinanceBudgets }))
-);
-const BudgetReport = lazy(() =>
-  import('../components/BudgetReport').then(m => ({ default: m.BudgetReport }))
-);
 const AccountsReceivable = lazy(() =>
   import('../components/AccountsReceivable').then(m => ({ default: m.AccountsReceivable }))
 );
@@ -49,6 +43,11 @@ const InvoiceManager = lazy(() =>
 );
 const ProjectFinancials = lazy(() =>
   import('../components/ProjectFinancials').then(m => ({ default: m.ProjectFinancials }))
+);
+// Presupuestos: the same screen the admin panel mounts, read-only. It carries
+// its own Obras | Reporte switcher, so `budget-report` is no longer a section.
+const BudgetsSection = lazy(() =>
+  import('../components/budgets/BudgetsSection').then(m => ({ default: m.BudgetsSection }))
 );
 const LaborCostReport = lazy(() =>
   import('../components/LaborCostReport').then(m => ({ default: m.LaborCostReport }))
@@ -73,7 +72,6 @@ type ActiveSection =
   | 'accounts-receivable'
   | 'accounts-payable'
   | 'budgets'
-  | 'budget-report'
   | 'project-financials'
   | 'labor-cost'
   | 'labor-payroll'
@@ -90,6 +88,10 @@ type ActiveSection =
 const ONBOARDING_KEY: Partial<Record<ActiveSection, string>> = {
   'tm-office': 'tm-office',
 };
+// Presupuestos is the exception the comment above describes in reverse: the
+// screen itself claims the tour with `pushTourScope`, under a finance-only key
+// (`budgets-reporte-finanzas`), so the accountant gets copy written for that
+// role instead of the admin's word for word.
 
 const SECTION_META_KEYS: Record<ActiveSection, { titleKey: string; subtitleKey: string }> = {
   'dashboard':            { titleKey: 'finance:section.dashboard.title',            subtitleKey: 'finance:section.dashboard.subtitle'            },
@@ -100,7 +102,6 @@ const SECTION_META_KEYS: Record<ActiveSection, { titleKey: string; subtitleKey: 
   'approved-expenses':    { titleKey: 'finance:section.approvedExpenses.title',     subtitleKey: 'finance:section.approvedExpenses.subtitle'     },
   'expense-report':       { titleKey: 'finance:section.expenseReport.title',        subtitleKey: 'finance:section.expenseReport.subtitle'        },
   'budgets':              { titleKey: 'finance:section.budgets.title',              subtitleKey: 'finance:section.budgets.subtitle'              },
-  'budget-report':        { titleKey: 'finance:section.budgetReport.title',         subtitleKey: 'finance:section.budgetReport.subtitle'         },
   'project-financials':   { titleKey: 'finance:section.projectFinancials.title',    subtitleKey: 'finance:section.projectFinancials.subtitle'    },
   'labor-cost':           { titleKey: 'finance:section.laborCost.title',            subtitleKey: 'finance:section.laborCost.subtitle'            },
   'labor-payroll':        { titleKey: 'finance:section.laborPayroll.title',         subtitleKey: 'finance:section.laborPayroll.subtitle'         },
@@ -305,7 +306,6 @@ export function FinanceDashboard({ initialSection }: { initialSection?: ActiveSe
     { key: 'approved-expenses',    label: t('finance:nav.approvedExpenses'),     icon: CheckCircle,     group: 'expenses'   },
     { key: 'expense-report',       label: t('finance:nav.expenseReport'),        icon: FileBarChart,    group: 'expenses'   },
     { key: 'budgets',              label: t('finance:nav.budgets'),              icon: Wallet,          group: 'budgets'    },
-    { key: 'budget-report',        label: t('finance:nav.budgetReport'),         icon: PieChart,        group: 'budgets'    },
     { key: 'project-financials',   label: t('finance:nav.projectFinancials'),    icon: BarChart3,       group: 'budgets'    },
     { key: 'labor-cost',           label: t('finance:nav.laborCost'),            icon: HardHat,         group: 'labor'      },
     { key: 'labor-payroll',        label: t('finance:nav.laborPayroll'),         icon: Banknote,        group: 'labor'      },
@@ -387,12 +387,7 @@ export function FinanceDashboard({ initialSection }: { initialSection?: ActiveSe
         )}
         {activeSection === 'budgets' && (
           <Suspense fallback={<LoadingSkeleton />}>
-            <FinanceBudgets />
-          </Suspense>
-        )}
-        {activeSection === 'budget-report' && (
-          <Suspense fallback={<LoadingSkeleton />}>
-            <BudgetReport readOnly />
+            <BudgetsSection readOnly onNavigate={handleNavigate} />
           </Suspense>
         )}
         {activeSection === 'project-financials' && (

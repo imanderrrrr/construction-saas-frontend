@@ -21,7 +21,8 @@ export interface PayrollExcelParams {
   kpis: HoursReportKpis;
   dateFrom: string;
   dateTo: string;
-  companyName?: string;
+  /** The tenant's own name. Required on purpose — see services/branding. */
+  companyName: string;
   reportTitle: string;
   generatedBy?: string;
 }
@@ -43,7 +44,7 @@ function borderStyle(): Partial<ExcelJS.Borders> {
 
 /* ───────────────────────── Main export ───────────────────────── */
 export async function exportPayrollExcel(params: PayrollExcelParams) {
-  const { workers, kpis, dateFrom, dateTo, companyName = 'OFJR Construction', reportTitle, generatedBy } = params;
+  const { workers, kpis, dateFrom, dateTo, companyName, reportTitle, generatedBy } = params;
 
   const wb = new ExcelJS.Workbook();
   wb.creator = companyName;

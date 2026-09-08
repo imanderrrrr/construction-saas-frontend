@@ -61,10 +61,29 @@ export const SECTION_TOUR_STEPS: Record<string, string[]> = {
   'schedules-semana': ['rows', 'nav', 'undated'],
   'tool-inventory': ['header', 'counts', 'filters', 'table'],
   'tool-report': ['state', 'missing', 'filters', 'export'],
-  invoices: ['doc-type', 'client-project', 'line-items', 'totals'],
+  // Facturas. The section key stays `invoices` (renaming it would reset every
+  // account's "seen it" flag). The four old stops all pointed inside the
+  // create form, which is now a window: with the section opening on the list,
+  // `visibleSteps()` would have dropped every one of them and announced
+  // "1 de 1". These four are containers the list renders in every state.
+  invoices: ['summary', 'filters', 'list', 'new'],
+  // The window claims the tour while it is on screen (lib/tourScope), with a
+  // hyphen like the other scoped keys.
+  'invoices-emitir': ['type', 'number', 'client-project', 'line-items', 'totals'],
   'invoice-branding': ['logo', 'fields', 'save'],
   budgets: ['header', 'kpis'],
-  'budget-report': ['export', 'filters', 'kpis', 'budget-vs-actual'],
+  // Presupuestos' report view claims the tour while it is on screen
+  // (lib/tourScope), and it needs TWO keys rather than one: the registry is
+  // keyed copy — one wording per key — so finance under the admin key would
+  // be told to adjust budgets it cannot touch. The four stops are the same;
+  // only the first sentence differs.
+  //
+  // `reparto` is anchored on the CONTAINER of the breakdown block, not on the
+  // comparator inside it: the comparator is not drawn on an empty account, in
+  // the error state, or while the breakdown is still loading, and the header
+  // rule above is exactly about that.
+  'budgets-reporte': ['vista', 'cobro', 'reparto', 'documento'],
+  'budgets-reporte-finanzas': ['vista', 'cobro', 'reparto', 'documento'],
   expenses: ['approve-all', 'kpis', 'filters', 'table'],
   'expense-report': ['export', 'filters', 'kpis', 'by-project'],
   'office-expenses': ['kpis', 'new-expense', 'filters'],

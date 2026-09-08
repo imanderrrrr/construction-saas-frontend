@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { drainPages } from '../../lib/paging';
-import { computeCostDistribution } from '../BudgetManagement';
+import { splitConsumption } from '../budgets/bits';
 
 // ════════════════════════════════════════════════════════════════════════
 // Paged finance lists must be drained, not sampled.
@@ -104,11 +104,11 @@ describe('the Clara Reynolds phantom-labor regression', () => {
     const firstPageOnly = (await fetchPage(0, 200)).content;
 
     const seen = firstPageOnly.filter(p => p.projectId === PROJECT);
-    const { payableTotal, laborCost } = computeCostDistribution(CONSUMED, EXPENSES, seen);
+    const { suppliers, payroll } = splitConsumption(CONSUMED, EXPENSES, seen);
 
     expect(seen).toHaveLength(33);
-    expect(payableTotal).toBeCloseTo(14031.01, 2);
-    expect(laborCost).toBeCloseTo(4745.20, 2); // the phantom
+    expect(suppliers).toBeCloseTo(14031.01, 2);
+    expect(payroll).toBeCloseTo(4745.20, 2); // the phantom
   });
 
   it('fixes it: draining the project-scoped list leaves no phantom labor', async () => {
@@ -117,10 +117,10 @@ describe('the Clara Reynolds phantom-labor regression', () => {
     const { fetchPage } = pagedSource(projectBills);
 
     const bills = await drainPages(fetchPage);
-    const { payableTotal, laborCost } = computeCostDistribution(CONSUMED, EXPENSES, bills);
+    const { suppliers, payroll } = splitConsumption(CONSUMED, EXPENSES, bills);
 
     expect(bills).toHaveLength(40);
-    expect(payableTotal).toBeCloseTo(18776.21, 2);
-    expect(laborCost).toBeCloseTo(0, 2); // no labor on this project, and none invented
+    expect(suppliers).toBeCloseTo(18776.21, 2);
+    expect(payroll).toBeCloseTo(0, 2); // no labor on this project, and none invented
   });
 });

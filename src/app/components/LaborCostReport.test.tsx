@@ -21,6 +21,10 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en-US' } }),
+  // The screen now reaches services/branding for the tenant's own name, which
+  // pulls in lib/api and with it the real i18n singleton — that calls
+  // `.use(initReactI18next)` at import time.
+  initReactI18next: { type: '3rdParty', init: () => {} },
 }));
 
 vi.mock('../services/time', () => ({

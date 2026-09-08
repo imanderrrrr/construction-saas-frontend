@@ -105,9 +105,10 @@ export function exportAuditCsv(events: AuditEvent[], filename?: string): void {
 }
 
 /* ───────────────────────── Excel Export ───────────────────────── */
-export async function exportAuditExcel(events: AuditEvent[], filename?: string): Promise<void> {
+export async function exportAuditExcel(events: AuditEvent[], companyName: string, filename?: string): Promise<void> {
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'OFJR Construction';
+  // The tenant's own name, never a constant — see services/branding.
+  wb.creator = companyName;
   wb.created = new Date();
 
   const ws = wb.addWorksheet('Audit Log', {

@@ -72,6 +72,9 @@ const EXPORT_PARAMS = {
   dateFrom: '2026-06-01',
   dateTo: '2026-06-14',
   reportTitle: 'Labor Payroll',
+  // The tenant's own name; the parameter is required now, precisely so that
+  // no caller can fall back to a hardcoded one (see services/branding).
+  companyName: 'Constructora Peña S.A.',
 };
 
 // ── Pure helper ──────────────────────────────────────────────────────────────
