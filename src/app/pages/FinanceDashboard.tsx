@@ -90,8 +90,8 @@ const ONBOARDING_KEY: Partial<Record<ActiveSection, string>> = {
 };
 // Presupuestos is the exception the comment above describes in reverse: the
 // screen itself claims the tour with `pushTourScope`, under a finance-only key
-// (`budgets-reporte-finanzas`), so the accountant gets copy written for her
-// instead of the admin's word for word.
+// (`budgets-reporte-finanzas`), so the accountant gets copy written for that
+// role instead of the admin's word for word.
 
 const SECTION_META_KEYS: Record<ActiveSection, { titleKey: string; subtitleKey: string }> = {
   'dashboard':            { titleKey: 'finance:section.dashboard.title',            subtitleKey: 'finance:section.dashboard.subtitle'            },

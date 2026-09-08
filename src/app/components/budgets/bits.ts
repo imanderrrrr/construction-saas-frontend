@@ -6,7 +6,7 @@
  * components dividing the same two numbers four different ways: the admin's
  * list and the report divided spend by the COST budget, finance's list and
  * Finanzas de Proyecto divided it by the CONTRACT, and the same jobsite came
- * out at 33 % for the owner and 15 % for his accountant in the same second.
+ * out at 33 % for the owner and 15 % for the accountant in the same second.
  *
  * One base, therefore, and it is `budgetBaseCents` — which the backend has
  * already resolved as `costBudgetCents ?? revisedContractCents`. Nothing here

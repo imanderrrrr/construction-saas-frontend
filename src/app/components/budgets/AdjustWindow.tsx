@@ -17,7 +17,7 @@ import { execPct, money, pct as fmtPct, type BudgetRow } from './bits';
  * that field as the new ORIGINAL CONTRACT: typing $200,000 on a jobsite with
  * $25,000 spent saved $175,000, showed a success toast, and said nothing. On a
  * jobsite that had a cost budget it was worse — it moved the contract while
- * drawing the cost budget, so the owner's screen and his accountant's stopped
+ * drawing the cost budget, so the owner's screen and the accountant's stopped
  * agreeing about what had been changed.
  *
  * Three rules, from the sheet:

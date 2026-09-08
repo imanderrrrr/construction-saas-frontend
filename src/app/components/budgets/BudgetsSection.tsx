@@ -36,7 +36,7 @@ import { exportLegacyBudgetDocument } from './legacyExport';
  * It replaces four components that walked the same projects with different
  * arithmetic: `BudgetManagement` and `BudgetReport` divided spend by the cost
  * budget, `FinanceBudgets` and `ProjectFinancials` by the contract, and the
- * owner saw Residencial Sur at 33 % while his accountant saw it at 15 % in the
+ * owner saw Residencial Sur at 33 % while the accountant saw it at 15 % in the
  * same second. One base — `budgetBaseCents` — and one component with a
  * read-only mode, so the two panels cannot disagree again.
  *
