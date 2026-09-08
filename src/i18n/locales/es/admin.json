@@ -89,6 +89,7 @@
   "invoiceBranding.stampConfigured": "Configurada · sale en la cabecera de cada factura y en la app de tu equipo",
   "invoiceBranding.stampNever": "Sin configurar · hoy tus documentos salen sin encabezado",
   "invoiceBranding.stampUnknown": "Leyendo tu plantilla…",
+  "invoiceBranding.stampUnreadable": "No pudimos leerla · nada se puede guardar hasta que cargue",
   "invoiceBranding.formHintLong": "Este nombre y este logo también identifican tu empresa en la app del equipo: no es solo facturación. Lo que no se configura aquí: la numeración, que la pone el sistema, y los colores del documento, que no son configurables.",
   "invoiceBranding.logoHintLong": "PNG o JPG, hasta 2 MB. Se aplica al guardar, como el resto. Sin logo, tus documentos y la app del equipo salen con las iniciales de tu empresa.",
   "invoiceBranding.unread": "No se pudo leer",

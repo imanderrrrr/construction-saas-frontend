@@ -333,8 +333,8 @@ export function InvoiceBrandingSettings() {
             </h2>
             <Mono className="block text-[11px] md:text-[12.5px] tracking-[0.06em] text-[#5A5346] mt-2">
               {loadState === 'ready'
-                ? t(branding?.configured ? 'admin:invoiceBranding.stampConfigured' : 'admin:invoiceBranding.stampNever')
-                : t('admin:invoiceBranding.stampUnknown')}
+                ? t(noLetterhead ? 'admin:invoiceBranding.stampNever' : 'admin:invoiceBranding.stampConfigured')
+                : t(loadState === 'failed' ? 'admin:invoiceBranding.stampUnreadable' : 'admin:invoiceBranding.stampUnknown')}
             </Mono>
           </div>
         </div>

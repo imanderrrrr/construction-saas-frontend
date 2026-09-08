@@ -89,6 +89,7 @@
   "invoiceBranding.stampConfigured": "Configured · printed on every invoice and in your team's app",
   "invoiceBranding.stampNever": "Not configured · your documents currently go out with no header",
   "invoiceBranding.stampUnknown": "Reading your template…",
+  "invoiceBranding.stampUnreadable": "We could not read it · nothing can be saved until it loads",
   "invoiceBranding.formHintLong": "This name and logo also identify your company in the team's app — this is not only invoicing. What is not set here: the numbering, which the system assigns, and the document's colours, which are not configurable.",
   "invoiceBranding.logoHintLong": "PNG or JPG, up to 2 MB. It applies when you save, like everything else. With no logo, your documents and the team's app show your company's initials.",
   "invoiceBranding.unread": "Could not be read",

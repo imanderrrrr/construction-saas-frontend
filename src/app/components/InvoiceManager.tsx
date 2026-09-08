@@ -105,6 +105,7 @@ export function InvoiceManager({ onNavigate }: { onNavigate?: (section: string) 
   const [page, setPage] = useState<PageResponse<Receivable> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [errorDetail, setErrorDetail] = useState<string | null>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
 
   const [projectId, setProjectId] = useState('');
@@ -124,6 +125,7 @@ export function InvoiceManager({ onNavigate }: { onNavigate?: (section: string) 
   const fetchList = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setErrorDetail(null);
     try {
       const result = await listReceivables({
         ...rangeOf(range),
@@ -135,9 +137,15 @@ export function InvoiceManager({ onNavigate }: { onNavigate?: (section: string) 
       });
       setPage(result);
     } catch (err) {
+      // The server's own message is English and raw ("Service Unavailable"),
+      // which is exactly what this screen stopped doing to its users. Ours is
+      // the sentence they read; the technical line goes to the support fold.
       setError(err instanceof ApiError && err.status === 403
         ? t('finance:invoice.list.noPermission')
-        : err instanceof Error ? err.message : t('finance:invoice.list.errorHint'));
+        : t('finance:invoice.list.errorHint'));
+      setErrorDetail(err instanceof ApiError
+        ? [err.code, err.status].filter(Boolean).join(' · ')
+        : err instanceof Error ? err.message : null);
     } finally {
       setLoading(false);
     }
@@ -363,7 +371,16 @@ export function InvoiceManager({ onNavigate }: { onNavigate?: (section: string) 
             title={t('finance:invoice.list.errorTitle')}
             hint={error ?? t('finance:invoice.list.errorHint')}
             className="border-0"
-            action={<SecondaryButton onClick={() => setReloadNonce(n => n + 1)} className="bg-[#FAF7F0] gap-1.5"><RefreshCw className="w-3 h-3" />{t('common:buttons.retry')}</SecondaryButton>}
+            action={
+              <div className="flex flex-col items-center gap-2.5">
+                <SecondaryButton onClick={() => setReloadNonce(n => n + 1)} className="bg-[#FAF7F0] gap-1.5"><RefreshCw className="w-3 h-3" />{t('common:buttons.retry')}</SecondaryButton>
+                {errorDetail && (
+                  <Mono className="text-[9.5px] tracking-[0.1em] text-[#A69C8D]">
+                    {t('finance:invoice.error.forSupport')} · {errorDetail}
+                  </Mono>
+                )}
+              </div>
+            }
           />
         )}
         {listState === 'empty' && (
