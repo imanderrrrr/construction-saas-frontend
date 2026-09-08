@@ -1,621 +1,572 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Trash2, CheckCircle2, Clock, Info, AlertCircle, RefreshCw, FileText, Download } from 'lucide-react';
-import { Button } from './ui/button';
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from './ui/select';
-import { toast } from 'sonner';
+  ChevronLeft, ChevronRight, Download, FileText, MoreVertical, Plus, RefreshCw,
+} from 'lucide-react';
+
+import { cn } from './ui/utils';
+import { ApiError } from '../lib/api';
+import { businessToday } from '../helpers/dateTime';
+import { FOCUS_RING, SecondaryButton } from './onboarding/chrome';
+import { Bone, CreateButton, EmptyWord, Mono, MonoSelect, PaperNote, stampDay } from './projects/bt';
 import {
-  createReceivable, type DocumentType,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,
+} from './ui/dropdown-menu';
+import {
+  listReceivables, type PageResponse, type Receivable,
 } from '../services/finance';
 import { listProjects } from '../services/projects';
-import { listClients, type ClientResponse } from '../services/clients';
-import { businessToday } from '../helpers/dateTime';
-import {
-  invoicePdfPreviewUrl, downloadInvoicePdf, type InvoicePdfData, type InvoiceIssuerPdf,
-} from '../helpers/exportInvoicePdf';
 import { loadInvoiceIssuer } from '../services/invoiceBranding';
-import { FIELD_LIMITS } from '../../shared/fieldLimits';
+import { downloadInvoicePdf, type InvoicePdfData } from '../helpers/exportInvoicePdf';
+import { loadSignatureForPdf } from '../services/signatures';
+import { CellEmpty, DocTypeChip, InvoiceStatusChip, fmtMoney } from './invoices/bits';
+import { InvoiceWindow } from './invoices/InvoiceWindow';
 
-// ── Types ───────────────────────────────────────────
+/**
+ * Facturas — the list, and the window that issues a document.
+ *
+ * The section was called "Facturas" and showed none: it was the create form,
+ * and saving replaced the whole screen with a success card that pointed at
+ * another section. `GET /finance/receivables` has always paged and filtered,
+ * so the list it never had is the list the server was already serving.
+ *
+ * Two things the server does that this screen has to be honest about, both
+ * checked against `origin/main` of the API:
+ *
+ *  1. **Unapproved change orders are hidden unless you ask for them.** The
+ *     repository's query ends with `(:status IS NOT NULL OR r.status <>
+ *     PENDING_APPROVAL)`, so an unfiltered list — and a list filtered only by
+ *     jobsite or type — silently omits every change order still waiting for
+ *     the client's sign-off. The note under the filters says so, and one of
+ *     the three figures counts them and jumps straight to them.
+ *  2. **"Overdue" is not a stored state.** ReceivableServiceImpl derives it
+ *     on read from the due date, so it arrives correctly on each row but
+ *     `?status=OVERDUE` matches nothing in the database. It is therefore a
+ *     chip, never a filter — offering it would have been a filter that always
+ *     came back empty.
+ *
+ * The three figures are counts the server computed (`totalElements` of a
+ * filtered query), never a sum over the loaded page: this panel has already
+ * shipped page-local totals that read as tenant-wide and were wrong. The
+ * amounts the design asks for — issued this month, receivable, overdue — need
+ * the billing-summary endpoint that does not exist yet.
+ */
 
-interface DraftLineItem {
-  description: string;
-  quantity: string;
-  unitPrice: string;
+const PAGE_SIZES = [20, 50, 100] as const;
+const ROW_GRID = 'grid grid-cols-[1.1fr_1.05fr_2fr_1.15fr_.9fr_.9fr_1.2fr_40px] gap-3.5 items-center';
+const FLASH_MS = 2200;
+
+/** Statuses the server can actually filter on — see the note above about OVERDUE. */
+const STATUSES = ['PENDING', 'PARTIAL', 'PAID', 'PENDING_APPROVAL', 'REJECTED'] as const;
+
+type RangeKey = 'month' | 'quarter' | 'year' | 'all';
+
+function rangeOf(key: RangeKey): { issuedFrom?: string; issuedTo?: string } {
+  const today = businessToday();
+  const [y, m] = today.split('-').map(Number);
+  switch (key) {
+    case 'month': return { issuedFrom: `${y}-${String(m).padStart(2, '0')}-01`, issuedTo: today };
+    case 'quarter': {
+      const from = new Date(`${today}T00:00:00`);
+      from.setDate(from.getDate() - 90);
+      return { issuedFrom: from.toISOString().slice(0, 10), issuedTo: today };
+    }
+    case 'year': return { issuedFrom: `${y}-01-01`, issuedTo: today };
+    default: return {};
+  }
 }
 
-// ── Helpers ─────────────────────────────────────────
-
-function fmtAmount(n: number) {
-  return `$${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+function toPdfData(r: Receivable): InvoicePdfData {
+  return {
+    documentType: r.documentType,
+    invoiceNumber: r.invoiceNumber,
+    client: r.client,
+    project: r.project,
+    description: r.description,
+    issuedDate: r.issuedDate,
+    dueDate: r.dueDate,
+    lineItems: r.lineItems.map(li => ({
+      description: li.description, quantity: li.quantity,
+      unitPrice: li.unitPrice, subtotal: li.subtotal,
+    })),
+    subtotal: r.subtotal,
+    discount: r.discount,
+    taxRate: r.taxRate,
+    tax: r.tax,
+    amount: r.amount,
+    notes: r.notes,
+  };
 }
-function todayISO() { return businessToday(); }
 
-// ── Main Component ──────────────────────────────────
+export function InvoiceManager({ onNavigate }: { onNavigate?: (section: string) => void } = {}) {
+  const { t, i18n } = useTranslation(['finance', 'common']);
+  const lang = i18n.language;
 
-export function InvoiceManager() {
-  const { t } = useTranslation('finance');
+  const [page, setPage] = useState<PageResponse<Receivable> | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadNonce, setReloadNonce] = useState(0);
 
-  // Reference data
+  const [projectId, setProjectId] = useState('');
+  const [docType, setDocType] = useState('');
+  const [status, setStatus] = useState('');
+  const [range, setRange] = useState<RangeKey>('year');
+  const [pageSize, setPageSize] = useState<number>(20);
+  const [current, setCurrent] = useState(0);
+
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
-  const [clients, setClients] = useState<ClientResponse[]>([]);
-  const [refError, setRefError] = useState(false);
+  const [windowOpen, setWindowOpen] = useState(false);
+  const [flashId, setFlashId] = useState<number | null>(null);
+  const [downloading, setDownloading] = useState<number | null>(null);
 
-  const loadRefData = useCallback(() => {
-    setRefError(false);
-    Promise.all([
-      listProjects({ page: 0, size: 200 })
-        .then(r => setProjects(r.content.map((p: any) => ({ id: p.id, name: p.name })))),
-      listClients()
-        .then(r => setClients(r.content)),
-    ]).catch(() => setRefError(true));
+  /* ── The list ───────────────────────────────────────────────────────── */
+
+  const fetchList = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await listReceivables({
+        ...rangeOf(range),
+        projectId: projectId ? Number(projectId) : undefined,
+        documentType: docType || undefined,
+        status: status || undefined,
+        page: current,
+        size: pageSize,
+      });
+      setPage(result);
+    } catch (err) {
+      setError(err instanceof ApiError && err.status === 403
+        ? t('finance:invoice.list.noPermission')
+        : err instanceof Error ? err.message : t('finance:invoice.list.errorHint'));
+    } finally {
+      setLoading(false);
+    }
+  }, [range, projectId, docType, status, current, pageSize, reloadNonce, t]); // eslint-disable-line react-hooks/exhaustive-deps -- reloadNonce forces a refetch with unchanged filters
+
+  useEffect(() => { void fetchList(); }, [fetchList]);
+
+  /* ── The three figures ──────────────────────────────────────────────── */
+  // Counts, each one `totalElements` of a filtered query the server answered.
+  // Never a sum over the page in the browser: with a page size of 20 that has
+  // already produced tenant-wide-looking numbers in this panel that were wrong.
+  const [figures, setFigures] = useState<{ month: number; receivable: number; awaiting: number } | null>(null);
+  const [figuresFailed, setFiguresFailed] = useState(false);
+
+  const fetchFigures = useCallback(async () => {
+    setFiguresFailed(false);
+    try {
+      const [month, pending, partial, awaiting] = await Promise.all([
+        listReceivables({ ...rangeOf('month'), size: 1 }),
+        listReceivables({ status: 'PENDING', size: 1 }),
+        listReceivables({ status: 'PARTIAL', size: 1 }),
+        listReceivables({ status: 'PENDING_APPROVAL', size: 1 }),
+      ]);
+      setFigures({
+        month: month.totalElements,
+        receivable: pending.totalElements + partial.totalElements,
+        awaiting: awaiting.totalElements,
+      });
+    } catch {
+      setFigures(null);
+      setFiguresFailed(true);
+    }
+  }, []);
+  useEffect(() => { void fetchFigures(); }, [fetchFigures, reloadNonce]);
+
+  /* ── Jobsites, for the filter ───────────────────────────────────────── */
+
+  useEffect(() => {
+    listProjects({ size: 100 })
+      .then(r => setProjects(r.content.map(p => ({ id: p.id, name: p.name }))))
+      .catch(() => setProjects([]));
   }, []);
 
-  useEffect(() => { loadRefData(); }, [loadRefData]);
+  useEffect(() => {
+    if (flashId == null) return;
+    const timer = window.setTimeout(() => setFlashId(null), FLASH_MS);
+    return () => window.clearTimeout(timer);
+  }, [flashId]);
 
-  // Form state
-  const [docType, setDocType] = useState<DocumentType>('INVOICE');
-  const [invoiceNumber, setInvoiceNumber] = useState('');
-  const [clientName, setClientName] = useState('');
-  const [clientCustom, setClientCustom] = useState('');
-  const [projectId, setProjectId] = useState('');
-  const [description, setDescription] = useState('');
-  const [issuedDate, setIssuedDate] = useState(todayISO());
-  const [dueDate, setDueDate] = useState(todayISO());
-  const [notes, setNotes] = useState('');
-  const [discount, setDiscount] = useState('');
-  const [taxRate, setTaxRate] = useState('');
-  const [lineItems, setLineItems] = useState<DraftLineItem[]>([
-    { description: '', quantity: '1', unitPrice: '' },
-  ]);
-  const [submitting, setSubmitting] = useState(false);
-  const [justCreated, setJustCreated] = useState(false);
-  // Remember what was just created — `docType` itself is cleared by
-  // resetForm() before we show the success banner, so we need to
-  // capture it independently to render the correct copy/colours.
-  const [lastCreatedDocType, setLastCreatedDocType] = useState<DocumentType | null>(null);
+  const download = useCallback(async (row: Receivable) => {
+    setDownloading(row.id);
+    try {
+      const [issuer, signature] = await Promise.all([
+        loadInvoiceIssuer(),
+        loadSignatureForPdf(row.id).catch(() => undefined),
+      ]);
+      downloadInvoicePdf(toPdfData(row), issuer, signature, lang);
+    } finally {
+      setDownloading(null);
+    }
+  }, [lang]);
 
-  const addLineItem = () => setLineItems(prev => [...prev, { description: '', quantity: '1', unitPrice: '' }]);
-  const removeLineItem = (idx: number) => setLineItems(prev => prev.filter((_, i) => i !== idx));
-  const updateLineItem = (idx: number, field: keyof DraftLineItem, value: string) => {
-    setLineItems(prev => prev.map((li, i) => i === idx ? { ...li, [field]: value } : li));
+  const rows = page?.content ?? [];
+  const hasFilters = !!(projectId || docType || status) || range !== 'year';
+  const clearFilters = () => { setProjectId(''); setDocType(''); setStatus(''); setRange('year'); setCurrent(0); };
+  const totalPages = Math.max(page?.totalPages ?? 1, 1);
+  const totalElements = page?.totalElements ?? 0;
+  const listState = loading ? 'loading' : error ? 'error' : rows.length === 0 ? (hasFilters ? 'noMatch' : 'empty') : 'data';
+  const today = useMemo(() => stampDay(businessToday(), lang), [lang]);
+  const stamp = useCallback((iso: string) => {
+    try {
+      return new Date(`${iso}T00:00:00`).toLocaleDateString(lang.startsWith('es') ? 'es-GT' : 'en-US', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+      });
+    } catch { return iso; }
+  }, [lang]);
+
+  /** The window hands the focus back to the button that opened it. */
+  const focusCreate = useCallback(() => {
+    window.setTimeout(() => document.querySelector<HTMLElement>('[data-tour="sec.invoices.new"]')?.focus(), 0);
+  }, []);
+
+  const handleCreated = (created: Receivable) => {
+    setWindowOpen(false);
+    // No success card and no toast: the list reloads, the new row lights up
+    // for two seconds, and the PDF has already downloaded with its number.
+    clearFilters();
+    setReloadNonce(n => n + 1);
+    setFlashId(created.id);
+    focusCreate();
   };
 
-  const subtotal = useMemo(() =>
-    lineItems.reduce((s, li) => {
-      const q = parseFloat(li.quantity) || 0;
-      const p = parseFloat(li.unitPrice) || 0;
-      return s + q * p;
-    }, 0),
-    [lineItems],
+  const figure = (value: number | undefined) =>
+    figures ? value : figuresFailed ? <span className="text-[#CDBFA6]">—</span> : <Bone className="w-10 h-8" />;
+  const figureCell = (pressed: boolean) => cn(
+    'text-left px-[22px] py-4 transition-colors disabled:cursor-default',
+    figures && 'hover:bg-[#FBEDE0]',
+    pressed && 'bg-[#FBEDE0] shadow-[inset_0_-3px_0_#F97316]',
+    FOCUS_RING, 'focus-visible:outline-offset-[-2px]',
   );
 
-  const discountVal = parseFloat(discount) || 0;
-  const taxRateVal = parseFloat(taxRate) || 0;
-  const taxable = Math.max(0, subtotal - discountVal);
-  const taxVal = taxable * taxRateVal / 100;
-  const totalAmount = taxable + taxVal;
-
-  // ── Live PDF preview ──────────────────────────────────────────────
-  // Assemble the same InvoicePdfData the download uses, from the current
-  // form state, so the preview is byte-identical to what gets sent to the
-  // client. Line items with neither a description nor a price are dropped
-  // so half-typed rows don't clutter the preview.
-  const previewData = useMemo<InvoicePdfData | null>(() => {
-    const items = lineItems
-      .map(li => {
-        const quantity = parseFloat(li.quantity) || 0;
-        const unitPrice = parseFloat(li.unitPrice) || 0;
-        return {
-          description: li.description.trim(),
-          quantity,
-          unitPrice,
-          subtotal: quantity * unitPrice,
-        };
-      })
-      .filter(li => li.description || li.unitPrice > 0);
-    if (items.length === 0) return null; // nothing meaningful to render yet
-    const finalClient = clientName === '__other__' ? clientCustom.trim() : clientName;
-    const projectName = projects.find(p => String(p.id) === projectId)?.name ?? '';
-    return {
-      documentType: docType as InvoicePdfData['documentType'],
-      invoiceNumber: invoiceNumber.trim() || t('invoice.dialog.autoGenerate'),
-      client: finalClient || '—',
-      project: projectName || '—',
-      description: description.trim() || null,
-      issuedDate,
-      dueDate,
-      lineItems: items,
-      subtotal,
-      discount: discountVal,
-      taxRate: taxRateVal,
-      tax: taxVal,
-      amount: totalAmount,
-      notes: notes.trim() || null,
-    };
-  }, [
-    lineItems, clientName, clientCustom, projects, projectId, docType,
-    invoiceNumber, description, issuedDate, dueDate, subtotal, discountVal,
-    taxRateVal, taxVal, totalAmount, notes, t,
-  ]);
-
-  // The tenant's invoice template (issuer block + logo) — loaded once
-  // (session-cached in the service); the preview regenerates when it lands.
-  const [issuer, setIssuer] = useState<InvoiceIssuerPdf | undefined>(undefined);
-  const [issuerReady, setIssuerReady] = useState(false);
-  useEffect(() => {
-    let cancelled = false;
-    loadInvoiceIssuer().then((loaded) => {
-      if (cancelled) return;
-      setIssuer(loaded);
-      setIssuerReady(true);
-    });
-    return () => { cancelled = true; };
-  }, []);
-
-  // Regenerate the blob URL (debounced) whenever the data changes, and
-  // always revoke the previous URL so blobs don't leak.
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const previewUrlRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!previewData) {
-      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
-      previewUrlRef.current = null;
-      setPreviewUrl(null);
-      return;
-    }
-    if (!issuerReady) return; // avoid a legacy-header flash before the template loads
-    const handle = setTimeout(() => {
-      let url: string | null;
-      try {
-        url = invoicePdfPreviewUrl(previewData, issuer);
-      } catch {
-        url = null; // a transient bad state shouldn't crash the editor
-      }
-      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
-      previewUrlRef.current = url;
-      setPreviewUrl(url);
-    }, 400);
-    return () => clearTimeout(handle);
-  }, [previewData, issuer, issuerReady]);
-
-  // Final cleanup on unmount.
-  useEffect(() => () => {
-    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
-  }, []);
-
-  const resetForm = () => {
-    setDocType('INVOICE');
-    setInvoiceNumber('');
-    setClientName('');
-    setClientCustom('');
-    setProjectId('');
-    setDescription('');
-    setIssuedDate(todayISO());
-    setDueDate(todayISO());
-    setNotes('');
-    setDiscount('');
-    setTaxRate('');
-    setLineItems([{ description: '', quantity: '1', unitPrice: '' }]);
-  };
-
-  const handleCreate = async () => {
-    const finalClient = clientName === '__other__' ? clientCustom.trim() : clientName;
-    if (!finalClient || !projectId) {
-      toast.error(t('invoice.validation.requiredFields'));
-      return;
-    }
-    if (new Date(dueDate) < new Date(issuedDate)) {
-      toast.error(t('invoice.validation.dueDateAfter'));
-      return;
-    }
-    const validItems = lineItems.filter(li => li.description.trim() && parseFloat(li.unitPrice) > 0);
-    if (validItems.length === 0) {
-      toast.error(t('invoice.validation.addItem'));
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      await createReceivable({
-        documentType: docType,
-        invoiceNumber: invoiceNumber.trim() || undefined,
-        client: finalClient,
-        projectId: Number(projectId),
-        description: description.trim() || undefined,
-        issuedDate,
-        dueDate,
-        lineItems: validItems.map(li => ({
-          description: li.description.trim(),
-          quantity: parseFloat(li.quantity) || 1,
-          unitPrice: parseFloat(li.unitPrice),
-        })),
-        discount: discountVal > 0 ? discountVal : undefined,
-        taxRate: taxRateVal > 0 ? taxRateVal : undefined,
-        notes: notes.trim() || undefined,
-      });
-      toast.success(
-        docType === 'CHANGE_ORDER_REQUEST'
-          ? t('invoice.toast.corCreated')
-          : t('invoice.toast.invoiceCreated'),
-      );
-      // Snapshot the docType BEFORE resetForm() wipes it, so the
-      // success screen can branch its copy + theme correctly.
-      setLastCreatedDocType(docType);
-      resetForm();
-      setJustCreated(true);
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Error');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const isCOR = docType === 'CHANGE_ORDER_REQUEST';
-
-  // Success banner after creation. The CO branch makes the workflow
-  // explicit: amber theme + Clock icon + a hint explaining that the
-  // request is pending approval and where to approve it.
-  if (justCreated) {
-    const justCreatedCOR = lastCreatedDocType === 'CHANGE_ORDER_REQUEST';
+  if (windowOpen) {
     return (
-      <div className="max-w-4xl space-y-6">
-        <div className="bg-white rounded-xl border border-[#D4D4D8] p-10 text-center space-y-4">
-          {justCreatedCOR ? (
-            <Clock className="w-14 h-14 text-amber-500 mx-auto" />
-          ) : (
-            <CheckCircle2 className="w-14 h-14 text-emerald-500 mx-auto" />
-          )}
-          <h2 className="text-xl font-bold text-[#0A0A0A]">
-            {justCreatedCOR
-              ? t('invoice.toast.corCreatedTitle')
-              : t('invoice.toast.invoiceCreated')}
-          </h2>
-          <p className="text-sm text-[#71717A]">
-            {justCreatedCOR
-              ? t('invoice.create.corSuccessHint')
-              : t('invoice.create.successHint')}
-          </p>
-          {justCreatedCOR && (
-            <div>
-              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 inline-block">
-                {t('invoice.create.corNextStep')}
-              </p>
-            </div>
-          )}
-          <Button
-            onClick={() => setJustCreated(false)}
-            className={`gap-2 mt-2 ${
-              justCreatedCOR
-                ? 'bg-amber-600 hover:bg-amber-700'
-                : 'bg-purple-600 hover:bg-purple-700'
-            }`}
-          >
-            <Plus className="w-4 h-4" />
-            {t('invoice.create.another')}
-          </Button>
-        </div>
-      </div>
+      <InvoiceWindow
+        onClose={() => { setWindowOpen(false); focusCreate(); }}
+        onCreated={handleCreated}
+        onOpenBranding={onNavigate ? () => onNavigate('invoice-branding') : undefined}
+      />
     );
   }
 
   return (
-    <div className="max-w-7xl space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-lg font-bold text-[#0A0A0A]">
-          {isCOR ? t('invoice.dialog.createCOR') : t('invoice.dialog.createInvoice')}
-        </h2>
-        <p className="text-xs text-[#71717A]">{t('invoice.create.subtitle')}</p>
+    <div className="space-y-4">
+      {/* ── Header ───────────────────────────────────────────────────── */}
+      <div className="flex items-end justify-between gap-5 flex-wrap">
+        <div>
+          <Mono className="block text-[11px] tracking-[0.15em] text-[#8A8175]">{t('finance:invoice.list.kicker')}</Mono>
+          <h2 className="font-bt-display font-extrabold uppercase text-[38px] md:text-[50px] leading-[0.92] tracking-[0.01em] text-[#0A0A0A] mt-1">
+            {t('finance:section.invoices.title')}
+          </h2>
+          <Mono className="block text-[11px] md:text-[12.5px] tracking-[0.06em] text-[#5A5346] mt-2">
+            {t('finance:invoice.list.countLine', { count: totalElements })}
+          </Mono>
+        </div>
+        <div className="flex items-center gap-3.5 flex-shrink-0 w-full md:w-auto">
+          <div className="text-right hidden md:block">
+            <Mono className="block text-[12px] tracking-[0.08em] text-[#0A0A0A]">{today}</Mono>
+            <Mono className="block text-[10px] tracking-[0.1em] text-[#A69C8D] mt-[3px]">{t('finance:invoice.list.stamp')}</Mono>
+          </div>
+          <CreateButton
+            data-tour="sec.invoices.new"
+            onClick={() => setWindowOpen(true)}
+            disabled={listState === 'error'}
+            className="w-full md:w-auto py-3.5 md:py-3"
+          >
+            <Plus className="w-3.5 h-3.5" strokeWidth={2.4} />{t('finance:invoice.list.create')}
+          </CreateButton>
+        </div>
       </div>
 
-      {/* Form (left) + live PDF preview (right, sticky on large screens) */}
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)] gap-6 items-start">
-      {/* Main form card */}
-      <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden">
+      {/* ── The three counts ─────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 bg-white border border-[#E7E1D5]" data-tour="sec.invoices.summary" data-testid="invoice-figures">
+        <div className="px-[22px] py-4 border-b sm:border-b-0 sm:border-r border-[#EDE7DB]">
+          <div className="font-bt-display font-extrabold text-[40px] leading-[0.85] text-[#0A0A0A] tabular-nums">{figure(figures?.month)}</div>
+          <Mono className="block text-[10.5px] tracking-[0.1em] text-[#5A5346] mt-[5px]">{t('finance:invoice.figure.month')}</Mono>
+        </div>
+        <button
+          type="button"
+          disabled={!figures}
+          onClick={() => { setStatus(prev => (prev === 'PENDING' ? '' : 'PENDING')); setCurrent(0); }}
+          aria-pressed={status === 'PENDING'}
+          className={cn(figureCell(status === 'PENDING'), 'border-b sm:border-b-0 sm:border-r border-[#EDE7DB]')}
+        >
+          <div className="font-bt-display font-extrabold text-[40px] leading-[0.85] text-[#0A0A0A] tabular-nums">{figure(figures?.receivable)}</div>
+          <Mono className="block text-[10.5px] tracking-[0.1em] text-[#5A5346] mt-[5px]">{t('finance:invoice.figure.receivable')}</Mono>
+        </button>
+        <button
+          type="button"
+          disabled={!figures}
+          onClick={() => { setStatus(prev => (prev === 'PENDING_APPROVAL' ? '' : 'PENDING_APPROVAL')); setCurrent(0); }}
+          aria-pressed={status === 'PENDING_APPROVAL'}
+          className={figureCell(status === 'PENDING_APPROVAL')}
+        >
+          <div className={cn('font-bt-display font-extrabold text-[40px] leading-[0.85] tabular-nums', figures?.awaiting ? 'text-[#C2410C]' : 'text-[#0A0A0A]')}>
+            {figure(figures?.awaiting)}
+          </div>
+          <Mono className="block text-[10.5px] tracking-[0.1em] text-[#5A5346] mt-[5px]">{t('finance:invoice.figure.awaiting')}</Mono>
+        </button>
+      </div>
+      {figuresFailed && (
+        <div className="flex items-center justify-between gap-3 flex-wrap -mt-2">
+          <Mono className="text-[10px] tracking-[0.08em] text-[#8A8175]">{t('finance:invoice.figure.failed')}</Mono>
+          <SecondaryButton onClick={() => void fetchFigures()} className="bg-[#FAF7F0] text-[10px] px-3 py-1.5">{t('common:buttons.retry')}</SecondaryButton>
+        </div>
+      )}
 
-        {/* Document type toggle */}
-        <div className="px-6 py-4 border-b border-[#D4D4D8] bg-[#FAFAFA]/50" data-tour="sec.invoices.doc-type">
-          <div className="flex items-center gap-3">
-            <label className="text-sm font-medium text-[#0A0A0A]">{t('invoice.dialog.docType')}</label>
-            <div className="flex rounded-lg border border-[#D4D4D8] overflow-hidden">
-              <button
-                type="button"
-                className={`px-5 py-2 text-sm font-medium transition-colors ${
-                  !isCOR
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-white text-[#71717A] hover:bg-[#FAFAFA]'
-                }`}
-                onClick={() => setDocType('INVOICE')}
-              >
-                {t('invoice.type.invoice')}
+      {/* ── Filters ──────────────────────────────────────────────────── */}
+      <div className="bg-white border border-[#E7E1D5] p-3.5 md:px-4" data-tour="sec.invoices.filters">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <MonoSelect value={projectId} onChange={e => { setProjectId(e.target.value); setCurrent(0); }} aria-label={t('finance:invoice.filter.project')}>
+            <option value="">{t('finance:invoice.filter.allProjects')}</option>
+            {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </MonoSelect>
+          <MonoSelect value={docType} onChange={e => { setDocType(e.target.value); setCurrent(0); }} aria-label={t('finance:invoice.filter.type')}>
+            <option value="">{t('finance:invoice.filter.allTypes')}</option>
+            <option value="INVOICE">{t('finance:invoice.type.invoice')}</option>
+            <option value="CHANGE_ORDER_REQUEST">{t('finance:invoice.type.changeOrder')}</option>
+          </MonoSelect>
+          <MonoSelect value={status} onChange={e => { setStatus(e.target.value); setCurrent(0); }} aria-label={t('finance:invoice.filter.status')}>
+            <option value="">{t('finance:invoice.filter.allStatuses')}</option>
+            {STATUSES.map(s => <option key={s} value={s}>{t(`finance:invoice.state.${s.toLowerCase()}`)}</option>)}
+          </MonoSelect>
+          <MonoSelect value={range} onChange={e => { setRange(e.target.value as RangeKey); setCurrent(0); }} aria-label={t('finance:invoice.filter.range')}>
+            <option value="month">{t('finance:invoice.range.month')}</option>
+            <option value="quarter">{t('finance:invoice.range.quarter')}</option>
+            <option value="year">{t('finance:invoice.range.year')}</option>
+            <option value="all">{t('finance:invoice.range.all')}</option>
+          </MonoSelect>
+          <div className="ml-auto flex items-center gap-2">
+            {hasFilters && (
+              <button type="button" onClick={clearFilters} className={cn('font-bt-mono text-[10.5px] uppercase tracking-[0.1em] font-semibold text-[#C2410C] hover:text-[#F97316] px-1', FOCUS_RING)}>
+                {t('finance:invoice.filter.clear')} ✕
               </button>
-              <button
-                type="button"
-                className={`px-5 py-2 text-sm font-medium transition-colors ${
-                  isCOR
-                    ? 'bg-orange-600 text-white'
-                    : 'bg-white text-[#71717A] hover:bg-[#FAFAFA]'
-                }`}
-                onClick={() => setDocType('CHANGE_ORDER_REQUEST')}
-              >
-                {t('invoice.type.changeOrder')}
-              </button>
-            </div>
+            )}
+            <SecondaryButton onClick={() => { setReloadNonce(n => n + 1); }} disabled={loading} className="text-[10.5px] px-3 py-[9px] bg-[#FAF7F0] gap-1.5">
+              <RefreshCw className={cn('w-3 h-3', loading && 'animate-spin')} />{t('common:buttons.refresh')}
+            </SecondaryButton>
           </div>
         </div>
+        {status !== 'PENDING_APPROVAL' && (
+          <Mono className="block text-[10px] tracking-[0.06em] text-[#8A8175] mt-2.5 normal-case leading-[1.5]">
+            {t('finance:invoice.list.hiddenCors')}
+          </Mono>
+        )}
+      </div>
 
-        <div className="p-6 space-y-6">
+      {/* ── Table ────────────────────────────────────────────────────── */}
+      <div className="bg-white border border-[#E7E1D5]" data-tour="sec.invoices.list" data-testid="invoice-list">
+        {listState === 'error' && (
+          <EmptyWord
+            tone="red"
+            word={t('finance:invoice.list.errorBig')}
+            title={t('finance:invoice.list.errorTitle')}
+            hint={error ?? t('finance:invoice.list.errorHint')}
+            className="border-0"
+            action={<SecondaryButton onClick={() => setReloadNonce(n => n + 1)} className="bg-[#FAF7F0] gap-1.5"><RefreshCw className="w-3 h-3" />{t('common:buttons.retry')}</SecondaryButton>}
+          />
+        )}
+        {listState === 'empty' && (
+          <EmptyWord
+            word={t('finance:invoice.list.emptyBig')}
+            title={t('finance:invoice.list.emptyTitle')}
+            hint={t('finance:invoice.list.emptyHint')}
+            className="border-0 py-[70px]"
+            action={<CreateButton onClick={() => setWindowOpen(true)}><Plus className="w-3.5 h-3.5" strokeWidth={2.4} />{t('finance:invoice.list.create')}</CreateButton>}
+          />
+        )}
+        {listState === 'noMatch' && (
+          <EmptyWord
+            word={t('finance:invoice.list.noMatchBig')}
+            title={t('finance:invoice.list.noMatchTitle')}
+            hint={t('finance:invoice.list.noMatchHint')}
+            className="border-0"
+            action={<SecondaryButton onClick={clearFilters} className="bg-[#FAF7F0]">{t('finance:invoice.filter.clear')}</SecondaryButton>}
+          />
+        )}
 
-          {/* Pending-approval notice — only when CO mode is active. Makes the
-              new approval workflow visible BEFORE the user submits, so the
-              document state isn't a surprise after creation. */}
-          {isCOR && (
-            <div className="flex items-start gap-2 bg-amber-50 border-l-4 border-amber-400 px-4 py-3 rounded-r">
-              <Info className="w-4 h-4 text-amber-700 mt-0.5 flex-shrink-0" />
-              <p className="text-xs text-amber-900 leading-relaxed">
-                {t('invoice.dialog.corPendingNote')}
-              </p>
-            </div>
-          )}
-
-          {/* Row: Number + Dates */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-[#71717A] mb-1.5">
-                {isCOR ? t('invoice.dialog.corNumber') : t('invoice.dialog.invoiceNo')}
-              </label>
-              <input
-                className="w-full h-10 rounded-lg border border-[#D4D4D8] px-3 text-sm bg-white placeholder:text-[#71717A]/50 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 transition-all"
-                placeholder={t('invoice.dialog.autoGenerate')}
-                maxLength={FIELD_LIMITS.IDENTIFIER}
-                value={invoiceNumber}
-                onChange={e => setInvoiceNumber(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-[#71717A] mb-1.5">{t('invoice.dialog.issuedDate')}</label>
-              <input type="date" className="w-full h-10 rounded-lg border border-[#D4D4D8] px-3 text-sm focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 transition-all" value={issuedDate} onChange={e => setIssuedDate(e.target.value)} />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-[#71717A] mb-1.5">{t('invoice.dialog.dueDate')}</label>
-              <input type="date" className="w-full h-10 rounded-lg border border-[#D4D4D8] px-3 text-sm focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 transition-all" value={dueDate} onChange={e => setDueDate(e.target.value)} />
-            </div>
-          </div>
-
-          {/* Reference-data load failure — explains why the dropdowns below are empty */}
-          {refError && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
-                <p className="text-xs text-red-700">{t('invoice.refDataError', "We couldn't load clients and projects. The dropdowns below may be empty.")}</p>
-              </div>
-              <button type="button" onClick={loadRefData} className="inline-flex items-center gap-1.5 text-xs font-medium text-red-700 hover:text-red-900 transition-colors shrink-0">
-                <RefreshCw className="w-3.5 h-3.5" />{t('common:buttons.retry')}
-              </button>
-            </div>
-          )}
-
-          {/* Row: Client + Project */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" data-tour="sec.invoices.client-project">
-            <div>
-              <label className="block text-xs font-medium text-[#71717A] mb-1.5">{t('invoice.dialog.client')} *</label>
-              <Select value={clientName} onValueChange={setClientName}>
-                <SelectTrigger className="h-10 text-sm">
-                  <SelectValue placeholder={t('invoice.dialog.selectClient')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients.map(c => (
-                    <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
-                  ))}
-                  <SelectItem value="__other__">{t('invoice.dialog.clientOther')}</SelectItem>
-                </SelectContent>
-              </Select>
-              {clientName === '__other__' && (
-                <input
-                  className="w-full h-10 rounded-lg border border-[#D4D4D8] px-3 text-sm mt-2 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 transition-all"
-                  placeholder={t('invoice.dialog.clientPlaceholder')}
-                  maxLength={FIELD_LIMITS.SHORT_NAME}
-                  value={clientCustom}
-                  onChange={e => setClientCustom(e.target.value)}
-                />
-              )}
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-[#71717A] mb-1.5">{t('invoice.dialog.project')} *</label>
-              <Select value={projectId} onValueChange={setProjectId}>
-                <SelectTrigger className="h-10 text-sm">
-                  <SelectValue placeholder={t('invoice.dialog.projectPlaceholder')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {projects.map(p => (
-                    <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="block text-xs font-medium text-[#71717A] mb-1.5">{t('invoice.dialog.description')}</label>
-            <input
-              className="w-full h-10 rounded-lg border border-[#D4D4D8] px-3 text-sm focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 transition-all"
-              placeholder={t('invoice.dialog.descriptionPlaceholder')}
-              maxLength={FIELD_LIMITS.NOTE}
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-            />
-          </div>
-
-          {/* Line items */}
-          <div data-tour="sec.invoices.line-items">
-            <div className="flex items-center justify-between mb-3">
-              <label className="text-xs font-semibold text-[#0A0A0A] uppercase tracking-wider">{t('invoice.dialog.lineItems')}</label>
-              <Button variant="ghost" size="sm" className="text-xs h-7 gap-1 text-purple-600" onClick={addLineItem}>
-                <Plus className="w-3 h-3" /> {t('invoice.dialog.addItem')}
-              </Button>
-            </div>
-            <div className="border border-[#D4D4D8] rounded-lg overflow-hidden">
-              {/* Table header */}
-              <div className="grid grid-cols-[1fr_80px_110px_100px_36px] gap-0 bg-[#FAFAFA] px-4 py-2.5">
-                <span className="text-[10px] font-semibold text-[#71717A] uppercase tracking-wider">{t('invoice.dialog.itemDesc')}</span>
-                <span className="text-[10px] font-semibold text-[#71717A] uppercase tracking-wider">{t('invoice.dialog.itemQty')}</span>
-                <span className="text-[10px] font-semibold text-[#71717A] uppercase tracking-wider">{t('invoice.dialog.itemPrice')}</span>
-                <span className="text-[10px] font-semibold text-[#71717A] uppercase tracking-wider">{t('invoice.dialog.itemSubtotal')}</span>
+        {(listState === 'data' || listState === 'loading') && (
+          <>
+            {/* Desktop */}
+            <div className="hidden md:block">
+              <div className={cn(ROW_GRID, 'px-5 py-[11px] border-b border-[#EDE7DB] bg-[#FBF8F2] font-bt-mono text-[10px] uppercase tracking-[0.13em] text-[#8A8175]')}>
+                <span>{t('finance:invoice.table.number')}</span>
+                <span>{t('finance:invoice.table.type')}</span>
+                <span>{t('finance:invoice.list.clientAndProject')}</span>
+                <span>{t('finance:invoice.list.issuedDue')}</span>
+                <span className="text-right">{t('finance:invoice.table.amount')}</span>
+                <span className="text-right">{t('finance:invoice.list.outstanding')}</span>
+                <span>{t('finance:invoice.table.status')}</span>
                 <span />
               </div>
-              {/* Rows */}
-              {lineItems.map((li, idx) => {
-                const q = parseFloat(li.quantity) || 0;
-                const p = parseFloat(li.unitPrice) || 0;
+              {listState === 'loading' && Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className={cn(ROW_GRID, 'px-5 py-[15px] border-b border-[#F0EBE1]')}>
+                  <Bone className="w-[80%] h-3" /><Bone className="w-16 h-5" />
+                  <div className="space-y-2"><Bone className="w-[52%] h-[13px]" /><Bone className="w-[74%] h-[9px]" /></div>
+                  <Bone className="w-[70%] h-3" /><Bone className="w-[60%] h-3 justify-self-end" />
+                  <Bone className="w-[60%] h-3 justify-self-end" /><Bone className="w-20 h-5" />
+                  <Bone className="w-7 h-7 justify-self-end" />
+                </div>
+              ))}
+              {listState === 'data' && rows.map(row => {
+                const isCO = row.documentType === 'CHANGE_ORDER_REQUEST';
+                const notBillable = row.status === 'pending_approval' || row.status === 'rejected';
+                const outstanding = row.amount - row.paidAmount;
+                const overdue = row.status === 'overdue';
                 return (
-                  <div key={idx} className="grid grid-cols-[1fr_80px_110px_100px_36px] gap-0 items-center px-4 py-2 border-t border-[#D4D4D8]/50">
-                    <input
-                      className="h-9 rounded-md border border-[#D4D4D8] px-3 text-sm mr-2"
-                      placeholder={t('invoice.dialog.itemDescPlaceholder')}
-                      maxLength={FIELD_LIMITS.LINE_ITEM}
-                      value={li.description}
-                      onChange={e => updateLineItem(idx, 'description', e.target.value)}
-                    />
-                    <input
-                      type="number"
-                      min="1"
-                      className="h-9 rounded-md border border-[#D4D4D8] px-2 text-sm text-center mr-2"
-                      value={li.quantity}
-                      onChange={e => updateLineItem(idx, 'quantity', e.target.value)}
-                    />
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      className="h-9 rounded-md border border-[#D4D4D8] px-2 text-sm mr-2"
-                      placeholder="$0.00"
-                      value={li.unitPrice}
-                      onChange={e => updateLineItem(idx, 'unitPrice', e.target.value)}
-                    />
-                    <span className="text-sm font-mono text-[#0A0A0A] px-1">{fmtAmount(q * p)}</span>
-                    {lineItems.length > 1 ? (
-                      <button onClick={() => removeLineItem(idx)} className="text-[#71717A] hover:text-red-500 transition-colors mx-auto">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    ) : <span />}
+                  <div
+                    key={row.id}
+                    data-testid={`invoice-row-${row.id}`}
+                    className={cn(
+                      ROW_GRID, 'px-5 py-[13px] border-b border-[#F0EBE1] last:border-b-0 border-l-2 transition-colors hover:bg-[#FBF8F2]',
+                      overdue ? 'border-l-[#B3402A]' : 'border-l-transparent hover:border-l-[#F97316]',
+                      row.id === flashId && 'bt-row-flash',
+                    )}
+                  >
+                    <Mono className="text-[12.5px] font-semibold tracking-[0.03em] text-[#0A0A0A]">{row.invoiceNumber}</Mono>
+                    <div><DocTypeChip type={row.documentType} /></div>
+                    <div className="min-w-0">
+                      <div className="text-[14px] font-semibold text-[#0A0A0A] truncate">{row.client}</div>
+                      <Mono className="block text-[10.5px] tracking-[0.04em] text-[#A69C8D] mt-[3px] truncate">
+                        {[row.project, row.description].filter(Boolean).join(' · ')}
+                      </Mono>
+                    </div>
+                    <div className="min-w-0">
+                      <Mono className="block text-[11.5px] text-[#0A0A0A]">{stamp(row.issuedDate)}</Mono>
+                      {isCO && notBillable
+                        ? <CellEmpty className="block mt-[2px]">{t('finance:invoice.list.noDueDate')}</CellEmpty>
+                        : <Mono className={cn('block text-[10px] tracking-[0.06em] mt-[2px]', overdue ? 'text-[#B3402A]' : 'text-[#A69C8D]')}>
+                            {t(overdue ? 'finance:invoice.list.expiredOn' : 'finance:invoice.list.dueOn', { date: stamp(row.dueDate) })}
+                          </Mono>}
+                    </div>
+                    <Mono className="text-[12.5px] text-[#0A0A0A] text-right tabular-nums">{fmtMoney(row.amount, { decimals: false })}</Mono>
+                    {notBillable
+                      ? <CellEmpty className="text-right">{t('finance:invoice.list.notBillable')}</CellEmpty>
+                      : outstanding <= 0
+                        ? <CellEmpty className="text-right">{t('finance:invoice.list.settled')}</CellEmpty>
+                        : <Mono className={cn('text-[12.5px] text-right tabular-nums', overdue ? 'text-[#B3402A] font-semibold' : 'text-[#0A0A0A]')}>
+                            {fmtMoney(outstanding, { decimals: false })}
+                          </Mono>}
+                    <div><InvoiceStatusChip status={row.status} /></div>
+                    {rowMenu(row)}
                   </div>
                 );
               })}
             </div>
-          </div>
 
-          {/* Totals card */}
-          <div className="bg-[#FAFAFA] rounded-xl p-5 space-y-3" data-tour="sec.invoices.totals">
-            <div className="flex justify-between text-sm">
-              <span className="text-[#71717A]">{t('invoice.dialog.subtotal')}</span>
-              <span className="font-mono font-medium text-[#0A0A0A]">{fmtAmount(subtotal)}</span>
+            {/* Phone: cards */}
+            <div className="md:hidden p-3.5 space-y-3">
+              {listState === 'loading' && Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="border border-[#E7E1D5] p-3.5 space-y-2"><Bone className="w-2/3 h-[13px]" /><Bone className="w-1/2 h-[9px]" /><Bone className="w-1/3 h-[9px] mt-3" /></div>
+              ))}
+              {listState === 'data' && rows.map(row => {
+                const outstanding = row.amount - row.paidAmount;
+                const notBillable = row.status === 'pending_approval' || row.status === 'rejected';
+                return (
+                  <div key={row.id} className={cn('border border-[#E7E1D5] border-l-2 border-l-transparent p-3.5', row.id === flashId && 'bt-row-flash')}>
+                    <div className="flex items-start justify-between gap-2.5">
+                      <div className="min-w-0">
+                        <Mono className="block text-[12px] font-semibold text-[#0A0A0A]">{row.invoiceNumber}</Mono>
+                        <div className="text-[14px] font-semibold text-[#0A0A0A] mt-[3px] truncate">{row.client}</div>
+                        <Mono className="block text-[10px] tracking-[0.04em] text-[#A69C8D] mt-[2px] truncate">{row.project}</Mono>
+                      </div>
+                      <InvoiceStatusChip status={row.status} className="flex-shrink-0" />
+                    </div>
+                    <div className="flex items-end justify-between gap-3 mt-3">
+                      <div>
+                        <div className="font-bt-display font-extrabold text-[26px] leading-none tabular-nums">{fmtMoney(row.amount, { decimals: false })}</div>
+                        <Mono className="block text-[9.5px] tracking-[0.08em] text-[#8A8175] mt-1.5">
+                          {notBillable
+                            ? t('finance:invoice.list.notBillable')
+                            : outstanding > 0
+                              ? t('finance:invoice.list.outstandingIs', { amount: fmtMoney(outstanding, { decimals: false }) })
+                              : t('finance:invoice.list.settled')}
+                        </Mono>
+                      </div>
+                      <SecondaryButton
+                        onClick={() => void download(row)}
+                        disabled={downloading === row.id}
+                        className="bg-[#FAF7F0] min-h-11 gap-1.5"
+                      >
+                        <Download className="w-3.5 h-3.5" />{t('finance:invoice.list.pdf')}
+                      </SecondaryButton>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm text-[#71717A]">{t('invoice.dialog.discount')}</span>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                className="w-32 h-9 rounded-lg border border-[#D4D4D8] px-3 text-sm text-right bg-white"
-                placeholder="$0.00"
-                value={discount}
-                onChange={e => setDiscount(e.target.value)}
-              />
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm text-[#71717A]">{t('invoice.dialog.taxRate')}</span>
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  className="w-24 h-9 rounded-lg border border-[#D4D4D8] px-3 text-sm text-right bg-white"
-                  placeholder="0"
-                  value={taxRate}
-                  onChange={e => setTaxRate(e.target.value)}
-                />
-                <span className="text-sm text-[#71717A]">%</span>
-              </div>
-            </div>
-            {taxVal > 0 && (
-              <div className="flex justify-between text-sm">
-                <span className="text-[#71717A]">{t('invoice.dialog.tax')}</span>
-                <span className="font-mono text-[#0A0A0A]">{fmtAmount(taxVal)}</span>
-              </div>
-            )}
-            <div className="flex justify-between text-lg font-bold border-t border-[#D4D4D8] pt-3 mt-3">
-              <span>{t('invoice.dialog.total')}</span>
-              <span className="font-mono">{fmtAmount(totalAmount)}</span>
-            </div>
-          </div>
-
-          {/* Notes */}
-          <div>
-            <label className="block text-xs font-medium text-[#71717A] mb-1.5">{t('invoice.dialog.notes')}</label>
-            <textarea
-              className="w-full h-24 rounded-lg border border-[#D4D4D8] px-3 py-2.5 text-sm resize-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 transition-all"
-              placeholder={t('invoice.dialog.notesPlaceholder')}
-              maxLength={FIELD_LIMITS.EXTENDED_NOTE}
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-            />
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-[#D4D4D8] bg-[#FAFAFA]/50 flex items-center justify-end gap-3">
-          <Button variant="outline" onClick={resetForm}>{t('common:buttons.cancel')}</Button>
-          <Button
-            disabled={submitting}
-            onClick={handleCreate}
-            className={`min-w-[160px] ${isCOR ? 'bg-orange-600 hover:bg-orange-700' : 'bg-purple-600 hover:bg-purple-700'}`}
-          >
-            {submitting ? '...' : (isCOR ? t('invoice.dialog.submitCOR') : t('invoice.dialog.submitInvoice'))}
-          </Button>
-        </div>
+          </>
+        )}
       </div>
 
-      {/* Live PDF preview panel */}
-      <div className="lg:sticky lg:top-6">
-        <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-[#D4D4D8] bg-[#FAFAFA]/50">
-            <FileText className="w-4 h-4 text-[#71717A]" />
-            <span className="text-sm font-semibold text-[#0A0A0A]">{t('invoice.preview.title')}</span>
-            {previewData && (
-              <button
-                type="button"
-                onClick={async () => {
-                  if (previewData) downloadInvoicePdf(previewData, await loadInvoiceIssuer());
-                }}
-                className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-purple-600 hover:text-purple-800 transition-colors"
-                title={t('invoice.preview.download')}
-              >
-                <Download className="w-3.5 h-3.5" />
-                {t('invoice.preview.download')}
+      {/* ── Pagination ───────────────────────────────────────────────── */}
+      {listState === 'data' && (
+        <div className="flex items-center justify-between gap-4 flex-wrap pb-2">
+          <Mono className="text-[10.5px] tracking-[0.06em] text-[#8A8175]">
+            {t('finance:invoice.showingOf', { shown: rows.length, total: totalElements })}
+          </Mono>
+          <div className="flex items-center gap-3">
+            <div className="hidden sm:flex items-center gap-[7px]">
+              <Mono className="text-[10px] tracking-[0.08em] text-[#8A8175]">{t('finance:invoice.list.perPage')}</Mono>
+              <MonoSelect value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setCurrent(0); }} className="px-[9px] py-1.5" aria-label={t('finance:invoice.list.perPage')}>
+                {PAGE_SIZES.map(n => <option key={n} value={n}>{n}</option>)}
+              </MonoSelect>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button type="button" onClick={() => setCurrent(p => Math.max(0, p - 1))} disabled={current === 0} aria-label={t('common:buttons.prev')}
+                className={cn('w-[30px] h-[30px] border border-[#DBD0BB] bg-[#FAF7F0] flex items-center justify-center text-[#0A0A0A] hover:border-[#F97316] hover:text-[#C2410C] disabled:text-[#B4A992] disabled:hover:border-[#DBD0BB]', FOCUS_RING)}>
+                <ChevronLeft className="w-3 h-3" strokeWidth={2.4} />
               </button>
-            )}
-          </div>
-          {previewUrl ? (
-            <iframe
-              key="invoice-preview"
-              src={`${previewUrl}#toolbar=0&navpanes=0&view=FitH`}
-              title={t('invoice.preview.title')}
-              className="w-full h-[600px] bg-[#525659]"
-            />
-          ) : (
-            <div className="h-[600px] flex flex-col items-center justify-center text-center px-6 gap-3">
-              <FileText className="w-10 h-10 text-[#D4D4D8]" />
-              <p className="text-sm text-[#71717A] max-w-[220px]">{t('invoice.preview.empty')}</p>
+              <Mono className="text-[11px] tracking-[0.06em] text-[#0A0A0A] min-w-[96px] text-center">
+                {t('finance:invoice.pageOf', { current: current + 1, total: totalPages })}
+              </Mono>
+              <button type="button" onClick={() => setCurrent(p => Math.min(totalPages - 1, p + 1))} disabled={current >= totalPages - 1} aria-label={t('common:buttons.next')}
+                className={cn('w-[30px] h-[30px] border border-[#DBD0BB] bg-[#FAF7F0] flex items-center justify-center text-[#0A0A0A] hover:border-[#F97316] hover:text-[#C2410C] disabled:text-[#B4A992] disabled:hover:border-[#DBD0BB]', FOCUS_RING)}>
+                <ChevronRight className="w-3 h-3" strokeWidth={2.4} />
+              </button>
             </div>
-          )}
+          </div>
         </div>
-      </div>
-      </div>
+      )}
+
+      <PaperNote tone="none" className="text-[12px]">{t('finance:invoice.list.paymentsElsewhere')}</PaperNote>
     </div>
   );
+
+  function rowMenu(row: Receivable) {
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            aria-label={t('finance:invoice.table.actions')}
+            className={cn('w-7 h-7 flex items-center justify-center border bg-white transition-colors flex-shrink-0 justify-self-end border-[#DBD0BB] text-[#5A5346] hover:border-[#F97316] hover:text-[#C2410C]', FOCUS_RING)}
+          >
+            <MoreVertical className="w-3.5 h-3.5" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-[248px] rounded-none border-[#CDBFA6] p-0 shadow-[0_16px_48px_rgba(23,19,15,0.3)]">
+          <DropdownMenuLabel className="font-bt-mono text-[9.5px] font-normal uppercase tracking-[0.14em] text-[#8A8175] px-3.5 pt-2.5 pb-2 border-b border-[#EDE7DB] truncate">
+            {row.invoiceNumber} · {fmtMoney(row.amount, { decimals: false })}
+          </DropdownMenuLabel>
+          <DropdownMenuItem
+            onClick={() => void download(row)}
+            className="rounded-none cursor-pointer px-3.5 py-[11px] font-bt-mono text-[10.5px] uppercase tracking-[0.08em] text-[#0A0A0A] border-l-2 border-l-transparent focus:bg-[#F3EEE4] focus:border-l-[#F97316] data-[highlighted]:bg-[#F3EEE4]"
+          >
+            {downloading === row.id ? <RefreshCw className="w-3 h-3 mr-2 animate-spin" /> : <Download className="w-3 h-3 mr-2" />}
+            {t('finance:invoice.list.downloadAgain')}
+          </DropdownMenuItem>
+          {onNavigate && (
+            <DropdownMenuItem
+              onClick={() => onNavigate('accounts-receivable')}
+              className="rounded-none cursor-pointer px-3.5 py-[11px] font-bt-mono text-[10.5px] uppercase tracking-[0.08em] text-[#0A0A0A] border-l-2 border-l-transparent border-t border-t-[#EDE7DB] focus:bg-[#F3EEE4] focus:border-l-[#F97316] data-[highlighted]:bg-[#F3EEE4]"
+            >
+              <FileText className="w-3 h-3 mr-2" />
+              {t(row.status === 'pending_approval' ? 'finance:invoice.list.approveInAr' : 'finance:invoice.list.openInAr')}
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
 }

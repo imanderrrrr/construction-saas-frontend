@@ -61,7 +61,15 @@ export const SECTION_TOUR_STEPS: Record<string, string[]> = {
   'schedules-semana': ['rows', 'nav', 'undated'],
   'tool-inventory': ['header', 'counts', 'filters', 'table'],
   'tool-report': ['state', 'missing', 'filters', 'export'],
-  invoices: ['doc-type', 'client-project', 'line-items', 'totals'],
+  // Facturas. The section key stays `invoices` (renaming it would reset every
+  // account's "seen it" flag). The four old stops all pointed inside the
+  // create form, which is now a window: with the section opening on the list,
+  // `visibleSteps()` would have dropped every one of them and announced
+  // "1 de 1". These four are containers the list renders in every state.
+  invoices: ['summary', 'filters', 'list', 'new'],
+  // The window claims the tour while it is on screen (lib/tourScope), with a
+  // hyphen like the other scoped keys.
+  'invoices-emitir': ['type', 'number', 'client-project', 'line-items', 'totals'],
   'invoice-branding': ['logo', 'fields', 'save'],
   budgets: ['header', 'kpis'],
   'budget-report': ['export', 'filters', 'kpis', 'budget-vs-actual'],
