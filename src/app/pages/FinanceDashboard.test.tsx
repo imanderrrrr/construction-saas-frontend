@@ -35,8 +35,12 @@ vi.mock('../services/expenses', () => ({
 vi.mock('../components/FinanceExpenses', () => ({
   FinanceExpenses: () => <div data-testid="section-expenses">EXPENSES</div>,
 }));
-vi.mock('../components/FinanceBudgets', () => ({
-  FinanceBudgets: () => <div data-testid="section-budgets">BUDGETS</div>,
+// `/finance/budgets` now lands on the unified screen — the same component the
+// admin panel mounts, read-only — with its own Obras | Reporte switcher.
+vi.mock('../components/budgets/BudgetsSection', () => ({
+  BudgetsSection: (props: { readOnly?: boolean }) => (
+    <div data-testid="section-budgets" data-readonly={String(!!props.readOnly)}>BUDGETS</div>
+  ),
 }));
 
 import { FinanceDashboard } from './FinanceDashboard';
@@ -83,7 +87,10 @@ describe('FinanceDashboard – initialSection deep-linking', () => {
     });
     await flush();
 
-    expect(container.querySelector('[data-testid="section-budgets"]')).toBeTruthy();
+    const section = container.querySelector('[data-testid="section-budgets"]');
+    expect(section).toBeTruthy();
+    // Finance sees the same numbers with nothing to write.
+    expect(section?.getAttribute('data-readonly')).toBe('true');
     expect(container.querySelector('[data-testid="section-expenses"]')).toBeNull();
   });
 

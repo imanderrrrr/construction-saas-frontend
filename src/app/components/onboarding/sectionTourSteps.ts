@@ -72,7 +72,18 @@ export const SECTION_TOUR_STEPS: Record<string, string[]> = {
   'invoices-emitir': ['type', 'number', 'client-project', 'line-items', 'totals'],
   'invoice-branding': ['logo', 'fields', 'save'],
   budgets: ['header', 'kpis'],
-  'budget-report': ['export', 'filters', 'kpis', 'budget-vs-actual'],
+  // Presupuestos' report view claims the tour while it is on screen
+  // (lib/tourScope), and it needs TWO keys rather than one: the registry is
+  // keyed copy — one wording per key — so finance under the admin key would
+  // be told to adjust budgets it cannot touch. The four stops are the same;
+  // only the first sentence differs.
+  //
+  // `reparto` is anchored on the CONTAINER of the breakdown block, not on the
+  // comparator inside it: the comparator is not drawn on an empty account, in
+  // the error state, or while the breakdown is still loading, and the header
+  // rule above is exactly about that.
+  'budgets-reporte': ['vista', 'cobro', 'reparto', 'documento'],
+  'budgets-reporte-finanzas': ['vista', 'cobro', 'reparto', 'documento'],
   expenses: ['approve-all', 'kpis', 'filters', 'table'],
   'expense-report': ['export', 'filters', 'kpis', 'by-project'],
   'office-expenses': ['kpis', 'new-expense', 'filters'],
