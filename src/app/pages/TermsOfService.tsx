@@ -177,8 +177,9 @@ const esSections: LegalSection[] = [
     body: (
       <p>
         BuildTrack usa la ubicación de su dispositivo para verificar su presencia en los sitios de trabajo
-        al fichar. La ubicación se recopila únicamente cuando usted inicia activamente una entrada o salida;
-        la app no rastrea su ubicación de forma continua ni en segundo plano.
+        al fichar. Mientras tiene abierta la pantalla de fichaje, la app lee su ubicación para mostrarle la
+        distancia al sitio; las coordenadas se envían al servidor únicamente cuando usted registra entrada o
+        salida, y la app no rastrea su ubicación en segundo plano.
       </p>
     ),
   },
@@ -440,8 +441,9 @@ const enSections: LegalSection[] = [
     body: (
       <p>
         BuildTrack uses your device’s location to verify your presence at job sites when clocking in.
-        Location is collected only when you actively initiate a check-in or check-out; the app does not track
-        your location continuously or in the background.
+        While the time-tracking screen is open, the app reads your location to show your distance to the site;
+        coordinates are sent to the server only when you clock in or out, and the app does not track your
+        location in the background.
       </p>
     ),
   },

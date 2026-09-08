@@ -81,9 +81,10 @@ const es: LegalVersion = {
           </li>
           <li>
             <strong>Ubicación (GPS):</strong> se usa exclusivamente para verificar la presencia en el sitio de
-            obra asignado (geocerca). Se captura únicamente al registrar entrada o salida de la jornada y no se
-            rastrea en segundo plano. Se utiliza ubicación precisa para asegurar la exactitud de la
-            verificación.
+            obra asignado (geocerca). Mientras la pantalla de fichaje está abierta, la app lee la ubicación
+            para mostrar la distancia al sitio; las coordenadas se envían al servidor únicamente al registrar
+            entrada o salida, y no se rastrea en segundo plano. Se utiliza ubicación precisa para asegurar la
+            exactitud de la verificación.
           </li>
           <li>
             <strong>Cámara, micrófono y galería:</strong> para capturar recibos de gastos, evidencia del
@@ -434,8 +435,9 @@ const en: LegalVersion = {
           </li>
           <li>
             <strong>Location (GPS):</strong> used exclusively to verify presence at the assigned construction
-            site (geofence). It is captured only when clocking in or out and is not tracked in the background.
-            Precise location is used to ensure verification accuracy.
+            site (geofence). While the time-tracking screen is open, the app reads location data to show the
+            distance to the site; coordinates are sent to the server only when clocking in or out, and it is
+            not tracked in the background. Precise location is used to ensure verification accuracy.
           </li>
           <li>
             <strong>Camera, microphone and gallery:</strong> to capture expense receipts, evidence of
