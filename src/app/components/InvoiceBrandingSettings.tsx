@@ -40,6 +40,7 @@ import {
   invalidateInvoiceIssuer,
   type InvoiceBranding,
 } from '../services/invoiceBranding';
+import { invalidateTenantCompanyName } from '../services/branding';
 import {
   invoicePdfPreviewUrl,
   type InvoiceIssuerPdf,
@@ -258,6 +259,9 @@ export function InvoiceBrandingSettings() {
         ...(logoRemoved ? { removeLogo: true } : {}),
       });
       invalidateInvoiceIssuer();
+      // The exported reports sign themselves with this same name (it is what
+      // GET /api/v1/branding resolves), so their cache has to go too.
+      invalidateTenantCompanyName();
       setBranding(result);
       setSaved({ ...form });
       if (pendingLogo) { setSavedLogo(pendingLogo.dataUrl); setPendingLogo(null); }
