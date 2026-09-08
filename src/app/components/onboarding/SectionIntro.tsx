@@ -37,7 +37,10 @@ export const INTRO_SECTIONS = new Set([
   // The Trabajos tab and the job ficha claim the tour (lib/tourScope); the
   // banner is their voice on phones.
   'subcontractors-jobs', 'subcontractors-ficha',
-  'invoices', 'invoice-branding', 'budgets', 'budget-report',
+  'invoices', 'invoice-branding', 'budgets',
+  // The report view of Presupuestos claims the tour (lib/tourScope) under one
+  // key per role; the banner is its voice on phones.
+  'budgets-reporte', 'budgets-reporte-finanzas',
   'expenses', 'expense-report', 'office-expenses',
   'accounts-receivable', 'accounts-payable', 'audit',
   // The two halves of T&M — the banner is their mobile/fallback voice; the
