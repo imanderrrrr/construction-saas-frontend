@@ -62,11 +62,15 @@ describe('invoice PDF issuer block', () => {
   });
 
   it('still produces a complete invoice without a configured template', async () => {
-    const { blob, filename } = generateInvoicePdf(DATA);
+    const { blob, filename } = generateInvoicePdf(DATA, undefined, undefined, 'en');
     const text = await blob.text();
 
     expect(blob.type).toBe('application/pdf');
-    expect(filename).toContain('Invoice');
+    // The filename now names who issued it, which document and what day —
+    // it used to be `Invoice_<client>_<project>_<date>`, which said nothing
+    // about which document it was.
+    expect(filename).toContain('INV-2026-0042');
+    expect(filename).toContain('2026-08-01');
     // Everything that is not the issuer block still renders.
     expect(text).toContain('BILL TO');
     expect(text).toContain('INV-2026-0042');

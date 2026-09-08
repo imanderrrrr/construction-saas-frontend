@@ -24,6 +24,7 @@ import {
 } from '../services/expenses';
 import { listProjects, type ProjectResponse } from '../services/projects';
 import { exportExpenseExcel, exportExpensePdf } from '../helpers/exportExpenseReport';
+import { tenantCompanyName } from '../services/branding';
 import { businessToday } from '../helpers/dateTime';
 
 // Types (now from API)
@@ -225,16 +226,16 @@ export function ExpenseReport({ readOnly = false }: ExpenseReportProps) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuItem onClick={() => {
+            <DropdownMenuItem onClick={async () => {
               if (!report) return;
-              try { exportExpensePdf({ report, dateFrom, dateTo, projectFilter: appliedProject !== 'all' ? appliedProject : undefined }); toast.success(t('admin:expenseReport.exportSuccess', 'Export started')); }
+              try { exportExpensePdf({ report, dateFrom, dateTo, companyName: await tenantCompanyName(), projectFilter: appliedProject !== 'all' ? appliedProject : undefined }); toast.success(t('admin:expenseReport.exportSuccess', 'Export started')); }
               catch { toast.error(t('admin:expenseReport.exportError', 'Export failed')); }
             }} className="gap-2 text-sm cursor-pointer">
               <FileText className="w-4 h-4 text-[#71717A]" />{t('admin:expenseReport.exportPdf')}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={async () => {
               if (!report) return;
-              try { await exportExpenseExcel({ report, dateFrom, dateTo, projectFilter: appliedProject !== 'all' ? appliedProject : undefined }); toast.success(t('admin:expenseReport.exportSuccess', 'Export started')); }
+              try { await exportExpenseExcel({ report, dateFrom, dateTo, companyName: await tenantCompanyName(), projectFilter: appliedProject !== 'all' ? appliedProject : undefined }); toast.success(t('admin:expenseReport.exportSuccess', 'Export started')); }
               catch { toast.error(t('admin:expenseReport.exportError', 'Export failed')); }
             }} className="gap-2 text-sm cursor-pointer">
               <FileSpreadsheet className="w-4 h-4 text-[#71717A]" />{t('admin:expenseReport.exportExcel')}

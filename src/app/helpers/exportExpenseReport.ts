@@ -39,7 +39,8 @@ export interface ExpenseExportParams {
   report: ExpenseReportResponse;
   dateFrom: string;
   dateTo: string;
-  companyName?: string;
+  /** The tenant's own name. Required on purpose — see services/branding. */
+  companyName: string;
   projectFilter?: string;
   typeFilter?: string;
 }
@@ -74,7 +75,7 @@ export async function exportExpenseExcel(params: ExpenseExportParams) {
     report,
     dateFrom,
     dateTo,
-    companyName = 'OFJR Construction',
+    companyName,
     projectFilter,
     typeFilter,
   } = params;
@@ -453,7 +454,7 @@ export function exportExpensePdf(params: ExpenseExportParams) {
     report,
     dateFrom,
     dateTo,
-    companyName = 'OFJR Construction',
+    companyName,
     projectFilter,
     typeFilter,
   } = params;

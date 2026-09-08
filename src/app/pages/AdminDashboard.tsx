@@ -666,7 +666,7 @@ export function AdminDashboard() {
           )}
           {activeSection === 'invoices' && (
             <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
-              <InvoiceManager />
+              <InvoiceManager onNavigate={handleNavigate} />
             </Suspense></SectionErrorBoundary>
           )}
           {activeSection === 'invoice-branding' && (

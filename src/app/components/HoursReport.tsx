@@ -33,6 +33,7 @@ import type { UserDTO } from '../services/users';
 import { listProjects } from '../services/projects';
 import type { ProjectResponse } from '../services/projects';
 import { businessToday, nDaysAgo } from '../helpers/dateTime';
+import { tenantCompanyName } from '../services/branding';
 
 // Constants
 
@@ -298,6 +299,7 @@ export function HoursReport() {
         dateFrom: appliedFrom,
         dateTo: appliedTo,
         reportTitle: t('report.title'),
+        companyName: await tenantCompanyName(),
       };
       if (format === 'excel') {
         const { exportPayrollExcel } = await import('../helpers/exportPayrollExcel');

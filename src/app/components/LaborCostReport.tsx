@@ -25,6 +25,7 @@ import { listProjects, type ProjectResponse } from '../services/projects';
 import { listActiveUsers, type UserDTO } from '../services/users';
 import { exportPayrollExcel } from '../helpers/exportPayrollExcel';
 import { exportPayrollPdf } from '../helpers/exportPayrollPdf';
+import { tenantCompanyName } from '../services/branding';
 import { toast } from 'sonner';
 import { businessToday } from '../helpers/dateTime';
 import { workerRowPay, unpaidApprovedHours } from '../helpers/payroll';
@@ -174,11 +175,13 @@ export function LaborCostReport({ project }: LaborCostReportProps) {
     if (!report || computed.length === 0) return;
     try {
       toast.success(t('admin:payroll.exportStarted', 'Export started'), { description: t('admin:payroll.generatingExcel', 'Generating Excel…') });
+      const companyName = await tenantCompanyName();
       await exportPayrollExcel({
         workers: computed,
         kpis: report.kpis,
         dateFrom,
         dateTo,
+        companyName,
         reportTitle: 'Labor Cost',
       });
     } catch {
@@ -186,15 +189,17 @@ export function LaborCostReport({ project }: LaborCostReportProps) {
     }
   }
 
-  function handleExportPdf() {
+  async function handleExportPdf() {
     if (!report || computed.length === 0) return;
     try {
       toast.success(t('admin:payroll.exportStarted', 'Export started'), { description: t('admin:payroll.generatingPdf', 'Generating PDF…') });
+      const companyName = await tenantCompanyName();
       exportPayrollPdf({
         workers: computed,
         kpis: report.kpis,
         dateFrom,
         dateTo,
+        companyName,
         reportTitle: 'Labor Cost',
       });
     } catch {

@@ -43,7 +43,7 @@ describe('invoice PDF signature block', () => {
     const { blob, filename } = generateInvoicePdf(DATA);
     expect(blob.type).toBe('application/pdf');
     expect(blob.size).toBeGreaterThan(0);
-    expect(filename).toContain('Invoice');
+    expect(filename).toContain('INV-2026-0001');
   });
 
   it('embeds the stroke and the attribution when the document is signed', () => {

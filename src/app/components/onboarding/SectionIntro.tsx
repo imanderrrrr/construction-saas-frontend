@@ -37,7 +37,10 @@ export const INTRO_SECTIONS = new Set([
   // The Trabajos tab and the job ficha claim the tour (lib/tourScope); the
   // banner is their voice on phones.
   'subcontractors-jobs', 'subcontractors-ficha',
-  'invoices', 'invoice-branding', 'budgets',
+  'invoices', 'invoice-branding',
+  // The window that issues a document claims the tour (lib/tourScope).
+  'invoices-emitir',
+  'budgets',
   // The report view of Presupuestos claims the tour (lib/tourScope) under one
   // key per role; the banner is its voice on phones.
   'budgets-reporte', 'budgets-reporte-finanzas',

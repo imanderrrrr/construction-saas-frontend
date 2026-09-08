@@ -22,7 +22,8 @@ export interface PayrollPdfParams {
   kpis: HoursReportKpis;
   dateFrom: string;
   dateTo: string;
-  companyName?: string;
+  /** The tenant's own name. Required on purpose — see services/branding. */
+  companyName: string;
   reportTitle: string;
   generatedBy?: string;
 }
@@ -147,7 +148,7 @@ function drawPieChart(
 
 /* ───────────────────────── Main export ───────────────────────── */
 export function exportPayrollPdf(params: PayrollPdfParams) {
-  const { workers, kpis, dateFrom, dateTo, companyName = 'OFJR Construction', reportTitle, generatedBy } = params;
+  const { workers, kpis, dateFrom, dateTo, companyName, reportTitle, generatedBy } = params;
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
