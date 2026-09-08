@@ -344,6 +344,32 @@ describe('BudgetsSection', () => {
       expect(save.disabled).toBe(false);
     });
 
+    // Cancelling used to leave the typed text behind, and so did saving: the
+    // window kept the strings it was seeded with the first time.
+    it('re-seeds the fields every time it opens', async () => {
+      await openAdjust();
+      setInput(field('bt-adjust-cost'), '999999');
+      await flush();
+
+      const cancel = Array.from(document.querySelectorAll('button'))
+        .find(b => b.textContent?.trim() === 'Cancelar');
+      click(cancel);
+      await flush();
+
+      const row = Array.from(container.querySelectorAll('[role="button"]'))
+        .find(el => el.textContent?.includes('Torre Norte'));
+      click(row);
+      await flush();
+      const adjust = Array.from(document.querySelectorAll('button'))
+        .find(b => b.textContent?.trim() === 'Ajustar');
+      click(adjust);
+      await flush();
+
+      // Torre Norte has no cost budget, so the field comes back empty.
+      expect(field('bt-adjust-cost').value).toBe('');
+      expect(field('bt-adjust-contract').value).toBe('175,000.00');
+    });
+
     it('saves nothing when nothing changed', async () => {
       await openAdjust();
       const save = Array.from(document.querySelectorAll('button'))

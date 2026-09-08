@@ -117,14 +117,18 @@ export function AdjustWindow({ row, open, onOpenChange, onSaved }: {
   const [costBudget, setCostBudget] = useState('');
   const [contract, setContract] = useState('');
   const [saving, setSaving] = useState(false);
-  // Re-seed the fields whenever a different jobsite opens the window.
+  // Which jobsite the fields currently hold. Cleared on close so that
+  // reopening always re-seeds: otherwise a cancelled edit — or a saved one,
+  // whose new figures have just been refetched — would come back with the
+  // stale text still typed in.
   const [seeded, setSeeded] = useState<number | null>(null);
 
-  if (row && seeded !== row.id) {
+  if (open && row && seeded !== row.id) {
     setSeeded(row.id);
     setCostBudget(toField(row.costBudget));
     setContract(toField(row.originalContract));
   }
+  if (!open && seeded !== null) setSeeded(null);
 
   const nextCost = parseField(costBudget);
   const nextContract = parseField(contract);
