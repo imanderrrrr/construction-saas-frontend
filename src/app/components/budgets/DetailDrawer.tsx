@@ -4,7 +4,7 @@ import { cn } from '../ui/utils';
 import { listAllPayables, type Payable } from '../../services/finance';
 import { BtDrawer } from '../bt/windows';
 import { PrimaryButton, SecondaryButton } from '../onboarding/chrome';
-import { Mono, stampDate } from '../projects/bt';
+import { Mono, stampDay } from '../projects/bt';
 import {
   execPct, money, pct as fmtPct, sharePct, type BudgetRow, type ConsumptionSplit,
 } from './bits';
@@ -167,7 +167,10 @@ export function DetailDrawer({ row, open, onOpenChange, split, splitLoading, rea
                   <div className="min-w-0">
                     <div className="text-[13px] font-medium text-[#0B0A09] truncate">{bill.vendor}</div>
                     <Mono className="block text-[9.5px] tracking-[0.04em] text-[#A69C8D] mt-0.5 normal-case">
-                      {bill.billNumber} · {stampDate(bill.receivedDate, lang)}
+                      {/* stampDay, not stampDate: `receivedDate` is a bare
+                          business date, and a UTC parse of one renders the day
+                          before in a UTC-6 tenant. */}
+                      {bill.billNumber} · {stampDay(bill.receivedDate, lang)}
                     </Mono>
                   </div>
                   <div className="flex items-center gap-2.5 flex-shrink-0">
