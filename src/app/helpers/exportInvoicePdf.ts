@@ -1,11 +1,19 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import i18n from '../../i18n';
 
-/* ───────────────────────── Brand colours (RGB) ───────────────────────── */
-const BRAND_PRIMARY: [number, number, number] = [11, 130, 199];
-const GRAY_TEXT: [number, number, number] = [139, 148, 158];
-const BLACK: [number, number, number] = [11, 15, 22];
-const BORDER_GRAY: [number, number, number] = [200, 205, 212];
+/* ───────────────────────── Ink palette (RGB) ─────────────────────────
+   The panel's own colours. The blue #0B82C7 this document used to carry —
+   headings plus a 4 mm bar across the foot of every page — belonged to
+   nobody: not to BuildTrack, not to the tenant whose invoice it is. It is
+   gone. What is left prints identically in colour and in grey, and the one
+   accent is the 2 mm orange square next to the BuildTrack footer line.     */
+const INK: [number, number, number] = [11, 10, 9];
+const GRAY_TEXT: [number, number, number] = [138, 129, 117];
+const BLACK: [number, number, number] = [11, 10, 9];
+const BORDER_GRAY: [number, number, number] = [219, 208, 187];
+const SAND: [number, number, number] = [243, 238, 228];
+const ORANGE: [number, number, number] = [249, 115, 22];
 
 /* ───────────────────────── Types ───────────────────────── */
 
@@ -59,14 +67,86 @@ function fmtMoney(n: number): string {
   return `$${Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 }
 
+/**
+ * A filename fragment that keeps the company's name and loses only what a
+ * filesystem cannot store. NFC first, so a decomposed "n + ~" is one ñ and
+ * not an ñ that a stripping regex would tear in half.
+ */
+function safeFilePart(raw: string): string {
+  return (raw ?? '')
+    .normalize('NFC')
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u001f/\\:*?"<>|]/g, ' ')
+    .trim()
+    .replace(/\s+/g, '-')
+    .slice(0, 80) || 'documento';
+}
+
 function fmtMoneySign(n: number): string {
   if (n < 0) return `-${fmtMoney(n)}`;
   return fmtMoney(n);
 }
 
-function fmtDateDisplay(iso: string): string {
+/**
+ * The date as the reader's country writes it.
+ *
+ * This was pinned to `en-US` with numeric month and day, so 7 September 2026
+ * printed `09/07/2026` — which a Guatemalan client reads as 9 July, three
+ * months early, on the line that says when the money is due. Spanish gets
+ * `es-GT` (day/month/year); English keeps a written month, which cannot be
+ * read backwards at all.
+ */
+function fmtDateDisplay(iso: string, lang: string): string {
   const d = new Date(`${iso}T00:00:00`);
-  return d.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+  return isEs(lang)
+    ? d.toLocaleDateString('es-GT', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function isEs(lang: string): boolean {
+  return lang.toLowerCase().startsWith('es');
+}
+
+/**
+ * The document's words, in the panel's language.
+ *
+ * Everything the client reads used to be English regardless of the panel:
+ * `BILL TO`, `RATE`, `QTY`, `BALANCE DUE`, `Customer Signature`, `1 Each`.
+ * It is the only artefact of this section that leaves the company, and it is
+ * read by whoever pays. The strings live in `finance.json` under
+ * `invoice.pdf.*` like the rest of the section; `lang` is resolved from the
+ * live i18n instance unless a caller passes one (tests do).
+ */
+function pdfLabels(lang: string) {
+  const lng = isEs(lang) ? 'es' : 'en';
+  const s = (key: string, opts?: Record<string, unknown>) =>
+    i18n.t(`finance:invoice.pdf.${key}`, { lng, ...opts }) as string;
+  return {
+    invoice: s('invoice'),
+    changeOrder: s('changeOrder'),
+    billTo: s('billTo'),
+    issuedTo: s('issuedTo'),
+    date: s('date'),
+    due: s('due'),
+    onReceipt: s('onReceipt'),
+    balanceDue: s('balanceDue'),
+    description: s('description'),
+    unitPrice: s('unitPrice'),
+    quantity: s('quantity'),
+    discount: s('discount'),
+    amount: s('amount'),
+    subtotal: s('subtotal'),
+    tax: s('tax'),
+    total: s('total'),
+    notes: s('notes'),
+    signature: s('signature'),
+    approval: s('approval'),
+    pendingApproval: s('pendingApproval'),
+    signedOn: (when: string) => s('signedOn', { when }),
+    fingerprint: (hash: string) => s('fingerprint', { hash }),
+    issuedWith: s('issuedWith'),
+    units: (n: number) => s('units', { count: n }),
+  };
 }
 
 /* ───────────────────────── Logo drawing ───────────────────────── */
@@ -105,7 +185,15 @@ export interface InvoiceSignaturePdf {
   documentHash: string;
 }
 
-export function generateInvoicePdf(data: InvoicePdfData, issuer?: InvoiceIssuerPdf, signature?: InvoiceSignaturePdf): { blob: Blob; filename: string } {
+export function generateInvoicePdf(
+  data: InvoicePdfData,
+  issuer?: InvoiceIssuerPdf,
+  signature?: InvoiceSignaturePdf,
+  /** Panel language; defaults to whatever i18n currently has. */
+  lang: string = i18n.language || 'es',
+): { blob: Blob; filename: string } {
+  const L = pdfLabels(lang);
+  const isCO = data.documentType === 'CHANGE_ORDER_REQUEST';
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
   const pageW = doc.internal.pageSize.getWidth();
   const margin = 18;
@@ -147,7 +235,7 @@ export function generateInvoicePdf(data: InvoicePdfData, issuer?: InvoiceIssuerP
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...GRAY_TEXT);
-  doc.text('BILL TO', billX, y, { align: 'right' });
+  doc.text((isCO ? L.issuedTo : L.billTo).toUpperCase(), billX, y, { align: 'right' });
 
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
@@ -173,14 +261,12 @@ export function generateInvoicePdf(data: InvoicePdfData, issuer?: InvoiceIssuerP
 
   // <DOC TYPE> | DATE | DUE | BALANCE DUE
   const colW = contentW / 4;
-  const docLabel = data.documentType === 'CHANGE_ORDER_REQUEST'
-    ? 'CHANGE ORDER REQUEST'
-    : 'INVOICE';
-  const metaLabels = [docLabel, 'DATE', 'DUE', 'BALANCE DUE'];
-  const dueLabel = data.dueDate === data.issuedDate ? 'On Receipt' : fmtDateDisplay(data.dueDate);
+  const docLabel = (isCO ? L.changeOrder : L.invoice).toUpperCase();
+  const metaLabels = [docLabel, L.date.toUpperCase(), L.due.toUpperCase(), L.balanceDue.toUpperCase()];
+  const dueLabel = data.dueDate === data.issuedDate ? L.onReceipt : fmtDateDisplay(data.dueDate, lang);
   const metaValues = [
     data.invoiceNumber,
-    fmtDateDisplay(data.issuedDate),
+    fmtDateDisplay(data.issuedDate, lang),
     dueLabel,
     `USD ${fmtMoney(data.amount)}`,
   ];
@@ -203,6 +289,19 @@ export function generateInvoicePdf(data: InvoicePdfData, issuer?: InvoiceIssuerP
 
   y += 14;
 
+  // A change order is not an invoice: it asks for money outside the contract
+  // and is worth nothing until the client approves it. Printed with the same
+  // headline as an invoice, the two are indistinguishable on paper.
+  if (isCO) {
+    doc.setFillColor(...INK);
+    doc.rect(margin, y - 4, contentW, 6, 'F');
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(245, 241, 232);
+    doc.text(L.pendingApproval.toUpperCase(), margin + 3, y);
+    y += 6;
+  }
+
   // Horizontal line
   doc.setDrawColor(...BORDER_GRAY);
   doc.line(margin, y, pageW - margin, y);
@@ -213,7 +312,7 @@ export function generateInvoicePdf(data: InvoicePdfData, issuer?: InvoiceIssuerP
   const tableBody = data.lineItems.map(li => {
     const desc = li.description;
     const rate = fmtMoney(li.unitPrice);
-    const qty = `${li.quantity} Each`;
+    const qty = L.units(li.quantity);
     const discount = ''; // We show discount in totals section
     const amount = fmtMoney(li.subtotal);
     return [desc, rate, qty, discount, amount];
@@ -221,11 +320,11 @@ export function generateInvoicePdf(data: InvoicePdfData, issuer?: InvoiceIssuerP
 
   autoTable(doc, {
     startY: y,
-    head: [['DESCRIPTION', 'RATE', 'QTY', 'DISCOUNT', 'AMOUNT']],
+    head: [[L.description.toUpperCase(), L.unitPrice.toUpperCase(), L.quantity.toUpperCase(), L.discount.toUpperCase(), L.amount.toUpperCase()]],
     body: tableBody,
     theme: 'plain',
     headStyles: {
-      fillColor: [245, 247, 250],
+      fillColor: SAND,
       textColor: GRAY_TEXT,
       fontStyle: 'bold',
       fontSize: 7.5,
@@ -277,7 +376,7 @@ export function generateInvoicePdf(data: InvoicePdfData, issuer?: InvoiceIssuerP
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...GRAY_TEXT);
-  doc.text('SUBTOTAL', totalsX, y, { align: 'left' });
+  doc.text(L.subtotal.toUpperCase(), totalsX, y, { align: 'left' });
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...BLACK);
   doc.text(fmtMoney(data.subtotal), totalsValX, y, { align: 'right' });
@@ -287,7 +386,7 @@ export function generateInvoicePdf(data: InvoicePdfData, issuer?: InvoiceIssuerP
   if (data.discount > 0) {
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(...GRAY_TEXT);
-    doc.text('DISCOUNT', totalsX, y, { align: 'left' });
+    doc.text(L.discount.toUpperCase(), totalsX, y, { align: 'left' });
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...BLACK);
     doc.text(fmtMoneySign(-data.discount), totalsValX, y, { align: 'right' });
@@ -297,7 +396,7 @@ export function generateInvoicePdf(data: InvoicePdfData, issuer?: InvoiceIssuerP
   // TAX
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...GRAY_TEXT);
-  doc.text(`TAX (${data.taxRate}%)`, totalsX, y, { align: 'left' });
+  doc.text(`${L.tax.toUpperCase()} ${isEs(lang) ? `${data.taxRate} %` : `${data.taxRate}%`}`, totalsX, y, { align: 'left' });
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...BLACK);
   doc.text(fmtMoney(data.tax), totalsValX, y, { align: 'right' });
@@ -306,7 +405,7 @@ export function generateInvoicePdf(data: InvoicePdfData, issuer?: InvoiceIssuerP
   // TOTAL
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...GRAY_TEXT);
-  doc.text('TOTAL', totalsX, y, { align: 'left' });
+  doc.text(L.total.toUpperCase(), totalsX, y, { align: 'left' });
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...BLACK);
   doc.text(fmtMoney(data.amount), totalsValX, y, { align: 'right' });
@@ -321,7 +420,7 @@ export function generateInvoicePdf(data: InvoicePdfData, issuer?: InvoiceIssuerP
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...GRAY_TEXT);
-  doc.text('BALANCE DUE', totalsX, y, { align: 'left' });
+  doc.text(L.balanceDue.toUpperCase(), totalsX, y, { align: 'left' });
   doc.setFontSize(13);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(...BLACK);
@@ -335,7 +434,7 @@ export function generateInvoicePdf(data: InvoicePdfData, issuer?: InvoiceIssuerP
     doc.setFontSize(7.5);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(...GRAY_TEXT);
-    doc.text('NOTES', margin, y);
+    doc.text(L.notes.toUpperCase(), margin, y);
     y += 4;
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
@@ -357,7 +456,7 @@ export function generateInvoicePdf(data: InvoicePdfData, issuer?: InvoiceIssuerP
   doc.setFontSize(8.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...BLACK);
-  doc.text('Customer Signature', margin, y);
+  doc.text(isCO ? L.approval : L.signature, margin, y);
 
   if (signature) {
     try {
@@ -382,38 +481,45 @@ export function generateInvoicePdf(data: InvoicePdfData, issuer?: InvoiceIssuerP
     y += 3.5;
     doc.setFontSize(7);
     doc.setTextColor(...GRAY_TEXT);
-    doc.text(`Signed ${new Date(signature.signedAt).toLocaleString()}`, margin + 35, y);
+    doc.text(L.signedOn(new Date(signature.signedAt).toLocaleString(isEs(lang) ? 'es-GT' : 'en-US')), margin + 35, y);
     y += 3;
-    doc.text(`Document fingerprint (SHA-256): ${signature.documentHash}`, margin + 35, y);
+    doc.text(L.fingerprint(signature.documentHash), margin + 35, y);
   }
 
   /* ═══════════════════ Footer ═══════════════════ */
 
+  // Two marks, not fighting: the tenant's letterhead runs the top of the page
+  // — the invoice is theirs — and BuildTrack signs the foot, small, with one
+  // orange square. No bleed bar, no logotype, nothing in the header.
   const footerY = doc.internal.pageSize.getHeight() - 10;
   doc.setDrawColor(...BORDER_GRAY);
   doc.setLineWidth(0.2);
   doc.line(margin, footerY - 3, pageW - margin, footerY - 3);
 
-  // Blue accent bar at bottom
-  doc.setFillColor(...BRAND_PRIMARY);
-  doc.rect(0, doc.internal.pageSize.getHeight() - 4, pageW, 4, 'F');
+  doc.setFillColor(...ORANGE);
+  doc.rect(margin, footerY - 1.6, 2, 2, 'F');
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...GRAY_TEXT);
+  doc.text(L.issuedWith, margin + 3.4, footerY);
 
   /* ═══════════════════ Generate ═══════════════════ */
 
-  const safeClient = data.client.replace(/[^a-zA-Z0-9 ]/g, '').replace(/\s+/g, '_');
-  const safeProject = data.project.replace(/[^a-zA-Z0-9 ]/g, '').replace(/\s+/g, '_');
-  const docPrefix = data.documentType === 'CHANGE_ORDER_REQUEST'
-    ? 'ChangeOrder'
-    : 'Invoice';
-  const filename = `${docPrefix}_${safeClient}_${safeProject}_${data.issuedDate}.pdf`;
+  // Who issued it, which document, what day — and the company's own name
+  // spelled properly. The old rule stripped everything outside [a-zA-Z0-9 ],
+  // so "Constructora Peña" reached the client as "Constructora_Pea" and every
+  // accent and ñ in the country came off the same way. Only the characters a
+  // filesystem genuinely refuses are replaced now.
+  const filedBy = issuer?.name?.trim();
+  const filename = `${safeFilePart(filedBy || data.client)}_${safeFilePart(data.invoiceNumber)}_${data.issuedDate}.pdf`;
 
   const blob = doc.output('blob');
   return { blob, filename };
 }
 
 /** Generate and immediately trigger download. */
-export function downloadInvoicePdf(data: InvoicePdfData, issuer?: InvoiceIssuerPdf, signature?: InvoiceSignaturePdf) {
-  const { blob, filename } = generateInvoicePdf(data, issuer, signature);
+export function downloadInvoicePdf(data: InvoicePdfData, issuer?: InvoiceIssuerPdf, signature?: InvoiceSignaturePdf, lang?: string) {
+  const { blob, filename } = generateInvoicePdf(data, issuer, signature, lang);
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -430,7 +536,7 @@ export function downloadInvoicePdf(data: InvoicePdfData, issuer?: InvoiceIssuerP
  * `URL.revokeObjectURL` it when it changes or the component unmounts —
  * otherwise the blobs leak. Used by the live invoice preview.
  */
-export function invoicePdfPreviewUrl(data: InvoicePdfData, issuer?: InvoiceIssuerPdf, signature?: InvoiceSignaturePdf): string {
-  const { blob } = generateInvoicePdf(data, issuer, signature);
+export function invoicePdfPreviewUrl(data: InvoicePdfData, issuer?: InvoiceIssuerPdf, signature?: InvoiceSignaturePdf, lang?: string): string {
+  const { blob } = generateInvoicePdf(data, issuer, signature, lang);
   return URL.createObjectURL(blob);
 }
