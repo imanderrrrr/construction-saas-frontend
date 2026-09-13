@@ -1,37 +1,42 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 /**
  * The Videos block of the Platform section — the real product footage.
  *
- * These are the clips in `public/demos/`: raw screen recordings of the actual
- * admin app driven by Playwright over the seeded demo tenant, no narration and
- * no editing. The design shipped this block as three "clip pending"
- * placeholders; all six real clips exist, so they're wired here and the
- * section says where the footage comes from instead.
+ * The clips in `public/demos/` are screen recordings of the admin panel as it
+ * ships today, driven by Playwright over a demo dataset
+ * (`tools/demo-recorder/`). No narration and no editing beyond the cut.
  *
- * Frames are a uniform 16:9 (the design's proportion) and the clips are
- * anchored to the top, so the 16:10 recordings lose a sliver of chrome at the
- * bottom rather than losing the sidebar off the side. Each card's title block
- * states the clip's true aspect ratio.
+ * They are grouped by MODULE, in the order the "Cinco módulos" section above
+ * names them, so the block answers "what does each module actually look like"
+ * instead of being a wall of unlabelled screens. A module with two screens
+ * worth showing gets two plates; the rest get one.
+ *
+ * Frames are 16:10 — the recording's own ratio — so nothing is cropped.
  */
 
-type Clip = {
-  /** File stem in `public/demos/` — `<key>.webm` / `.mp4` / `.jpg`. */
+type Group = {
+  /** i18n key under `videos.group.` and the block's identity. */
   key: string;
-  /** Real recording ratio, printed in the title block. */
-  ratio: string;
+  /** File stems in `public/demos/` — `<key>.webm` / `.mp4` / `.jpg`. */
+  clips: string[];
 };
 
-// Order = sheet numbering BT-V01…BT-V06. Matches public/demos/manifest.json.
-const CLIPS: Clip[] = [
-  { key: 'bitacora', ratio: '16:10' },
-  { key: 'tiempo', ratio: '16:10' },
-  { key: 'kanban', ratio: '16:10' },
-  { key: 'finanzas', ratio: '16:10' },
-  { key: 'punch-list', ratio: '16:9' },
-  { key: 'cuentas-por-pagar', ratio: '16:9' },
+// Order = sheet numbering BT-V01…BT-V08. Matches public/demos/manifest.json.
+const GROUPS: Group[] = [
+  { key: 'panel',      clips: ['panel'] },
+  { key: 'proyectos',  clips: ['proyectos', 'contrato'] },
+  { key: 'finanzas',   clips: ['presupuestos', 'facturas'] },
+  { key: 'pendientes', clips: ['pendientes'] },
+  { key: 'consultas',  clips: ['consultas'] },
+  { key: 'portal',     clips: ['portal'] },
 ];
+
+/** Sheet number per clip: BT-V01… in the order the groups are drawn. */
+const SHEET: Record<string, number> = Object.fromEntries(
+  GROUPS.flatMap(g => g.clips).map((clip, i) => [clip, i + 1]),
+);
 
 /** True when the reader has asked the OS to reduce motion. */
 function usePrefersReducedMotion(): boolean {
@@ -50,52 +55,96 @@ function pad(n: number): string {
   return String(n).padStart(2, '0');
 }
 
+function ClipCard({ clip, reduced }: { clip: string; reduced: boolean }) {
+  const { t } = useTranslation('landing');
+  const ref = useRef<HTMLVideoElement>(null);
+  const title = t(`videos.${clip}.title`);
+
+  // Eight silent loops running at once is bandwidth nobody asked for and
+  // decoders the browser does not have: a clip plays while it is on screen and
+  // stops the moment it leaves. `preload="none"` keeps the ones below the fold
+  // from being fetched at all until they are scrolled to.
+  useEffect(() => {
+    const video = ref.current;
+    // No observer (jsdom, and any browser old enough to lack it): leave the
+    // element exactly as the markup declares it — autoplaying and looping.
+    if (!video || reduced || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) void video.play().catch(() => { /* autoplay refused */ });
+        else video.pause();
+      },
+      { threshold: 0.25 },
+    );
+    io.observe(video);
+    return () => io.disconnect();
+  }, [reduced]);
+
+  return (
+    <figure className="border border-[rgba(23,19,15,0.3)] bg-bt-sheet shadow-[0_22px_50px_-32px_rgba(23,19,15,0.4)]">
+      <div className="aspect-[16/10] overflow-hidden bg-bt-ink">
+        <video
+          ref={ref}
+          className="h-full w-full object-cover"
+          poster={`/demos/${clip}.jpg`}
+          aria-label={t('videos.alt', { title })}
+          autoPlay={!reduced}
+          loop={!reduced}
+          controls={reduced}
+          muted
+          playsInline
+          preload="none"
+        >
+          <source src={`/demos/${clip}.webm`} type="video/webm" />
+          <source src={`/demos/${clip}.mp4`} type="video/mp4" />
+        </video>
+      </div>
+      <figcaption className="flex justify-between gap-2.5 border-t border-[rgba(23,19,15,0.3)] px-3.5 py-[9px] font-bt-mono text-[8.5px] tracking-[0.12em]">
+        <span className="min-w-0 truncate text-bt-ink">
+          BT-V{pad(SHEET[clip])} · {title.toUpperCase()}
+        </span>
+        <span className="flex-none text-bt-muted-2">16:10</span>
+      </figcaption>
+    </figure>
+  );
+}
+
 export function DemoVideos() {
   const { t } = useTranslation('landing');
-  // Six silent clips looping at once is exactly the motion someone asking for
-  // less of it does not want — they get a poster and a play button instead.
   const reduced = usePrefersReducedMotion();
 
   return (
     <>
-      <div className="mb-[18px] mt-[clamp(40px,5vw,56px)] flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+      <div className="mb-[22px] mt-[clamp(40px,5vw,56px)] flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
         <p className="font-bt-mono text-[11px] tracking-[0.12em] text-bt-muted">{t('videos.label')}</p>
         <p className="font-bt-mono text-[10px] tracking-[0.1em] text-bt-orange">{t('videos.provenance')}</p>
       </div>
 
-      <div className="grid max-w-[1120px] grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-[clamp(20px,2.5vw,28px)]">
-        {CLIPS.map((clip, i) => {
-          const title = t(`videos.${clip.key}.title`);
-          return (
-            <figure
-              key={clip.key}
-              className="border border-[rgba(23,19,15,0.3)] bg-bt-sheet shadow-[0_22px_50px_-32px_rgba(23,19,15,0.4)]"
-            >
-              <div className="aspect-video overflow-hidden bg-bt-ink">
-                <video
-                  className="h-full w-full object-cover object-top"
-                  poster={`/demos/${clip.key}.jpg`}
-                  aria-label={t('videos.alt', { title })}
-                  autoPlay={!reduced}
-                  loop={!reduced}
-                  controls={reduced}
-                  muted
-                  playsInline
-                  preload="metadata"
-                >
-                  <source src={`/demos/${clip.key}.webm`} type="video/webm" />
-                  <source src={`/demos/${clip.key}.mp4`} type="video/mp4" />
-                </video>
-              </div>
-              <figcaption className="flex justify-between gap-2.5 border-t border-[rgba(23,19,15,0.3)] px-3.5 py-[9px] font-bt-mono text-[8.5px] tracking-[0.12em]">
-                <span className="min-w-0 truncate text-bt-ink">
-                  BT-V{pad(i + 1)} · {title.toUpperCase()}
-                </span>
-                <span className="flex-none text-bt-muted-2">{clip.ratio}</span>
-              </figcaption>
-            </figure>
-          );
-        })}
+      <div className="max-w-[1120px] space-y-[clamp(26px,3.2vw,40px)]">
+        {GROUPS.map(group => (
+          <section
+            key={group.key}
+            className="flex flex-col gap-[18px] border-t border-bt-rule pt-[22px] md:flex-row md:gap-[clamp(24px,3vw,44px)]"
+          >
+            <header className="md:w-[188px] md:flex-none">
+              <p className="font-bt-mono text-[10.5px] tracking-[0.14em] text-bt-orange">
+                {t(`videos.group.${group.key}.label`)}
+              </p>
+              <h3 className="mt-2.5 text-balance font-bt-heading text-[18px] font-bold tracking-[-0.01em] text-bt-ink">
+                {t(`videos.group.${group.key}.title`)}
+              </h3>
+              <p className="mt-2 text-pretty text-[13.5px] leading-[1.5] text-bt-muted">
+                {t(`videos.group.${group.key}.body`)}
+              </p>
+            </header>
+
+            <div className="grid min-w-0 flex-1 grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-[clamp(16px,2vw,24px)]">
+              {group.clips.map(clip => (
+                <ClipCard key={clip} clip={clip} reduced={reduced} />
+              ))}
+            </div>
+          </section>
+        ))}
       </div>
     </>
   );
