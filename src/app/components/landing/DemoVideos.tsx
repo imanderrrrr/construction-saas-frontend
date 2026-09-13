@@ -4,9 +4,14 @@ import { useTranslation } from 'react-i18next';
 /**
  * The Videos block of the Platform section — the real product footage.
  *
- * The clips in `public/demos/` are screen recordings of the admin panel as it
- * ships today, driven by Playwright over a demo dataset
+ * The clips in `public/demos/<lang>/` are screen recordings of the admin panel
+ * as it ships today, driven by Playwright over a demo dataset
  * (`tools/demo-recorder/`). No narration and no editing beyond the cut.
+ *
+ * There is one set per language, and the block serves the set of the language
+ * the page is being read in — panel chrome and demo content included. A reader
+ * who switched the page to English was being shown a Spanish panel under an
+ * English heading, which reads as "this product is not for you".
  *
  * They are grouped by MODULE, in the order the "Cinco módulos" section above
  * names them, so the block answers "what does each module actually look like"
@@ -19,9 +24,18 @@ import { useTranslation } from 'react-i18next';
 type Group = {
   /** i18n key under `videos.group.` and the block's identity. */
   key: string;
-  /** File stems in `public/demos/` — `<key>.webm` / `.mp4` / `.jpg`. */
+  /** File stems — `/demos/<lang>/<key>.webm` / `.mp4` / `.jpg`. */
   clips: string[];
 };
+
+/** The languages the clips were recorded in; anything else falls back to `es`. */
+const CLIP_LANGS = ['es', 'en'] as const;
+type ClipLang = (typeof CLIP_LANGS)[number];
+
+function clipLang(language: string | undefined): ClipLang {
+  const tag = (language ?? '').toLowerCase();
+  return CLIP_LANGS.find(l => tag === l || tag.startsWith(`${l}-`)) ?? 'es';
+}
 
 // Order = sheet numbering BT-V01…BT-V08. Matches public/demos/manifest.json.
 const GROUPS: Group[] = [
@@ -55,7 +69,7 @@ function pad(n: number): string {
   return String(n).padStart(2, '0');
 }
 
-function ClipCard({ clip, reduced }: { clip: string; reduced: boolean }) {
+function ClipCard({ clip, lang, reduced }: { clip: string; lang: ClipLang; reduced: boolean }) {
   const { t } = useTranslation('landing');
   const ref = useRef<HTMLVideoElement>(null);
   const title = t(`videos.${clip}.title`);
@@ -78,15 +92,19 @@ function ClipCard({ clip, reduced }: { clip: string; reduced: boolean }) {
     );
     io.observe(video);
     return () => io.disconnect();
-  }, [reduced]);
+  }, [reduced, lang]);
 
   return (
     <figure className="border border-[rgba(23,19,15,0.3)] bg-bt-sheet shadow-[0_22px_50px_-32px_rgba(23,19,15,0.4)]">
       <div className="aspect-[16/10] overflow-hidden bg-bt-ink">
+        {/* Keyed by language: swapping the <source> children of a playing
+            <video> does nothing on its own — the element keeps the media it
+            already loaded until it is torn down and mounted again. */}
         <video
+          key={lang}
           ref={ref}
           className="h-full w-full object-cover"
-          poster={`/demos/${clip}.jpg`}
+          poster={`/demos/${lang}/${clip}.jpg`}
           aria-label={t('videos.alt', { title })}
           autoPlay={!reduced}
           loop={!reduced}
@@ -95,8 +113,8 @@ function ClipCard({ clip, reduced }: { clip: string; reduced: boolean }) {
           playsInline
           preload="none"
         >
-          <source src={`/demos/${clip}.webm`} type="video/webm" />
-          <source src={`/demos/${clip}.mp4`} type="video/mp4" />
+          <source src={`/demos/${lang}/${clip}.webm`} type="video/webm" />
+          <source src={`/demos/${lang}/${clip}.mp4`} type="video/mp4" />
         </video>
       </div>
       <figcaption className="flex justify-between gap-2.5 border-t border-[rgba(23,19,15,0.3)] px-3.5 py-[9px] font-bt-mono text-[8.5px] tracking-[0.12em]">
@@ -110,8 +128,9 @@ function ClipCard({ clip, reduced }: { clip: string; reduced: boolean }) {
 }
 
 export function DemoVideos() {
-  const { t } = useTranslation('landing');
+  const { t, i18n } = useTranslation('landing');
   const reduced = usePrefersReducedMotion();
+  const lang = clipLang(i18n.resolvedLanguage ?? i18n.language);
 
   return (
     <>
@@ -140,7 +159,7 @@ export function DemoVideos() {
 
             <div className="grid min-w-0 flex-1 grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-[clamp(16px,2vw,24px)]">
               {group.clips.map(clip => (
-                <ClipCard key={clip} clip={clip} reduced={reduced} />
+                <ClipCard key={clip} clip={clip} lang={lang} reduced={reduced} />
               ))}
             </div>
           </section>
