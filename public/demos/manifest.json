@@ -1,7 +1,7 @@
 {
-  "version": 2,
+  "version": 3,
   "recordedAt": "2026-09-12",
-  "note": "Screen recordings of the BuildTrack admin panel as it ships, driven by Playwright over a demo dataset (tools/demo-recorder/). 1280x800, silent, no narration and no editing beyond the cut. The data is invented — no real client, vendor or person appears. The only dressing is the client-view link, drawn with the production host instead of the recorder's dev server (see tools/demo-recorder/support/stage.ts). Re-record: npx playwright test --config=tools/demo-recorder/recorder.config.ts clips.rec.ts && node tools/demo-recorder/encode.mjs",
+  "note": "Screen recordings of the BuildTrack admin panel as it ships, driven by Playwright over a demo dataset (tools/demo-recorder/). One set per language: the panel chrome AND the demo content are recorded in the language of the folder, so the landing page never shows a Spanish panel to an English reader. 1280x800, silent, no narration and no editing beyond the cut. The data is invented — no real client, vendor or person appears; jobsite, client and people names are the same in both sets because proper nouns do not translate. The only dressing is the client-view link, drawn with the production host instead of the recorder's dev server (see tools/demo-recorder/support/stage.ts). Re-record: npx playwright test --config=tools/demo-recorder/recorder.config.ts clips.rec.ts && node tools/demo-recorder/encode.mjs",
   "video": {
     "width": 1280,
     "height": 800,
@@ -13,135 +13,283 @@
     "muted": true,
     "playsInline": true
   },
+  "languages": [
+    "en",
+    "es"
+  ],
   "titles": "src/i18n/locales/{es,en}/landing.json — videos.<key>.title",
   "clips": [
     {
       "key": "panel",
       "group": "panel",
-      "durationSec": 10.504,
-      "poster": "/demos/panel.jpg",
-      "sources": [
-        {
-          "src": "/demos/panel.webm",
-          "type": "video/webm"
+      "byLanguage": {
+        "en": {
+          "durationSec": 10.456,
+          "poster": "/demos/en/panel.jpg",
+          "sources": [
+            {
+              "src": "/demos/en/panel.webm",
+              "type": "video/webm"
+            },
+            {
+              "src": "/demos/en/panel.mp4",
+              "type": "video/mp4"
+            }
+          ]
         },
-        {
-          "src": "/demos/panel.mp4",
-          "type": "video/mp4"
+        "es": {
+          "durationSec": 10.455,
+          "poster": "/demos/es/panel.jpg",
+          "sources": [
+            {
+              "src": "/demos/es/panel.webm",
+              "type": "video/webm"
+            },
+            {
+              "src": "/demos/es/panel.mp4",
+              "type": "video/mp4"
+            }
+          ]
         }
-      ]
+      }
     },
     {
       "key": "proyectos",
       "group": "01-proyectos",
-      "durationSec": 12.855,
-      "poster": "/demos/proyectos.jpg",
-      "sources": [
-        {
-          "src": "/demos/proyectos.webm",
-          "type": "video/webm"
+      "byLanguage": {
+        "en": {
+          "durationSec": 12.827,
+          "poster": "/demos/en/proyectos.jpg",
+          "sources": [
+            {
+              "src": "/demos/en/proyectos.webm",
+              "type": "video/webm"
+            },
+            {
+              "src": "/demos/en/proyectos.mp4",
+              "type": "video/mp4"
+            }
+          ]
         },
-        {
-          "src": "/demos/proyectos.mp4",
-          "type": "video/mp4"
+        "es": {
+          "durationSec": 12.81,
+          "poster": "/demos/es/proyectos.jpg",
+          "sources": [
+            {
+              "src": "/demos/es/proyectos.webm",
+              "type": "video/webm"
+            },
+            {
+              "src": "/demos/es/proyectos.mp4",
+              "type": "video/mp4"
+            }
+          ]
         }
-      ]
+      }
     },
     {
       "key": "contrato",
       "group": "01-proyectos",
-      "durationSec": 11.466,
-      "poster": "/demos/contrato.jpg",
-      "sources": [
-        {
-          "src": "/demos/contrato.webm",
-          "type": "video/webm"
+      "byLanguage": {
+        "en": {
+          "durationSec": 11.45,
+          "poster": "/demos/en/contrato.jpg",
+          "sources": [
+            {
+              "src": "/demos/en/contrato.webm",
+              "type": "video/webm"
+            },
+            {
+              "src": "/demos/en/contrato.mp4",
+              "type": "video/mp4"
+            }
+          ]
         },
-        {
-          "src": "/demos/contrato.mp4",
-          "type": "video/mp4"
+        "es": {
+          "durationSec": 11.422,
+          "poster": "/demos/es/contrato.jpg",
+          "sources": [
+            {
+              "src": "/demos/es/contrato.webm",
+              "type": "video/webm"
+            },
+            {
+              "src": "/demos/es/contrato.mp4",
+              "type": "video/mp4"
+            }
+          ]
         }
-      ]
+      }
     },
     {
       "key": "presupuestos",
       "group": "02-finanzas",
-      "durationSec": 16.695,
-      "poster": "/demos/presupuestos.jpg",
-      "sources": [
-        {
-          "src": "/demos/presupuestos.webm",
-          "type": "video/webm"
+      "byLanguage": {
+        "en": {
+          "durationSec": 16.623,
+          "poster": "/demos/en/presupuestos.jpg",
+          "sources": [
+            {
+              "src": "/demos/en/presupuestos.webm",
+              "type": "video/webm"
+            },
+            {
+              "src": "/demos/en/presupuestos.mp4",
+              "type": "video/mp4"
+            }
+          ]
         },
-        {
-          "src": "/demos/presupuestos.mp4",
-          "type": "video/mp4"
+        "es": {
+          "durationSec": 16.609,
+          "poster": "/demos/es/presupuestos.jpg",
+          "sources": [
+            {
+              "src": "/demos/es/presupuestos.webm",
+              "type": "video/webm"
+            },
+            {
+              "src": "/demos/es/presupuestos.mp4",
+              "type": "video/mp4"
+            }
+          ]
         }
-      ]
+      }
     },
     {
       "key": "facturas",
       "group": "02-finanzas",
-      "durationSec": 11.734,
-      "poster": "/demos/facturas.jpg",
-      "sources": [
-        {
-          "src": "/demos/facturas.webm",
-          "type": "video/webm"
+      "byLanguage": {
+        "en": {
+          "durationSec": 11.685,
+          "poster": "/demos/en/facturas.jpg",
+          "sources": [
+            {
+              "src": "/demos/en/facturas.webm",
+              "type": "video/webm"
+            },
+            {
+              "src": "/demos/en/facturas.mp4",
+              "type": "video/mp4"
+            }
+          ]
         },
-        {
-          "src": "/demos/facturas.mp4",
-          "type": "video/mp4"
+        "es": {
+          "durationSec": 11.714,
+          "poster": "/demos/es/facturas.jpg",
+          "sources": [
+            {
+              "src": "/demos/es/facturas.webm",
+              "type": "video/webm"
+            },
+            {
+              "src": "/demos/es/facturas.mp4",
+              "type": "video/mp4"
+            }
+          ]
         }
-      ]
+      }
     },
     {
       "key": "pendientes",
       "group": "03-bitacora-y-pendientes",
-      "durationSec": 11.3,
-      "poster": "/demos/pendientes.jpg",
-      "sources": [
-        {
-          "src": "/demos/pendientes.webm",
-          "type": "video/webm"
+      "byLanguage": {
+        "en": {
+          "durationSec": 11.285,
+          "poster": "/demos/en/pendientes.jpg",
+          "sources": [
+            {
+              "src": "/demos/en/pendientes.webm",
+              "type": "video/webm"
+            },
+            {
+              "src": "/demos/en/pendientes.mp4",
+              "type": "video/mp4"
+            }
+          ]
         },
-        {
-          "src": "/demos/pendientes.mp4",
-          "type": "video/mp4"
+        "es": {
+          "durationSec": 11.279,
+          "poster": "/demos/es/pendientes.jpg",
+          "sources": [
+            {
+              "src": "/demos/es/pendientes.webm",
+              "type": "video/webm"
+            },
+            {
+              "src": "/demos/es/pendientes.mp4",
+              "type": "video/mp4"
+            }
+          ]
         }
-      ]
+      }
     },
     {
       "key": "consultas",
       "group": "04-consultas-rfi",
-      "durationSec": 11.498,
-      "poster": "/demos/consultas.jpg",
-      "sources": [
-        {
-          "src": "/demos/consultas.webm",
-          "type": "video/webm"
+      "byLanguage": {
+        "en": {
+          "durationSec": 11.483,
+          "poster": "/demos/en/consultas.jpg",
+          "sources": [
+            {
+              "src": "/demos/en/consultas.webm",
+              "type": "video/webm"
+            },
+            {
+              "src": "/demos/en/consultas.mp4",
+              "type": "video/mp4"
+            }
+          ]
         },
-        {
-          "src": "/demos/consultas.mp4",
-          "type": "video/mp4"
+        "es": {
+          "durationSec": 11.469,
+          "poster": "/demos/es/consultas.jpg",
+          "sources": [
+            {
+              "src": "/demos/es/consultas.webm",
+              "type": "video/webm"
+            },
+            {
+              "src": "/demos/es/consultas.mp4",
+              "type": "video/mp4"
+            }
+          ]
         }
-      ]
+      }
     },
     {
       "key": "portal",
       "group": "portal-del-cliente",
-      "durationSec": 8.85,
-      "poster": "/demos/portal.jpg",
-      "sources": [
-        {
-          "src": "/demos/portal.webm",
-          "type": "video/webm"
+      "byLanguage": {
+        "en": {
+          "durationSec": 8.841,
+          "poster": "/demos/en/portal.jpg",
+          "sources": [
+            {
+              "src": "/demos/en/portal.webm",
+              "type": "video/webm"
+            },
+            {
+              "src": "/demos/en/portal.mp4",
+              "type": "video/mp4"
+            }
+          ]
         },
-        {
-          "src": "/demos/portal.mp4",
-          "type": "video/mp4"
+        "es": {
+          "durationSec": 8.85,
+          "poster": "/demos/es/portal.jpg",
+          "sources": [
+            {
+              "src": "/demos/es/portal.webm",
+              "type": "video/webm"
+            },
+            {
+              "src": "/demos/es/portal.mp4",
+              "type": "video/mp4"
+            }
+          ]
         }
-      ]
+      }
     }
   ]
 }
