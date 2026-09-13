@@ -49,3 +49,7 @@ coverage/
 /blob-report/
 /playwright/.cache/
 .claude/
+
+# Demo recorder artifacts (raw recordings, review screenshots)
+tools/demo-recorder/.out/
+tools/demo-recorder/.shots/

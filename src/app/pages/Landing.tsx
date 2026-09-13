@@ -35,6 +35,9 @@ const CTA_GHOST =
   'border-b border-[rgba(248,243,235,0.35)] pb-[3px] text-base font-medium text-bt-bone transition-colors hover:border-bt-orange hover:text-bt-orange';
 const NAV_LINK = 'text-sm font-medium text-bt-muted-2 transition-colors hover:text-bt-bone';
 
+/** BuildTrack Field on the App Store — the live listing, verified 2026-09-12. */
+const APP_STORE_URL = 'https://apps.apple.com/gt/app/buildtrack-field/id6807602939';
+
 export function Landing() {
   const { t } = useTranslation('landing');
   usePublicPageTitle(t('meta.title'));
@@ -266,39 +269,76 @@ export function Landing() {
               ))}
             </div>
 
-            <div className="mt-8 flex flex-wrap items-center gap-[22px]">
-              {/* A badge, not a link: the design left this href="#" and there is
-                  no Play Store listing URL in the repo yet. Swap it for an <a>
-                  once the store link exists — rather than shipping a control
-                  that looks like it goes to Google Play and doesn't. */}
-              <span className="inline-flex items-center gap-3 rounded-[2px] border border-[rgba(248,243,235,0.4)] px-[22px] py-3">
+            <div className="mt-8 flex flex-wrap items-center gap-[18px]">
+              {/* BuildTrack Field is live on the App Store, so this one is a
+                  real link. Custom line art rather than Apple's badge artwork,
+                  to match the rest of the sheet — same call the Google Play
+                  badge below already made. */}
+              <a
+                href={APP_STORE_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-3 rounded-[2px] bg-bt-orange px-[22px] py-3 text-bt-ink transition-colors hover:bg-bt-orange-hover"
+              >
+                <svg width="18" height="20" viewBox="0 0 18 20" aria-hidden="true">
+                  <path
+                    d="M9 1 L9 12.4 M5 8.6 L9 12.6 L13 8.6"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M2 14.4 L2 18.4 L16 18.4 L16 14.4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                <span className="flex flex-col">
+                  <span className="font-bt-mono text-[8.5px] tracking-[0.12em]">
+                    {t('app.appStore')}
+                  </span>
+                  <span className="mt-0.5 text-[15px] font-semibold">App Store</span>
+                </span>
+              </a>
+
+              {/* Google Play is still in closed testing: no public listing to
+                  link to, so this stays a badge — and says "coming soon"
+                  rather than "available". Swap it for an <a> the day the
+                  listing goes public. */}
+              <span className="inline-flex items-center gap-3 rounded-[2px] border border-[rgba(248,243,235,0.28)] px-[22px] py-3">
                 <svg width="18" height="20" viewBox="0 0 18 20" aria-hidden="true">
                   <path
                     d="M1.5 1 L13 10 L1.5 19 Z"
                     fill="none"
-                    stroke="#F97316"
+                    stroke="#A89A87"
                     strokeWidth="1.6"
                     strokeLinejoin="round"
                   />
                   <path
                     d="M13 6.8 L16.5 10 L13 13.2"
                     fill="none"
-                    stroke="#F97316"
+                    stroke="#A89A87"
                     strokeWidth="1.6"
                     strokeLinejoin="round"
                   />
                 </svg>
                 <span className="flex flex-col">
-                  <span className="font-bt-mono text-[8.5px] tracking-[0.12em] text-bt-muted-2">
-                    {t('app.playStore')}
+                  <span className="font-bt-mono text-[8.5px] tracking-[0.12em] text-bt-muted">
+                    {t('app.playSoon')}
                   </span>
-                  <span className="mt-0.5 text-[15px] font-semibold text-bt-bone">Google Play</span>
+                  <span className="mt-0.5 text-[15px] font-semibold text-bt-muted-2">Google Play</span>
                 </span>
               </span>
-              <span className="font-bt-mono text-[11px] tracking-[0.1em] text-bt-muted">
-                {t('app.iphone')}
-              </span>
             </div>
+
+            <p className="mt-[18px] font-bt-mono text-[11px] tracking-[0.1em] text-bt-muted">
+              {t('app.storeName')}
+            </p>
           </div>
 
           <div className="flex min-w-[280px] flex-1 justify-center">
