@@ -3,12 +3,15 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // `t` echoes the key, so these assertions are about structure and destinations
-// — the wording itself is covered by publicSite.i18n.test.ts.
+// — the wording itself is covered by publicSite.i18n.test.ts. The language is
+// a `let` because the demo clips are served per language: a test flips it.
+const { language } = vi.hoisted(() => ({ language: { current: 'es' } }));
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, options?: Record<string, string>) =>
       options?.title ? `${key}:${options.title}` : key,
-    i18n: { language: 'es', changeLanguage: vi.fn() },
+    i18n: { language: language.current, resolvedLanguage: language.current, changeLanguage: vi.fn() },
   }),
 }));
 
@@ -46,6 +49,7 @@ describe('Landing — public CTAs and content rules', () => {
 
   beforeEach(() => {
     prefersReducedMotion = false;
+    language.current = 'es';
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -141,11 +145,44 @@ describe('Landing — public CTAs and content rules', () => {
     expect(videos).toHaveLength(CLIPS.length);
 
     for (const key of CLIPS) {
-      const video = videos.find((v) => v.getAttribute('poster') === `/demos/${key}.jpg`);
+      const video = videos.find((v) => v.getAttribute('poster') === `/demos/es/${key}.jpg`);
       expect(video, `missing clip: ${key}`).toBeDefined();
       const sources = Array.from(video!.querySelectorAll('source')).map((s) => s.getAttribute('src'));
-      expect(sources).toEqual([`/demos/${key}.webm`, `/demos/${key}.mp4`]);
+      expect(sources).toEqual([`/demos/es/${key}.webm`, `/demos/es/${key}.mp4`]);
     }
+  });
+
+  // A reader who switched the page to English was being shown a Spanish panel
+  // under an English heading. The clips follow the page's language.
+  it('serves the English recordings when the page is in English', async () => {
+    language.current = 'en';
+    await render();
+    const videos = Array.from(container.querySelectorAll('video'));
+    expect(videos).toHaveLength(CLIPS.length);
+
+    for (const key of CLIPS) {
+      const video = videos.find((v) => v.getAttribute('poster') === `/demos/en/${key}.jpg`);
+      expect(video, `missing English clip: ${key}`).toBeDefined();
+      const sources = Array.from(video!.querySelectorAll('source')).map((s) => s.getAttribute('src'));
+      expect(sources).toEqual([`/demos/en/${key}.webm`, `/demos/en/${key}.mp4`]);
+    }
+  });
+
+  // A regional tag is still that language; anything we did not record falls
+  // back to the Spanish set rather than to a 404.
+  it('maps regional and unknown language tags to a set that exists', async () => {
+    language.current = 'en-US';
+    await render();
+    expect(container.querySelector('video')?.getAttribute('poster')).toBe('/demos/en/panel.jpg');
+
+    await act(async () => { root.unmount(); });
+    container.remove();
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    language.current = 'pt-BR';
+    await render();
+    expect(container.querySelector('video')?.getAttribute('poster')).toBe('/demos/es/panel.jpg');
   });
 
   it('leaves no placeholder video slots behind', async () => {

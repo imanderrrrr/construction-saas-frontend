@@ -20,7 +20,7 @@ export async function beginScene(page: Page, t0: number, settle = 800): Promise<
 
 /** Call at the end of the choreography. */
 export async function endScene(
-  page: Page, info: TestInfo, key: string, t0: number, start: number, tail = 900,
+  page: Page, info: TestInfo, key: string, lang: string, t0: number, start: number, tail = 900,
 ): Promise<void> {
   await page.waitForTimeout(tail);
   const end = Date.now() - t0;
@@ -30,7 +30,7 @@ export async function endScene(
   const video = path.join(info.outputDir, 'video.webm');
   fs.mkdirSync(OUT, { recursive: true });
   fs.writeFileSync(
-    path.join(OUT, `${key}.json`),
-    JSON.stringify({ key, video, startMs: start, endMs: end, title: info.title }, null, 2),
+    path.join(OUT, `${key}.${lang}.json`),
+    JSON.stringify({ key, lang, video, startMs: start, endMs: end, title: info.title }, null, 2),
   );
 }

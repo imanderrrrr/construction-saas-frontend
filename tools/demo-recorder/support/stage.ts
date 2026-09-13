@@ -1,6 +1,6 @@
 import type { BrowserContext, Page } from '@playwright/test';
 import { installHermeticBase, setSession } from '../../../e2e/support/mock-api';
-import { installDemoApi } from './routes';
+import { installDemoApi, type Lang } from './routes';
 import { installCursor } from './cursor';
 
 const USERNAME = 'analucia';
@@ -23,14 +23,24 @@ async function dressShareOrigin(page: Page) {
   });
 }
 
-/** A logged-in panel with the demo dataset behind it, in Spanish, cursor on. */
-export async function stage(page: Page, context: BrowserContext, role = 'ADMIN', username = USERNAME) {
+/**
+ * A logged-in panel with the demo dataset behind it, cursor on, in `lang`.
+ *
+ * The language is the whole point of recording twice: an English reader on the
+ * landing page should not be shown a Spanish panel and left to guess whether
+ * the product speaks their language. Both the chrome (the panel's own i18n)
+ * and the fixture content follow this flag.
+ */
+export async function stage(
+  page: Page, context: BrowserContext,
+  { lang = 'es', role = 'ADMIN', username = USERNAME }: { lang?: Lang; role?: string; username?: string } = {},
+) {
   await setSession(context, role, username);
   await installHermeticBase(page, { role, username });
   // After the base: the last addInitScript wins, and the base pins English.
-  await page.addInitScript(({ username }) => {
+  await page.addInitScript(({ username, lang }) => {
     try {
-      localStorage.setItem('ofjr_language', 'es');
+      localStorage.setItem('ofjr_language', lang);
       // Favourites would reorder the sidebar between clips.
       localStorage.setItem(`bt.navfavs.${username}`, '[]');
     } catch { /* private mode */ }
@@ -47,19 +57,37 @@ export async function stage(page: Page, context: BrowserContext, role = 'ADMIN',
       }
       return read.call(this, key);
     };
-  }, { username });
+  }, { username, lang });
   await dressShareOrigin(page);
-  await installDemoApi(page);
+  await installDemoApi(page, lang);
   await installCursor(page);
 }
 
-/** Open the admin panel and settle on the given section. */
+/**
+ * Open the admin panel and settle on the given section.
+ *
+ * Sections are component state, not routes, so there is no URL to wait on:
+ * after clicking the sidebar we wait for one of the section's own tour anchors
+ * (`data-tour="sec.<key>.*"`) to exist. A fixed sleep was not enough — a click
+ * that lands while the dashboard is still painting is swallowed, and the clip
+ * then films the wrong screen (it did, once, and the run only failed later on
+ * a locator that was never going to be there).
+ */
 export async function openSection(page: Page, key: string) {
   await page.goto('/admin/dashboard');
   await page.waitForSelector('button[data-tour="dashboard"]');
   await page.waitForTimeout(1200);
-  if (key !== 'dashboard') {
+  if (key === 'dashboard') return;
+
+  const anchor = `[data-tour^="sec.${key}."]`;
+  for (let attempt = 1; attempt <= 3; attempt++) {
     await page.locator(`button[data-tour="${key}"]`).first().click();
-    await page.waitForTimeout(1500);
+    try {
+      await page.waitForSelector(anchor, { timeout: 6_000 });
+      await page.waitForTimeout(1200);
+      return;
+    } catch {
+      if (attempt === 3) throw new Error(`openSection("${key}"): the section never rendered ${anchor}`);
+    }
   }
 }
