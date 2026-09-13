@@ -34,8 +34,8 @@
   "s0.step.2.rest": " Each person signs in with their email, with the role that fits — office, superintendent or field.",
   "s0.step.3.bold": "Create your first project.",
   "s0.step.3.rest": " The name is enough. Client, contract amount and map location are optional — add them whenever you want.",
-  "s0.step.4.bold": "Install the app (Android).",
-  "s0.step.4.rest": " The field crew clocks in and uploads photos from day one. iPhone coming soon.",
+  "s0.step.4.bold": "Install the app on the phone.",
+  "s0.step.4.rest": " BuildTrack Field is on the App Store; the Android build is coming. The field crew clocks in and uploads photos from day one.",
   "s0.note": "NOTE — AMOUNTS ARE SHOWN IN US DOLLARS (USD).",
 
   "s1.code": "BT-DOC-01 · PROJECTS",
@@ -114,7 +114,7 @@
 
   "s6.code": "BT-DOC-06 · FIELD APP",
   "s6.title": "Field app",
-  "s6.sub": "The field app: time clock, evidence and progress — with or without signal. Available for Android; iPhone coming soon.",
+  "s6.sub": "The field app: time clock, evidence and progress — with or without signal. On the App Store for iPhone; Android coming soon.",
   "s6.step.1.bold": "Draw the project geofence:",
   "s6.step.1.rest": " a radius over the site on the map. Clock-ins only count inside that radius.",
   "s6.step.2.bold": "Each worker clocks in and out",

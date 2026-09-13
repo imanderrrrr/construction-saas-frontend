@@ -34,8 +34,8 @@
   "s0.step.2.rest": " Cada persona entra con su correo, con el rol que le toque — oficina, jefe de obra o campo.",
   "s0.step.3.bold": "Crea tu primera obra.",
   "s0.step.3.rest": " Con el nombre alcanza. Cliente, monto de contrato y ubicación en el mapa son opcionales — los agregás cuando quieras.",
-  "s0.step.4.bold": "Baja la app en el teléfono (Android).",
-  "s0.step.4.rest": " El equipo de campo marca asistencia y sube fotos desde el primer día. iPhone en camino.",
+  "s0.step.4.bold": "Baja la app en el teléfono.",
+  "s0.step.4.rest": " BuildTrack Field ya está en la App Store; la versión de Android va en camino. El equipo de campo marca asistencia y sube fotos desde el primer día.",
   "s0.note": "NOTA — LOS MONTOS SE MUESTRAN EN DÓLARES (USD).",
 
   "s1.code": "BT-DOC-01 · PROYECTOS",
@@ -114,7 +114,7 @@
 
   "s6.code": "BT-DOC-06 · OBRA MÓVIL",
   "s6.title": "Obra móvil",
-  "s6.sub": "La app de campo: marcaje, evidencias y avance — con o sin señal. Disponible para Android; iPhone en camino.",
+  "s6.sub": "La app de campo: marcaje, evidencias y avance — con o sin señal. Disponible en la App Store para iPhone; Android en camino.",
   "s6.step.1.bold": "Dibuja la geocerca de la obra:",
   "s6.step.1.rest": " un radio sobre el terreno en el mapa. El marcaje solo vale adentro de ese radio.",
   "s6.step.2.bold": "Cada obrero marca entrada y salida",

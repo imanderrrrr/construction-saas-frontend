@@ -123,19 +123,24 @@ describe('Landing — public CTAs and content rules', () => {
     expect(hrefs().filter((h) => h === '/status').length).toBeGreaterThanOrEqual(2);
   });
 
-  it('renders the six real demo clips with webm + mp4 sources and a poster', async () => {
+  // One clip per screen worth showing, grouped by the module it belongs to.
+  const CLIPS = [
+    'panel',
+    'proyectos',
+    'contrato',
+    'presupuestos',
+    'facturas',
+    'pendientes',
+    'consultas',
+    'portal',
+  ];
+
+  it('renders the module demo clips with webm + mp4 sources and a poster', async () => {
     await render();
     const videos = Array.from(container.querySelectorAll('video'));
-    expect(videos).toHaveLength(6);
+    expect(videos).toHaveLength(CLIPS.length);
 
-    for (const key of [
-      'bitacora',
-      'tiempo',
-      'kanban',
-      'finanzas',
-      'punch-list',
-      'cuentas-por-pagar',
-    ]) {
+    for (const key of CLIPS) {
       const video = videos.find((v) => v.getAttribute('poster') === `/demos/${key}.jpg`);
       expect(video, `missing clip: ${key}`).toBeDefined();
       const sources = Array.from(video!.querySelectorAll('source')).map((s) => s.getAttribute('src'));
@@ -146,10 +151,28 @@ describe('Landing — public CTAs and content rules', () => {
   it('leaves no placeholder video slots behind', async () => {
     await render();
     const figures = Array.from(container.querySelectorAll('figure'));
-    expect(figures).toHaveLength(6);
+    expect(figures).toHaveLength(CLIPS.length);
     for (const figure of figures) {
       expect(figure.querySelector('video')).not.toBeNull();
     }
+  });
+
+  // The block is grouped by module: a module heading with no clip under it
+  // would be an empty promise, and a clip outside one is unlabelled footage.
+  it('files every clip under a module heading', async () => {
+    await render();
+    const headings = Array.from(container.querySelectorAll('h3')).filter((h) =>
+      h.textContent?.startsWith('videos.group.'),
+    );
+    expect(headings.length).toBeGreaterThanOrEqual(5);
+    let filed = 0;
+    for (const heading of headings) {
+      const section = heading.closest('section');
+      const count = section?.querySelectorAll('video').length ?? 0;
+      expect(count, `module with no footage: ${heading.textContent}`).toBeGreaterThan(0);
+      filed += count;
+    }
+    expect(filed).toBe(CLIPS.length);
   });
 
   it('autoplays the clips by default', async () => {
@@ -161,13 +184,13 @@ describe('Landing — public CTAs and content rules', () => {
     }
   });
 
-  // Six silent loops at once is exactly the motion someone asking for less of
+  // Eight silent loops at once is exactly the motion someone asking for less of
   // it does not want: hand them a poster and a play button instead.
   it('stops autoplaying and offers controls when the reader prefers reduced motion', async () => {
     prefersReducedMotion = true;
     await render();
     const videos = Array.from(container.querySelectorAll('video'));
-    expect(videos).toHaveLength(6);
+    expect(videos).toHaveLength(CLIPS.length);
     for (const video of videos) {
       expect(video.autoplay).toBe(false);
       expect(video.loop).toBe(false);
