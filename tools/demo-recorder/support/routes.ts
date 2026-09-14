@@ -153,6 +153,27 @@ export function installDemoApi(page: Page, lang: Lang = 'es') {
     ],
   };
 
+  // ── Worker expenses (Todos los gastos) ────────────────────────────────────
+  const EXPENSES = [
+    { id: 901, workerId: 3, workerName: 'Manuel Ramírez', workerUsername: 'mramirez', projectId: 1, projectName: 'Residencial Vista Hermosa II', expenseType: 'MATERIALS',       amountCents: 1_240_00, expenseDate: '2026-09-11', description: T('Cemento y arena para el repello del nivel 3', 'Cement and sand for the level 3 plaster'), status: 'PENDING',  receiptUrl: '/api/v1/expenses/901/receipt', reviewerId: null, reviewerName: null, reviewerComment: null, reviewedAt: null },
+    { id: 902, workerId: 4, workerName: 'Estuardo Xoy',   workerUsername: 'exoy',     projectId: 1, projectName: 'Residencial Vista Hermosa II', expenseType: 'FUEL',            amountCents:   380_00, expenseDate: '2026-09-11', description: T('Diésel para la bomba de concreto', 'Diesel for the concrete pump'), status: 'PENDING',  receiptUrl: null, reviewerId: null, reviewerName: null, reviewerComment: null, reviewedAt: null },
+    { id: 903, workerId: 5, workerName: 'Byron Chávez',   workerUsername: 'bchavez',  projectId: 2, projectName: 'Torre Corporativa Zona 10',    expenseType: 'PER_DIEM',        amountCents:   210_00, expenseDate: '2026-09-10', description: T('Almuerzo de cuadrilla, turno extendido', 'Crew lunch, extended shift'), status: 'PENDING',  receiptUrl: '/api/v1/expenses/903/receipt', reviewerId: null, reviewerName: null, reviewerComment: null, reviewedAt: null },
+    { id: 904, workerId: 6, workerName: 'Kevin Mejía',    workerUsername: 'kmejia',   projectId: 3, projectName: 'Bodega Industrial Villa Nueva', expenseType: 'TRANSPORTATION',  amountCents:   150_00, expenseDate: '2026-09-09', description: T('Flete de herramienta a bodega', 'Tool haulage to the warehouse'), status: 'OBSERVED', receiptUrl: '/api/v1/expenses/904/receipt', reviewerId: 1, reviewerName: 'Ana Lucía Pérez', reviewerComment: T('Falta la foto legible de la factura; el monto no se lee.', 'The invoice photo is not legible; the amount cannot be read.'), reviewedAt: '2026-09-09T22:10:00Z' },
+    { id: 905, workerId: 3, workerName: 'Manuel Ramírez', workerUsername: 'mramirez', projectId: 1, projectName: 'Residencial Vista Hermosa II', expenseType: 'TOOLS',           amountCents:   890_00, expenseDate: '2026-09-08', description: T('Discos de corte y brocas', 'Cutting discs and drill bits'), status: 'APPROVED', receiptUrl: '/api/v1/expenses/905/receipt', reviewerId: 1, reviewerName: 'Ana Lucía Pérez', reviewerComment: null, reviewedAt: '2026-09-08T20:05:00Z' },
+    { id: 906, workerId: 7, workerName: 'Diego López',    workerUsername: 'dlopez',   projectId: 4, projectName: 'Remodelación Hotel Antigua',    expenseType: 'MINOR_PURCHASES', amountCents:   460_00, expenseDate: '2026-09-05', description: T('Silicón, guantes y lija', 'Silicone, gloves and sandpaper'), status: 'APPROVED', receiptUrl: '/api/v1/expenses/906/receipt', reviewerId: 1, reviewerName: 'Ana Lucía Pérez', reviewerComment: T('Aprobado con nota: dividir por obra la próxima vez.', 'Approved with a note: split it per jobsite next time.'), reviewedAt: '2026-09-05T21:40:00Z' },
+    { id: 907, workerId: 5, workerName: 'Byron Chávez',   workerUsername: 'bchavez',  projectId: 2, projectName: 'Torre Corporativa Zona 10',    expenseType: 'OTHER',           amountCents: 2_100_00, expenseDate: '2026-09-03', description: T('Reparación de andamio (sin factura)', 'Scaffold repair (no invoice)'), status: 'REJECTED', receiptUrl: null, reviewerId: 1, reviewerName: 'Ana Lucía Pérez', reviewerComment: T('Sin comprobante y fuera de presupuesto de la obra.', 'No receipt, and outside the jobsite budget.'), reviewedAt: '2026-09-03T23:15:00Z' },
+  ].map(e => ({ ...e, createdAt: e.expenseDate + 'T15:00:00Z', updatedAt: e.expenseDate + 'T15:00:00Z' }));
+
+  // ── Office expenses ──────────────────────────────────────────────────────
+  const OFFICE = [
+    { id: 801, description: T('Resmas de papel y tóner', 'Paper reams and toner'),               category: 'office_supplies', amount: 148.5, purchaseDate: '2026-09-11', purchasedBy: 'Ana Lucía Pérez',  notes: T('Para la impresora de planos', 'For the plan printer') },
+    { id: 802, description: T('Garrafones de agua (oficina)', 'Water jugs (office)'),             category: 'food_beverages',  amount: 96.0,  purchaseDate: '2026-09-09', purchasedBy: 'Gabriela Sosa',    notes: null },
+    { id: 803, description: T('Laptop para la asistente de proyectos', 'Laptop for the projects assistant'), category: 'tech_equipment', amount: 1_240.0, purchaseDate: '2026-09-05', purchasedBy: 'Ana Lucía Pérez', notes: T('Reemplaza la que se dañó en agosto', 'Replaces the one that broke in August') },
+    { id: 804, description: T('Energía eléctrica — agosto', 'Electricity — August'),              category: 'utilities',       amount: 412.75, purchaseDate: '2026-09-03', purchasedBy: null,               notes: null },
+    { id: 805, description: T('Servicio de limpieza mensual', 'Monthly cleaning service'),        category: 'cleaning',        amount: 350.0, purchaseDate: '2026-09-01', purchasedBy: 'Gabriela Sosa',    notes: null },
+    { id: 806, description: T('Sillas para la sala de juntas', 'Chairs for the meeting room'),    category: 'furniture',       amount: 780.0, purchaseDate: '2026-08-28', purchasedBy: 'Ana Lucía Pérez',  notes: null },
+  ].map(o => ({ ...o, createdAt: o.purchaseDate + 'T15:00:00Z', updatedAt: o.purchaseDate + 'T15:00:00Z' }));
+
   return install();
 
   async function install() {
@@ -257,22 +278,52 @@ export function installDemoApi(page: Page, lang: Lang = 'es') {
     await page.route(re('finance/projects'), json(pageOf(PROJECTS)));
 
     // ── Expenses (also feeds the Presupuestos breakdown) ───────────────────
-    await page.route(re('admin/expenses/summary'), json({ pending: 6, approved: 128, observed: 2, rejected: 3, totalApprovedCents: 1_312_000_00 }));
+    await page.route(re('admin/expenses/summary'), json({ totalSubmitted: 128, totalApprovedCents: 1_312_000_00, pendingCount: 3, observedCount: 1, rejectedCount: 1 }));
     await page.route(re('admin/expenses/report'), json({
-      kpis: { totalApprovedCents: 1_312_000_00, avgPerWorkerCents: 4_100_00, expenseCount: 128, topCategory: T('MATERIALES', 'MATERIALS') },
+      kpis: { totalApprovedCents: 1_312_000_00, avgPerWorkerCents: 4_100_00, expenseCount: 128, topCategory: 'MATERIALS' },
       byProject: PROJECTS.map(p => ({
         projectId: p.id, projectName: p.name, approvedCents: p.approvedExpensesCents,
         pendingCount: 1, observedCount: 0, rejectedCount: 0,
         breakdown: [
-          { type: T('MATERIALES', 'MATERIALS'), count: 24, totalCents: Math.round(p.approvedExpensesCents * 0.62) },
-          { type: T('COMBUSTIBLE', 'FUEL'), count: 9, totalCents: Math.round(p.approvedExpensesCents * 0.14) },
-          { type: T('ALIMENTACIÓN', 'MEALS'), count: 12, totalCents: Math.round(p.approvedExpensesCents * 0.11) },
-          { type: T('OTROS', 'OTHER'), count: 6, totalCents: Math.round(p.approvedExpensesCents * 0.13) },
+          { type: 'MATERIALS', count: 24, totalCents: Math.round(p.approvedExpensesCents * 0.62) },
+          { type: 'FUEL', count: 9, totalCents: Math.round(p.approvedExpensesCents * 0.14) },
+          { type: 'PER_DIEM', count: 12, totalCents: Math.round(p.approvedExpensesCents * 0.11) },
+          { type: 'TOOLS', count: 6, totalCents: Math.round(p.approvedExpensesCents * 0.13) },
         ],
       })),
-      byWorker: [],
+      byWorker: USERS.filter(u => u.role === 'WORKER').map((u, i) => ({
+        workerId: u.id, workerName: u.fullName, workerUsername: u.username,
+        submittedCount: 18 - i * 3, approvedCount: 14 - i * 2, pendingCount: i === 0 ? 2 : 1,
+        observedCount: i === 1 ? 1 : 0, rejectedCount: i === 3 ? 1 : 0,
+        totalApprovedCents: (46_200_00 - i * 7_400_00),
+      })),
     }));
-    await page.route(re('admin/expenses'), json(pageOf([], 10)));
+    await page.route(re('admin/expenses'), route => {
+      const url = route.request().url();
+      const status = qp(url, 'status');
+      const type = qp(url, 'type');
+      const projectId = qp(url, 'projectId');
+      const workerId = qp(url, 'workerId');
+      let list = EXPENSES;
+      if (status) list = list.filter(e => e.status === status);
+      if (type) list = list.filter(e => e.expenseType === type);
+      if (projectId) list = list.filter(e => e.projectId === Number(projectId));
+      if (workerId) list = list.filter(e => e.workerId === Number(workerId));
+      return json({ content: list, page: 0, size: 10, totalElements: list.length, totalPages: 1 })(route);
+    });
+    await page.route(re('finance/expenses'), route =>
+      json({ content: EXPENSES.filter(e => e.status === 'APPROVED'), page: 0, size: 10, totalElements: 2, totalPages: 1 })(route));
+
+    // ── Office expenses ──────────────────────────────────────────────────
+    await page.route(re('admin/office-expenses'), route => {
+      const url = route.request().url();
+      const cat = qp(url, 'category');
+      const search = (qp(url, 'search') ?? '').toLowerCase();
+      let list = OFFICE;
+      if (cat) list = list.filter(o => o.category === cat);
+      if (search) list = list.filter(o => o.description.toLowerCase().includes(search));
+      return json({ content: list, page: 0, size: 10, totalElements: list.length, totalPages: 1 })(route);
+    });
 
     // ── Punch list, RFIs, client portal ────────────────────────────────────
     await page.route(/\/api\/v1\/projects\/\d+\/punch-items(\?.*)?$/, route => {
