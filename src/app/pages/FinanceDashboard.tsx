@@ -22,7 +22,7 @@ import {
 // Lazy-loaded sections
 
 const FinanceExpenses = lazy(() =>
-  import('../components/FinanceExpenses').then(m => ({ default: m.FinanceExpenses }))
+  import('../components/expenses/ExpensesSection').then(m => ({ default: () => <m.ExpensesSection readOnly /> }))
 );
 const ExpenseReport = lazy(() =>
   import('../components/ExpenseReport').then(m => ({ default: m.ExpenseReport }))

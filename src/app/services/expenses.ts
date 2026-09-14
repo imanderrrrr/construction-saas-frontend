@@ -22,9 +22,31 @@ export interface ExpenseResponse {
   reviewerName: string | null;
   reviewerComment: string | null;
   reviewedAt: string | null;
+  /**
+   * Cuándo el trabajador corrigió un gasto observado y lo reenvió (V102).
+   * `null` = nunca se reenvió. La cola lo usa para el chip «Reenviado» y para
+   * contar la espera desde que volvió, no desde que se registró.
+   */
+  resubmittedAt?: string | null;
   createdAt: string;
   updatedAt: string;
   budgetWarning?: BudgetWarning | null;
+  /**
+   * El presupuesto de la obra a la que este gasto le va a restar.
+   *
+   * Aprobar descuenta el monto del saldo del proyecto, así que el saldo es el
+   * dato que decide la aprobación. Lo calcula el servidor con la misma
+   * aritmética que dibuja el medidor en Proyectos y Presupuestos. Solo viene en
+   * los listados; en la respuesta de aprobar u observar es `null`.
+   */
+  projectBudget?: ProjectBudgetSnapshot | null;
+}
+
+/** `remaining` puede ser negativo: el presupuesto mide, no bloquea. */
+export interface ProjectBudgetSnapshot {
+  baseCents: number | null;
+  consumedCents: number | null;
+  remainingCents: number | null;
 }
 
 export interface ExpenseSummaryResponse {
@@ -33,10 +55,33 @@ export interface ExpenseSummaryResponse {
   pendingCount: number;
   observedCount: number;
   rejectedCount: number;
+  /**
+   * Montos por estado del conjunto filtrado. Llegan con el mismo filtro que la
+   * lista, y son la razón de que la cabecera no se calcule nunca sobre la
+   * página cargada: con cuarenta pendientes en cuatro páginas, sumar los diez
+   * de la pantalla daba un número falso que nadie podía ver.
+   */
+  approvedCount?: number;
+  pendingCents?: number;
+  observedCents?: number;
+  rejectedCents?: number;
 }
 
 export interface BatchApproveResponse {
   approvedCount: number;
+  /**
+   * Los que no entraron y por qué. El servidor siempre los devolvió; la
+   * pantalla anterior leía solo `approvedCount` y cantaba «N aprobados»,
+   * así que un gasto saltado se quedaba en la cola sin explicación.
+   */
+  skipped?: SkippedExpense[];
+}
+
+export interface SkippedExpense {
+  expenseId: number;
+  /** `EXPENSE_NOT_PENDING` (alguien lo revisó antes) o `PROJECT_CLOSED`. */
+  code: string;
+  reason: string | null;
 }
 
 export interface PageResponse<T> {
@@ -202,12 +247,31 @@ export function getAdminExpenses(params?: {
   );
 }
 
-export function getAdminSummary(): Promise<ExpenseSummaryResponse> {
-  return api<ExpenseSummaryResponse>('/api/v1/admin/expenses/summary');
+/**
+ * Los mismos filtros de la lista menos `status`: la cabecera enseña los cuatro
+ * estados del rango y es la pestaña la que recorta la tabla.
+ */
+export interface ExpenseScope {
+  type?: string;
+  projectId?: number;
+  workerId?: number;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
-export function adminBatchApprove(): Promise<BatchApproveResponse> {
-  return api<BatchApproveResponse>('/api/v1/admin/expenses/approve-batch', { method: 'POST' });
+export function getAdminSummary(scope: ExpenseScope = {}): Promise<ExpenseSummaryResponse> {
+  return api<ExpenseSummaryResponse>(`/api/v1/admin/expenses/summary${qs({ ...scope })}`);
+}
+
+/**
+ * Aprueba los pendientes **del filtro**. Sin filtros aprueba todos los del
+ * inquilino, que es lo que hacía siempre mientras el botón decía otra cosa.
+ */
+export function adminBatchApprove(scope: ExpenseScope = {}): Promise<BatchApproveResponse> {
+  return api<BatchApproveResponse>(
+    `/api/v1/admin/expenses/approve-batch${qs({ ...scope })}`,
+    { method: 'POST' },
+  );
 }
 
 // ── Shared review actions ────────────────────────────
@@ -267,6 +331,15 @@ export function getFinanceExpenseReport(params?: {
 }
 
 // ── Finance endpoints ────────────────────────────────
+
+/**
+ * El mismo resumen para el rol de finanzas. Hace falta su propio endpoint
+ * porque `/api/v1/admin/**` es ADMIN-only en el matcher de seguridad: finanzas
+ * llamando al de admin recibe un 403, no unas cifras.
+ */
+export function getFinanceSummary(scope: ExpenseScope = {}): Promise<ExpenseSummaryResponse> {
+  return api<ExpenseSummaryResponse>(`/api/v1/finance/expenses/summary${qs({ ...scope })}`);
+}
 
 export function getFinanceExpenses(params?: {
   type?: string;

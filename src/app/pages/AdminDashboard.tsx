@@ -109,8 +109,8 @@ const HoursReport = lazyWithRetry(() =>
 );
 
 // Lazy-loaded phase-3 sections
-const ExpenseManagement = lazyWithRetry(() =>
-  import('../components/ExpenseManagement').then(m => ({ default: m.ExpenseManagement }))
+const ExpensesSection = lazyWithRetry(() =>
+  import('../components/expenses/ExpensesSection').then(m => ({ default: m.ExpensesSection }))
 );
 const ExpenseReport = lazyWithRetry(() =>
   import('../components/ExpenseReport').then(m => ({ default: m.ExpenseReport }))
@@ -631,7 +631,7 @@ export function AdminDashboard() {
           )}
           {activeSection === 'expenses'     && (
             <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
-              <ExpenseManagement />
+              <ExpensesSection />
             </Suspense></SectionErrorBoundary>
           )}
           {activeSection === 'expense-report' && (
