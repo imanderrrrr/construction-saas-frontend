@@ -85,7 +85,7 @@ export const SECTION_TOUR_STEPS: Record<string, string[]> = {
   'budgets-reporte': ['vista', 'cobro', 'reparto', 'documento'],
   'budgets-reporte-finanzas': ['vista', 'cobro', 'reparto', 'documento'],
   expenses: ['cifras', 'vistas', 'cola', 'acciones'],
-  'expense-report': ['export', 'filters', 'kpis', 'by-project'],
+  'expense-report': ['corte', 'filtros', 'obras', 'exportar'],
   'office-expenses': ['kpis', 'new-expense', 'filters'],
   'accounts-receivable': ['kpis', 'filters', 'table'],
   'accounts-payable': ['new-bill', 'kpis', 'filters', 'table'],
