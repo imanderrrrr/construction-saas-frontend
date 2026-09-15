@@ -153,8 +153,8 @@ const InvoiceManager = lazyWithRetry(() =>
 );
 
 // Lazy-loaded office expenses section
-const OfficeExpenses = lazyWithRetry(() =>
-  import('../components/OfficeExpenses').then(m => ({ default: m.OfficeExpenses }))
+const OfficeExpensesSection = lazyWithRetry(() =>
+  import('../components/office-expenses/OfficeExpensesSection').then(m => ({ default: m.OfficeExpensesSection }))
 );
 
 // Lazy-loaded subcontractor management section
@@ -686,7 +686,7 @@ export function AdminDashboard() {
           )}
           {activeSection === 'office-expenses' && (
             <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
-              <OfficeExpenses />
+              <OfficeExpensesSection />
             </Suspense></SectionErrorBoundary>
           )}
           {activeSection === 'subcontractors' && (
