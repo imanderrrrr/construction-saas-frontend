@@ -18,6 +18,7 @@ import { ExpenseRow, QUEUE_COLS, HISTORY_COLS } from './ExpenseRow';
 import { ReviewWindow, type ReviewTarget } from './ReviewWindows';
 import { BatchWindow } from './BatchWindow';
 import { ReceiptViewer } from './ReceiptViewer';
+import { takeInboxPreset } from './preset';
 import {
   defaultFilters, isFiltered, toScope, useExpenseInbox,
   type Filters, type GroupKey, type SortKey, type Tab,
@@ -40,8 +41,26 @@ import {
  */
 export function ExpensesSection({ readOnly = false }: { readOnly?: boolean }) {
   const { t, i18n } = useTranslation(['admin', 'common']);
-  const [tab, setTab] = useState<Tab>(readOnly ? 'history' : 'review');
-  const [filters, setFilters] = useState<Filters>(defaultFilters);
+  // El recorte con el que llega quien pulsó una cifra del Reporte de gastos.
+  // Se lee UNA vez —`takeInboxPreset` lo borra al leerlo— porque volver aquí
+  // por el menú tres días después no debe reabrir un filtro que nadie pidió.
+  const [preset] = useState(takeInboxPreset);
+  const [tab, setTab] = useState<Tab>(
+    readOnly || (preset?.status && preset.status !== 'PENDING' && preset.status !== 'OBSERVED')
+      ? 'history'
+      : 'review',
+  );
+  const [filters, setFilters] = useState<Filters>(() => ({
+    ...defaultFilters(),
+    ...(preset?.dateFrom ? { dateFrom: preset.dateFrom } : {}),
+    ...(preset?.dateTo ? { dateTo: preset.dateTo } : {}),
+    ...(preset?.projectId ? { projectId: String(preset.projectId) } : {}),
+    ...(preset?.workerId ? { workerId: String(preset.workerId) } : {}),
+    // El estado solo es un filtro en Historial: en la cola lo fija la pestaña.
+    ...(preset?.status === 'APPROVED' || preset?.status === 'REJECTED'
+      ? { status: preset.status }
+      : {}),
+  }));
   const [sort, setSort] = useState<SortKey>('amount');
   const [group, setGroup] = useState<GroupKey>(readOnly ? 'project' : 'status');
 

@@ -24,8 +24,8 @@ import {
 const FinanceExpenses = lazy(() =>
   import('../components/expenses/ExpensesSection').then(m => ({ default: () => <m.ExpensesSection readOnly /> }))
 );
-const ExpenseReport = lazy(() =>
-  import('../components/ExpenseReport').then(m => ({ default: m.ExpenseReport }))
+const ExpenseReportSection = lazy(() =>
+  import('../components/expense-report/ExpenseReportSection').then(m => ({ default: m.ExpenseReportSection }))
 );
 const AccountsReceivable = lazy(() =>
   import('../components/AccountsReceivable').then(m => ({ default: m.AccountsReceivable }))
@@ -382,7 +382,7 @@ export function FinanceDashboard({ initialSection }: { initialSection?: ActiveSe
         )}
         {activeSection === 'expense-report' && (
           <Suspense fallback={<LoadingSkeleton />}>
-            <ExpenseReport readOnly />
+            <ExpenseReportSection readOnly onNavigate={handleNavigate} />
           </Suspense>
         )}
         {activeSection === 'budgets' && (
