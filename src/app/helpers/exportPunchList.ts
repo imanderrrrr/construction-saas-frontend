@@ -1,8 +1,11 @@
 // BuildTrack — Punch-list export (fase 3): CSV + PDF of the INTERNAL punch
 // list as currently filtered on screen. Client-side on purpose: the rows are
 // already loaded and authorized in the view, so no new endpoint is needed.
-// CSV follows exportAuditCsv (escaped fields + BOM + saveAs); PDF follows
-// exportExpenseReport (jsPDF landscape + autoTable + brand header/footer).
+// CSV follows exportAuditCsv (escaped fields + BOM + saveAs); the PDF follows
+// exportPayrollPdf (jsPDF landscape + autoTable + brand header/footer). The
+// expense report's own browser exporter, which this one was copied from, was
+// deleted: that document is built on the server now, localised and with the
+// tenant's letterhead. This one is next in line for the same treatment.
 // All human-readable labels arrive pre-translated from the component so the
 // files come out in the user's language.
 
@@ -12,7 +15,7 @@ import { saveAs } from 'file-saver';
 import { fmtDate, fmtDateTime, todayStamp } from './dateTime';
 import type { PunchItem, PunchItemOrigin, PunchItemStatus } from '../services/punchItems';
 
-/* ───────────────────────── Brand colours (exportExpenseReport palette) ───────────────────────── */
+/* ───── Brand colours: the blue of the old browser exporters, not the system's ───── */
 const BRAND_DARK: [number, number, number] = [8, 59, 109];
 const BRAND_PRIMARY: [number, number, number] = [11, 130, 199];
 const WHITE: [number, number, number] = [255, 255, 255];
