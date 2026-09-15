@@ -32,8 +32,12 @@ vi.mock('../services/expenses', () => ({
   }),
 }));
 // The two sections the new routes deep-link to — stubbed to identifiable nodes.
-vi.mock('../components/FinanceExpenses', () => ({
-  FinanceExpenses: () => <div data-testid="section-expenses">EXPENSES</div>,
+// Gastos aprobados ya no es una pantalla propia: es la bandeja unificada en
+// modo solo lectura, la misma que monta el panel del administrador.
+vi.mock('../components/expenses/ExpensesSection', () => ({
+  ExpensesSection: (props: { readOnly?: boolean }) => (
+    <div data-testid="section-expenses" data-readonly={String(!!props.readOnly)}>EXPENSES</div>
+  ),
 }));
 // `/finance/budgets` now lands on the unified screen — the same component the
 // admin panel mounts, read-only — with its own Obras | Reporte switcher.
