@@ -84,7 +84,7 @@ export const SECTION_TOUR_STEPS: Record<string, string[]> = {
   // rule above is exactly about that.
   'budgets-reporte': ['vista', 'cobro', 'reparto', 'documento'],
   'budgets-reporte-finanzas': ['vista', 'cobro', 'reparto', 'documento'],
-  expenses: ['approve-all', 'kpis', 'filters', 'table'],
+  expenses: ['cifras', 'vistas', 'cola', 'acciones'],
   'expense-report': ['export', 'filters', 'kpis', 'by-project'],
   'office-expenses': ['kpis', 'new-expense', 'filters'],
   'accounts-receivable': ['kpis', 'filters', 'table'],
