@@ -367,12 +367,12 @@ export function FinanceDashboard({ initialSection }: { initialSection?: ActiveSe
         )}
         {activeSection === 'accounts-receivable' && (
           <Suspense fallback={<LoadingSkeleton />}>
-            <AccountsReceivable />
+            <AccountsReceivable onNavigate={handleNavigate} />
           </Suspense>
         )}
         {activeSection === 'accounts-payable' && (
           <Suspense fallback={<LoadingSkeleton />}>
-            <AccountsPayable />
+            <AccountsPayable onNavigate={handleNavigate} />
           </Suspense>
         )}
         {activeSection === 'approved-expenses' && (

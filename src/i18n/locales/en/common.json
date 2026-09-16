@@ -75,6 +75,7 @@
   "buttons.next": "Next →",
   "buttons.nextSimple": "Next",
   "buttons.clearFilters": "Clear all filters",
+  "buttons.remove": "Remove",
   "buttons.resetFilters": "Reset filters",
   "buttons.refresh": "Refresh",
   "stat.unableToLoad": "Unable to load",

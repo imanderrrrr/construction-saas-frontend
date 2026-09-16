@@ -87,8 +87,14 @@ export const SECTION_TOUR_STEPS: Record<string, string[]> = {
   expenses: ['cifras', 'vistas', 'cola', 'acciones'],
   'expense-report': ['corte', 'filtros', 'obras', 'exportar'],
   'office-expenses': ['cifras', 'mes', 'fijos'],
-  'accounts-receivable': ['kpis', 'filters', 'table'],
-  'accounts-payable': ['new-bill', 'kpis', 'filters', 'table'],
+  // Cobrar y Pagar. The two used to be toured with the same three stops
+  // (kpis · filters · table), which is precisely what the redesign fixed: each
+  // one now points at what is different about it — the direction it moves
+  // money, its leading figure, how its list is grouped, and the verb it owns.
+  // Every anchor is a container that exists while loading, on an error and on
+  // an empty account, so `visibleSteps()` never silently shrinks the tour.
+  'accounts-receivable': ['header', 'overdue', 'rows', 'views'],
+  'accounts-payable': ['header', 'week', 'lanes', 'new-bill'],
   audit: ['kpis', 'filters', 'list'],
   // Tiempo y material. `tm-field` doubles as the supervisor panel's tour (its
   // nav key is `tm`, but it mounts the same screen the admin calls `tm-field`)

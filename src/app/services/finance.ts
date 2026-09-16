@@ -1,6 +1,6 @@
 // OFJR Construction — Finance API Service (Payables & Receivables)
 
-import { api, apiMultipart, getBaseUrl } from '../lib/api';
+import { api, apiMultipart, ApiError, getBaseUrl } from '../lib/api';
 import { drainPages } from '../lib/paging';
 import type { BudgetWarning } from '../types';
 
@@ -417,4 +417,57 @@ export function updateReceivableInfo(id: number, data: {
  */
 export function deleteReceivable(id: number): Promise<void> {
   return api<void>(`${RECEIVABLES}/${id}`, { method: 'DELETE' });
+}
+
+/**
+ * Decline a change-order request, with an optional reason.
+ *
+ * The counterpart of {@link approveChangeOrder}, and the honest end of a
+ * request the client turned down: REJECTED is terminal and stays in the
+ * history, where deleting the document erases that it was ever asked for.
+ * Never counted as receivable — the repository excludes it from the contract
+ * headroom sum, and so does the panel.
+ */
+export function rejectChangeOrder(id: number, reason?: string): Promise<Receivable> {
+  return api<Receivable>(`${RECEIVABLES}/${id}/reject`, {
+    method: 'POST',
+    body: JSON.stringify({ reason: reason?.trim() || undefined }),
+  });
+}
+
+/**
+ * The document as the SERVER renders it (OpenPDF), in the panel's language.
+ *
+ * This is the file that goes out by email, hangs off the client portal and is
+ * signed with a `sha256` that still matches when it is fetched again — so it
+ * is the one the panel must hand over too. The browser-side generator this
+ * replaces produced a second, different PDF: the client signed one document
+ * and the admin filed another.
+ *
+ * Fetched with the session cookie (as AuthImage does) because the endpoint is
+ * tenant-scoped; the bytes are handed to the browser as a download.
+ */
+export async function downloadReceivableDocument(
+  id: number,
+  { lang, filename }: { lang: string; filename: string },
+): Promise<void> {
+  const res = await fetch(
+    `${getBaseUrl()}${RECEIVABLES}/${id}/pdf?lang=${lang.toLowerCase().startsWith('es') ? 'es' : 'en'}`,
+    { credentials: 'include' as RequestCredentials },
+  );
+  if (!res.ok) {
+    throw new ApiError(res.status, `Document download failed (${res.status})`);
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  try {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename.endsWith('.pdf') ? filename : `${filename}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
