@@ -1,4 +1,4 @@
-import type { Payable, Receivable } from '../../services/finance';
+import type { Payable, PayableSummary, Receivable } from '../../services/finance';
 
 /**
  * The arithmetic behind Cobrar and Pagar — all of it, and nothing else.
@@ -319,15 +319,37 @@ export function payableFigures(docs: Owed[], payments: DatedAmount[], today: str
   };
 }
 
+/**
+ * The same four figures, taken from the server's summary instead of from the
+ * loaded rows. The server resolves "today", "this week" and "this month" in the
+ * tenant's timezone, which is the authoritative reading; the rules are otherwise
+ * identical to `payableFigures`, so the numbers must not move.
+ *
+ * Two bits of meta the summary does not carry — which bill comes first this week
+ * and how old the oldest overdue one is — stay derived from the rows, which are
+ * the same set the summary measured.
+ */
+export function payableFiguresFromSummary(summary: PayableSummary, fromRows: PayableFigures): PayableFigures {
+  const cents = (n: number) => round2(n / 100);
+  return {
+    dueThisWeek: { amount: cents(summary.dueThisWeekCents), count: summary.dueThisWeekCount },
+    firstDue: fromRows.firstDue,
+    overdue: { amount: cents(summary.overdueCents), count: summary.overdueCount },
+    oldestOverdueDays: fromRows.oldestOverdueDays,
+    outstanding: { amount: cents(summary.outstandingCents), count: summary.outstandingCount },
+    paid: { amount: cents(summary.paidThisMonthCents), count: summary.paidThisMonthCount },
+  };
+}
+
 /** A payment reduced to what the month figures need. */
 export interface DatedAmount {
   date: string;
   amount: number;
 }
 
-/** Every collection on these documents. Receivables have no voided payments. */
+/** Every collection that still counts: a voided one stays listed but not counted. */
 export function receivablePayments(rows: Receivable[]): DatedAmount[] {
-  return rows.flatMap(r => r.payments.map(p => ({ date: p.date, amount: p.amount })));
+  return rows.flatMap(r => r.payments.filter(p => !p.voided).map(p => ({ date: p.date, amount: p.amount })));
 }
 
 /** Every payment that still counts: a voided one stays listed but not counted. */

@@ -32,6 +32,10 @@ vi.mock('../../services/finance', () => ({
   listAllReceivables: mocks.listAllReceivables,
   listAllPayables: mocks.listAllPayables,
   listPayableVendors: mocks.listPayableVendors,
+  // Phase 2. Rejecting is the pre-phase-2 server (404), which is also the case
+  // that must leave the screen exactly as it was: figures from the rows.
+  getPayableSummary: vi.fn(() => Promise.reject(new Error('404'))),
+  voidReceivablePayment: vi.fn(),
   approveChangeOrder: vi.fn(),
   rejectChangeOrder: vi.fn(),
   downloadReceivableDocument: vi.fn(),

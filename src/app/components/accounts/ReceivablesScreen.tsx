@@ -16,7 +16,7 @@ import { listProjects } from '../../services/projects';
 import { businessToday, currentMonth, currentMonthLabel, fmtDate } from '../../helpers/dateTime';
 import {
   approveChangeOrder, downloadReceivableDocument, listAllPayables, listAllReceivables,
-  type Receivable,
+  voidReceivablePayment, type Receivable,
 } from '../../services/finance';
 import {
   agingByParty, agingTotals, balanceOf, cashBridge, daysLate, isBillable, isSettled, matches,
@@ -65,6 +65,7 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
   const [reloadNonce, setReloadNonce] = useState(0);
   const [approving, setApproving] = useState<number | null>(null);
   const [downloading, setDownloading] = useState<number | null>(null);
+  const [voiding, setVoiding] = useState<number | null>(null);
 
   const [view, setView] = useState<ViewKey>('clients');
   const [client, setClient] = useState('');
@@ -192,6 +193,24 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
       toast.error(t('finance:receivable.co.approveFailed'), { description: err instanceof Error ? err.message : undefined });
     } finally {
       setApproving(null);
+    }
+  }
+
+  /**
+   * Void a collection. The server answers with the document already recalculated
+   * — balance, status and the payment now struck through — so the row is patched
+   * from that answer instead of reloading the whole screen.
+   */
+  async function voidCollection(doc: Receivable, paymentId: number) {
+    setVoiding(paymentId);
+    try {
+      const updated = await voidReceivablePayment(doc.id, paymentId);
+      setRows(prev => (prev ? prev.map(r => (r.id === updated.id ? updated : r)) : prev));
+      toast.success(t('finance:receivable.void.done'));
+    } catch (err: unknown) {
+      toast.error(t('finance:receivable.void.failed'), { description: err instanceof Error ? err.message : undefined });
+    } finally {
+      setVoiding(null);
     }
   }
 
@@ -463,7 +482,9 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
                 onEdit={setEditDoc}
                 onDelete={setDeleteDoc}
                 onDownload={download}
+                onVoid={(d, paymentId) => void voidCollection(d, paymentId)}
                 downloading={downloading}
+                voiding={voiding}
                 today={today}
                 dateLocale={dateLocale}
               />
@@ -497,7 +518,9 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
                 onEdit={setEditDoc}
                 onDelete={setDeleteDoc}
                 onDownload={download}
+                onVoid={(d, paymentId) => void voidCollection(d, paymentId)}
                 downloading={downloading}
+                voiding={voiding}
                 today={today}
                 dateLocale={dateLocale}
               />
@@ -521,7 +544,7 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
 
 /* ── One client, and the documents under it ────────────────────────────── */
 
-function ClientRow({ row, open, onToggle, byId, openDoc, onToggleDoc, onCollect, onEdit, onDelete, onDownload, downloading, today, dateLocale }: {
+function ClientRow({ row, open, onToggle, byId, openDoc, onToggleDoc, onCollect, onEdit, onDelete, onDownload, onVoid, downloading, voiding, today, dateLocale }: {
   row: AgingRow;
   open: boolean;
   onToggle: () => void;
@@ -532,7 +555,9 @@ function ClientRow({ row, open, onToggle, byId, openDoc, onToggleDoc, onCollect,
   onEdit: (d: Receivable) => void;
   onDelete: (d: Receivable) => void;
   onDownload: (d: Receivable) => void;
+  onVoid: (d: Receivable, paymentId: number) => void;
   downloading: number | null;
+  voiding: number | null;
   today: string;
   dateLocale: string;
 }) {
@@ -572,7 +597,9 @@ function ClientRow({ row, open, onToggle, byId, openDoc, onToggleDoc, onCollect,
               onEdit={onEdit}
               onDelete={onDelete}
               onDownload={onDownload}
+              onVoid={onVoid}
               downloading={downloading}
+              voiding={voiding}
               today={today}
               dateLocale={dateLocale}
               inset
@@ -586,7 +613,7 @@ function ClientRow({ row, open, onToggle, byId, openDoc, onToggleDoc, onCollect,
 
 /* ── One document ──────────────────────────────────────────────────────── */
 
-function DocumentRow({ doc, open, onToggle, onCollect, onEdit, onDelete, onDownload, downloading, today, dateLocale, showClient, inset }: {
+function DocumentRow({ doc, open, onToggle, onCollect, onEdit, onDelete, onDownload, onVoid, downloading, voiding, today, dateLocale, showClient, inset }: {
   doc: Receivable;
   open: boolean;
   onToggle: () => void;
@@ -594,7 +621,9 @@ function DocumentRow({ doc, open, onToggle, onCollect, onEdit, onDelete, onDownl
   onEdit: (d: Receivable) => void;
   onDelete: (d: Receivable) => void;
   onDownload: (d: Receivable) => void;
+  onVoid: (d: Receivable, paymentId: number) => void;
   downloading: number | null;
+  voiding: number | null;
   today: string;
   dateLocale: string;
   showClient?: boolean;
@@ -606,7 +635,9 @@ function DocumentRow({ doc, open, onToggle, onCollect, onEdit, onDelete, onDownl
   const settled = isSettled(owedDoc);
   const late = daysLate(doc.dueDate, today);
   const isCo = doc.documentType === 'CHANGE_ORDER_REQUEST';
-  const hasPayments = doc.payments.length > 0;
+  // Only collections still standing block the delete: the server stopped
+  // counting the voided ones, so blocking on them would be stricter than it.
+  const hasPayments = doc.payments.some(p => !p.voided);
 
   const chevron = open
     ? <ChevronDown className="w-3 h-3 text-[#C2410C] flex-shrink-0" strokeWidth={2.4} />
@@ -731,7 +762,7 @@ function DocumentRow({ doc, open, onToggle, onCollect, onEdit, onDelete, onDownl
         </div>
       </div>
 
-      {open && <DocumentDetail doc={doc} dateLocale={dateLocale} />}
+      {open && <DocumentDetail doc={doc} dateLocale={dateLocale} onVoid={onVoid} voiding={voiding} />}
     </>
   );
 }
@@ -746,8 +777,12 @@ function DocumentRow({ doc, open, onToggle, onCollect, onEdit, onDelete, onDownl
  */
 function SignatureCell({ doc }: { doc: Receivable }) {
   const { t } = useTranslation('finance');
-  const state = (doc as Receivable & { signatureStatus?: string | null }).signatureStatus;
-  if (!state) {
+
+  // Two different silences, and they must not look the same: a server that does
+  // not report the state at all leaves the field out, and the cell says so with
+  // a dash that points at the document. A server that reports it sends null when
+  // the signature was never asked for, and that is a state with a name.
+  if (!('signatureStatus' in doc)) {
     return (
       <span title={t('receivable.signature.inDetail')}>
         <Mono className="text-[10px] tracking-[0.06em] text-[#A69C8D]">{t('receivable.signature.dash')}</Mono>
@@ -760,12 +795,17 @@ function SignatureCell({ doc }: { doc: Receivable }) {
     DECLINED: { tone: 'red', key: 'declined' },
     REVOKED: { tone: 'outline', key: 'revoked' },
   };
-  const look = map[state] ?? { tone: 'outline' as const, key: 'none' };
+  const look = doc.signatureStatus ? map[doc.signatureStatus] : { tone: 'outline' as const, key: 'none' };
   return <Tag tone={look.tone}>{t(`receivable.signature.${look.key}`)}</Tag>;
 }
 
 /** Line items, collections and the customer's signature — the document itself. */
-function DocumentDetail({ doc, dateLocale }: { doc: Receivable; dateLocale: string }) {
+function DocumentDetail({ doc, dateLocale, onVoid, voiding }: {
+  doc: Receivable;
+  dateLocale: string;
+  onVoid: (d: Receivable, paymentId: number) => void;
+  voiding: number | null;
+}) {
   const { t } = useTranslation(['finance', 'common']);
   const balance = balanceOf(receivableToOwed(doc));
   return (
@@ -800,12 +840,37 @@ function DocumentDetail({ doc, dateLocale }: { doc: Receivable; dateLocale: stri
           ) : (
             <div className="mt-2 space-y-2">
               {doc.payments.map(p => (
-                <div key={p.id} className="flex items-center gap-3 bg-[#FAF7F0] border-l-2 border-l-[#2E7D4F] px-3 py-2.5">
-                  <Mono className="text-[13px] font-semibold normal-case tabular-nums">{fmtMoney(p.amount)}</Mono>
+                <div
+                  key={p.id}
+                  className={cn('flex items-center gap-3 flex-wrap bg-[#FAF7F0] border-l-2 px-3 py-2.5', p.voided ? 'border-l-[#CDBFA6]' : 'border-l-[#2E7D4F]')}
+                >
+                  <Mono className={cn('text-[13px] font-semibold normal-case tabular-nums', p.voided && 'text-[#8A8175] line-through')}>
+                    {fmtMoney(p.amount)}
+                  </Mono>
                   <div className="min-w-0">
-                    <Mono className="block text-[10.5px] text-[#5A5346] normal-case">{fmtDate(p.date, dateLocale)} · {paymentMethodLabel(p.method, t)}</Mono>
-                    {p.reference && <Mono className="block text-[9.5px] text-[#A69C8D] mt-0.5 normal-case">{p.reference}</Mono>}
+                    <Mono className={cn('block text-[10.5px] normal-case', p.voided ? 'text-[#8A8175] line-through' : 'text-[#5A5346]')}>
+                      {fmtDate(p.date, dateLocale)} · {paymentMethodLabel(p.method, t)}
+                    </Mono>
+                    {p.voided
+                      ? (
+                        <Mono className="block text-[9.5px] text-[#B3402A] mt-0.5 normal-case">
+                          {t('finance:receivable.void.voided')}{p.voidReason ? ` · ${p.voidReason}` : ''}
+                        </Mono>
+                      )
+                      : p.reference && <Mono className="block text-[9.5px] text-[#A69C8D] mt-0.5 normal-case">{p.reference}</Mono>}
                   </div>
+                  {p.voided
+                    ? <Tag tone="red" className="ml-auto">{t('finance:receivable.void.voided')}</Tag>
+                    : (
+                      <button
+                        type="button"
+                        disabled={voiding != null}
+                        onClick={() => onVoid(doc, p.id)}
+                        className={cn('ml-auto font-bt-mono text-[9.5px] uppercase tracking-[0.09em] text-[#C2410C] hover:text-[#B3402A] disabled:opacity-40 disabled:cursor-default', FOCUS_RING)}
+                      >
+                        {voiding === p.id ? t('finance:receivable.void.voiding') : t('finance:receivable.void.action')}
+                      </button>
+                    )}
                 </div>
               ))}
             </div>

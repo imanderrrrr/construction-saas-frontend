@@ -9,15 +9,18 @@ import { Bone, EmptyWord, Mono, MonoSelect, stampDay } from '../projects/bt';
 import { Amount, LoadFailure } from '../budgets/ui';
 import { fmtMoney } from '../invoices/bits';
 import { CATEGORY_KEY_MAP, toVendorBill, type VendorBill, type VendorPayment } from '../PayableCommon';
+import { AuthImage } from '../sitelog/AuthImage';
 import { AuthService } from '../../services/auth';
 import { listProjects } from '../../services/projects';
 import { businessToday, currentMonth, fmtDate } from '../../helpers/dateTime';
 import {
-  listAllPayables, listAllReceivables, listPayableVendors, type Payable,
+  getPayableSummary, listAllPayables, listAllReceivables, listPayableVendors, payableAttachmentUrl,
+  type Payable, type PayableSummary,
 } from '../../services/finance';
 import {
   addDays, agingByParty, agingTotals, balanceOf, cashBridge, daysLate, isBillable, isSettled,
-  lanesOf, matches, payableFigures, payablePayments, payableToOwed, receivableToOwed, sumBalances,
+  lanesOf, matches, payableFigures, payableFiguresFromSummary, payablePayments, payableToOwed,
+  receivableToOwed, sumBalances,
   type AgingRow, type LaneKey, type Owed,
 } from './accounting';
 import {
@@ -67,6 +70,7 @@ export function PayablesScreen({ onNavigate }: { onNavigate?: (section: string) 
   const [vendors, setVendors] = useState<string[]>([]);
   const [projects, setProjects] = useState<ProjectBudget[]>([]);
   const [inflow, setInflow] = useState<Owed[] | null>(null);
+  const [summary, setSummary] = useState<PayableSummary | null>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
   const [busy, setBusy] = useState(false);
 
@@ -118,12 +122,23 @@ export function PayablesScreen({ onNavigate }: { onNavigate?: (section: string) 
       .catch(() => setInflow(null));
   }, [reloadNonce]);
 
+  // The server's figures, measured in the tenant's timezone over the whole
+  // tenant. A server without phase 2 answers 404 and the figures below stay on
+  // the rows we already loaded, which is what this screen shipped with.
+  useEffect(() => {
+    getPayableSummary().then(setSummary).catch(() => setSummary(null));
+  }, [reloadNonce]);
+
   /* ── Figures ────────────────────────────────────────────────────────── */
 
   const owed = useMemo(() => (bills ?? []).map(b => payableToOwed(b as unknown as Payable)), [bills]);
-  const figures = useMemo(
+  const fromRows = useMemo(
     () => payableFigures(owed, payablePayments((bills ?? []) as unknown as Payable[]), today, month),
     [owed, bills, today, month],
+  );
+  const figures = useMemo(
+    () => (summary ? payableFiguresFromSummary(summary, fromRows) : fromRows),
+    [summary, fromRows],
   );
   const bridge = useMemo(() => (inflow ? cashBridge(inflow, owed, today) : null), [inflow, owed, today]);
 
@@ -615,8 +630,16 @@ function BillRow({ bill, today, dateLocale, selected, onSelect, onOpen, onPay }:
   const balance = balanceOf(bill);
   const settled = isSettled(owedRow);
   const late = daysLate(bill.dueDate, today);
-  // The list does not carry attachments; the count lights up when it does.
-  const photos = (bill as VendorBill & { attachmentCount?: number }).attachmentCount ?? 0;
+  // A bill with only PDFs has a count but nothing to paint, so the cell falls
+  // back to the icon and the count says how many documents are in there.
+  const photos = bill.attachmentCount;
+  const thumb = bill.firstAttachmentId == null ? null : (
+    <AuthImage
+      src={payableAttachmentUrl(bill.id, bill.firstAttachmentId)}
+      alt={t('finance:payable.table.photoOf', { bill: bill.billNumber })}
+      className="w-full h-full object-cover"
+    />
+  );
 
   const edge = !settled && late > 0 ? 'border-l-[#B3402A]' : !settled && late >= -1 ? 'border-l-[#F97316]' : 'border-l-transparent';
   const stop = { onClick: (e: React.MouseEvent) => e.stopPropagation(), onKeyDown: (e: React.KeyboardEvent) => e.stopPropagation() };
@@ -664,7 +687,7 @@ function BillRow({ bill, today, dateLocale, selected, onSelect, onOpen, onPay }:
             <Mono className="block text-[9.5px] text-[#A69C8D] mt-[2px] normal-case">{t('finance:accounts.ofAmount', { amount: fmtMoney(bill.amount) })}</Mono>
           )}
         </div>
-        <PhotoCell empty={photos === 0} count={photos} label={t('finance:payable.table.photoHint')} />
+        <PhotoCell empty={photos === 0} count={photos} label={t('finance:payable.table.photoHint')}>{thumb}</PhotoCell>
         <div className="min-w-0">
           <Mono className={cn('block text-[10px] tracking-[0.07em]', bill.documentType === 'INVOICE' ? 'text-[#0A0A0A] font-semibold' : 'text-[#5A5346]')}>
             {bill.documentType === 'INVOICE' ? t('finance:payable.detail.docType.invoice') : t('finance:payable.detail.docType.bill')}
@@ -681,7 +704,7 @@ function BillRow({ bill, today, dateLocale, selected, onSelect, onOpen, onPay }:
       >
         <div className="flex items-start gap-2.5">
           <span {...stop} className="pt-1">{tick}</span>
-          <PhotoCell empty={photos === 0} count={photos} label={t('finance:payable.table.photoHint')} />
+          <PhotoCell empty={photos === 0} count={photos} label={t('finance:payable.table.photoHint')}>{thumb}</PhotoCell>
           <div className="min-w-0 flex-1">
             <div className="text-[14px] font-semibold text-[#0A0A0A] truncate">{bill.vendor}</div>
             <Mono className="block text-[9.5px] text-[#A69C8D] mt-0.5 normal-case truncate">
