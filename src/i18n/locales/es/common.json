@@ -75,6 +75,7 @@
   "buttons.next": "Siguiente →",
   "buttons.nextSimple": "Siguiente",
   "buttons.clearFilters": "Limpiar filtros",
+  "buttons.remove": "Quitar",
   "buttons.resetFilters": "Restablecer filtros",
   "buttons.refresh": "Actualizar",
   "stat.unableToLoad": "No se pudo cargar",
