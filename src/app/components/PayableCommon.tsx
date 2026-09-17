@@ -32,6 +32,10 @@ export interface VendorBill {
   payments: VendorPayment[];
   createdAt: string;
   updatedAt: string;
+  /** Photos and PDFs on the bill; 0 on a server that doesn't report them yet. */
+  attachmentCount: number;
+  /** Oldest attachment paintable as an image — null when the bill has only PDFs. */
+  firstAttachmentId: number | null;
 }
 
 export function toVendorBill(p: Payable): VendorBill {
@@ -54,6 +58,8 @@ export function toVendorBill(p: Payable): VendorBill {
     payments: p.payments,
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
+    attachmentCount: p.attachmentCount ?? 0,
+    firstAttachmentId: p.firstAttachmentId ?? null,
   };
 }
 

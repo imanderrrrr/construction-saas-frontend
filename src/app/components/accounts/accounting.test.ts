@@ -11,8 +11,8 @@ import { describe, expect, it } from 'vitest';
 import type { Payable, Receivable } from '../../services/finance';
 import {
   addDays, agingByParty, agingTotals, balanceOf, bucketOf, cashBridge, daysBetween, daysLate,
-  isBillable, laneOf, lanesOf, matches, payableFigures, payablePayments, payableToOwed,
-  receivableFigures, receivablePayments, receivableToOwed, sumBalances, type Owed,
+  isBillable, laneOf, lanesOf, matches, payableFigures, payableFiguresFromSummary, payablePayments,
+  payableToOwed, receivableFigures, receivablePayments, receivableToOwed, sumBalances, type Owed,
 } from './accounting';
 
 const TODAY = '2026-09-16';
@@ -252,5 +252,61 @@ describe('búsqueda', () => {
 
   it('sin texto, todo pasa', () => {
     expect(matches([null, undefined], '   ')).toBe(true);
+  });
+});
+
+/* ── Phase 2: the server's figures and voided collections ──────────────── */
+
+describe('cifras del servidor', () => {
+  // The server answers in cents over the whole tenant; the screen paints
+  // dollars. Feeding it the figures this same fixture produces must give back
+  // exactly the figures the screen already printed — that is the whole promise
+  // of the swap, and it is what this test pins.
+  const rows = payableFigures(AP, payablePayments(PAYABLES), TODAY, MONTH);
+
+  const summary = {
+    dueThisWeekCents: 885_000, dueThisWeekCount: 2,
+    overdueCents: 2_040_000, overdueCount: 2,
+    outstandingCents: 6_555_000, outstandingCount: 7,
+    paidThisMonthCents: 535_000, paidThisMonthCount: 2,
+    asOf: TODAY,
+  };
+
+  it('convierte centavos a la misma cifra que salía de las filas', () => {
+    const merged = payableFiguresFromSummary(summary, rows);
+    expect(merged.dueThisWeek).toEqual(rows.dueThisWeek);
+    expect(merged.overdue).toEqual(rows.overdue);
+    expect(merged.outstanding).toEqual(rows.outstanding);
+    expect(merged.paid).toEqual(rows.paid);
+  });
+
+  it('conserva de las filas lo que el resumen no trae', () => {
+    const merged = payableFiguresFromSummary(summary, rows);
+    expect(merged.firstDue).toBe(rows.firstDue);
+    expect(merged.oldestOverdueDays).toBe(rows.oldestOverdueDays);
+  });
+
+  it('no arrastra el error de coma flotante al dividir', () => {
+    const merged = payableFiguresFromSummary({ ...summary, outstandingCents: 1_010_101 }, rows);
+    expect(merged.outstanding.amount).toBe(10_101.01);
+  });
+});
+
+describe('cobros anulados', () => {
+  // A voided collection stays in the history but stops counting, exactly like a
+  // voided vendor payment: before phase 2 receivables had no such thing, and the
+  // extractor used to count every payment it found.
+  const withVoid: Receivable[] = [
+    receivable({ id: 15, client: 'Grupo Reyes', dueDate: '2026-09-19', amount: 9_800, paidAmount: 4_000, status: 'partial',
+      payments: [
+        { id: 901, date: '2026-09-05', amount: 4_000, method: 'Bank transfer' },
+        { id: 902, date: '2026-09-06', amount: 1_500, method: 'Check', voided: true, voidReason: 'cheque rebotado' },
+      ] }),
+  ];
+
+  it('el anulado no suma en el cobrado del mes', () => {
+    expect(receivablePayments(withVoid)).toEqual([{ date: '2026-09-05', amount: 4_000 }]);
+    const figures = receivableFigures(withVoid.map(receivableToOwed), receivablePayments(withVoid), TODAY, MONTH);
+    expect(figures.collected).toEqual({ amount: 4_000, count: 1 });
   });
 });

@@ -63,6 +63,13 @@ export interface Payable {
   createdAt: string;
   updatedAt: string;
   budgetWarning?: BudgetWarning | null;
+  /** Photos AND PDFs attached to the bill. Absent on a server without phase 2. */
+  attachmentCount?: number;
+  /**
+   * Oldest attachment that can be painted as an <img> — so it is null when the
+   * bill carries only PDFs, even though `attachmentCount` is then > 0.
+   */
+  firstAttachmentId?: number | null;
 }
 
 const PAYABLES = '/api/v1/finance/payables';
@@ -263,6 +270,35 @@ export function payableAttachmentUrl(payableId: number, attachmentId: number): s
   return `${getBaseUrl()}${PAYABLES}/${payableId}/attachments/${attachmentId}/file`;
 }
 
+/**
+ * The four payable figures, computed by the server over the whole tenant with
+ * "today", "this week" and "this month" resolved in the tenant's own timezone.
+ * Amounts are cents; the screen paints dollars.
+ *
+ * `paidThisMonthCount` counts PAYMENTS, not bills — the same thing the screen
+ * printed when it summed the loaded rows. Voided payments are excluded, and
+ * "overdue" is derived on read (it is never a stored status).
+ *
+ * Phase 2 of the redesign; a server without it answers 404 and the screen falls
+ * back to computing the same figures from the rows it already has.
+ */
+export interface PayableSummary {
+  dueThisWeekCents: number;
+  dueThisWeekCount: number;
+  overdueCents: number;
+  overdueCount: number;
+  outstandingCents: number;
+  outstandingCount: number;
+  paidThisMonthCents: number;
+  paidThisMonthCount: number;
+  /** The day the figures were measured against, in the tenant's timezone. */
+  asOf: string;
+}
+
+export function getPayableSummary(): Promise<PayableSummary> {
+  return api<PayableSummary>(`${PAYABLES}/summary`);
+}
+
 export function deletePayableAttachment(payableId: number, attachmentId: number): Promise<void> {
   return api<void>(`${PAYABLES}/${payableId}/attachments/${attachmentId}`, { method: 'DELETE' });
 }
@@ -275,6 +311,15 @@ export interface ReceivablePayment {
   amount: number;
   method: string;
   reference?: string;
+  /**
+   * A voided collection stays in the list, struck through, and stops counting
+   * towards `paidAmount` — the same shape and names as a voided vendor payment.
+   * Absent on a server without phase 2, which reads as "not voided".
+   */
+  voided?: boolean;
+  voidedAt?: string | null;
+  voidedBy?: string | null;
+  voidReason?: string | null;
 }
 
 export interface ReceivableLineItem {
@@ -313,6 +358,12 @@ export interface Receivable {
   payments: ReceivablePayment[];
   createdAt: string;
   updatedAt: string;
+  /**
+   * State of the document's latest signature request, resolved in one batch for
+   * the whole page. Null when the signature was never asked for; absent on a
+   * server without phase 2, and then the row shows a dash instead of a chip.
+   */
+  signatureStatus?: 'PENDING' | 'SIGNED' | 'DECLINED' | 'REVOKED' | null;
 }
 
 const RECEIVABLES = '/api/v1/finance/receivables';
@@ -373,6 +424,19 @@ export function recordReceivablePayment(id: number, data: {
   return api<Receivable>(`${RECEIVABLES}/${id}/payments`, {
     method: 'POST',
     body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Void a collection. The payment stays in the history, struck through with its
+ * reason; `paidAmount` and the document's status are recalculated from the
+ * collections still standing. Mirrors `voidPayablePayment`, including the 409
+ * (`PAYMENT_ALREADY_VOIDED`) when it was already voided.
+ */
+export function voidReceivablePayment(id: number, paymentId: number, reason?: string): Promise<Receivable> {
+  return api<Receivable>(`${RECEIVABLES}/${id}/payments/${paymentId}/void`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
   });
 }
 
