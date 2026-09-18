@@ -1,4 +1,12 @@
-# Demo recorder — the landing page's module clips
+# Demo recorder — footage and stills of the panel as it ships
+
+Two outputs, one dataset, one rule: **the panel is the real one, only the data
+behind it is invented.**
+
+| Output | Spec | Where it goes | Who reads it |
+|---|---|---|---|
+| Module clips | `clips.rec.ts` | `public/demos/<lang>/` | The landing page |
+| Stills of every screen | `shots.rec.ts`, `shots.public.rec.ts` | `.shots/manual/<lang>/` (gitignored) | The sales manual |
 
 The clips in `public/demos/<lang>/` are screen recordings of the **admin panel
 as it ships**, driven by Playwright over a demo dataset. This folder is how they
@@ -47,6 +55,42 @@ npx playwright test --config=tools/demo-recorder/recorder.config.ts landing.rec.
 | `support/stage.ts` | Signs in, sets the panel language, answers every section tour "already seen", dresses the client-view link with the production host, and waits for a section to actually render before the clip starts. |
 | `support/clip.ts` | Writes the in/out points to `.out/clips/<key>.json`. |
 | `landing.rec.ts` | Screenshots the finished block on the landing page. Review only. |
+| `shots.rec.ts` | One PNG per module, every panel (admin, finance, supervisor, warehouse, worker), for the sales manual. Also writes the screen's own text next to each frame. |
+| `shots.public.rec.ts` | The same, for what lives outside the panel: the landing, the docs, the status page, the client portal, the signature page. |
+| `support/routes.manual.ts` | Dates hang off the real clock (`NOW`), never a pinned day — the worker's panel decides whether the day has started by looking for a record dated today, so a pinned date breaks the run at the next midnight. The fixtures the clips never needed — personnel, tools, supplies, tasks, subcontractors, office expenses, T&M, and the supervisor/warehouse/worker panels. Layered on top of `installDemoApi`. |
+| `support/routes.public.ts` | Fixtures for the token pages: the client portal, the signature page, the invitation, the health probe the status page makes. |
+
+## Re-take the manual's stills
+
+```bash
+npx playwright test --config=tools/demo-recorder/recorder.config.ts shots.rec.ts shots.public.rec.ts
+SHOT_LANGS=en npx playwright test --config=tools/demo-recorder/recorder.config.ts shots.rec.ts   # the other language
+```
+
+→ `tools/demo-recorder/.shots/manual/<lang>/<panel>.<module>.png`, plus a `.txt`
+holding what that screen printed. The `.txt` files exist because the manual
+describes every screen in prose, and prose written from a screenshot invents
+labels that were never on it.
+
+**Running these from a worktree needs one manual step.** The config reuses a
+server already listening on the port, and it does not check WHOSE it is: a vite
+left running by another worktree will happily serve that worktree's code, and
+the run goes green while photographing the wrong branch. Passing a free
+`DEMO_PORT` is not enough either — Playwright starts `npx vite` with its cwd in
+this folder, where there is no app, and the run dies on `Timed out waiting
+120000ms from config.webServer`. Start vite yourself from the worktree root
+first, then point the run at it:
+
+```bash
+npx vite --port 5299 --strictPort          # from the worktree root
+DEMO_PORT=5299 npx playwright test --config=tools/demo-recorder/recorder.config.ts shots.rec.ts
+```
+
+Both specs **fail** when a section renders its error boundary, so a fixture that
+has drifted out of shape is a red run rather than a wrong screenshot. The shapes
+are worth checking when a screen comes back empty: several endpoints answer with
+a bare array where their neighbours are paged, and the difference draws a table
+of zeroes instead of erroring.
 
 ## Adding a clip
 
@@ -70,6 +114,10 @@ npx playwright test --config=tools/demo-recorder/recorder.config.ts landing.rec.
   `localhost:5199`, so a dev URL never ships on a public page. The QR encodes
   the same link.
 - **Nothing that is not built.** A clip shows a screen as it is, including the
-  screens that have not been redesigned yet — which is why Cuentas por pagar
-  and the bitácora are not in the set: they still wear the old chrome, and
-  filming them next to the redesigned modules would advertise two products.
+  screens that have not been redesigned yet — which is why the bitácora is not
+  in the clip set: it still wears the old chrome, and filming it next to the
+  redesigned modules would advertise two products. (Cuentas por pagar was in
+  the same sentence until it was redesigned in #154; it is fit to film now.)
+- **The stills set has no such filter.** The manual has to show everything the
+  product does, old chrome included, because a seller who cannot name a module
+  cannot sell it.
