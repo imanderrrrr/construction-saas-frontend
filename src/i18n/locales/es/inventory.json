@@ -38,6 +38,7 @@
   "tools.history.worker": "Trabajador",
   "tools.history.project": "Proyecto",
   "tools.history.notes": "Notas",
+  "tools.history.dateAtTime": "{{date}} a las {{time}}",
   "tools.history.noHistory": "No hay historial disponible",
   "tools.history.filters": "Filtros",
   "tools.history.allTools": "Todas las Herramientas",

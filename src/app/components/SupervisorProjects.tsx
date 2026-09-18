@@ -2,6 +2,8 @@
 // Connected to GET /api/v1/supervisor/dashboard/projects
 
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { FolderKanban, Users, Clock } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { getSupervisorProjects, type SupervisorProjectDetail } from '../services/time';
@@ -20,29 +22,31 @@ function initials(name: string | null): string {
   return name.slice(0, 2).toUpperCase();
 }
 
-function relativeTime(iso: string | null): string {
-  if (!iso) return 'No activity';
+function relativeTime(iso: string | null, t: TFunction): string {
+  if (!iso) return t('projects.noActivity');
   const diffMs = Date.now() - new Date(iso).getTime();
   const diffMin = Math.max(0, Math.floor(diffMs / 60_000));
-  if (diffMin < 1) return 'just now';
-  if (diffMin < 60) return `${diffMin} min ago`;
+  if (diffMin < 1) return t('dash.justNow');
+  if (diffMin < 60) return t('dash.minAgo', { count: diffMin });
   const hrs = Math.floor(diffMin / 60);
-  if (hrs < 24) return `${hrs}h ago`;
+  if (hrs < 24) return t('dash.hrsAgo', { hrs });
   const days = Math.floor(hrs / 24);
-  return `${days} day${days > 1 ? 's' : ''} ago`;
+  return t('projects.daysAgo', { count: days });
 }
 
 // Sub-components
 
 function StatusBadge({ status }: { status: string }) {
-  if (status === 'ACTIVE')   return <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-emerald-50 text-emerald-700">Active</span>;
-  if (status === 'CLOSED')   return <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-slate-100 text-slate-600">Closed</span>;
-  return <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-amber-50 text-amber-700">Inactive</span>;
+  const { t } = useTranslation('supervisor');
+  if (status === 'ACTIVE')   return <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-emerald-50 text-emerald-700">{t('dash.statusActive')}</span>;
+  if (status === 'CLOSED')   return <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-slate-100 text-slate-600">{t('dash.statusClosed')}</span>;
+  return <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-amber-50 text-amber-700">{t('dash.statusInactive')}</span>;
 }
 
 // Project Card
 
 function ProjectCard({ project }: { project: SupervisorProjectDetail }) {
+  const { t } = useTranslation('supervisor');
   const isCompleted = project.status === 'CLOSED';
   const maxVisible = 5;
   const visible = project.assignedUsers.slice(0, maxVisible);
@@ -64,12 +68,12 @@ function ProjectCard({ project }: { project: SupervisorProjectDetail }) {
         <div className="bg-[#FAFAFA] rounded-lg p-2.5 sm:p-3 overflow-hidden">
           <div className="flex items-center gap-1">
             <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#71717A] flex-shrink-0" />
-            <span className="text-[10px] sm:text-[11px] text-[#71717A] font-medium uppercase tracking-wider truncate">Hours this week</span>
+            <span className="text-[10px] sm:text-[11px] text-[#71717A] font-medium uppercase tracking-wider truncate">{t('projects.hoursThisWeek')}</span>
           </div>
-          <p className="text-sm font-semibold text-[#0A0A0A] mt-1">{project.hoursThisWeek} hrs</p>
+          <p className="text-sm font-semibold text-[#0A0A0A] mt-1">{t('projects.hrs', { count: project.hoursThisWeek })}</p>
           <p className="text-[10px] sm:text-[11px] text-[#71717A] mt-0.5 truncate">
-            {project.approvedRecordsThisWeek} approved
-            {project.pendingRecordsThisWeek > 0 && <span className="text-amber-600"> · {project.pendingRecordsThisWeek} pending</span>}
+            {t('projects.approved', { count: project.approvedRecordsThisWeek })}
+            {project.pendingRecordsThisWeek > 0 && <span className="text-amber-600"> · {t('projects.pending', { count: project.pendingRecordsThisWeek })}</span>}
           </p>
         </div>
 
@@ -77,10 +81,10 @@ function ProjectCard({ project }: { project: SupervisorProjectDetail }) {
         <div className="bg-[#FAFAFA] rounded-lg p-2.5 sm:p-3 overflow-hidden">
           <div className="flex items-center gap-1">
             <Users className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#71717A] flex-shrink-0" />
-            <span className="text-[10px] sm:text-[11px] text-[#71717A] font-medium uppercase tracking-wider truncate">Team</span>
+            <span className="text-[10px] sm:text-[11px] text-[#71717A] font-medium uppercase tracking-wider truncate">{t('projects.team')}</span>
           </div>
-          <p className="text-sm font-semibold text-[#0A0A0A] mt-1">{project.teamTotal} members</p>
-          <p className="text-[10px] sm:text-[11px] text-[#71717A] mt-0.5 truncate">{project.teamActiveToday} active today</p>
+          <p className="text-sm font-semibold text-[#0A0A0A] mt-1">{t('dash.members', { count: project.teamTotal })}</p>
+          <p className="text-[10px] sm:text-[11px] text-[#71717A] mt-0.5 truncate">{t('projects.activeToday', { count: project.teamActiveToday })}</p>
         </div>
       </div>
 
@@ -102,7 +106,7 @@ function ProjectCard({ project }: { project: SupervisorProjectDetail }) {
             </div>
           )}
         </div>
-        <span className="text-[10px] sm:text-xs text-[#71717A] truncate">Last activity: {relativeTime(project.lastActivityAt)}</span>
+        <span className="text-[10px] sm:text-xs text-[#71717A] truncate">{t('projects.lastActivity', { time: relativeTime(project.lastActivityAt, t) })}</span>
       </div>
     </div>
   );
@@ -133,6 +137,7 @@ function SkeletonCard() {
 // Main component
 
 export function SupervisorProjects() {
+  const { t } = useTranslation(['supervisor', 'common']);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [projects, setProjects] = useState<SupervisorProjectDetail[]>([]);
   const [loading, setLoading] = useState(true);
@@ -153,22 +158,22 @@ export function SupervisorProjects() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-lg font-semibold text-[#0A0A0A]">My Projects</h2>
-          <p className="text-sm text-[#71717A]">Projects assigned to your supervision</p>
+          <h2 className="text-lg font-semibold text-[#0A0A0A]">{t('projects.title')}</h2>
+          <p className="text-sm text-[#71717A]">{t('projects.subtitle')}</p>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs bg-[#F97316]/10 text-[#F97316] px-2.5 py-1 rounded-full font-medium">
-            {projects.length} projects
+            {t('projects.count', { count: projects.length })}
           </span>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="h-9 border-[#D4D4D8] text-sm w-[140px]">
-              <SelectValue placeholder="All" />
+              <SelectValue placeholder={t('common:labels.all')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="closed">Closed</SelectItem>
-              <SelectItem value="inactive">Inactive</SelectItem>
+              <SelectItem value="all">{t('common:labels.all')}</SelectItem>
+              <SelectItem value="active">{t('dash.statusActive')}</SelectItem>
+              <SelectItem value="closed">{t('dash.statusClosed')}</SelectItem>
+              <SelectItem value="inactive">{t('dash.statusInactive')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -188,8 +193,8 @@ export function SupervisorProjects() {
       ) : (
         <div className="text-center py-16">
           <FolderKanban className="w-16 h-16 text-[#D4D4D8] mx-auto mb-4" />
-          <p className="text-base font-medium text-[#71717A]">No projects found</p>
-          <p className="text-sm text-[#D4D4D8] mt-1">Try changing the filter or contact your administrator.</p>
+          <p className="text-base font-medium text-[#71717A]">{t('projects.empty.title')}</p>
+          <p className="text-sm text-[#D4D4D8] mt-1">{t('projects.empty.desc')}</p>
         </div>
       )}
     </div>

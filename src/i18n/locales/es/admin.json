@@ -2843,6 +2843,8 @@
   "apr.st.APPROVED": "Aprobada",
   "apr.st.OBSERVED": "Observada",
   "apr.st.REJECTED": "Rechazada",
+  "apr.st.AUTO_REJECTED": "Auto-rechazada",
+  "apr.st.PARTIAL": "En revisión",
   "apr.selectClean_one": "Seleccionar {{count}} limpia",
   "apr.selectClean_other": "Seleccionar {{count}} limpias",
   "apr.shortcuts": "Atajos",

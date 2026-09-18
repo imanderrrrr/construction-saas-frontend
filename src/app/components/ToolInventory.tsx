@@ -80,12 +80,12 @@ function mapToolResponse(t: ToolResponse): Tool {
 
 // Helpers
 
-function fmtDate(iso: string): string {
-  return new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+function fmtDate(iso: string, locale: string): string {
+  return new Date(`${iso}T00:00:00`).toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function fmtDateShort(iso: string): string {
-  return new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+function fmtDateShort(iso: string, locale: string): string {
+  return new Date(`${iso}T00:00:00`).toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 }
 
 function getValidTransitions(status: ToolStatus): ToolStatus[] {
@@ -361,7 +361,7 @@ function ChangeStatusModal({ open, tool, onClose, onSave }: {
 function ToolHistoryModal({ open, tool, onClose }: {
   open: boolean; tool: Tool | null; onClose: () => void;
 }) {
-  const { t } = useTranslation('inventory');
+  const { t, i18n } = useTranslation('inventory');
   if (!tool) return null;
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
@@ -376,7 +376,7 @@ function ToolHistoryModal({ open, tool, onClose }: {
             <div key={entry.id} className="bg-[#FAFAFA] rounded-xl border border-[#D4D4D8] p-3 space-y-1.5">
               <div className="flex items-center gap-2 flex-wrap">
                 <HistActionBadge action={entry.action} />
-                <span className="text-[11px] text-[#71717A]">{fmtDate(entry.date)} at {entry.time}</span>
+                <span className="text-[11px] text-[#71717A]">{t('tools.history.dateAtTime', { date: fmtDate(entry.date, i18n.language), time: entry.time })}</span>
               </div>
               {entry.worker && (
                 <div className="flex items-center gap-1.5 text-xs">
@@ -406,7 +406,7 @@ interface ToolInventoryProps {
 }
 
 export function ToolInventory({ onNavigate }: ToolInventoryProps) {
-  const { t } = useTranslation('inventory');
+  const { t, i18n } = useTranslation('inventory');
   // Tool state
   const [tools, setTools] = useState<Tool[]>([]);
   const [loading, setLoading] = useState(true);
@@ -554,7 +554,7 @@ export function ToolInventory({ onNavigate }: ToolInventoryProps) {
         <div className="flex items-center gap-2 px-6 py-4 border-b border-[#D4D4D8]">
           <Wrench className="w-4 h-4 text-[#71717A]" />
           <span className="text-sm font-semibold text-[#0A0A0A]">{t('tools.kpi.totalTools')}</span>
-          <span className="text-xs text-[#71717A] ml-1">· {tools.length} of {totalElements} tools</span>
+          <span className="text-xs text-[#71717A] ml-1">· {t('tools.table.showing', { current: tools.length, total: totalElements })}</span>
         </div>
 
         {/* Desktop table */}
@@ -590,7 +590,7 @@ export function ToolInventory({ onNavigate }: ToolInventoryProps) {
                     <TableCell className="py-3 text-sm text-[#71717A]">{tool.category}</TableCell>
                     <TableCell className="py-3"><StatusBadge status={tool.status} /></TableCell>
                     <TableCell className="py-3 text-sm text-[#71717A]">{tool.assignedTo ?? '—'}</TableCell>
-                    <TableCell className="py-3 text-sm text-[#71717A] whitespace-nowrap">{fmtDateShort(tool.lastActivity)}</TableCell>
+                    <TableCell className="py-3 text-sm text-[#71717A] whitespace-nowrap">{fmtDateShort(tool.lastActivity, i18n.language)}</TableCell>
                     <TableCell className="py-3">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -639,7 +639,7 @@ export function ToolInventory({ onNavigate }: ToolInventoryProps) {
                               [t('tools.table.category'),        tool.category],
                               [t('tools.table.status'),          <StatusBadge key="s" status={tool.status} />],
                               [t('tools.table.assignedTo'),     tool.assignedTo ?? '—'],
-                              [t('labels.date', { ns: 'common' }), fmtDate(tool.dateRegistered)],
+                              [t('labels.date', { ns: 'common' }), fmtDate(tool.dateRegistered, i18n.language)],
                               [t('labels.notes', { ns: 'common' }),           tool.notes || '—'],
                             ].map(([label, value]) => (
                               <div key={String(label)}>
@@ -660,7 +660,7 @@ export function ToolInventory({ onNavigate }: ToolInventoryProps) {
                             {tool.history.slice(0, 3).map((h, idx) => (
                               <div key={h.id} className={`flex items-start gap-2 py-2 ${idx < Math.min(tool.history.length, 3) - 1 ? 'border-b border-[#D4D4D8]/40' : ''}`}>
                                 <HistActionBadge action={h.action} />
-                                <span className="text-[11px] text-[#71717A] flex-shrink-0">{fmtDateShort(h.date)} {h.time}</span>
+                                <span className="text-[11px] text-[#71717A] flex-shrink-0">{fmtDateShort(h.date, i18n.language)} {h.time}</span>
                                 {h.worker && <span className="text-[11px] text-[#0A0A0A] font-medium flex-shrink-0">· {h.worker}</span>}
                                 {h.notes && <span className="text-[11px] text-[#71717A] italic truncate min-w-0">— {h.notes}</span>}
                               </div>
@@ -728,7 +728,7 @@ export function ToolInventory({ onNavigate }: ToolInventoryProps) {
                     {tool.history.slice(0, 3).map(h => (
                       <div key={h.id} className="flex items-center gap-1.5 text-[11px]">
                         <HistActionBadge action={h.action} />
-                        <span className="text-[#71717A]">{fmtDateShort(h.date)}</span>
+                        <span className="text-[#71717A]">{fmtDateShort(h.date, i18n.language)}</span>
                         {h.notes && <span className="text-[#71717A] italic truncate">— {h.notes}</span>}
                       </div>
                     ))}

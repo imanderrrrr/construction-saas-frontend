@@ -2843,6 +2843,8 @@
   "apr.st.APPROVED": "Approved",
   "apr.st.OBSERVED": "Flagged",
   "apr.st.REJECTED": "Rejected",
+  "apr.st.AUTO_REJECTED": "Auto-rejected",
+  "apr.st.PARTIAL": "In review",
   "apr.selectClean_one": "Select {{count}} clean",
   "apr.selectClean_other": "Select {{count}} clean",
   "apr.shortcuts": "Shortcuts",
