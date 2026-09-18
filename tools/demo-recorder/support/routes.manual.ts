@@ -27,6 +27,22 @@ const daysBefore = (days: number): string => {
   return d.toISOString().slice(0, 10);
 };
 
+// A tool status goes over the wire spelled two different ways, and the fixture
+// has to keep them apart. `/warehouse/tools` and the tool reports send the
+// enum's display name (`ToolStatus.displayName`), which is what the inventory
+// table keys its badge on — sending `ASSIGNED` there left the ESTADO column
+// blank in every row. `/warehouse/assignments` sends the enum's own name
+// (`toAssignmentResponse` uses `status.name`), which is what ToolAssignment
+// compares against when it looks for `PENDING_ACCEPTANCE`.
+const TOOL_STATUS = {
+  AVAILABLE: 'Available', ASSIGNED: 'Assigned', PENDING_ACCEPTANCE: 'Pending Acceptance',
+  IN_REVIEW: 'In Review', DAMAGED: 'Damaged', LOST: 'Lost',
+} as const;
+type ToolStatusName = keyof typeof TOOL_STATUS;
+const STATUS_NAME: Record<string, string> = Object.fromEntries(
+  Object.entries(TOOL_STATUS).map(([name, display]) => [display, name]),
+);
+
 function json(body: unknown, status = 200) {
   return (route: Route) =>
     route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
@@ -369,10 +385,10 @@ export async function installManualApi(page: Page, lang: Lang = 'es') {
     manual: T('MANUAL', 'HAND'), safety: T('SEGURIDAD', 'SAFETY'),
   };
   const tool = (
-    id: number, code: string, name: string, category: string, status: string,
+    id: number, code: string, name: string, category: string, status: ToolStatusName,
     { worker = null as number | null, projectId = null as number | null, days = 0 } = {},
   ) => ({
-    id, code, name, category, status,
+    id, code, name, category, status: TOOL_STATUS[status],
     assignedTo: worker ? U(worker).fullName : null, assignedToId: worker,
     projectName: projectId ? P(projectId).name : null, projectId,
     // A date, not a phrase: the API sends `lastActivity` as `yyyy-MM-dd` and
@@ -442,7 +458,7 @@ export async function installManualApi(page: Page, lang: Lang = 'es') {
   await page.route(re('warehouse/consumables/dispatches'), json({ content: DISPATCHES, page: 0, size: 50, totalElements: DISPATCHES.length, totalPages: 1 }));
 
   const ASSIGNMENTS = TOOLS.filter(t => t.assignedToId).map((t, i) => ({
-    id: 400 + i, toolCode: t.code, toolName: t.name, category: t.category, status: t.status,
+    id: 400 + i, toolCode: t.code, toolName: t.name, category: t.category, status: STATUS_NAME[t.status],
     worker: t.assignedTo!, workerId: t.assignedToId!, assignedDate: `2026-09-${String(17 - (i + 1) * 2).padStart(2, '0')}`,
     project: t.projectName!, projectId: t.projectId!, daysOut: (i + 1) * 2,
   }));
@@ -477,20 +493,20 @@ export async function installManualApi(page: Page, lang: Lang = 'es') {
   // Tool report.
   await page.route(re('admin/reports/tools/missing'), json({
     content: [
-      { toolId: 110, code: 'HER-0613', name: TOOLS[9].name, category: TOOL_CATS.power, status: 'LOST',
+      { toolId: 110, code: 'HER-0613', name: TOOLS[9].name, category: TOOL_CATS.power, status: TOOL_STATUS.LOST,
         worker: 'Byron Chávez', project: P(2).name, outSince: '2026-08-27', daysOut: 21, unsigned: true },
-      { toolId: 103, code: 'HER-0207', name: TOOLS[2].name, category: TOOL_CATS.meas, status: 'ASSIGNED',
+      { toolId: 103, code: 'HER-0207', name: TOOLS[2].name, category: TOOL_CATS.meas, status: TOOL_STATUS.ASSIGNED,
         worker: 'Julio Castillo', project: P(1).name, outSince: '2026-09-05', daysOut: 12, unsigned: false },
-      { toolId: 108, code: 'HER-0501', name: TOOLS[7].name, category: TOOL_CATS.safety, status: 'ASSIGNED',
+      { toolId: 108, code: 'HER-0501', name: TOOLS[7].name, category: TOOL_CATS.safety, status: TOOL_STATUS.ASSIGNED,
         worker: 'Diego López', project: P(4).name, outSince: '2026-09-08', daysOut: 9, unsigned: true },
     ], page: 0, size: 20, totalElements: 3, totalPages: 1,
   }));
   await page.route(re('admin/reports/tools'), json({
     computedAt: `${NOW}T15:00:00Z`, totalInCompany: TOOLS.length, total: TOOLS.length,
     byStatus: [
-      { status: 'ASSIGNED', count: 5 }, { status: 'AVAILABLE', count: 2 },
-      { status: 'PENDING_ACCEPTANCE', count: 1 }, { status: 'IN_REVIEW', count: 1 },
-      { status: 'DAMAGED', count: 1 }, { status: 'LOST', count: 1 },
+      { status: TOOL_STATUS.ASSIGNED, count: 5 }, { status: TOOL_STATUS.AVAILABLE, count: 2 },
+      { status: TOOL_STATUS.PENDING_ACCEPTANCE, count: 1 }, { status: TOOL_STATUS.IN_REVIEW, count: 1 },
+      { status: TOOL_STATUS.DAMAGED, count: 1 }, { status: TOOL_STATUS.LOST, count: 1 },
     ],
     byCategory: [
       { category: TOOL_CATS.power, count: 5, out: 3 },
