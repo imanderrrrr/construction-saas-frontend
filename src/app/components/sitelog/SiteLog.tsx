@@ -373,7 +373,13 @@ export function SiteLog({ projects, canEdit }: SiteLogProps) {
   const presentCount = draft.attendance.filter((a) => a.present).length;
   const doneCount = draft.tasksDone.filter((tk) => tk.done).length;
   const photoCount = log?.photos.length ?? 0;
-  const WeatherIcon = draft.weather ? WEATHER_ICON[draft.weather] : Cloud;
+  // WEATHER_ICON only holds the five values the enum declares today. Anything
+  // else the server sends — a value the enum grows later, a row written before
+  // it was narrowed — indexes to `undefined`, and React throws "Element type is
+  // invalid" the moment `undefined` is used as a component: the whole app blanks
+  // out behind the error screen, not just this card. Fall back to the neutral
+  // cloud instead.
+  const WeatherIcon = (draft.weather ? WEATHER_ICON[draft.weather] : undefined) ?? Cloud;
 
   // ──────────────────────────── render ────────────────────────────
 
@@ -420,7 +426,7 @@ export function SiteLog({ projects, canEdit }: SiteLogProps) {
             <StatCard
               icon={WeatherIcon}
               label={t('siteLog:stat.weather')}
-              value={draft.weather ? t(`siteLog:weather.${draft.weather}`) : t('siteLog:weather.none')}
+              value={draft.weather ? t(`siteLog:weather.${draft.weather}`, { defaultValue: draft.weather }) : t('siteLog:weather.none')}
               subtitle={draft.temperatureC ? t('siteLog:stat.weather.subtitle', { temp: draft.temperatureC }) : t('siteLog:stat.weather.noTemp')}
             />
             <StatCard
@@ -768,7 +774,7 @@ function Header({
                 status === 'PUBLISHED' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200',
               )}>
                 <span className={cn('w-1.5 h-1.5 rounded-full', status === 'PUBLISHED' ? 'bg-emerald-500' : 'bg-amber-500')} />
-                {t(`siteLog:status.${status}`)}
+                {t(`siteLog:status.${status}`, { defaultValue: status })}
               </span>
             )}
             {dirty && <span className="text-[10px] text-[#71717A]">· {t('siteLog:header.unsaved')}</span>}
@@ -938,7 +944,7 @@ function HistoryView({ t, loading, items, onBack, onOpen }: { t: TFn; loading: b
                   'inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border',
                   item.status === 'PUBLISHED' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200',
                 )}>
-                  {t(`siteLog:status.${item.status}`)}
+                  {t(`siteLog:status.${item.status}`, { defaultValue: item.status })}
                 </span>
               </div>
               <div className="hidden sm:flex items-center gap-3 text-xs text-[#71717A]">

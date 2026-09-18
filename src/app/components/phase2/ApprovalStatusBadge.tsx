@@ -15,7 +15,12 @@ interface ApprovalStatusBadgeProps {
 }
 
 export function ApprovalStatusBadge({ status, size = 'md' }: ApprovalStatusBadgeProps) {
-  const s = STYLES[status];
+  // A status the backend adds later must not take the screen down with it:
+  // reading `.bg` off an unmapped status throws, and this badge sits inside the
+  // approval tables. Unknown reads as neutral, labelled with the raw value.
+  const s = STYLES[status] ?? {
+    bg: 'bg-[#FAFAFA]', text: 'text-[#71717A]', border: 'border-[#D4D4D8]', dot: 'bg-[#D4D4D8]', label: status,
+  };
   const px = size === 'sm' ? 'px-2 py-0.5' : 'px-2.5 py-1';
   const text = size === 'sm' ? 'text-[10px]' : 'text-xs';
   return (
