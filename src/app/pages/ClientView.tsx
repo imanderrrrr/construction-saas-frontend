@@ -327,7 +327,9 @@ export function ClientView() {
         )}
 
         {entries.map((entry) => {
-          const WeatherIcon = entry.weather ? WEATHER_ICONS[entry.weather] : null;
+          // Same guard as SiteLog's: a weather value outside the enum must not
+          // reach React as `undefined`. Here it would also hide the label with it.
+          const WeatherIcon = entry.weather ? (WEATHER_ICONS[entry.weather] ?? Cloudy) : null;
           return (
             <article key={entry.workDate} className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden">
               <header className="px-4 sm:px-6 py-3 border-b border-[#F4F4F5] bg-[#FAFAFA]/60 flex flex-wrap items-center justify-between gap-2">
@@ -339,7 +341,7 @@ export function ClientView() {
                     {WeatherIcon && entry.weather && (
                       <span className="inline-flex items-center gap-1">
                         <WeatherIcon className="w-3.5 h-3.5 text-[#F97316]" />
-                        {t(`weather.${entry.weather}`)}
+                        {t(`weather.${entry.weather}`, { defaultValue: entry.weather })}
                       </span>
                     )}
                     {entry.temperatureC != null && <span>{t('entry.temperature', { value: entry.temperatureC })}</span>}
