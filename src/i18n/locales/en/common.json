@@ -127,5 +127,7 @@
   "timezone.select": "System timezone",
   "budgetWarning.title": "Pending labour payments",
   "budgetWarning.desc": "Remaining budget",
-  "budgetWarning.insufficient": "cannot cover projected payroll"
+  "budgetWarning.insufficient": "cannot cover projected payroll",
+  "closedProject.title": "Project closed",
+  "closedProject.desc": "This project is closed. No new records or modifications are allowed."
 }

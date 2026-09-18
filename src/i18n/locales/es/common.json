@@ -127,5 +127,7 @@
   "timezone.select": "Zona horaria del sistema",
   "budgetWarning.title": "Pagos de nómina pendientes",
   "budgetWarning.desc": "Presupuesto restante",
-  "budgetWarning.insufficient": "no cubre la nómina proyectada"
+  "budgetWarning.insufficient": "no cubre la nómina proyectada",
+  "closedProject.title": "Proyecto cerrado",
+  "closedProject.desc": "Este proyecto está cerrado. No se permiten nuevos registros ni modificaciones."
 }

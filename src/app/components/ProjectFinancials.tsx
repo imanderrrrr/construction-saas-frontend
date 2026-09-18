@@ -207,7 +207,7 @@ export function ProjectFinancials() {
             <StatCard icon={DollarSign}     title={t('finance:projectFinancials.kpi.totalBudget')}    value={fmtAmount(totals.totalRevenue)} subtitle={t('finance:projectFinancials.kpi.acrossAllProjects')}  iconBgColor="bg-purple-50"  iconColor="text-purple-600" />
             <StatCard icon={TrendingDown}   title={t('finance:projectFinancials.kpi.totalCosts')}     value={fmtAmount(totals.totalCost)}    subtitle={t('finance:projectFinancials.kpi.approvedExpenses')}     iconBgColor="bg-amber-50"   iconColor="text-amber-600" />
             <StatCard icon={TrendingUp}     title={t('finance:projectFinancials.kpi.remaining')}       value={`${totals.margin.toFixed(1)}%`} subtitle={t('finance:projectFinancials.kpi.budgetRemaining')}      iconBgColor="bg-emerald-50" iconColor="text-emerald-600" />
-            <StatCard icon={AlertTriangle}  title={t('finance:projectFinancials.kpi.overBudget')}     value={`${totals.overBudgetCount} project${totals.overBudgetCount !== 1 ? 's' : ''}`} subtitle={t('finance:projectFinancials.kpi.needsAttention')} iconBgColor="bg-red-50" iconColor="text-red-600" />
+            <StatCard icon={AlertTriangle}  title={t('finance:projectFinancials.kpi.overBudget')}     value={t('finance:projectFinancials.kpi.overBudgetCount', { count: totals.overBudgetCount })} subtitle={t('finance:projectFinancials.kpi.needsAttention')} iconBgColor="bg-red-50" iconColor="text-red-600" />
           </div>
 
           {/* Comparison table */}

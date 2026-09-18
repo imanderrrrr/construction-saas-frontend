@@ -492,6 +492,8 @@
   "projectFinancials.kpi.approvedExpenses": "Gastos aprobados",
   "projectFinancials.kpi.budgetRemaining": "Presupuesto restante",
   "projectFinancials.kpi.needsAttention": "Requiere atención",
+  "projectFinancials.kpi.overBudgetCount_one": "{{count}} proyecto",
+  "projectFinancials.kpi.overBudgetCount_other": "{{count}} proyectos",
   "projectFinancials.projectsComparison": "Comparación de Proyectos",
   "projectFinancials.table.project": "Proyecto",
   "projectFinancials.table.budget": "Presupuesto",
