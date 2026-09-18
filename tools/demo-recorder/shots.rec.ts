@@ -44,8 +44,27 @@ type Panel = {
 
 const L = (es: string, en: string) => ({ es, en });
 
+/**
+ * Close anything modal that opened by itself before clicking the sidebar.
+ *
+ * A screen that finds nothing for today can greet the panel with a dialog —
+ * the worker's clock does exactly that — and its overlay covers the nav. The
+ * click then lands on the overlay, the section never changes, and the run
+ * photographs the previous screen under the next section's title.
+ */
+async function dismissOverlays(page: Page) {
+  for (let i = 0; i < 3; i++) {
+    const open = await page.locator('[role="dialog"], [role="alertdialog"]').first()
+      .isVisible().catch(() => false);
+    if (!open) return;
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(400);
+  }
+}
+
 /** Click a sidebar entry by the label the panel prints on it. */
 async function navByLabel(page: Page, label: string) {
+  await dismissOverlays(page);
   const nav = page.locator('aside').first();
   const byTitle = nav.locator(`button[title="${label}"]`);
   const target = (await byTitle.count())
@@ -56,6 +75,7 @@ async function navByLabel(page: Page, label: string) {
 
 async function settle(page: Page, ready?: string) {
   if (ready) await page.waitForSelector(ready, { timeout: 12_000 }).catch(() => {});
+  await dismissOverlays(page);
   // Give the section's own fetches, skeletons and count-ups time to land.
   await page.waitForTimeout(2600);
   await hideCursor(page);

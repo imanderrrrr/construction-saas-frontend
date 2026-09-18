@@ -12,11 +12,18 @@ import type { Lang } from './routes';
 // clips: a seller who walks the panel module by module has to see one
 // business, not eleven unrelated demos.
 //
-// Dates sit around the capture date rather than data.ts' TODAY, because these
-// screens print relative ages ("hace 3 días", "12 días fuera") and a fixture a
-// week in the past reads as a system nobody has touched.
-
-const NOW = '2026-09-17';
+// Dates follow the REAL clock, not a pinned day. Two reasons, and the second
+// is the one that bites: these screens print relative ages ("hace 3 días",
+// "12 días fuera"), and the worker's panel decides whether the day has even
+// started by looking for a record dated TODAY. Pinned to a past date, the
+// first run after midnight photographed an empty clock behind a confirmation
+// dialog, whose overlay swallowed the next nav click and took three panels
+// down with it.
+//
+// `en-CA` is not a display locale here — it is the shortest way to ask for the
+// machine's LOCAL date as yyyy-MM-dd. The UTC date would roll over at 18:00 in
+// Guatemala and hand the panel tomorrow.
+const NOW = new Date().toLocaleDateString('en-CA');
 
 // Ages a fixture row back from NOW. The arithmetic has to go through a real
 // date: splicing it into the string — `2026-09-${17 - days}` — quietly writes
@@ -26,6 +33,9 @@ const daysBefore = (days: number): string => {
   d.setUTCDate(d.getUTCDate() - days);
   return d.toISOString().slice(0, 10);
 };
+
+/** The same, forward: due dates that have to stay ahead of the capture. */
+const daysAfter = (days: number): string => daysBefore(-days);
 
 // A tool status goes over the wire spelled two different ways, and the fixture
 // has to keep them apart. `/warehouse/tools` and the tool reports send the
@@ -65,9 +75,9 @@ export async function installManualApi(page: Page, lang: Lang = 'es') {
   // strange on a page a seller shows a client.
   await page.route(re('billing/status'), json({
     billingStatus: 'ACTIVE', planCode: 'PRO', billingInterval: 'MONTHLY',
-    currentPeriodStartsAt: '2026-09-01', currentPeriodEndsAt: '2026-10-01',
+    currentPeriodStartsAt: daysBefore(16), currentPeriodEndsAt: '2026-10-01',
     isTrialing: false, cancelAtPeriodEnd: false, changePlanAllowed: true,
-    lastEventId: 'evt_01k5m2demo', lastEventOccurredAt: '2026-09-01T14:02:00Z',
+    lastEventId: 'evt_01k5m2demo', lastEventOccurredAt: `${daysBefore(16)}T14:02:00Z`,
   }));
 
   // ── Personnel: QR credentials, time records, hours, payroll ──────────────
@@ -121,17 +131,17 @@ export async function installManualApi(page: Page, lang: Lang = 'es') {
   };
 
   const TIME_RECORDS = [
-    record(801, 3, 1, '2026-09-17', { late: true }),
-    record(802, 4, 1, '2026-09-17'),
-    record(803, 5, 2, '2026-09-17', { out: true }),
-    record(804, 6, 1, '2026-09-16'),
-    record(805, 7, 4, '2026-09-16', { status: 'APPROVED', pending: 0 }),
-    record(806, 3, 1, '2026-09-15', { status: 'APPROVED', pending: 0 }),
-    record(807, 8, 2, '2026-09-15', { status: 'APPROVED', pending: 0 }),
-    record(808, 4, 3, '2026-09-14', { status: 'OBSERVED', pending: 1 }),
-    record(809, 2, 1, '2026-09-17'),
-    record(810, 2, 1, '2026-09-16', { status: 'APPROVED', pending: 0 }),
-    record(811, 8, 2, '2026-09-17', { late: true }),
+    record(801, 3, 1, NOW, { late: true }),
+    record(802, 4, 1, NOW),
+    record(803, 5, 2, NOW, { out: true }),
+    record(804, 6, 1, daysBefore(1)),
+    record(805, 7, 4, daysBefore(1), { status: 'APPROVED', pending: 0 }),
+    record(806, 3, 1, daysBefore(2), { status: 'APPROVED', pending: 0 }),
+    record(807, 8, 2, daysBefore(2), { status: 'APPROVED', pending: 0 }),
+    record(808, 4, 3, daysBefore(3), { status: 'OBSERVED', pending: 1 }),
+    record(809, 2, 1, NOW),
+    record(810, 2, 1, daysBefore(1), { status: 'APPROVED', pending: 0 }),
+    record(811, 8, 2, NOW, { late: true }),
   ];
 
   await page.route(re('time-records'), route => {
@@ -161,7 +171,7 @@ export async function installManualApi(page: Page, lang: Lang = 'es') {
       relatedEntityType: 'TIME_RECORD', relatedEntityId: 803, isRead: false, createdAt: `${NOW}T13:58:00Z`, readAt: null },
     { id: 3, type: 'PUNCH_ITEM_READY', title: T('Pendiente listo para revisión', 'Punch item ready for review'),
       message: T('#003 Filtración en ventana de sala — apartamento 402.', '#003 Leak at the living-room window — unit 402.'),
-      relatedEntityType: 'PUNCH_ITEM', relatedEntityId: 501, isRead: true, createdAt: '2026-09-11T21:40:00Z', readAt: '2026-09-12T13:05:00Z' },
+      relatedEntityType: 'PUNCH_ITEM', relatedEntityId: 501, isRead: true, createdAt: `${daysBefore(6)}T21:40:00Z`, readAt: `${daysBefore(5)}T13:05:00Z` },
   ];
   await page.route(re('supervisor/notifications/unread-count'), json({ count: 2 }));
   await page.route(re('supervisor/notifications'), json({ content: NOTIFS, page: 0, size: 30, totalElements: NOTIFS.length, totalPages: 1 }));
@@ -182,7 +192,7 @@ export async function installManualApi(page: Page, lang: Lang = 'es') {
       daysWorked: days, totalDays: 12, totalApprovedHours: hours,
       avgHoursPerDay: Math.round((hours / days) * 10) / 10,
       lateDays: late, absences: 12 - days,
-      dailyEntries: ['2026-09-15', '2026-09-16', '2026-09-17'].map(d => dayEntry(d, 8.5)),
+      dailyEntries: [daysBefore(2), daysBefore(1), NOW].map(d => dayEntry(d, 8.5)),
       projectedCost: Math.round(hours * (u.hourlyRate ?? 0) * 100) / 100,
       lastPaymentDate: paid ?? null,
       lastPaymentAmountCents: paid ? Math.round(hours * (u.hourlyRate ?? 0) * 100) : null,
@@ -191,12 +201,12 @@ export async function installManualApi(page: Page, lang: Lang = 'es') {
     };
   };
   const HOURS = [
-    workerHours(3, 88.5, 11, 2, '2026-09-05'),
+    workerHours(3, 88.5, 11, 2, daysBefore(12)),
     workerHours(4, 84.0, 11, 0),
-    workerHours(5, 79.5, 10, 1, '2026-09-05'),
+    workerHours(5, 79.5, 10, 1, daysBefore(12)),
     workerHours(6, 92.0, 12, 0),
     workerHours(7, 76.0, 10, 1),
-    workerHours(2, 90.0, 12, 0, '2026-09-05'),
+    workerHours(2, 90.0, 12, 0, daysBefore(12)),
     workerHours(8, 86.5, 11, 0),
   ];
   await page.route(re('admin/hours-report'), route => {
@@ -216,10 +226,10 @@ export async function installManualApi(page: Page, lang: Lang = 'es') {
     })(route);
   });
   await page.route(re('admin/payroll/history'), json(pageOf([
-    { id: 1, workerId: 3, workerName: 'Manuel Ramírez', paidAt: '2026-09-05T21:00:00Z',
+    { id: 1, workerId: 3, workerName: 'Manuel Ramírez', paidAt: `${daysBefore(12)}T21:00:00Z`,
       periodFrom: '2026-08-16', periodTo: '2026-08-31', hours: 92.5, amountCents: 485_63,
       method: 'CHECK', reference: 'CHQ-2841', confirmedBy: 'analucia' },
-    { id: 2, workerId: 5, workerName: 'Byron Chávez', paidAt: '2026-09-05T21:00:00Z',
+    { id: 2, workerId: 5, workerName: 'Byron Chávez', paidAt: `${daysBefore(12)}T21:00:00Z`,
       periodFrom: '2026-08-16', periodTo: '2026-08-31', hours: 88.0, amountCents: 418_00,
       method: 'CHECK', reference: 'CHQ-2842', confirmedBy: 'analucia' },
   ], 10)));
@@ -228,28 +238,28 @@ export async function installManualApi(page: Page, lang: Lang = 'es') {
 
   const task = (
     id: number, projectId: number, title: string, status: string,
-    { priority = 'MEDIUM', assignee = 3, due = '2026-09-19', comments = 0, photos = 0 } = {},
+    { priority = 'MEDIUM', assignee = 3, due = daysAfter(2), comments = 0, photos = 0 } = {},
   ) => {
     const u = U(assignee);
     return {
       id, projectId, projectName: P(projectId).name, title, description: null,
       status, priority, assignedToId: u.id, assignedToName: u.fullName,
-      startDate: '2026-09-15', dueDate: due, sortOrder: id,
+      startDate: daysBefore(2), dueDate: due, sortOrder: id,
       createdById: 2, createdByName: 'Julio Castillo',
-      createdAt: '2026-09-14T15:00:00Z', updatedAt: '2026-09-17T14:20:00Z',
-      stepSince: '2026-09-16T15:00:00Z',
+      createdAt: `${daysBefore(3)}T15:00:00Z`, updatedAt: `${NOW}T14:20:00Z`,
+      stepSince: `${daysBefore(1)}T15:00:00Z`,
       commentCount: comments, photoCount: photos, documentCount: 0, historyCount: 3,
     };
   };
   const TASKS = [
     task(901, 1, T('Fundición de losa — nivel 6, torre A', 'Slab pour — level 6, tower A'), 'IN_PROGRESS', { priority: 'HIGH', assignee: 3, comments: 2, photos: 4 }),
-    task(902, 1, T('Armado de columnas eje 4-7', 'Column rebar, gridlines 4-7'), 'TODO', { assignee: 4, due: '2026-09-22' }),
-    task(903, 1, T('Instalación de ventanería torre B', 'Window install, tower B'), 'TODO', { priority: 'URGENT', assignee: 6, due: '2026-09-18' }),
+    task(902, 1, T('Armado de columnas eje 4-7', 'Column rebar, gridlines 4-7'), 'TODO', { assignee: 4, due: daysAfter(5) }),
+    task(903, 1, T('Instalación de ventanería torre B', 'Window install, tower B'), 'TODO', { priority: 'URGENT', assignee: 6, due: daysAfter(1) }),
     task(904, 2, T('Canalización eléctrica nivel 3', 'Electrical conduit, level 3'), 'REVIEW', { assignee: 5, comments: 1, photos: 2 }),
-    task(905, 2, T('Prueba hidrostática de cisterna', 'Cistern hydrostatic test'), 'DONE', { assignee: 8, due: '2026-09-15' }),
+    task(905, 2, T('Prueba hidrostática de cisterna', 'Cistern hydrostatic test'), 'DONE', { assignee: 8, due: daysBefore(2) }),
     task(906, 3, T('Montaje de cubierta metálica — tramo 2', 'Metal roof assembly — bay 2'), 'IN_PROGRESS', { priority: 'HIGH', assignee: 4, photos: 3 }),
-    task(907, 4, T('Restauración de artesonado — salón principal', 'Coffered ceiling restoration — main hall'), 'IN_PROGRESS', { assignee: 7, due: '2026-09-25', comments: 3 }),
-    task(908, 6, T('Replanteo de aulas y trazo de cimentación', 'Classroom layout and foundation staking'), 'TODO', { assignee: 6, due: '2026-09-20' }),
+    task(907, 4, T('Restauración de artesonado — salón principal', 'Coffered ceiling restoration — main hall'), 'IN_PROGRESS', { assignee: 7, due: daysAfter(8), comments: 3 }),
+    task(908, 6, T('Replanteo de aulas y trazo de cimentación', 'Classroom layout and foundation staking'), 'TODO', { assignee: 6, due: daysAfter(3) }),
   ];
   const taskPage = (list: unknown[]) => ({ content: list, page: 0, size: 50, totalElements: list.length, totalPages: 1 });
   const taskFilter = (url: string) => {
@@ -299,8 +309,8 @@ export async function installManualApi(page: Page, lang: Lang = 'es') {
     if (qp(url, 'date')) return json(SITE_LOG)(route);
     return json(pageOf([
       { id: 701, workDate: NOW, status: 'PUBLISHED', weather: 'NUBLADO', attendanceCount: 5, tasksDoneCount: 2, photoCount: 0 },
-      { id: 700, workDate: '2026-09-16', status: 'PUBLISHED', weather: 'LLUVIA', attendanceCount: 5, tasksDoneCount: 3, photoCount: 2 },
-      { id: 699, workDate: '2026-09-15', status: 'PUBLISHED', weather: 'SOLEADO', attendanceCount: 6, tasksDoneCount: 2, photoCount: 1 },
+      { id: 700, workDate: daysBefore(1), status: 'PUBLISHED', weather: 'LLUVIA', attendanceCount: 5, tasksDoneCount: 3, photoCount: 2 },
+      { id: 699, workDate: daysBefore(2), status: 'PUBLISHED', weather: 'SOLEADO', attendanceCount: 6, tasksDoneCount: 2, photoCount: 1 },
     ], 10))(route);
   });
   await page.route(/\/api\/v1\/site-logs\/\d+(\?.*)?$/, json(SITE_LOG));
@@ -346,15 +356,15 @@ export async function installManualApi(page: Page, lang: Lang = 'es') {
   const SUB_JOBS = [
     { id: 61, subcontractorId: 11, subcontractorName: 'Eléctricos GT', projectId: 2, projectName: P(2).name,
       title: T('Canalización eléctrica niveles 1 a 4', 'Electrical conduit, levels 1 to 4'), description: null,
-      status: 'IN_REVIEW', agreedAmountCents: 46_200_00, dueDate: '2026-09-12',
-      assignedAt: '2026-08-04T15:00:00Z', startedAt: '2026-08-06T14:00:00Z', submittedAt: '2026-09-14T22:10:00Z',
-      approvedAt: null, closedAt: null, createdAt: '2026-08-04T15:00:00Z', updatedAt: '2026-09-14T22:10:00Z',
+      status: 'IN_REVIEW', agreedAmountCents: 46_200_00, dueDate: daysBefore(5),
+      assignedAt: '2026-08-04T15:00:00Z', startedAt: '2026-08-06T14:00:00Z', submittedAt: `${daysBefore(3)}T22:10:00Z`,
+      approvedAt: null, closedAt: null, createdAt: '2026-08-04T15:00:00Z', updatedAt: `${daysBefore(3)}T22:10:00Z`,
       evidenceCount: 6, observationCount: 1, isOverdue: true },
     { id: 62, subcontractorId: 12, subcontractorName: 'Vidrios del Valle', projectId: 1, projectName: P(1).name,
       title: T('Ventanería de vidrio templado 10 mm — torres A y B', 'Tempered glass 10 mm windows — towers A and B'), description: null,
       status: 'IN_PROGRESS', agreedAmountCents: 78_400_00, dueDate: '2026-10-03',
-      assignedAt: '2026-08-28T15:00:00Z', startedAt: '2026-09-02T14:00:00Z', submittedAt: null,
-      approvedAt: null, closedAt: null, createdAt: '2026-08-28T15:00:00Z', updatedAt: '2026-09-16T16:00:00Z',
+      assignedAt: '2026-08-28T15:00:00Z', startedAt: `${daysBefore(15)}T14:00:00Z`, submittedAt: null,
+      approvedAt: null, closedAt: null, createdAt: '2026-08-28T15:00:00Z', updatedAt: `${daysBefore(1)}T16:00:00Z`,
       evidenceCount: 3, observationCount: 0, isOverdue: false },
     { id: 63, subcontractorId: 11, subcontractorName: 'Eléctricos GT', projectId: 4, projectName: P(4).name,
       title: T('Iluminación de fachada y salón principal', 'Facade and main hall lighting'), description: null,
@@ -370,12 +380,12 @@ export async function installManualApi(page: Page, lang: Lang = 'es') {
         subcontractorName: 'Eléctricos GT', amountCents: 46_200_00, invoiceNumber: 'EGT-0442',
         description: null, status: 'IN_REVIEW', hasFile: true, fileContentType: 'application/pdf',
         reviewerId: null, reviewerName: null, reviewerComment: null, reviewedAt: null, paidAt: null,
-        createdAt: '2026-09-14T22:12:00Z' },
+        createdAt: `${daysBefore(3)}T22:12:00Z` },
       { id: 72, jobId: 63, jobTitle: SUB_JOBS[2].title, projectName: P(4).name, subcontractorId: 11,
         subcontractorName: 'Eléctricos GT', amountCents: 38_400_00, invoiceNumber: 'EGT-0431',
         description: null, status: 'PAID', hasFile: true, fileContentType: 'application/pdf',
         reviewerId: 1, reviewerName: 'Ana Lucía Pérez', reviewerComment: null,
-        reviewedAt: '2026-08-30T16:00:00Z', paidAt: '2026-09-02T17:00:00Z', createdAt: '2026-08-27T21:05:00Z' },
+        reviewedAt: '2026-08-30T16:00:00Z', paidAt: `${daysBefore(15)}T17:00:00Z`, createdAt: '2026-08-27T21:05:00Z' },
     ], page: 0, size: 20, totalElements: 2, totalPages: 1,
   }));
 
@@ -433,12 +443,12 @@ export async function installManualApi(page: Page, lang: Lang = 'es') {
   }
 
   const CONSUMABLES = [
-    { id: 201, code: 'INS-0031', name: T('Cemento UGC 42.5 — saco 42.5 kg', 'General-use cement 42.5 — 42.5 kg bag'), category: T('MATERIALES', 'MATERIALS'), unit: T('saco', 'bag'), currentStock: 184, minimumStock: 120, status: 'IN_STOCK', lastRestocked: '2026-09-15', notes: null },
-    { id: 202, code: 'INS-0044', name: T('Varilla No. 4 legítima — 6 m', 'Grade-60 #4 rebar — 6 m'), category: T('MATERIALES', 'MATERIALS'), unit: T('unidad', 'unit'), currentStock: 96, minimumStock: 150, status: 'LOW_STOCK', lastRestocked: '2026-09-09', notes: null },
+    { id: 201, code: 'INS-0031', name: T('Cemento UGC 42.5 — saco 42.5 kg', 'General-use cement 42.5 — 42.5 kg bag'), category: T('MATERIALES', 'MATERIALS'), unit: T('saco', 'bag'), currentStock: 184, minimumStock: 120, status: 'IN_STOCK', lastRestocked: daysBefore(2), notes: null },
+    { id: 202, code: 'INS-0044', name: T('Varilla No. 4 legítima — 6 m', 'Grade-60 #4 rebar — 6 m'), category: T('MATERIALES', 'MATERIALS'), unit: T('unidad', 'unit'), currentStock: 96, minimumStock: 150, status: 'LOW_STOCK', lastRestocked: daysBefore(8), notes: null },
     { id: 203, code: 'INS-0102', name: T('Alambre de amarre — rollo 25 kg', 'Tie wire — 25 kg coil'), category: T('MATERIALES', 'MATERIALS'), unit: T('rollo', 'coil'), currentStock: 0, minimumStock: 8, status: 'OUT_OF_STOCK', lastRestocked: '2026-08-28', notes: null },
-    { id: 204, code: 'INS-0210', name: T('Guantes de cuero — par', 'Leather gloves — pair'), category: T('SEGURIDAD', 'SAFETY'), unit: T('par', 'pair'), currentStock: 42, minimumStock: 20, status: 'IN_STOCK', lastRestocked: '2026-09-11', notes: null },
-    { id: 205, code: 'INS-0211', name: T('Casco de seguridad', 'Hard hat'), category: T('SEGURIDAD', 'SAFETY'), unit: T('unidad', 'unit'), currentStock: 17, minimumStock: 15, status: 'IN_STOCK', lastRestocked: '2026-09-04', notes: null },
-    { id: 206, code: 'INS-0320', name: T('Disco de corte 7" — metal', '7" cutting disc — metal'), category: T('CONSUMIBLES', 'CONSUMABLES'), unit: T('unidad', 'unit'), currentStock: 11, minimumStock: 25, status: 'LOW_STOCK', lastRestocked: '2026-09-02', notes: null },
+    { id: 204, code: 'INS-0210', name: T('Guantes de cuero — par', 'Leather gloves — pair'), category: T('SEGURIDAD', 'SAFETY'), unit: T('par', 'pair'), currentStock: 42, minimumStock: 20, status: 'IN_STOCK', lastRestocked: daysBefore(6), notes: null },
+    { id: 205, code: 'INS-0211', name: T('Casco de seguridad', 'Hard hat'), category: T('SEGURIDAD', 'SAFETY'), unit: T('unidad', 'unit'), currentStock: 17, minimumStock: 15, status: 'IN_STOCK', lastRestocked: daysBefore(13), notes: null },
+    { id: 206, code: 'INS-0320', name: T('Disco de corte 7" — metal', '7" cutting disc — metal'), category: T('CONSUMIBLES', 'CONSUMABLES'), unit: T('unidad', 'unit'), currentStock: 11, minimumStock: 25, status: 'LOW_STOCK', lastRestocked: daysBefore(15), notes: null },
   ];
   const CONSUMABLE_SUMMARY = { total: 6, inStock: 3, lowStock: 2, outOfStock: 1 };
   // Shapes differ per endpoint and the screens notice: the stock list is a
@@ -451,8 +461,8 @@ export async function installManualApi(page: Page, lang: Lang = 'es') {
 
   const DISPATCHES = [
     { id: 301, consumableCode: 'INS-0031', consumableName: CONSUMABLES[0].name, unit: CONSUMABLES[0].unit, quantity: 60, project: P(1).name, projectId: 1, requestedBy: 'Julio Castillo', requestedById: 2, date: NOW, notes: T('Fundición losa nivel 6', 'Level 6 slab pour') },
-    { id: 302, consumableCode: 'INS-0044', consumableName: CONSUMABLES[1].name, unit: CONSUMABLES[1].unit, quantity: 120, project: P(2).name, projectId: 2, requestedBy: 'Ricardo Tzoc', requestedById: 8, date: '2026-09-16', notes: null },
-    { id: 303, consumableCode: 'INS-0210', consumableName: CONSUMABLES[3].name, unit: CONSUMABLES[3].unit, quantity: 12, project: P(3).name, projectId: 3, requestedBy: 'Julio Castillo', requestedById: 2, date: '2026-09-15', notes: null },
+    { id: 302, consumableCode: 'INS-0044', consumableName: CONSUMABLES[1].name, unit: CONSUMABLES[1].unit, quantity: 120, project: P(2).name, projectId: 2, requestedBy: 'Ricardo Tzoc', requestedById: 8, date: daysBefore(1), notes: null },
+    { id: 303, consumableCode: 'INS-0210', consumableName: CONSUMABLES[3].name, unit: CONSUMABLES[3].unit, quantity: 12, project: P(3).name, projectId: 3, requestedBy: 'Julio Castillo', requestedById: 2, date: daysBefore(2), notes: null },
   ];
   await page.route(re('warehouse/dispatches'), json({ content: DISPATCHES, page: 0, size: 50, totalElements: DISPATCHES.length, totalPages: 1 }));
   await page.route(re('warehouse/consumables/dispatches'), json({ content: DISPATCHES, page: 0, size: 50, totalElements: DISPATCHES.length, totalPages: 1 }));
@@ -496,9 +506,9 @@ export async function installManualApi(page: Page, lang: Lang = 'es') {
       { toolId: 110, code: 'HER-0613', name: TOOLS[9].name, category: TOOL_CATS.power, status: TOOL_STATUS.LOST,
         worker: 'Byron Chávez', project: P(2).name, outSince: '2026-08-27', daysOut: 21, unsigned: true },
       { toolId: 103, code: 'HER-0207', name: TOOLS[2].name, category: TOOL_CATS.meas, status: TOOL_STATUS.ASSIGNED,
-        worker: 'Julio Castillo', project: P(1).name, outSince: '2026-09-05', daysOut: 12, unsigned: false },
+        worker: 'Julio Castillo', project: P(1).name, outSince: daysBefore(12), daysOut: 12, unsigned: false },
       { toolId: 108, code: 'HER-0501', name: TOOLS[7].name, category: TOOL_CATS.safety, status: TOOL_STATUS.ASSIGNED,
-        worker: 'Diego López', project: P(4).name, outSince: '2026-09-08', daysOut: 9, unsigned: true },
+        worker: 'Diego López', project: P(4).name, outSince: daysBefore(9), daysOut: 9, unsigned: true },
     ], page: 0, size: 20, totalElements: 3, totalPages: 1,
   }));
   await page.route(re('admin/reports/tools'), json({
@@ -557,7 +567,7 @@ export async function installManualApi(page: Page, lang: Lang = 'es') {
       documentHash: signed ? 'a3f1c9e27b04' : null,
       signUrl: signed ? null : `https://buildtrackfield.com/sign/demo-${id}`,
       changeOrderId: converted ? 11 : null,
-      convertedAt: converted ? '2026-09-15T16:00:00Z' : null,
+      convertedAt: converted ? `${daysBefore(2)}T16:00:00Z` : null,
       convertedBy: converted ? 'analucia' : null,
       createdBy: 'jcastillo', createdAt: `2026-09-${String(17 - days).padStart(2, '0')}T21:40:00Z`,
       ageDays: days,
@@ -597,12 +607,12 @@ export async function installManualApi(page: Page, lang: Lang = 'es') {
     { id: 5, name: T('Papelería', 'Stationery'), seeded: true, archived: false, expenseCount: 14, yearToDateCents: 6_400_00 },
   ];
   const OFFICE = [
-    { id: 11, description: T('Alquiler de oficina — septiembre', 'Office rent — September'), categoryId: 1, amountCents: 9_000_00, purchaseDate: '2026-09-01', recurring: true },
-    { id: 12, description: T('Internet dedicado 200 Mbps', 'Dedicated 200 Mbps internet'), categoryId: 2, amountCents: 1_150_00, purchaseDate: '2026-09-03', recurring: true },
-    { id: 13, description: T('Energía eléctrica — agosto', 'Electricity — August'), categoryId: 2, amountCents: 2_380_00, purchaseDate: '2026-09-08', recurring: true },
-    { id: 14, description: T('Honorarios contables — septiembre', 'Accounting fees — September'), categoryId: 4, amountCents: 4_000_00, purchaseDate: '2026-09-10', recurring: true },
-    { id: 15, description: T('Licencias de software de dibujo (3 puestos)', 'Drafting software licences (3 seats)'), categoryId: 3, amountCents: 2_070_00, purchaseDate: '2026-09-12', recurring: false },
-    { id: 16, description: T('Papelería y tóner', 'Stationery and toner'), categoryId: 5, amountCents: 480_00, purchaseDate: '2026-09-15', recurring: false },
+    { id: 11, description: T('Alquiler de oficina — septiembre', 'Office rent — September'), categoryId: 1, amountCents: 9_000_00, purchaseDate: daysBefore(16), recurring: true },
+    { id: 12, description: T('Internet dedicado 200 Mbps', 'Dedicated 200 Mbps internet'), categoryId: 2, amountCents: 1_150_00, purchaseDate: daysBefore(14), recurring: true },
+    { id: 13, description: T('Energía eléctrica — agosto', 'Electricity — August'), categoryId: 2, amountCents: 2_380_00, purchaseDate: daysBefore(9), recurring: true },
+    { id: 14, description: T('Honorarios contables — septiembre', 'Accounting fees — September'), categoryId: 4, amountCents: 4_000_00, purchaseDate: daysBefore(7), recurring: true },
+    { id: 15, description: T('Licencias de software de dibujo (3 puestos)', 'Drafting software licences (3 seats)'), categoryId: 3, amountCents: 2_070_00, purchaseDate: daysBefore(5), recurring: false },
+    { id: 16, description: T('Papelería y tóner', 'Stationery and toner'), categoryId: 5, amountCents: 480_00, purchaseDate: daysBefore(2), recurring: false },
   ].map(o => {
     const cat = OFFICE_CATS.find(c => c.id === o.categoryId)!;
     return {
@@ -661,14 +671,14 @@ export async function installManualApi(page: Page, lang: Lang = 'es') {
   const FUEL = T('COMBUSTIBLE', 'FUEL');
   const MEALS = T('ALIMENTACIÓN', 'MEALS');
   const EXPENSES = [
-    expense(501, 3, 1, MATERIALS, 1_240_00, '2026-09-17', T('12 sacos de cemento — compra de emergencia', '12 bags of cement — emergency purchase'), 'PENDING'),
-    expense(502, 4, 1, FUEL, 320_00, '2026-09-17', T('Diésel para planta eléctrica', 'Diesel for the generator'), 'PENDING'),
-    expense(503, 6, 2, MEALS, 186_00, '2026-09-16', T('Almuerzo de cuadrilla — fundición nocturna', 'Crew lunch — night pour'), 'PENDING'),
-    expense(504, 5, 3, MATERIALS, 640_00, '2026-09-16', T('Alambre de amarre y clavos', 'Tie wire and nails'), 'PENDING'),
-    expense(505, 7, 4, FUEL, 410_00, '2026-09-15', T('Combustible de camioneta — viajes a Antigua', 'Truck fuel — Antigua trips'), 'OBSERVED'),
-    expense(506, 3, 1, MATERIALS, 2_180_00, '2026-09-14', T('Impermeabilizante para losa', 'Slab waterproofing'), 'APPROVED'),
-    expense(507, 4, 1, MEALS, 240_00, '2026-09-12', T('Refacción de cuadrilla', 'Crew snack'), 'APPROVED'),
-    expense(508, 6, 6, MATERIALS, 980_00, '2026-09-11', T('Cal hidratada y arena', 'Hydrated lime and sand'), 'APPROVED'),
+    expense(501, 3, 1, MATERIALS, 1_240_00, NOW, T('12 sacos de cemento — compra de emergencia', '12 bags of cement — emergency purchase'), 'PENDING'),
+    expense(502, 4, 1, FUEL, 320_00, NOW, T('Diésel para planta eléctrica', 'Diesel for the generator'), 'PENDING'),
+    expense(503, 6, 2, MEALS, 186_00, daysBefore(1), T('Almuerzo de cuadrilla — fundición nocturna', 'Crew lunch — night pour'), 'PENDING'),
+    expense(504, 5, 3, MATERIALS, 640_00, daysBefore(1), T('Alambre de amarre y clavos', 'Tie wire and nails'), 'PENDING'),
+    expense(505, 7, 4, FUEL, 410_00, daysBefore(2), T('Combustible de camioneta — viajes a Antigua', 'Truck fuel — Antigua trips'), 'OBSERVED'),
+    expense(506, 3, 1, MATERIALS, 2_180_00, daysBefore(3), T('Impermeabilizante para losa', 'Slab waterproofing'), 'APPROVED'),
+    expense(507, 4, 1, MEALS, 240_00, daysBefore(5), T('Refacción de cuadrilla', 'Crew snack'), 'APPROVED'),
+    expense(508, 6, 6, MATERIALS, 980_00, daysBefore(6), T('Cal hidratada y arena', 'Hydrated lime and sand'), 'APPROVED'),
   ];
   const expenseSummary = (list: typeof EXPENSES) => ({
     totalSubmitted: list.length,
