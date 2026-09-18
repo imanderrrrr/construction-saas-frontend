@@ -18,6 +18,15 @@ import type { Lang } from './routes';
 
 const NOW = '2026-09-17';
 
+// Ages a fixture row back from NOW. The arithmetic has to go through a real
+// date: splicing it into the string — `2026-09-${17 - days}` — quietly writes
+// `2026-09--4` as soon as an age reaches past the 1st.
+const daysBefore = (days: number): string => {
+  const d = new Date(`${NOW}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - days);
+  return d.toISOString().slice(0, 10);
+};
+
 function json(body: unknown, status = 200) {
   return (route: Route) =>
     route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
@@ -366,8 +375,12 @@ export async function installManualApi(page: Page, lang: Lang = 'es') {
     id, code, name, category, status,
     assignedTo: worker ? U(worker).fullName : null, assignedToId: worker,
     projectName: projectId ? P(projectId).name : null, projectId,
-    lastActivity: days ? `${T('hace', '')} ${days} ${T('días', 'days ago')}`.trim() : T('Hoy', 'Today'),
-    lastActivityAt: `2026-09-${String(17 - days).padStart(2, '0')}T15:00:00Z`,
+    // A date, not a phrase: the API sends `lastActivity` as `yyyy-MM-dd` and
+    // the table reads it with `new Date(`${iso}T00:00:00`)`, so "hace 3 días"
+    // photographed as "Invalid Date". The screens that do print an age get a
+    // number (`daysOut`, `ageDays`) and word it themselves.
+    lastActivity: daysBefore(days),
+    lastActivityAt: `${daysBefore(days)}T15:00:00Z`,
     dateRegistered: '2026-02-11', notes: null, history: [],
   });
   const TOOLS = [
