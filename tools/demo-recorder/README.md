@@ -57,7 +57,7 @@ npx playwright test --config=tools/demo-recorder/recorder.config.ts landing.rec.
 | `landing.rec.ts` | Screenshots the finished block on the landing page. Review only. |
 | `shots.rec.ts` | One PNG per module, every panel (admin, finance, supervisor, warehouse, worker), for the sales manual. Also writes the screen's own text next to each frame. |
 | `shots.public.rec.ts` | The same, for what lives outside the panel: the landing, the docs, the status page, the client portal, the signature page. |
-| `support/routes.manual.ts` | The fixtures the clips never needed — personnel, tools, supplies, tasks, subcontractors, office expenses, T&M, and the supervisor/warehouse/worker panels. Layered on top of `installDemoApi`. |
+| `support/routes.manual.ts` | Dates hang off the real clock (`NOW`), never a pinned day — the worker's panel decides whether the day has started by looking for a record dated today, so a pinned date breaks the run at the next midnight. The fixtures the clips never needed — personnel, tools, supplies, tasks, subcontractors, office expenses, T&M, and the supervisor/warehouse/worker panels. Layered on top of `installDemoApi`. |
 | `support/routes.public.ts` | Fixtures for the token pages: the client portal, the signature page, the invitation, the health probe the status page makes. |
 
 ## Re-take the manual's stills
@@ -71,6 +71,20 @@ SHOT_LANGS=en npx playwright test --config=tools/demo-recorder/recorder.config.t
 holding what that screen printed. The `.txt` files exist because the manual
 describes every screen in prose, and prose written from a screenshot invents
 labels that were never on it.
+
+**Running these from a worktree needs one manual step.** The config reuses a
+server already listening on the port, and it does not check WHOSE it is: a vite
+left running by another worktree will happily serve that worktree's code, and
+the run goes green while photographing the wrong branch. Passing a free
+`DEMO_PORT` is not enough either — Playwright starts `npx vite` with its cwd in
+this folder, where there is no app, and the run dies on `Timed out waiting
+120000ms from config.webServer`. Start vite yourself from the worktree root
+first, then point the run at it:
+
+```bash
+npx vite --port 5299 --strictPort          # from the worktree root
+DEMO_PORT=5299 npx playwright test --config=tools/demo-recorder/recorder.config.ts shots.rec.ts
+```
 
 Both specs **fail** when a section renders its error boundary, so a fixture that
 has drifted out of shape is a red run rather than a wrong screenshot. The shapes
