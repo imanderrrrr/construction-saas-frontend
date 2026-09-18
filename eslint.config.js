@@ -89,10 +89,14 @@ export default tseslint.config(
     ],
     plugins: { i18next },
     rules: {
-      // 146 al adoptarla, sobre 70 archivos. Warning por el backlog, igual
-      // que las de React Compiler de arriba: visible en el editor y en CI,
-      // sin romper la construcción. Los peores al medir: SupervisorProjects
-      // (20), HoursReport (16), AccessDenied (13). El PR #158 baja el conteo.
+      // 146 al adoptarla; 122 tras el #158, que se llevó SupervisorProjects
+      // entera (era 20 de esas). Vuelve a medirse cuando alguien baje el
+      // backlog: con la cuenta cerca de cero, esta regla sube a 'error' y
+      // deja de ser una advertencia que se puede ignorar.
+      //
+      // Warning mientras tanto, igual que las de React Compiler de arriba:
+      // visible en el editor y en CI, sin romper la construcción. Los peores
+      // hoy: HoursReport (16), AccessDenied (13), LaborCostReport (8).
       // Excluye las cadenas sin letras (símbolos, guiones, separadores).
       'i18next/no-literal-string': ['warn', {
         mode: 'jsx-text-only',
