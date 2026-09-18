@@ -41,7 +41,9 @@ const TENANT_TONES: Record<TenantStatus, { tone: PillTone; label: string }> = {
 };
 
 export function TenantStatusPill({ status }: { status: TenantStatus }) {
-  const { tone, label } = TENANT_TONES[status];
+  // Mirrors BillingStatusPill below: an unmapped status reads gray with its raw
+  // name rather than throwing on the destructure.
+  const { tone, label } = TENANT_TONES[status] ?? { tone: GRAY, label: status };
   return <StatusPill tone={tone} label={label} />;
 }
 

@@ -52,13 +52,16 @@ function StampMark({ mark }: { mark: Mark }) {
 
 export function TmStatusChip({ status }: { status: TmTicketStatus }) {
   const { t } = useTranslation('tm');
-  const c = STYLES[status];
+  // A sixth ticket state (or a row from before the enum settled) must not blank
+  // the panel: reading `.wrap` off an unmapped status throws before the chip
+  // renders. Unknown wears the quietest stamp — sand outline, hollow square.
+  const c = STYLES[status] ?? { wrap: 'border border-[#DBD0BB] bg-[#FAF7F0] text-[#5A5346]', mark: 'hollow' as Mark };
   return (
     <span
       className={`inline-flex items-center gap-1.5 px-2 py-[3px] font-bt-mono text-[9.5px] font-semibold uppercase tracking-[0.08em] whitespace-nowrap ${c.wrap}`}
     >
       <StampMark mark={c.mark} />
-      {t(`status.${status}`)}
+      {t(`status.${status}`, { defaultValue: status })}
     </span>
   );
 }

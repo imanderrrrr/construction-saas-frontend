@@ -77,8 +77,10 @@ function ActionBadge({ action }: { action: HistoryAction }) {
     'Reported':       'bg-red-50 text-red-600 border-red-200',
   };
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border whitespace-nowrap ${cfg[action]}`}>
-      {t(ACTION_KEYS[action])}
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border whitespace-nowrap ${cfg[action] ?? 'bg-[#FAFAFA] text-[#71717A] border-[#D4D4D8]'}`}>
+      {/* The row's action is cast from the server string (see the mapper): an
+          unmapped one would hand `t` an undefined key and leave the badge blank. */}
+      {ACTION_KEYS[action] ? t(ACTION_KEYS[action]) : action}
     </span>
   );
 }

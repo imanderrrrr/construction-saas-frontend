@@ -21,13 +21,20 @@ interface ApprovalStatusBadgeProps {
 
 export function ApprovalStatusBadge({ status, size = 'md' }: ApprovalStatusBadgeProps) {
   const { t } = useTranslation('admin');
-  const s = STYLES[status];
+  // A status the backend adds later must not take the screen down with it:
+  // reading `.bg` off an unmapped status throws, and this badge sits inside the
+  // approval tables. Unknown reads as neutral; `defaultValue` names it with the
+  // raw value instead of printing the key. (The fallback no longer carries a
+  // `label` — the words moved out of STYLES and into `admin:apr.st.*`.)
+  const s = STYLES[status] ?? {
+    bg: 'bg-[#FAFAFA]', text: 'text-[#71717A]', border: 'border-[#D4D4D8]', dot: 'bg-[#D4D4D8]',
+  };
   const px = size === 'sm' ? 'px-2 py-0.5' : 'px-2.5 py-1';
   const text = size === 'sm' ? 'text-[10px]' : 'text-xs';
   return (
     <span className={`inline-flex items-center gap-1.5 ${px} rounded-full ${text} font-semibold border font-mono ${s.bg} ${s.text} ${s.border}`}>
       <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
-      {t(`apr.st.${status}`)}
+      {t(`apr.st.${status}`, { defaultValue: status })}
     </span>
   );
 }
