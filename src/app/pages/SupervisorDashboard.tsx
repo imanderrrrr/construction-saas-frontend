@@ -8,7 +8,7 @@ import {
   LayoutDashboard, FolderKanban, ClipboardCheck,
   ReceiptText, Wrench, CalendarClock,
   Clock, Receipt, Users, Bell, Activity,
-  Building2, Loader2, Inbox, CheckCheck, Mail, MailOpen,
+  Building2, Loader2,
   MapPin, ChevronRight, AlertCircle, RefreshCw, NotebookPen, ClipboardList,
   HelpCircle, FileSignature,
 } from 'lucide-react';
@@ -17,10 +17,9 @@ import { SectionTour } from '../components/onboarding/SectionTour';
 import { AuthService } from '../services/auth';
 import { useSiteLogFeature } from '../hooks/useSiteLogFeature';
 import { Toaster } from '../components/ui/sonner';
-import { toast } from 'sonner';
 import { getSupervisorOutOfRangeAlerts, isUnconfiguredAreaAlert, getSupervisorDashboard, getSupervisorTimeRecords, type OutOfRangeAlertResponse, type SupervisorDashboardResponse, type TimeRecordResponse } from '../services/time';
 import { getSupervisorSummary, getSupervisorExpenses, type ExpenseSummaryResponse, type ExpenseResponse } from '../services/expenses';
-import { getSupervisorNotifications, getSupervisorUnreadCount, markNotificationRead, markAllNotificationsRead, type NotificationResponse } from '../services/notifications';
+import { NotificationInbox } from '../components/notifications/NotificationInbox';
 import { businessToday, nDaysAgo } from '../helpers/dateTime';
 
 // ——— Lazy-load external component ——————————————————————————————————————
@@ -229,12 +228,6 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
   const [expenseError, setExpenseError] = useState(false);
   const [alertsError, setAlertsError] = useState(false);
 
-  // Notifications
-  const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [notifLoading, setNotifLoading] = useState(true);
-  const [notifError, setNotifError] = useState(false);
-
   const loadCards = useCallback(() => {
     setDashLoading(true);
     setDashError(false);
@@ -252,36 +245,7 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
       .finally(() => setDashLoading(false));
   }, []);
 
-  const loadNotifications = useCallback(() => {
-    setNotifLoading(true);
-    setNotifError(false);
-    getSupervisorNotifications(0, 20)
-      .then(page => setNotifications(page.content))
-      .catch(() => setNotifError(true))
-      .finally(() => setNotifLoading(false));
-    getSupervisorUnreadCount()
-      .then(({ count }) => setUnreadCount(count))
-      .catch(() => { /* unread badge is non-critical; the inbox shows its own error */ });
-  }, []);
-
   useEffect(() => { loadCards(); }, [loadCards]);
-  useEffect(() => { loadNotifications(); }, [loadNotifications]);
-
-  async function handleMarkRead(id: number) {
-    try {
-      await markNotificationRead(id);
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
-      setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch { toast.error(t('supervisor:dash.markReadError', 'Could not update the notification. Please try again.')); }
-  }
-
-  async function handleMarkAllRead() {
-    try {
-      await markAllNotificationsRead();
-      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-      setUnreadCount(0);
-    } catch { toast.error(t('supervisor:dash.markReadError', 'Could not update the notification. Please try again.')); }
-  }
 
   // Recent team activity (combined time events + expenses)
   interface ActivityItem { ini: string; name: string; action: string; project: string; time: string; sortKey: string; }
@@ -368,7 +332,7 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
     return mins > 0 ? t('dash.hrsMinAgo', { hrs, mins }) : t('dash.hrsAgo', { hrs });
   }
 
-  /** Inline error state for a panel (alerts / inbox / activity) with a retry action */
+  /** Inline error state for a panel (alerts / activity) with a retry action */
   function PanelError({ message, onRetry }: { message: string; onRetry: () => void }) {
     return (
       <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -660,73 +624,7 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
         </div>
       </div>
 
-      {/* Notification Inbox */}
-      <div className="rounded-xl border border-[#D4D4D8] bg-white p-4 sm:p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Inbox className="w-5 h-5 text-[#F97316]" />
-            <h3 className="text-base font-semibold text-[#0A0A0A]">{t('dash.notificationInbox')}</h3>
-            {unreadCount > 0 && (
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#F97316]/10 text-[#F97316] border border-[#F97316]/20">
-                {unreadCount}
-              </span>
-            )}
-          </div>
-          {unreadCount > 0 && (
-            <button
-              onClick={handleMarkAllRead}
-              className="flex items-center gap-1 text-xs text-[#F97316] hover:underline font-medium"
-            >
-              <CheckCheck className="w-3.5 h-3.5" />
-              {t('dash.markAllRead')}
-            </button>
-          )}
-        </div>
-
-        {notifLoading ? (
-          <div className="flex items-center justify-center py-10">
-            <Loader2 className="w-5 h-5 animate-spin text-[#F97316]" />
-          </div>
-        ) : notifError ? (
-          <PanelError message={t('supervisor:dash.notificationsError', "We couldn't load your notifications.")} onRetry={loadNotifications} />
-        ) : notifications.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <div className="w-10 h-10 bg-[#FAFAFA] rounded-full flex items-center justify-center mb-3">
-              <Inbox className="w-5 h-5 text-[#D4D4D8]" />
-            </div>
-            <p className="text-sm font-medium text-[#71717A]">{t('dash.noNotifications')}</p>
-            <p className="text-[11px] text-[#71717A] mt-0.5">{t('dash.notificationsWillAppear')}</p>
-          </div>
-        ) : (
-          <div className="space-y-0.5 max-h-[320px] overflow-y-auto">
-            {notifications.map(n => (
-              <div
-                key={n.id}
-                onClick={() => !n.isRead && handleMarkRead(n.id)}
-                className={`flex gap-3 py-2.5 px-2 -mx-1 rounded-lg transition-colors cursor-pointer ${
-                  n.isRead ? 'opacity-60 hover:opacity-80' : 'bg-[#F97316]/[0.03] hover:bg-[#F97316]/[0.06]'
-                }`}
-              >
-                <div className="flex-shrink-0 mt-0.5">
-                  {n.isRead
-                    ? <MailOpen className="w-4 h-4 text-[#71717A]" />
-                    : <Mail className="w-4 h-4 text-[#F97316]" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm ${n.isRead ? 'text-[#71717A]' : 'text-[#0A0A0A] font-medium'}`}>
-                    {n.title}
-                  </p>
-                  <p className="text-[11px] text-[#71717A] mt-0.5 line-clamp-2">{n.message}</p>
-                  <p className="text-[10px] text-[#71717A] mt-1">{relativeTime(n.createdAt)}</p>
-                </div>
-                {!n.isRead && (
-                  <div className="w-2 h-2 rounded-full bg-[#F97316] flex-shrink-0 mt-2" />
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <NotificationInbox role="SUPERVISOR" />
 
       {/* Recent Team Activity */}
       <div className="rounded-xl border border-[#D4D4D8] bg-white p-4 sm:p-6">
