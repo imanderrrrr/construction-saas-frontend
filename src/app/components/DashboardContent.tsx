@@ -5,6 +5,7 @@ import {
   ChevronRight, Clock, HandCoins, ListChecks, RefreshCw, Wallet,
 } from 'lucide-react';
 import { Skeleton } from './ui/skeleton';
+import { NotificationInbox } from './notifications/NotificationInbox';
 import { searchAuditLogs, type AuditLogDTO } from '../services/audit';
 import { getBranding } from '../services/branding';
 import { PANEL_REV } from '../lib/panelRev';
@@ -339,6 +340,11 @@ export function DashboardContent({ onNavigate }: { onNavigate: (section: string)
 
       {/* ── PULSO DE OBRA ──────────────────────────────────────────────── */}
       <PulseSection obras={obras} username={username} onNavigate={onNavigate} />
+
+      {/* ── BUZÓN ──────────────────────────────────────────────────────── */}
+      {/* What the day asks of the admin — invoices submitted, RFIs answered,
+          account-deletion requests — lands here, in the panel's language. */}
+      <NotificationInbox role="ADMIN" />
 
       {/* ── ACTIVIDAD + ACCESOS ────────────────────────────────────────── */}
       <div className="grid lg:grid-cols-2 gap-5">

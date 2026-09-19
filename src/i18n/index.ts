@@ -29,6 +29,7 @@ import enStatus from './locales/en/status.json';
 import enPay from './locales/en/pay.json';
 import enTm from './locales/en/tm.json';
 import enTools from './locales/en/tools.json';
+import enNotifications from './locales/en/notifications.json';
 
 // Spanish
 import esCommon from './locales/es/common.json';
@@ -57,8 +58,9 @@ import esStatus from './locales/es/status.json';
 import esPay from './locales/es/pay.json';
 import esTm from './locales/es/tm.json';
 import esTools from './locales/es/tools.json';
+import esNotifications from './locales/es/notifications.json';
 
-const ns = ['common', 'auth', 'admin', 'expenses', 'finance', 'projects', 'time', 'inventory', 'users', 'dashboard', 'worker', 'supervisor', 'subcontractors', 'tasks', 'landing', 'billing', 'siteLog', 'clientView', 'signatures', 'punchList', 'rfi', 'docs', 'status', 'pay', 'tm', 'tools'] as const;
+const ns = ['common', 'auth', 'admin', 'expenses', 'finance', 'projects', 'time', 'inventory', 'users', 'dashboard', 'worker', 'supervisor', 'subcontractors', 'tasks', 'landing', 'billing', 'siteLog', 'clientView', 'signatures', 'punchList', 'rfi', 'docs', 'status', 'pay', 'tm', 'tools', 'notifications'] as const;
 
 i18n
   .use(LanguageDetector)
@@ -92,6 +94,7 @@ i18n
         pay: enPay,
         tm: enTm,
         tools: enTools,
+        notifications: enNotifications,
       },
       es: {
         common: esCommon,
@@ -120,6 +123,7 @@ i18n
         pay: esPay,
         tm: esTm,
         tools: esTools,
+        notifications: esNotifications,
       },
     },
     fallbackLng: 'es',
