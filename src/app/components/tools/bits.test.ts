@@ -6,7 +6,7 @@
 // the supervisor's or the mobile app — can print an English enum or a raw key
 // at somebody, so that is what these check, in both languages.
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import i18n from '../../../i18n';
 import es from '../../../i18n/locales/es/tools.json';
 import en from '../../../i18n/locales/en/tools.json';
@@ -96,17 +96,44 @@ describe('isOut', () => {
   });
 });
 
+// `daysSince` counts calendar days between two local midnights, so what it
+// answers depends on the wall clock it is asked at. Read from the real one,
+// "an hour ago" landed on yesterday's page of the calendar every night between
+// 00:00 and 00:59 and the test went red — on the runners, which live in UTC,
+// that was one red hour every single day. The clock is pinned here instead, at
+// an hour that sits on neither boundary; the boundary itself gets its own case
+// below, where it is the subject rather than the accident.
 describe('daysSince', () => {
+  const pinTo = (local: string) => {
+    vi.useFakeTimers();
+    // No trailing Z: this is a local hour, whatever zone the suite runs in.
+    vi.setSystemTime(new Date(local));
+  };
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('is null with no date, so the row can print the date alone', () => {
     expect(daysSince(null)).toBeNull();
     expect(daysSince(undefined)).toBeNull();
   });
 
   it('counts whole days and never goes negative on a clock skew', () => {
+    pinTo('2026-09-21T12:00:00');
     const now = Date.now();
     expect(daysSince(new Date(now - 2 * 86_400_000).toISOString())).toBe(2);
     expect(daysSince(new Date(now - 3600_000).toISOString())).toBe(0);
     expect(daysSince(new Date(now + 3600_000).toISOString())).toBe(0);
+  });
+
+  // And the calendar is the point, not a rounding error: a tool signed out
+  // yesterday at 23:30 has been out "a day" by 00:30, half an hour later. The
+  // screen is meant to say so — that is the reading a bodeguero does at dawn.
+  it('turns the day over at midnight, not on the elapsed hours', () => {
+    pinTo('2026-09-21T00:30:00');
+    expect(daysSince('2026-09-20T23:30:00')).toBe(1);
+    expect(daysSince('2026-09-21T00:00:00')).toBe(0);
   });
 });
 
