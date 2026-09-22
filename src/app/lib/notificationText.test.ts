@@ -234,3 +234,112 @@ describe('param rendering', () => {
     expect([...TITLE_KEYS].sort()).toEqual(titles);
   });
 });
+
+describe('expenses', () => {
+  // The five families the backend is about to start writing. Both the keys
+  // and the param names are frozen by the mobile binary already on the
+  // stores, so they are pinned here rather than by the compiler: a misspelt
+  // param name composes a whole sentence with the value simply gone.
+  const submission = { worker: 'Worker One', expenseType: 'FUEL', amountCents: 35000, project: 'Obra Norte' };
+  const review = { reviewer: 'ander.chulo', expenseType: 'FUEL', amountCents: 35000, date: '2026-08-06', project: 'Obra Norte' };
+  const OUTCOMES = ['Approved', 'Observed', 'Rejected'] as const;
+
+  const expense = (family: string, params: Record<string, unknown>) =>
+    keyed(`notifExpense${family}Title`, `notifExpense${family}Body`, params);
+
+  it('a receipt reaches the reviewer as a whole sentence in either language', () => {
+    const n = expense('Submitted', submission);
+    expect(es(n)).toEqual({
+      title: 'Nuevo gasto recibido',
+      body: 'Worker One envió un gasto (Combustible) por $350.00 en \u201cObra Norte\u201d.',
+    });
+    expect(en(n)).toEqual({
+      title: 'New expense submitted',
+      body: 'Worker One submitted an expense (Fuel) of $350.00 for \u201cObra Norte\u201d.',
+    });
+    // No reviewer and no date on this payload: neither may leave a hole.
+    expect(es(n).body).not.toMatch(/\(\)| {2}/);
+  });
+
+  it('a resubmission says it is a correction, not a second expense', () => {
+    const n = expense('Resubmitted', { ...submission, expenseType: 'MINOR_PURCHASES' });
+    expect(es(n).title).toBe('Gasto reenviado');
+    expect(es(n).body).toBe('Worker One corrigió y reenvió un gasto (Compras menores) por $350.00 en \u201cObra Norte\u201d.');
+    expect(en(n).body).toBe('Worker One corrected and resubmitted an expense (Minor purchases) of $350.00 for \u201cObra Norte\u201d.');
+  });
+
+  it('the three outcomes are distinguishable, not one generic sentence', () => {
+    expect(es(expense('Approved', review))).toEqual({
+      title: 'Gasto aprobado',
+      body: 'ander.chulo aprobó tu gasto (Combustible) por $350.00 del 6 ago 2026 en \u201cObra Norte\u201d.',
+    });
+    expect(en(expense('Approved', review)).body)
+      .toBe('ander.chulo approved your expense (Fuel) of $350.00 on Aug 6, 2026 for \u201cObra Norte\u201d.');
+    expect(es(expense('Observed', review)).body).toContain('observó tu gasto');
+    expect(es(expense('Rejected', review)).body).toContain('rechazó tu gasto');
+    for (const t of [es, en]) {
+      expect(new Set(OUTCOMES.map(o => t(expense(o, review)).body)).size, 'two outcomes read the same').toBe(3);
+      expect(new Set(OUTCOMES.map(o => t(expense(o, review)).title)).size).toBe(3);
+    }
+  });
+
+  it('the comment clause hangs off the three outcomes and off nothing else', () => {
+    for (const o of OUTCOMES) {
+      expect(es(expense(o, { ...review, comment: 'falta el recibo' })).body).toMatch(/\. Comentario: falta el recibo$/);
+      expect(en(expense(o, { ...review, comment: 'falta el recibo' })).body).toMatch(/\. Comment: falta el recibo$/);
+      // Absent, or empty (the server drops nulls) → the sentence just ends.
+      expect(es(expense(o, review)).body, o).not.toContain('Comentario');
+      expect(es(expense(o, { ...review, comment: '' })).body, o).not.toContain('Comentario');
+    }
+    // A submission carries no comment; one riding along is ignored, as on mobile.
+    expect(es(expense('Submitted', { ...submission, comment: 'x' })).body).not.toContain('Comentario');
+    expect(es(expense('Resubmitted', { ...submission, comment: 'x' })).body).not.toContain('Comentario');
+  });
+
+  it('every category is named with the words of the expense screens', () => {
+    const categories: [string, string, string][] = [
+      ['FUEL', 'Combustible', 'Fuel'],
+      ['MATERIALS', 'Materiales', 'Materials'],
+      ['TOOLS', 'Herramientas', 'Tools'],
+      ['PER_DIEM', 'Viáticos', 'Per diem'],
+      ['MINOR_PURCHASES', 'Compras menores', 'Minor purchases'],
+      ['TRANSPORTATION', 'Transporte', 'Transportation'],
+      ['OTHER', 'Otro', 'Other'],
+    ];
+    for (const [wire, esWord, enWord] of categories) {
+      const n = expense('Submitted', { ...submission, expenseType: wire });
+      expect(es(n).body, wire).toContain(`(${esWord})`);
+      expect(en(n).body, wire).toContain(`(${enWord})`);
+    }
+  });
+
+  it('a category this build has not seen degrades, rather than breaking or lying "Otro"', () => {
+    const n = expense('Submitted', { ...submission, expenseType: 'LODGING_AND_MEALS' });
+    expect(es(n).body).toContain('(lodging and meals)');
+    expect(en(n).body).toContain('(lodging and meals)');
+    expect(es(n).body).not.toContain('Otro');
+  });
+
+  it('money: raw cents become the same dollars the expense screens print', () => {
+    expect(es(expense('Approved', { ...review, amountCents: 125050 })).body).toContain('por $1,250.50 del');
+    expect(en(expense('Submitted', { ...submission, amountCents: 1 })).body).toContain('of $0.01 for');
+  });
+
+  it('the param names are the ones the published mobile binary froze', () => {
+    // Every value below reaches the sentence only under EXACTLY this name.
+    expect(es(expense('Approved', {
+      reviewer: 'ander.chulo', expenseType: 'PER_DIEM', amountCents: 35000,
+      date: '2026-08-06', project: 'Obra Norte', comment: 'ok',
+    })).body).toBe('ander.chulo aprobó tu gasto (Viáticos) por $350.00 del 6 ago 2026 en \u201cObra Norte\u201d. Comentario: ok');
+    expect(es(expense('Submitted', {
+      worker: 'Worker One', expenseType: 'PER_DIEM', amountCents: 35000, project: 'Obra Norte',
+    })).body).toBe('Worker One envió un gasto (Viáticos) por $350.00 en \u201cObra Norte\u201d.');
+
+    // …and the trap those names guard: plausible near-misses (the names the
+    // SENTENCE uses, not the wire) compose a whole sentence with the values
+    // gone. Nothing throws and nothing warns — hence this test.
+    expect(es(expense('Approved', {
+      reviewer: 'ander.chulo', type: 'PER_DIEM', amount: 35000, date: '2026-08-06', project: 'Obra Norte',
+    })).body).toBe('ander.chulo aprobó tu gasto () por  del 6 ago 2026 en \u201cObra Norte\u201d.');
+  });
+});

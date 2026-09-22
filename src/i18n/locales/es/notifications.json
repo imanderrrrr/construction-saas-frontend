@@ -108,5 +108,22 @@
   "notifRfiRespondedTitle": "El cliente respondió una consulta",
   "notifRfiRespondedBody": "{{rfi}} en “{{project}}”: “{{comment}}” — revísala y ciérrala.",
   "notifRfiItem": "RFI n.º {{number}} “{{subject}}”",
-  "notifRfiItemNoNumber": "RFI “{{subject}}”"
+  "notifRfiItemNoNumber": "RFI “{{subject}}”",
+  "notifExpenseTypeFuel": "Combustible",
+  "notifExpenseTypeMaterials": "Materiales",
+  "notifExpenseTypeTools": "Herramientas",
+  "notifExpenseTypePerDiem": "Viáticos",
+  "notifExpenseTypeMinorPurchases": "Compras menores",
+  "notifExpenseTypeTransportation": "Transporte",
+  "notifExpenseTypeOther": "Otro",
+  "notifExpenseSubmittedTitle": "Nuevo gasto recibido",
+  "notifExpenseSubmittedBody": "{{worker}} envió un gasto ({{type}}) por {{amount}} en “{{project}}”.",
+  "notifExpenseResubmittedTitle": "Gasto reenviado",
+  "notifExpenseResubmittedBody": "{{worker}} corrigió y reenvió un gasto ({{type}}) por {{amount}} en “{{project}}”.",
+  "notifExpenseApprovedTitle": "Gasto aprobado",
+  "notifExpenseApprovedBody": "{{reviewer}} aprobó tu gasto ({{type}}) por {{amount}} del {{date}} en “{{project}}”.",
+  "notifExpenseObservedTitle": "Gasto observado",
+  "notifExpenseObservedBody": "{{reviewer}} observó tu gasto ({{type}}) por {{amount}} del {{date}} en “{{project}}”.",
+  "notifExpenseRejectedTitle": "Gasto rechazado",
+  "notifExpenseRejectedBody": "{{reviewer}} rechazó tu gasto ({{type}}) por {{amount}} del {{date}} en “{{project}}”."
 }
