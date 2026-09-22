@@ -17,6 +17,7 @@ import {
 import { StatCard } from '../components/StatCard';
 import { Toaster } from '../components/ui/sonner';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
+import { NotificationInbox } from '../components/notifications/NotificationInbox';
 import { getDashboard, type DashboardResponse, type DashboardActivityEntry, type LowStockAlertEntry, type DashboardKpis } from '../services/warehouse';
 
 // Lazy-loaded sections
@@ -139,6 +140,13 @@ function DashboardView({ username, onNavigate }: { username: string; onNavigate:
         <StatCard icon={Boxes}         title={t('warehouse.kpi.consumableItems')} value={kpis.consumableItems}  subtitle={t('warehouse.kpi.supplyTypes')}    iconBgColor="bg-purple-50"    iconColor="text-purple-600"  />
         <StatCard icon={AlertTriangle} title={t('warehouse.kpi.lowStockAlerts')}  value={kpis.lowStockAlerts}   subtitle={t('warehouse.kpi.needRestocking')} iconBgColor="bg-red-50"       iconColor="text-red-600"     />
       </div>
+
+      {/* Buzón — the panel is sectioned, so the inbox goes on the landing
+          section and only there: it is what the warehouse keeper sees first,
+          and repeating it inside an inventory section would poll twice for
+          the same rows. Same slot as the other two panels: under the KPIs,
+          above the activity table. */}
+      <NotificationInbox role="WAREHOUSE" />
 
       {/* Recent activity */}
       <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden">

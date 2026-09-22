@@ -98,6 +98,16 @@ describe('NotificationInbox', () => {
     expect(mocks.getNotifications).not.toHaveBeenCalled();
   });
 
+  it('WAREHOUSE has an endpoint of its own and gets the same card', async () => {
+    mocks.getNotifications.mockResolvedValue({ content: [LEGACY] });
+    await act(async () => root.render(<NotificationInbox role="WAREHOUSE" />));
+    await flush();
+
+    expect(container.querySelector('[data-testid="notification-inbox"]')).not.toBeNull();
+    expect(mocks.getNotifications).toHaveBeenCalledWith('WAREHOUSE', 0, 20);
+    expect(rows(container)).toHaveLength(1);
+  });
+
   it('ADMIN reads the supervisor endpoint and rows go through the resolver', async () => {
     mocks.getNotifications.mockResolvedValue({ content: [KEYED, LEGACY] });
     await act(async () => root.render(<NotificationInbox role="ADMIN" />));
