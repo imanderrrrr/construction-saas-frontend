@@ -112,6 +112,11 @@ export const TITLE_KEYS: readonly string[] = [
   'notifToolRejectedTitle',
   'notifRfiSubmittedTitle',
   'notifRfiRespondedTitle',
+  'notifExpenseSubmittedTitle',
+  'notifExpenseResubmittedTitle',
+  'notifExpenseApprovedTitle',
+  'notifExpenseObservedTitle',
+  'notifExpenseRejectedTitle',
   // Normally intercepted by resolveByType (the type is what both backends
   // share); resolved here too so the key alone is enough.
   'notifPwSetupTitle',
@@ -134,6 +139,7 @@ function resolveBody(key: string, p: Params, t: Translate, lang: string): string
   const project = str(p, 'project');
   const reviewer = str(p, 'reviewer');
   const event = eventName(str(p, 'event'), tr);
+  const expenseType = expenseTypeName(str(p, 'expenseType'), tr);
 
   switch (key) {
     case 'notifEventApprovedBody':
@@ -264,6 +270,23 @@ function resolveBody(key: string, p: Params, t: Translate, lang: string): string
     case 'notifRfiRespondedBody':
       return tr('notifRfiRespondedBody', { rfi: rfiItem(p, tr), project, comment: str(p, 'comment') });
 
+    // ── Expenses ──────────────────────────────────────────────────────────
+    // The worker's three outcomes carry an optional comment; the backend
+    // requires one to observe or reject and leaves it out on a plain
+    // approval, so the clause turns on by presence like everywhere else.
+    // The submission notices carry none, so they get no clause even if one
+    // rides along — as on mobile.
+    case 'notifExpenseSubmittedBody':
+      return tr('notifExpenseSubmittedBody', { worker: str(p, 'worker'), type: expenseType, amount: money(p), project });
+    case 'notifExpenseResubmittedBody':
+      return tr('notifExpenseResubmittedBody', { worker: str(p, 'worker'), type: expenseType, amount: money(p), project });
+    case 'notifExpenseApprovedBody':
+      return withComment(tr('notifExpenseApprovedBody', { reviewer, type: expenseType, amount: money(p), date, project }), p, tr);
+    case 'notifExpenseObservedBody':
+      return withComment(tr('notifExpenseObservedBody', { reviewer, type: expenseType, amount: money(p), date, project }), p, tr);
+    case 'notifExpenseRejectedBody':
+      return withComment(tr('notifExpenseRejectedBody', { reviewer, type: expenseType, amount: money(p), date, project }), p, tr);
+
     // Normally intercepted by resolveByType; resolved here too so the key
     // alone is enough.
     case 'notifPwSetupBody':
@@ -332,6 +355,33 @@ const ROLE_KEYS = new Map<string, string>([
 function roleName(role: string, tr: Tr): string {
   const key = ROLE_KEYS.get(role);
   return key ? tr(key) : role.toLowerCase();
+}
+
+/**
+ * Expense categories are named with the same words the expense screens use
+ * (`admin:expenses.type.*`), for the same reason as `jobStatusName`: the
+ * sentence and the screen the reader opens next must call the category one
+ * thing. The words live in this namespace rather than being read out of
+ * `admin` — the inbox's catalogue is the mobile one, ported whole, and the
+ * reader of a notification is not always an admin.
+ *
+ * A category this build has not seen degrades to its humanised raw name
+ * rather than folding into `OTHER`: labelling it "Otro" would be a lie where
+ * the raw name is only a gap. Same rule as `eventName`.
+ */
+const EXPENSE_TYPE_KEYS = new Map<string, string>([
+  ['FUEL', 'notifExpenseTypeFuel'],
+  ['MATERIALS', 'notifExpenseTypeMaterials'],
+  ['TOOLS', 'notifExpenseTypeTools'],
+  ['PER_DIEM', 'notifExpenseTypePerDiem'],
+  ['MINOR_PURCHASES', 'notifExpenseTypeMinorPurchases'],
+  ['TRANSPORTATION', 'notifExpenseTypeTransportation'],
+  ['OTHER', 'notifExpenseTypeOther'],
+]);
+
+function expenseTypeName(type: string, tr: Tr): string {
+  const key = EXPENSE_TYPE_KEYS.get(type);
+  return key ? tr(key) : type.toLowerCase().replace(/_/g, ' ');
 }
 
 const JOB_STATUSES = new Set(['ASSIGNED', 'IN_PROGRESS', 'IN_REVIEW', 'OBSERVED', 'APPROVED', 'CLOSED']);

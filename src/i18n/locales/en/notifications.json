@@ -108,5 +108,22 @@
   "notifRfiRespondedTitle": "Client answered an RFI",
   "notifRfiRespondedBody": "{{rfi}} on “{{project}}”: “{{comment}}” — review it and close it.",
   "notifRfiItem": "RFI #{{number}} “{{subject}}”",
-  "notifRfiItemNoNumber": "RFI “{{subject}}”"
+  "notifRfiItemNoNumber": "RFI “{{subject}}”",
+  "notifExpenseTypeFuel": "Fuel",
+  "notifExpenseTypeMaterials": "Materials",
+  "notifExpenseTypeTools": "Tools",
+  "notifExpenseTypePerDiem": "Per diem",
+  "notifExpenseTypeMinorPurchases": "Minor purchases",
+  "notifExpenseTypeTransportation": "Transportation",
+  "notifExpenseTypeOther": "Other",
+  "notifExpenseSubmittedTitle": "New expense submitted",
+  "notifExpenseSubmittedBody": "{{worker}} submitted an expense ({{type}}) of {{amount}} for “{{project}}”.",
+  "notifExpenseResubmittedTitle": "Expense resubmitted",
+  "notifExpenseResubmittedBody": "{{worker}} corrected and resubmitted an expense ({{type}}) of {{amount}} for “{{project}}”.",
+  "notifExpenseApprovedTitle": "Expense approved",
+  "notifExpenseApprovedBody": "{{reviewer}} approved your expense ({{type}}) of {{amount}} on {{date}} for “{{project}}”.",
+  "notifExpenseObservedTitle": "Expense observed",
+  "notifExpenseObservedBody": "{{reviewer}} observed your expense ({{type}}) of {{amount}} on {{date}} for “{{project}}”.",
+  "notifExpenseRejectedTitle": "Expense rejected",
+  "notifExpenseRejectedBody": "{{reviewer}} rejected your expense ({{type}}) of {{amount}} on {{date}} for “{{project}}”."
 }
