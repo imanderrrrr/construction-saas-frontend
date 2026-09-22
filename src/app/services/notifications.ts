@@ -38,16 +38,21 @@ export interface NotificationPage {
 }
 
 /**
- * Inbox endpoint per role. The supervisor controller admits ADMIN as well
- * (`hasAnyRole('SUPERVISOR','ADMIN')`), so both read the same path. FINANCE
- * and WAREHOUSE have no endpoint yet: add their entry here when the backend
- * ships one and the shared inbox lights up for that role with no other
- * change. WORKER and SUBCONTRACTOR have endpoints of their own, but no web
- * inbox — their panel is the mobile app.
+ * Inbox endpoint per role. Since backend PR #148 a single
+ * `NotificationInboxController` is mapped to every path below at once
+ * (`hasAnyRole('WORKER','SUPERVISOR','ADMIN','SUBCONTRACTOR','WAREHOUSE')`,
+ * each endpoint scoped to the caller's own rows) — which is why ADMIN reads
+ * the supervisor path: it has none of its own and that one admits it.
+ * WAREHOUSE, by contrast, does have a path of its own, added by that same PR.
+ * FINANCE is the role still without any endpoint: add its entry here when the
+ * backend ships one and the shared inbox lights up for it with no other
+ * change. WORKER and SUBCONTRACTOR do have endpoints, but no web inbox on
+ * purpose — their panel is the mobile app.
  */
 const INBOX_PATHS: Partial<Record<CanonicalRole, string>> = {
   SUPERVISOR: '/api/v1/supervisor/notifications',
   ADMIN: '/api/v1/supervisor/notifications',
+  WAREHOUSE: '/api/v1/warehouse/notifications',
 };
 
 /** Whether this role has a notification inbox to show. */
