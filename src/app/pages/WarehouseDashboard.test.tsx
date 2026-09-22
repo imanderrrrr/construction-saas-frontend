@@ -2,12 +2,19 @@
 //
 // The /warehouse/inventory route opens the warehouse dashboard on the
 // tool-inventory section (the sidebar still exposes consumables + the rest).
-// These tests verify the `initialSection` prop maps to the right section.
-// Heavy children, the dropdown, and the dashboard service are stubbed.
+// These tests verify the `initialSection` prop maps to the right section,
+// and that the shared notification inbox is mounted on the landing section
+// (and only there). Heavy children, the dropdown, and the dashboard service
+// are stubbed.
 
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const inbox = vi.hoisted(() => ({
+  getNotifications: vi.fn(() => Promise.resolve({ content: [], page: 0, size: 20, totalElements: 0, totalPages: 0 })),
+  getUnreadCount: vi.fn(() => Promise.resolve({ count: 0 })),
+}));
 
 vi.mock('react-router', () => ({ useNavigate: () => vi.fn() }));
 vi.mock('react-i18next', () => ({
@@ -45,6 +52,16 @@ vi.mock('../services/warehouse', () => ({
 }));
 vi.mock('../components/ToolInventory', () => ({
   ToolInventory: () => <div data-testid="section-tool-inventory">TOOLS</div>,
+}));
+// The real notifications module is only reached for its role → endpoint
+// registry, which is what says WAREHOUSE has an inbox at all; its network
+// calls are stubbed. lib/api is stubbed too — the real one boots src/i18n on
+// import, which this file's react-i18next mock cannot serve.
+vi.mock('../lib/api', () => ({ api: vi.fn(), apiMultipart: vi.fn(), getBaseUrl: () => '' }));
+vi.mock('../services/notifications', async importOriginal => ({
+  ...(await importOriginal<typeof import('../services/notifications')>()),
+  getNotifications: inbox.getNotifications,
+  getUnreadCount: inbox.getUnreadCount,
 }));
 
 import { WarehouseDashboard } from './WarehouseDashboard';
@@ -92,5 +109,45 @@ describe('WarehouseDashboard – initialSection deep-linking', () => {
     expect(container.querySelector('[data-testid="section-tool-inventory"]')).toBeNull();
     // DashboardView welcome header proves we landed on the dashboard home.
     expect(container.textContent).toContain('warehouse.welcome');
+  });
+});
+
+describe('WarehouseDashboard – notification inbox', () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  beforeEach(() => {
+    inbox.getNotifications.mockClear();
+    inbox.getUnreadCount.mockClear();
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(async () => {
+    await act(async () => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it('mounts the shared inbox on the landing section, reading the WAREHOUSE endpoint', async () => {
+    await act(async () => {
+      root.render(<WarehouseDashboard />);
+    });
+    await flush();
+
+    expect(container.querySelector('[data-testid="notification-inbox"]')).toBeTruthy();
+    expect(inbox.getNotifications).toHaveBeenCalledWith('WAREHOUSE', 0, 20);
+  });
+
+  it('leaves it out of the inventory sections, so it neither shows nor polls twice', async () => {
+    await act(async () => {
+      root.render(<WarehouseDashboard initialSection="tool-inventory" />);
+    });
+    await flush();
+
+    expect(container.querySelector('[data-testid="notification-inbox"]')).toBeNull();
+    expect(inbox.getNotifications).not.toHaveBeenCalled();
   });
 });
