@@ -9,6 +9,7 @@
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
+import i18next from 'eslint-plugin-i18next';
 import globals from 'globals';
 
 export default tseslint.config(
@@ -59,11 +60,57 @@ export default tseslint.config(
     },
   },
   {
+    // ── Texto visible sin traducir ───────────────────────────────────────
+    //
+    // El panel se vende en español y en inglés, y la paridad de claves da
+    // 26/26 namespaces idénticos. Ese chequeo es correcto y no puede ver
+    // esta clase de fallo: verifica que las claves QUE EXISTEN estén en los
+    // dos idiomas, no puede ver un texto que nunca pasó por i18n. Así se
+    // publicó `SupervisorProjects` — una pantalla entera en inglés, sin una
+    // sola llamada a `t()`, visible todos los días para cada supervisor.
+    //
+    // La regla mira SOLO texto escrito directamente en JSX, que es donde el
+    // falso positivo es raro: una cadena que se pinta y no viene de `t()`
+    // casi siempre es un descuido. No mira atributos ni objetos, para no
+    // pelearse con `className`, rutas de API y claves de test.
+    files: ['src/**/*.tsx'],
+    ignores: [
+      '**/*.test.tsx',
+      // Consola interna de plataforma: un solo idioma a propósito.
+      'src/platform/**',
+      // Legales y soporte: bilingües EN LA MISMA PÁGINA, a propósito —
+      // dicen «Soporte · Support» y traen las dos versiones del texto.
+      'src/app/pages/PrivacyPolicy.tsx',
+      'src/app/pages/TermsOfService.tsx',
+      'src/app/pages/Support.tsx',
+      // Páginas de desarrollo, no se sirven al cliente.
+      'src/app/components/DesignSystem.tsx',
+      'src/app/components/ImplementationNotes.tsx',
+    ],
+    plugins: { i18next },
+    rules: {
+      // 146 al adoptarla; 122 tras el #158, que se llevó SupervisorProjects
+      // entera (era 20 de esas). Vuelve a medirse cuando alguien baje el
+      // backlog: con la cuenta cerca de cero, esta regla sube a 'error' y
+      // deja de ser una advertencia que se puede ignorar.
+      //
+      // Warning mientras tanto, igual que las de React Compiler de arriba:
+      // visible en el editor y en CI, sin romper la construcción. Los peores
+      // hoy: HoursReport (16), AccessDenied (13), LaborCostReport (8).
+      // Excluye las cadenas sin letras (símbolos, guiones, separadores).
+      'i18next/no-literal-string': ['warn', {
+        mode: 'jsx-text-only',
+        words: { exclude: ['^[^A-Za-zÀ-ÿ]+$'] },
+      }],
+    },
+  },
+  {
     // Tests and e2e run in Node/Vitest contexts — looser by nature.
-    files: ['**/*.test.{ts,tsx}', 'e2e/**', 'vitest.setup.ts'],
+    files: ['**/*.test.{ts,tsx}', 'e2e/**', 'vitest.setup.ts', 'tools/**'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',
+      'i18next/no-literal-string': 'off',
     },
   },
 );

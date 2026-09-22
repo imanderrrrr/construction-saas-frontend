@@ -77,7 +77,7 @@ export function TimelineItem({ event, isLast = false, onApprove, onCorrect, onRe
   const isPending = event.approvalStatus === 'PENDING';
   const showActions = !!(onApprove && onCorrect && onReject);
   const isLoading = actionEventId === event.id;
-  const sc = EVENT_STATUS_CONFIG[event.approvalStatus];
+  const sc = EVENT_STATUS_CONFIG[event.approvalStatus] ?? { label: event.approvalStatus, className: 'bg-[#FAFAFA] text-[#71717A] border-[#D4D4D8]', icon: null };
   const transitions = allowedTransitions(event.approvalStatus);
   const isTransit = event.type === 'IN_TRANSIT';
 

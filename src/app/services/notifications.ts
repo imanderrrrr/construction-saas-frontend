@@ -1,11 +1,27 @@
 // OFJR Construction — Notification Service
 import { api } from '../lib/api';
+import type { CanonicalRole } from '../types';
+
+/**
+ * `notifications.i18n` (backend V95): a stable catalogue key pair plus the RAW
+ * params the client interpolates — ISO dates, enum names, integer minutes,
+ * integer cents, proper nouns verbatim. Null on pre-V95 rows. Resolved by
+ * lib/notificationText.ts; `title`/`message` stay the English fallback.
+ */
+export interface NotificationI18n {
+  titleKey?: string | null;
+  bodyKey?: string | null;
+  params?: Record<string, unknown> | null;
+}
 
 export interface NotificationResponse {
   id: number;
   type: string;
+  /** Server-rendered English title — the fallback when `i18n` is absent or unknown. */
   title: string;
+  /** Server-rendered English body — the fallback partner of `title`. */
   message: string;
+  i18n: NotificationI18n | null;
   relatedEntityType: string | null;
   relatedEntityId: number | null;
   isRead: boolean;
@@ -21,22 +37,51 @@ export interface NotificationPage {
   totalPages: number;
 }
 
-/** Get paginated notifications for the current user (supervisor/admin). */
-export function getSupervisorNotifications(page = 0, size = 30): Promise<NotificationPage> {
-  return api<NotificationPage>(`/api/v1/supervisor/notifications?page=${page}&size=${size}`);
+/**
+ * Inbox endpoint per role. Since backend PR #148 a single
+ * `NotificationInboxController` is mapped to every path below at once
+ * (`hasAnyRole('WORKER','SUPERVISOR','ADMIN','SUBCONTRACTOR','WAREHOUSE')`,
+ * each endpoint scoped to the caller's own rows) — which is why ADMIN reads
+ * the supervisor path: it has none of its own and that one admits it.
+ * WAREHOUSE, by contrast, does have a path of its own, added by that same PR.
+ * FINANCE is the role still without any endpoint: add its entry here when the
+ * backend ships one and the shared inbox lights up for it with no other
+ * change. WORKER and SUBCONTRACTOR do have endpoints, but no web inbox on
+ * purpose — their panel is the mobile app.
+ */
+const INBOX_PATHS: Partial<Record<CanonicalRole, string>> = {
+  SUPERVISOR: '/api/v1/supervisor/notifications',
+  ADMIN: '/api/v1/supervisor/notifications',
+  WAREHOUSE: '/api/v1/warehouse/notifications',
+};
+
+/** Whether this role has a notification inbox to show. */
+export function hasNotificationInbox(role: CanonicalRole): boolean {
+  return Object.prototype.hasOwnProperty.call(INBOX_PATHS, role);
+}
+
+function inboxPath(role: CanonicalRole): string {
+  const path = INBOX_PATHS[role];
+  if (!path) throw new Error(`No notification inbox for role ${role}`);
+  return path;
+}
+
+/** Get paginated notifications for the signed-in user of this role. */
+export function getNotifications(role: CanonicalRole, page = 0, size = 30): Promise<NotificationPage> {
+  return api<NotificationPage>(`${inboxPath(role)}?page=${page}&size=${size}`);
 }
 
 /** Get unread notification count. */
-export function getSupervisorUnreadCount(): Promise<{ count: number }> {
-  return api<{ count: number }>('/api/v1/supervisor/notifications/unread-count');
+export function getUnreadCount(role: CanonicalRole): Promise<{ count: number }> {
+  return api<{ count: number }>(`${inboxPath(role)}/unread-count`);
 }
 
 /** Mark a single notification as read. */
-export function markNotificationRead(id: number): Promise<void> {
-  return api<void>(`/api/v1/supervisor/notifications/${id}/read`, { method: 'PATCH' });
+export function markNotificationRead(role: CanonicalRole, id: number): Promise<void> {
+  return api<void>(`${inboxPath(role)}/${id}/read`, { method: 'PATCH' });
 }
 
 /** Mark all notifications as read. */
-export function markAllNotificationsRead(): Promise<void> {
-  return api<void>('/api/v1/supervisor/notifications/read-all', { method: 'PATCH' });
+export function markAllNotificationsRead(role: CanonicalRole): Promise<void> {
+  return api<void>(`${inboxPath(role)}/read-all`, { method: 'PATCH' });
 }

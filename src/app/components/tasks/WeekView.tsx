@@ -251,7 +251,9 @@ export function WeekView({ tasks, lang, today, onOpen, onAssign, onSetDates }: {
 /** One bar. It never crops: it grows an edge mark and the real date outside the week. */
 function BarView({ bar, lang, onOpen, onAssign }: { bar: Bar; lang: string; onOpen: () => void; onAssign: () => void }) {
   const { t, i18n } = useTranslation(['tasks']);
-  const mark = STEP_MARK[bar.task.status][i18n.language.startsWith('es') ? 'es' : 'en'];
+  // A status outside the four the board knows would throw on the second index
+  // and take the whole week view down; its first two letters do fine instead.
+  const mark = STEP_MARK[bar.task.status]?.[i18n.language.startsWith('es') ? 'es' : 'en'] ?? bar.task.status.slice(0, 2);
   const overdue = bar.late != null;
   const unowned = bar.task.assignedToId == null;
 

@@ -66,23 +66,25 @@ function getFirstOfMonth(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
 }
 
-/** "2026-02-24" → "Tue, Feb 24" */
-function formatDateLabel(iso: string): string {
-  return new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', {
+/** "2026-02-24" → "Tue, Feb 24" / "mar, 24 feb" */
+function formatDateLabel(iso: string, locale: string): string {
+  // Local-midnight parse on purpose: `new Date('2026-02-24')` is UTC, which
+  // west of Greenwich renders the day before.
+  return new Date(`${iso}T00:00:00`).toLocaleDateString(locale, {
     weekday: 'short', month: 'short', day: 'numeric',
   });
 }
 
-/** ISO instant → "8:02 AM" in local time */
-function formatInstantToTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('en-US', {
+/** ISO instant → "8:02 AM" / "8:02" in local time */
+function formatInstantToTime(iso: string, locale: string): string {
+  return new Date(iso).toLocaleTimeString(locale, {
     hour: 'numeric', minute: '2-digit', hour12: true,
   });
 }
 
 // Record mapper
 
-function toTimeEntry(r: TimeRecordResponse): TimeEntry {
+function toTimeEntry(r: TimeRecordResponse, locale: string): TimeEntry {
   const findEvent = (type: string) => r.events.find(e => e.type === type);
 
   const checkIn    = findEvent('CHECK_IN');
@@ -141,7 +143,7 @@ function toTimeEntry(r: TimeRecordResponse): TimeEntry {
     }
     return {
       type,
-      time:             formatInstantToTime(ev.capturedAtClient),
+      time:             formatInstantToTime(ev.capturedAtClient, locale),
       eventStatus:      ev.eventApprovalStatus,
       comment:          ev.eventReviewComment,
       reviewerUsername: ev.eventReviewerUsername,
@@ -152,10 +154,10 @@ function toTimeEntry(r: TimeRecordResponse): TimeEntry {
   return {
     id:         String(r.id),
     date:       r.workDate,
-    clockIn:    checkIn    ? formatInstantToTime(checkIn.capturedAtClient)    : null,
-    lunchStart: lunchStart ? formatInstantToTime(lunchStart.capturedAtClient) : null,
-    lunchEnd:   lunchEnd   ? formatInstantToTime(lunchEnd.capturedAtClient)   : null,
-    clockOut:   checkOut   ? formatInstantToTime(checkOut.capturedAtClient)   : null,
+    clockIn:    checkIn    ? formatInstantToTime(checkIn.capturedAtClient, locale)    : null,
+    lunchStart: lunchStart ? formatInstantToTime(lunchStart.capturedAtClient, locale) : null,
+    lunchEnd:   lunchEnd   ? formatInstantToTime(lunchEnd.capturedAtClient, locale)   : null,
+    clockOut:   checkOut   ? formatInstantToTime(checkOut.capturedAtClient, locale)   : null,
     totalHours,
     status,
     projectName: r.projectName,
@@ -321,7 +323,7 @@ function Pagination({
 type ViewMode = 'week' | 'month';
 
 export function MyHours() {
-  const { t } = useTranslation('time');
+  const { t, i18n } = useTranslation('time');
   // Filter state
   const [viewMode, setViewMode]       = useState<ViewMode>('week');
   const [dateFrom, setDateFrom]       = useState(getMondayOfWeek);
@@ -357,13 +359,13 @@ export function MyHours() {
     setRecordsError(null);
     try {
       const data = await getMyRecords({ dateFrom: appliedFrom, dateTo: appliedTo });
-      setRecords(data.map(toTimeEntry).sort((a, b) => b.date.localeCompare(a.date)));
+      setRecords(data.map(r => toTimeEntry(r, i18n.language)).sort((a, b) => b.date.localeCompare(a.date)));
     } catch (err) {
       setRecordsError(err instanceof Error ? err.message : t('time:toast.loadRecordsError', 'Failed to load records'));
     } finally {
       setRecordsLoading(false);
     }
-  }, [appliedFrom, appliedTo]);
+  }, [appliedFrom, appliedTo, i18n.language, t]);
 
   useEffect(() => { fetchRecords(); }, [fetchRecords]);
 
@@ -512,9 +514,9 @@ export function MyHours() {
 
         <p className="text-[11px] text-[#71717A] mt-3 pt-3 border-t border-[#FAFAFA]">
           {t('myHours.showingEntries')}{' '}
-          <span className="font-medium text-[#0A0A0A]">{formatDateLabel(appliedFrom)}</span>
+          <span className="font-medium text-[#0A0A0A]">{formatDateLabel(appliedFrom, i18n.language)}</span>
           {' '}{t('myHours.to')}{' '}
-          <span className="font-medium text-[#0A0A0A]">{formatDateLabel(appliedTo)}</span>
+          <span className="font-medium text-[#0A0A0A]">{formatDateLabel(appliedTo, i18n.language)}</span>
           {!recordsLoading && !recordsError && (
             <> · {t('myHours.recordsFound', { count: records.length })}</>
           )}
@@ -625,7 +627,7 @@ export function MyHours() {
                         </span>
                       </TableCell>
                       <TableCell className="py-3">
-                        <span className="text-sm font-medium text-[#0A0A0A]">{formatDateLabel(entry.date)}</span>
+                        <span className="text-sm font-medium text-[#0A0A0A]">{formatDateLabel(entry.date, i18n.language)}</span>
                       </TableCell>
                       <TableCell className="py-3">
                         <span className="text-xs text-[#71717A] max-w-[140px] truncate block">{entry.projectName}</span>
@@ -672,7 +674,7 @@ export function MyHours() {
                       ? <ChevronDown className="w-3.5 h-3.5 text-[#71717A]" />
                       : <ChevronRight className="w-3.5 h-3.5 text-[#71717A]" />}
                     <div className="text-left">
-                      <span className="text-sm font-semibold text-[#0A0A0A]">{formatDateLabel(entry.date)}</span>
+                      <span className="text-sm font-semibold text-[#0A0A0A]">{formatDateLabel(entry.date, i18n.language)}</span>
                       <p className="text-[10px] text-[#71717A]">{entry.projectName}</p>
                     </div>
                   </div>
