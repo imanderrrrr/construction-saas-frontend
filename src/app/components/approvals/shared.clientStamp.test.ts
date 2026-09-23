@@ -14,7 +14,7 @@
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
-  UPLOAD_LAG_MS, dayHours, payableAt, sequenceOf, uploadLagOf,
+  UPLOAD_LAG_MS, dayHours, hhmm, payableAt, sequenceOf, uploadLagOf,
 } from './shared';
 import type { TimeRecordResponse } from '../../services/time';
 
@@ -52,6 +52,21 @@ function record(events: Ev[]): TimeRecordResponse {
 //   uploaded 14:00 → 14:00  = 0.0 h  ← what the panel used to show
 const OFFLINE_IN  = ev('CHECK_IN',  '2026-09-15T12:00:00Z', '2026-09-15T20:00:00Z');
 const OFFLINE_OUT = ev('CHECK_OUT', '2026-09-15T20:00:00Z', '2026-09-15T20:00:02Z');
+
+describe('hhmm — the hour of the day, the same on every runtime', () => {
+  // `hour12: false` leaves midnight to the runtime's ICU: Node 25 renders
+  // "00:10", the CI runner rendered "24:10" off the very same commit. h24 would
+  // also contradict the "fix time" editor, which only accepts 00:00–23:59.
+  it('renders midnight as 00, never 24', () => {
+    expect(hhmm('2026-09-15T06:00:00Z', 'es')).toBe('00:00'); // 00:00 local
+    expect(hhmm('2026-09-15T06:10:00Z', 'es')).toBe('00:10');
+  });
+
+  it('keeps the rest of the day on a 24h clock', () => {
+    expect(hhmm('2026-09-15T12:00:00Z', 'es')).toBe('06:00');
+    expect(hhmm('2026-09-16T05:59:00Z', 'es')).toBe('23:59');
+  });
+});
 
 describe('payableAt — which of the two stamps the panel reads', () => {
   it('prefers the punch over the upload when both are there', () => {

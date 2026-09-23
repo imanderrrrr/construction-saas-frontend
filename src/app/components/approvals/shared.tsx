@@ -99,10 +99,17 @@ export function dayHours(r: TimeRecordResponse): number {
 /**
  * "08:12" — 24h always. Jobsite times are read as a sequence, and "02:05 a. m."
  * triples the width of every row for no gain.
+ *
+ * `hourCycle: 'h23'` rather than `hour12: false`: the latter leaves midnight up
+ * to the runtime's ICU, which resolves it to h23 ("00:10") on some and h24
+ * ("24:10") on others — the same build rendered both (Node 25 vs the CI
+ * runner). h24 would also contradict the editor below, which only accepts
+ * 00:00–23:59, so a supervisor could read back a time the form rejects. Note
+ * `hour12` WINS over `hourCycle` when both are present, so it has to go.
  */
 export function hhmm(iso: string, _lang: string): string {
   return new Date(iso).toLocaleTimeString('es-GT', {
-    hour: '2-digit', minute: '2-digit', hour12: false,
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
   });
 }
 
