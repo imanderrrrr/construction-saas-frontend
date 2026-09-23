@@ -8,7 +8,8 @@ import {
 } from '../../services/time';
 import { fmtDateTime } from '../../helpers/dateTime';
 import {
-  Mono, alertsFor, dayHours, distanceState, hhmm, initials, statusPillClass,
+  Mono, alertsFor, dayHours, distanceState, hhmm, initials, payableAt,
+  statusPillClass, uploadLagOf,
 } from './shared';
 
 /**
@@ -71,8 +72,7 @@ export function RecordDrawer({ recordId, onClose, onChanged }: {
 
   const alerts = alertsFor(record);
   const events = [...record.events].sort((a, b) =>
-    new Date(a.capturedAtServer || a.capturedAtClient).getTime() -
-    new Date(b.capturedAtServer || b.capturedAtClient).getTime());
+    new Date(payableAt(a)).getTime() - new Date(payableAt(b)).getTime());
   const disputeEvent = record.events.find(e => e.disputeStatus);
   const pending = record.approvalStatus === 'PENDING';
 
@@ -133,6 +133,11 @@ export function RecordDrawer({ recordId, onClose, onChanged }: {
             {events.map((e, i) => {
               const dist = distanceState(e, record.geofenceRadiusMeters);
               const evPending = e.eventApprovalStatus === 'PENDING';
+              // When the punch and its upload are far apart the mark was made
+              // offline. The punch is the hour that gets paid and stays the
+              // headline; the upload hour rides underneath so a late arrival
+              // is still legible as one, instead of silently replacing it.
+              const lag = uploadLagOf(e);
               return (
                 <div key={e.id} className="relative flex gap-3.5">
                   <div className="relative w-8 flex-shrink-0 flex justify-center">
@@ -150,9 +155,21 @@ export function RecordDrawer({ recordId, onClose, onChanged }: {
                       <Mono className="text-[10px] tracking-[0.1em] text-[#8A8175]">
                         {t(`admin:apr.ev.${e.type}`, { defaultValue: e.type })}
                       </Mono>
-                      <span className="font-bt-display font-bold text-xl leading-none text-[#0A0A0A]">
-                        {hhmm(e.capturedAtServer || e.capturedAtClient, lang)}
-                      </span>
+                      <div className="text-right flex-shrink-0">
+                        <span className="font-bt-display font-bold text-xl leading-none text-[#0A0A0A]">
+                          {hhmm(payableAt(e), lang)}
+                        </span>
+                        {lag && (
+                          <Mono
+                            data-testid={`upload-lag-${e.id}`}
+                            className="block text-[9.5px] normal-case tracking-normal text-[#A69C8D] mt-1.5">
+                            {t('admin:apr.d.uploadedAt', { time: hhmm(lag.at, lang) })}
+                            {lag.dayOffset !== 0 && ` ${t('admin:apr.d.uploadedDayOffset', {
+                              days: lag.dayOffset > 0 ? `+${lag.dayOffset}` : String(lag.dayOffset),
+                            })}`}
+                          </Mono>
+                        )}
+                      </div>
                     </div>
                     <div className="mt-2 flex flex-wrap gap-2">
                       {e.manualCreatorUsername ? (
@@ -182,7 +199,7 @@ export function RecordDrawer({ recordId, onClose, onChanged }: {
                           className="border border-[#DBD0BB] bg-[#FAF7F0] px-2.5 py-1.5 font-bt-mono text-[9.5px] uppercase tracking-[0.05em] font-semibold text-[#0A0A0A] hover:border-[#2E6B34] hover:text-[#2E6B34] disabled:opacity-50">
                           {t('admin:apr.approve')}
                         </button>
-                        <button onClick={() => { setEditingEvent(e.id); setTimeValue(hhmm(e.capturedAtServer || e.capturedAtClient, lang)); }}
+                        <button onClick={() => { setEditingEvent(e.id); setTimeValue(hhmm(payableAt(e), lang)); }}
                           className="border border-[#DBD0BB] bg-[#FAF7F0] px-2.5 py-1.5 font-bt-mono text-[9.5px] uppercase tracking-[0.05em] font-semibold text-[#0A0A0A] hover:border-[#F97316] hover:text-[#C2410C]">
                           {t('admin:apr.d.fixTime')}
                         </button>
@@ -201,12 +218,32 @@ export function RecordDrawer({ recordId, onClose, onChanged }: {
                         <input value={timeValue} onChange={ev => setTimeValue(ev.target.value)} placeholder="HH:MM"
                           className="w-[92px] border border-[#CDBFA6] bg-white px-2.5 py-1.5 font-bt-mono text-sm tracking-[0.08em] text-center text-[#0A0A0A] outline-none focus:border-[#F97316]" />
                         <button onClick={() => {
-                          const [h, m] = timeValue.split(':').map(Number);
-                          if (Number.isNaN(h) || Number.isNaN(m)) return;
-                          const d = new Date(e.capturedAtServer || e.capturedAtClient);
+                          // What this button edits is capturedAtClient — the punch,
+                          // the stamp payroll pays on (backend: editEventTime sets
+                          // event.capturedAtClient = newTime). So the new instant is
+                          // built on the PUNCH's own calendar day. Building it on the
+                          // upload stamp is what used to overwrite a legitimate
+                          // offline punch with the hour it happened to reach us, and
+                          // on a punch uploaded past midnight it also aimed the edit
+                          // at the wrong day (backend answers WRONG_DATE).
+                          const parsed = /^\s*(\d{1,2}):(\d{2})\s*$/.exec(timeValue);
+                          const h = parsed ? Number(parsed[1]) : NaN;
+                          const m = parsed ? Number(parsed[2]) : NaN;
+                          // NaN fails every comparison, so this covers unparseable
+                          // input too. "25:70" used to roll silently into the next day.
+                          if (!(h >= 0 && h <= 23 && m >= 0 && m <= 59)) {
+                            toast.error(t('admin:apr.d.fixBadTime'));
+                            return;
+                          }
+                          const d = new Date(payableAt(e));
                           d.setHours(h, m, 0, 0);
-                          const reason = window.prompt(t('admin:apr.d.fixReason')) || t('admin:apr.d.fixDefaultReason');
-                          run(`ev-time-${e.id}`, () => editEventTime(record.id, e.id, d.toISOString(), reason));
+                          const reason = window.prompt(t('admin:apr.d.fixReason'));
+                          // Dismissing the reason aborts the edit. This path rewrites
+                          // a paid timestamp — cancel has to mean cancel.
+                          if (reason === null) return;
+                          run(`ev-time-${e.id}`, () => editEventTime(
+                            record.id, e.id, d.toISOString(),
+                            reason.trim() || t('admin:apr.d.fixDefaultReason')));
                           setEditingEvent(null);
                         }}
                           className="bg-[#0A0A0A] hover:bg-[#F97316] text-[#F5F1E8] hover:text-[#0A0A0A] px-3 py-2 font-bt-mono text-[9.5px] uppercase tracking-[0.06em] font-semibold">
