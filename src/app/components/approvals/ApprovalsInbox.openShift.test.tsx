@@ -16,6 +16,11 @@ import { ApiError } from '../../lib/api';
 // frontend half: the bulk result must be REPORTED (how many approved, how many
 // left pending and why), and the not-approved rows must stay selected so the
 // admin sees exactly which ones the summary talks about.
+//
+// Its sibling, the leg BEFORE the shift: while the worker is still on the road
+// (their last punch of the day is an IN_TRANSIT), the backend refuses approve
+// with 409 TRANSIT_IN_PROGRESS (backend PR #156), because a transit is paid up
+// to the arrival check-in. That is a wait too, not an error, with its own words.
 // ════════════════════════════════════════════════════════════════════════
 
 const mocks = vi.hoisted(() => ({
@@ -66,7 +71,7 @@ function ev(id: number, type: string, hourUtc: string) {
     eventApprovalStatus: 'PENDING',
     eventReviewComment: null, eventReviewerUsername: null, eventReviewedAt: null,
     sourceProjectId: null, sourceProjectName: null,
-    disputeStatus: null, disputeReason: null, awardedTransitMinutes: null,
+    disputeStatus: null as string | null, disputeReason: null, awardedTransitMinutes: null as number | null,
     disputeResolvedBy: null, disputeResolvedAt: null,
     manualCreatorUsername: null,
   };
@@ -96,8 +101,33 @@ function record(id: number, worker: string, events: ReturnType<typeof ev>[]) {
 // backend refuses it with SHIFT_STILL_OPEN.
 const closedShift = record(1, 'maria', [ev(11, 'CHECK_IN', '08:00'), ev(12, 'CHECK_OUT', '17:00')]);
 const openShift = record(2, 'pedro', [ev(21, 'CHECK_IN', '08:05')]);
+// #3 a transit STILL ON THE ROAD: an IN_TRANSIT with nothing after it — the
+// backend refuses it with TRANSIT_IN_PROGRESS until the worker checks in.
+const enRoute = record(3, 'juan', [ev(31, 'IN_TRANSIT', '12:10')]);
+// #4 and #5 the backend would NOT hold: the transit already arrived (the
+// check-in is in its record), or its dispute was resolved (the award pays with
+// or without the arrival).
+const arrived = record(4, 'rosa', [
+  ev(41, 'IN_TRANSIT', '07:40'), ev(42, 'CHECK_IN', '08:05'), ev(43, 'CHECK_OUT', '17:00'),
+]);
+const resolvedDispute = record(5, 'luis', [
+  { ...ev(51, 'IN_TRANSIT', '12:10'), disputeStatus: 'RESOLVED', awardedTransitMinutes: 20 },
+]);
 
-describe('ApprovalsInbox — bulk approve with an open shift selected', () => {
+// The backend's own sentence (es) for TRANSIT_IN_PROGRESS.
+const TRANSIT_SENTENCE = 'Este traslado sigue en curso: el trabajador todavía no ha registrado su '
+  + 'entrada en la obra, y el traslado se paga hasta esa entrada. Podrá aprobarse o corregirse '
+  + 'cuando llegue, o rechazarse ahora.';
+const transitInProgress = () => new ApiError(409, TRANSIT_SENTENCE, undefined, 'TRANSIT_IN_PROGRESS');
+const shiftStillOpen = () => new ApiError(409, 'Este turno todavía está abierto.', undefined, 'SHIFT_STILL_OPEN');
+
+/** The backend refuses these ids with these errors and approves the rest. */
+function approveRefusing(refusals: Record<number, Error>) {
+  mocks.approveRecord.mockImplementation((id: number) =>
+    refusals[id] ? Promise.reject(refusals[id]) : Promise.resolve({ id, approvalStatus: 'APPROVED' }));
+}
+
+describe('ApprovalsInbox — bulk approve with an open shift (or a transit on the road) selected', () => {
   let container: HTMLDivElement;
   let root: Root;
 
@@ -210,5 +240,122 @@ describe('ApprovalsInbox — bulk approve with an open shift selected', () => {
     const report = mocks.toast.error.mock.calls[0][0] as string;
     expect(report).toContain('admin:apr.bulk.approved:1');
     expect(report).toContain('admin:apr.bulk.failed:1');
+  });
+
+  describe('a transit still on the road (TRANSIT_IN_PROGRESS)', () => {
+    beforeEach(() => {
+      mocks.getAllTimeRecords.mockResolvedValue([closedShift, openShift, enRoute, arrived, resolvedDispute]);
+      approveRefusing({ [openShift.id]: shiftStillOpen(), [enRoute.id]: transitInProgress() });
+    });
+
+    async function select(...workers: string[]) {
+      for (const w of workers) await act(async () => { rowCheckbox(w).click(); });
+    }
+
+    async function approveSelected() {
+      const bulkBtn = [...container.querySelectorAll('button')]
+        .find(b => b.textContent?.includes('admin:apr.approveBulk'));
+      expect(bulkBtn).toBeTruthy();
+      await act(async () => { bulkBtn!.click(); });
+    }
+
+    /** A selected row's checkbox is filled with ink. */
+    const isSelected = (worker: string) => rowCheckbox(worker).className.includes('bg-[#0A0A0A]');
+
+    it('reports it as left pending with its own reason and hint: a warning, not an error', async () => {
+      await renderInbox('maria', 'juan');
+      await select('maria', 'juan');
+      await approveSelected();
+
+      expect(mocks.approveRecord).toHaveBeenCalledWith(closedShift.id);
+      expect(mocks.approveRecord).toHaveBeenCalledWith(enRoute.id);
+      expect(mocks.toast.warning).toHaveBeenCalledTimes(1);
+      const report = mocks.toast.warning.mock.calls[0][0] as string;
+      expect(report).toContain('admin:apr.bulk.approved:1');
+      expect(report).toContain('admin:apr.bulk.transitSkipped:1');
+      expect(report).toContain('admin:apr.bulk.transitHint');
+      // Neither an error nor an open shift: "turno abierto (sin salida)" would be false.
+      expect(report).not.toContain('admin:apr.bulk.failed');
+      expect(report).not.toContain('admin:apr.bulk.openSkipped');
+      expect(report).not.toContain('admin:apr.bulk.openHint');
+      expect(mocks.toast.error).not.toHaveBeenCalled();
+      expect(mocks.toast.success).not.toHaveBeenCalled();
+    });
+
+    it('keeps exactly the transit selected, so the admin sees which row is waiting', async () => {
+      await renderInbox('maria', 'juan');
+      await select('maria', 'juan');
+      await approveSelected();
+
+      expect(container.textContent).toContain('admin:apr.approveBulk:1');
+      expect(isSelected('juan')).toBe(true);
+      expect(isSelected('maria')).toBe(false);
+    });
+
+    it('next to an open shift: both left pending, each in its own words, still a warning', async () => {
+      await renderInbox('maria', 'pedro', 'juan');
+      await select('maria', 'pedro', 'juan');
+      await approveSelected();
+
+      expect(mocks.toast.warning).toHaveBeenCalledTimes(1);
+      const report = mocks.toast.warning.mock.calls[0][0] as string;
+      expect(report).toContain('admin:apr.bulk.approved:1');
+      expect(report).toContain('admin:apr.bulk.openSkipped:1');
+      expect(report).toContain('admin:apr.bulk.transitSkipped:1');
+      expect(report).toContain('admin:apr.bulk.openHint');
+      expect(report).toContain('admin:apr.bulk.transitHint');
+      expect(mocks.toast.error).not.toHaveBeenCalled();
+      expect(isSelected('pedro')).toBe(true);
+      expect(isSelected('juan')).toBe(true);
+      expect(isSelected('maria')).toBe(false);
+    });
+
+    it('next to a real failure it still counts as pending, not as one more error', async () => {
+      approveRefusing({
+        [openShift.id]: new ApiError(500, 'boom', undefined, 'INTERNAL_ERROR'),
+        [enRoute.id]: transitInProgress(),
+      });
+      await renderInbox('maria', 'pedro', 'juan');
+      await select('maria', 'pedro', 'juan');
+      await approveSelected();
+
+      expect(mocks.toast.error).toHaveBeenCalledTimes(1);
+      const report = mocks.toast.error.mock.calls[0][0] as string;
+      expect(report).toContain('admin:apr.bulk.approved:1');
+      expect(report).toContain('admin:apr.bulk.transitSkipped:1');
+      expect(report).toContain('admin:apr.bulk.failed:1');
+      expect(mocks.toast.warning).not.toHaveBeenCalled();
+    });
+
+    it('warns up front that a transit with no arrival MAY stay pending', async () => {
+      await renderInbox('maria', 'juan');
+      await select('maria', 'juan');
+
+      const warning = container.querySelector('[data-testid="bulk-transit-warning"]');
+      expect(warning).toBeTruthy();
+      expect(warning!.textContent).toContain('admin:apr.bulk.transitWarning:1');
+      expect(container.querySelector('[data-testid="bulk-open-warning"]')).toBeNull();
+    });
+
+    it('does not warn for a transit that already arrived, nor for one whose dispute was resolved', async () => {
+      await renderInbox('rosa', 'luis');
+      await select('rosa', 'luis');
+
+      expect(container.textContent).toContain('admin:apr.approveBulk:2');
+      expect(container.querySelector('[data-testid="bulk-transit-warning"]')).toBeNull();
+    });
+
+    it.each(['the row button', 'the A key'])('approving it alone with %s toasts the sentence the backend wrote', async via => {
+      mocks.getAllTimeRecords.mockResolvedValue([enRoute]);
+      await renderInbox('juan');
+      await act(async () => {
+        if (via === 'the A key') window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
+        else [...container.querySelectorAll('button')].find(b => b.textContent === 'admin:apr.approve')!.click();
+      });
+
+      expect(mocks.approveRecord).toHaveBeenCalledWith(enRoute.id);
+      expect(mocks.toast.error).toHaveBeenCalledWith(TRANSIT_SENTENCE);
+      expect(mocks.toast.warning).not.toHaveBeenCalled();
+    });
   });
 });
