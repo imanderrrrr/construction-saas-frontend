@@ -1,7 +1,9 @@
 // BuildTrack — a worker's day: the record in force, the transit in progress,
-// the state. The rules mirror the server's (TimeServiceImpl.findCurrentTransit,
-// WorkerStateMachine.deriveState) and the app's (DayProgress.primaryRecord);
-// WorkerTime.currentRecord.test.tsx drives them through the punch panel.
+// the state, and whether that transit is still the worker's to cancel. The
+// rules mirror the server's (TimeServiceImpl.findCurrentTransit and
+// assertTransitNotReviewed, WorkerStateMachine.deriveState) and the app's
+// (DayProgress.primaryRecord); WorkerTime.currentRecord.test.tsx drives them
+// through the punch panel.
 
 import { describe, expect, it, vi } from 'vitest';
 
@@ -11,7 +13,7 @@ vi.mock('../lib/api', () => ({
 
 import type { TimeEventType } from '../types';
 import {
-  currentRecord, currentTransit, deriveWorkerState,
+  currentRecord, currentTransit, deriveWorkerState, isTransitReviewed,
   type TimeRecordResponse,
 } from './time';
 
@@ -122,6 +124,34 @@ describe('currentTransit', () => {
 
   it('is null on a day with no punches', () => {
     expect(currentTransit([])).toBeNull();
+  });
+});
+
+describe('isTransitReviewed', () => {
+  // assertTransitNotReviewed, check by check, on a transit-only record.
+  function reviewed(transit: Partial<Ev>, record: Rec['approvalStatus'] = 'PENDING'): boolean {
+    const event = { ...ev(3, 'IN_TRANSIT', t('12:05')), ...transit };
+    return isTransitReviewed(event, rec(2, 2, [event], record));
+  }
+
+  it('is false for a transit nobody has ruled on', () => {
+    expect(reviewed({})).toBe(false);
+  });
+
+  it('is false while a dispute waits — the server refuses that one as DISPUTE_ALREADY_EXISTS', () => {
+    expect(reviewed({ disputeStatus: 'PENDING' })).toBe(false);
+  });
+
+  it('is true once the dispute is resolved', () => {
+    expect(reviewed({ disputeStatus: 'RESOLVED' })).toBe(true);
+  });
+
+  it.each(['APPROVED', 'OBSERVED', 'REJECTED'] as const)('is true once the punch is %s', status => {
+    expect(reviewed({ eventApprovalStatus: status })).toBe(true);
+  });
+
+  it('is true once its record is reviewed, even with the punch itself still PENDING', () => {
+    expect(reviewed({}, 'OBSERVED')).toBe(true);
   });
 });
 
