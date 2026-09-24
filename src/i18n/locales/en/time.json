@@ -246,6 +246,9 @@
 
   "toast.loadProjectsError": "Failed to load projects",
   "toast.loadRecordsError": "Failed to load records",
+  "toast.startTransitError": "Could not start the transit. Please try again.",
+  "toast.cancelTransitError": "Could not cancel the transit. Please try again.",
+  "toast.disputeTransitError": "Could not submit the dispute. Please try again.",
 
   "modalCorrect.correct.title": "Add correction note",
   "modalCorrect.correct.submitLabel": "Submit correction",

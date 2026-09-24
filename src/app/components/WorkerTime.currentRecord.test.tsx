@@ -59,6 +59,8 @@ vi.mock('../lib/api', async (importOriginal) => ({
   getStoredRole: () => 'WORKER',
 }));
 
+import { toast } from 'sonner';
+import { ApiError } from '../lib/api';
 import { WorkerTime } from './WorkerTime';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -124,6 +126,21 @@ function byFirstPunch(records: Rec[]): Rec[] {
 let projects: WorkerProject[] = [];
 let day: Rec[] = [];
 let posts: Array<{ projectId: number; type: TimeEventType }> = [];
+/** Every request the panel made, as "METHOD /path". */
+let requests: string[] = [];
+/** No connection: every request fails the way fetch does, before any response. */
+let offline = false;
+
+/** A refusal as the server sends it: a 409 with its code, and a message already
+ *  in the worker's language (here the English ones, from messages.properties). */
+const SAYS: Record<string, string> = {
+  INVALID_EVENT_SEQUENCE: 'That action does not match your current status. Please refresh and try again.',
+  NO_ACTIVE_TRANSIT: 'You have no travel in progress.',
+  DISPUTE_ALREADY_EXISTS: 'This travel already has an open claim.',
+  TRANSIT_ALREADY_REVIEWED:
+    'Your supervisor already reviewed this travel, so it can no longer be cancelled or claimed. Check in when you arrive.',
+};
+const refuse = (code: string) => new ApiError(409, SAYS[code] ?? code, undefined, code);
 
 const STATE_AFTER: Record<TimeEventType, WorkerState> = {
   CHECK_IN: 'WORKING', LUNCH_START: 'ON_LUNCH', LUNCH_END: 'WORKING',
@@ -134,11 +151,16 @@ const ALLOWED: Record<WorkerState, TimeEventType[]> = {
   ON_LUNCH: ['LUNCH_END'], IN_TRANSIT: ['CHECK_IN'],
 };
 
-/** WorkerStateMachine.deriveState: the last of these punches by (client stamp, id). */
-function stateOf(records: Rec[]): WorkerState {
+/** The last of these punches by (client stamp, id), findAllByWorkerAndDate's order. */
+function lastPunch(records: Rec[]): Ev | undefined {
   const events = records.flatMap(r => r.events).sort((a, b) =>
     Date.parse(a.capturedAtClient) - Date.parse(b.capturedAtClient) || a.id - b.id);
-  const last: Ev | undefined = events[events.length - 1];
+  return events[events.length - 1];
+}
+
+/** WorkerStateMachine.deriveState: what the last punch left the worker in. */
+function stateOf(records: Rec[]): WorkerState {
+  const last = lastPunch(records);
   return last ? STATE_AFTER[last.type] : 'OFF_DUTY';
 }
 
@@ -147,6 +169,8 @@ const has = (r: Rec, type: TimeEventType) => r.events.some(e => e.type === type)
 async function fakeApi(path: string, init?: RequestInit): Promise<unknown> {
   const url = new URL(path, 'http://localhost');
   const method = init?.method ?? 'GET';
+  requests.push(`${method} ${url.pathname}`);
+  if (offline) throw new TypeError('Failed to fetch');
   switch (`${method} ${url.pathname}`) {
     case 'GET /api/v1/worker/my-projects':
       return projects;
@@ -161,7 +185,7 @@ async function fakeApi(path: string, init?: RequestInit): Promise<unknown> {
     case 'POST /api/v1/worker/time-events': {
       const req = JSON.parse(String(init?.body)) as { projectId: number; type: TimeEventType; capturedAtClient: string };
       posts.push({ projectId: req.projectId, type: req.type });
-      if (!ALLOWED[stateOf(day)].includes(req.type)) throw new Error('INVALID_EVENT_SEQUENCE');
+      if (!ALLOWED[stateOf(day)].includes(req.type)) throw refuse('INVALID_EVENT_SEQUENCE');
       const eventId = 9000 + posts.length;
       const event = ev(eventId, req.type, req.capturedAtClient);
       // Just enough of createEvent's record choice for these days: closing
@@ -180,6 +204,24 @@ async function fakeApi(path: string, init?: RequestInit): Promise<unknown> {
         eventId, serverCapturedAt: req.capturedAtClient, locationStatus: 'OK',
         recordId, nextExpectedType: null,
       };
+    }
+    case 'POST /api/v1/worker/cancel-transit':
+    case 'POST /api/v1/worker/dispute-transit': {
+      // TimeServiceImpl as of backend #155. Neither endpoint carries an id: they
+      // act on the day's last punch, if it is a transit nobody has ruled on.
+      const transit = lastPunch(day);
+      if (transit?.type !== 'IN_TRANSIT') throw refuse('NO_ACTIVE_TRANSIT');
+      if (transit.disputeStatus === 'PENDING') throw refuse('DISPUTE_ALREADY_EXISTS');
+      const record = day.find(r => r.events.includes(transit))!;
+      if (transit.disputeStatus === 'RESOLVED' || transit.eventApprovalStatus !== 'PENDING'
+        || record.approvalStatus !== 'PENDING') throw refuse('TRANSIT_ALREADY_REVIEWED');
+      day = url.pathname.endsWith('/cancel-transit')
+        // The transit-only record goes, event and all.
+        ? day.filter(r => r !== record)
+        : day.map(r => (r !== record ? r : {
+          ...r, events: r.events.map(e => (e === transit ? { ...e, disputeStatus: 'PENDING' } : e)),
+        }));
+      return undefined;
     }
   }
   throw new Error(`unexpected request: ${method} ${path}`);
@@ -218,10 +260,24 @@ function nextPunch(): string | null {
   return next?.textContent?.match(/punchButton\.([A-Z_]+)/)?.[1] ?? null;
 }
 
+/** The buttons of the modal dialog that is up. */
+const dialogButtons = () => [...document.body.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')];
+
 async function click(el: HTMLElement | undefined) {
   if (!el) throw new Error('nothing to click');
   await act(async () => { el.click(); });
   await flush();
+}
+
+/** Types into a React-controlled textarea: React picks the value up from the
+ *  native setter plus an input event. */
+async function type(el: HTMLTextAreaElement | null, value: string) {
+  if (!el) throw new Error('nothing to type into');
+  const setValue = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!;
+  await act(async () => {
+    setValue.call(el, value);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
 }
 
 /** One tick of the panel's 30 s refresh, which is how a supervisor's review
@@ -236,6 +292,9 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date(2026, 8, 24, 17, 30));
   posts = [];
+  requests = [];
+  offline = false;
+  vi.mocked(toast.error).mockClear();
   container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
@@ -417,5 +476,148 @@ describe.each([
 
     expect(text()).toContain('punch.dayComplete');
     expect(text()).not.toContain('punch.transitPromptTitle');
+  });
+});
+
+// ── Refused transit actions ─────────────────────────────────────────────────
+// A transit can change after the panel last read the day: a supervisor reviews
+// it, or the worker disputes or cancels it from the app. The server then
+// refuses the panel's cancel or dispute with a 409 (TRANSIT_ALREADY_REVIEWED,
+// DISPUTE_ALREADY_EXISTS, NO_ACTIVE_TRANSIT) whose message is already in the
+// worker's language. The panel used to drop it: it only reached a banner these
+// actions never raise, so the spinner stopped and the dialog or the form stayed
+// up until the next 30 s poll.
+
+describe.each([
+  ['server order', (rs: Rec[]) => byFirstPunch(rs)],
+  ['reversed', (rs: Rec[]) => byFirstPunch(rs).reverse()],
+])('WorkerTime — a refused transit action (%s)', (_order, order) => {
+  // Torre Norte's day is over, and the worker set off for Plaza Sur.
+  const norte = rec(100, NORTE, [ev(1000, 'CHECK_IN', at(7)), ev(1001, 'CHECK_OUT', at(9))]);
+  const toSur = (review: Partial<Ev> = {}, record: Partial<Rec> = {}) =>
+    rec(101, SUR, [transit(1010, at(9, 5), NORTE, review)], record);
+  const approved = () => toSur({ eventApprovalStatus: 'APPROVED' }, { approvalStatus: 'APPROVED' });
+
+  /** The block's cancel dialog, with a reason picked. */
+  async function openCancelDialog() {
+    await click(buttons().find(b => b.textContent === 'punch.cancelTransit'));
+    await click(buttons().find(b => b.textContent === 'punch.cancelReason.VEHICLE_ISSUE'));
+    expect(text()).toContain('punch.cancelTransitConfirmTitle');
+  }
+  const confirmCancel = () => click(dialogButtons().find(b => b.textContent === 'punch.cancelTransit'));
+
+  /** The block's dispute form, with a reason long enough to send. */
+  async function openDisputeForm() {
+    await click(buttons().find(b => b.textContent === 'punch.disputeTransit'));
+    await type(document.body.querySelector('textarea'), 'Accidente en la carretera, tránsito detenido');
+  }
+  // With the form up, its send button is the only one left with that label.
+  const sendDispute = () => click(buttons().find(b => b.textContent === 'punch.disputeTransit'));
+
+  /** What the panel asked the server for from `since` on. */
+  const askedSince = (since: number) => requests.slice(since);
+
+  it('cancel, reviewed since the day was read: the server says why, and the day it reloads shuts the dialog', async () => {
+    await openPanel(SUR, order([norte, toSur()]));
+    await openCancelDialog();
+
+    // Approved en route while the worker picks a reason, before the next poll.
+    day = order([norte, approved()]);
+    const since = requests.length;
+    await confirmCancel();
+
+    expect(toast.error).toHaveBeenCalledWith(SAYS.TRANSIT_ALREADY_REVIEWED);
+    expect(askedSince(since)).toEqual(['POST /api/v1/worker/cancel-transit', 'GET /api/v1/worker/time-records']);
+    expect(text()).not.toContain('punch.cancelTransitConfirmTitle');
+    expect(text()).toContain('punch.transitReviewedDesc');
+    expect(text()).not.toContain('punch.cancelTransit');
+  });
+
+  it('dispute, reviewed since the day was read: the server says why, and the day it reloads shuts the form', async () => {
+    await openPanel(SUR, order([norte, toSur()]));
+    await openDisputeForm();
+
+    day = order([norte, approved()]);
+    const since = requests.length;
+    await sendDispute();
+
+    expect(toast.error).toHaveBeenCalledWith(SAYS.TRANSIT_ALREADY_REVIEWED);
+    expect(askedSince(since)).toEqual(['POST /api/v1/worker/dispute-transit', 'GET /api/v1/worker/time-records']);
+    expect(document.body.querySelector('textarea')).toBeNull();
+    expect(text()).toContain('punch.transitReviewedDesc');
+    expect(text()).not.toContain('punch.disputeTransit');
+  });
+
+  it('dispute, already filed from the app: the server says so, and the block shows it pending', async () => {
+    await openPanel(SUR, order([norte, toSur()]));
+    await openDisputeForm();
+
+    day = order([norte, toSur({ disputeStatus: 'PENDING', disputeReason: 'Llanta ponchada en el camino' })]);
+    const since = requests.length;
+    await sendDispute();
+
+    expect(toast.error).toHaveBeenCalledWith(SAYS.DISPUTE_ALREADY_EXISTS);
+    expect(askedSince(since)).toEqual(['POST /api/v1/worker/dispute-transit', 'GET /api/v1/worker/time-records']);
+    expect(document.body.querySelector('textarea')).toBeNull();
+    expect(text()).toContain('punch.disputePending');
+  });
+
+  it('cancel, already cancelled from the app: the server says so, and the block goes with the transit', async () => {
+    await openPanel(SUR, order([norte, toSur()]));
+    await openCancelDialog();
+
+    // The app's cancel deleted the transit-only record, so Plaza Sur has no
+    // record left today: the reload has to replace the day all the same.
+    day = order([norte]);
+    const since = requests.length;
+    await confirmCancel();
+
+    expect(toast.error).toHaveBeenCalledWith(SAYS.NO_ACTIVE_TRANSIT);
+    expect(askedSince(since)).toEqual(['POST /api/v1/worker/cancel-transit', 'GET /api/v1/worker/time-records']);
+    expect(text()).not.toContain('punch.cancelTransitConfirmTitle');
+    expect(inTransitBlock()).toBe(false);
+    expect(nextPunch()).toBe('CHECK_IN');
+  });
+
+  it('cancel with no connection: a message of its own, the day and the dialog stay, and the retry goes through', async () => {
+    await openPanel(SUR, order([norte, toSur()]));
+    await openCancelDialog();
+
+    offline = true;
+    const since = requests.length;
+    await confirmCancel();
+
+    expect(toast.error).toHaveBeenCalledWith('toast.cancelTransitError');
+    // The reload was tried and failed too: what the panel showed stays.
+    expect(askedSince(since)).toEqual(['POST /api/v1/worker/cancel-transit', 'GET /api/v1/worker/time-records']);
+    expect(inTransitBlock()).toBe(true);
+    expect(text()).toContain('punch.cancelTransitConfirmTitle');
+
+    offline = false;
+    await confirmCancel();
+
+    expect(day).toEqual([norte]);
+    expect(text()).not.toContain('punch.cancelTransitConfirmTitle');
+    expect(inTransitBlock()).toBe(false);
+  });
+
+  it('start transit, refused: the server says why, and the prompt stays up for another try', async () => {
+    await openPanel(NORTE, order([norte]));
+    await click(buttons().find(b => b.textContent?.includes('punch.transitPromptTitle')));
+    await click(buttons().find(b => b.textContent === SUR.name));
+
+    // Meanwhile the worker checked in at the warehouse from the app.
+    day = order([norte, rec(102, BODEGA, [ev(1020, 'CHECK_IN', at(9, 30))])]);
+    await click(buttons().find(b => b.textContent === 'punch.startTransit'));
+
+    expect(posts).toEqual([{ projectId: SUR.id, type: 'IN_TRANSIT' }]);
+    expect(toast.error).toHaveBeenCalledWith(SAYS.INVALID_EVENT_SEQUENCE);
+    expect(text()).toContain('punch.transitPromptDesc');
+
+    offline = true;
+    await click(buttons().find(b => b.textContent === 'punch.startTransit'));
+
+    expect(toast.error).toHaveBeenLastCalledWith('toast.startTransitError');
+    expect(text()).toContain('punch.transitPromptDesc');
   });
 });

@@ -5,7 +5,7 @@ import {
   Calendar, ChevronDown, AlertCircle, CheckCircle,
   RefreshCw, Loader2, Clock, MapPin, AlertTriangle, Car, X,
 } from 'lucide-react';
-import { getStoredRole } from '../lib/api';
+import { ApiError, getStoredRole } from '../lib/api';
 import { Button } from './ui/button';
 import { TimePunchButton, PunchState } from './phase2/TimePunchButton';
 import { LocationIndicator } from './phase2/LocationIndicator';
@@ -204,9 +204,13 @@ export function WorkerTime({ username }: { username: string }) {
   // after an optimistic update so the punch grid stays visible.
   // `preserveOptimistic` prevents overwriting todayRecord with null
   // when the server hasn't committed the new event yet.
+  // `keepOnError` only keeps the day on screen when the request itself fails
+  // (preserveOptimistic implies it): a day the server does answer replaces it,
+  // even one where this project has no record left.
   const fetchTodayRecord = useCallback(async (
     projectId: number,
-    { preserveOptimistic = false, silent = false }: { preserveOptimistic?: boolean; silent?: boolean } = {},
+    { preserveOptimistic = false, silent = false, keepOnError = preserveOptimistic }:
+      { preserveOptimistic?: boolean; silent?: boolean; keepOnError?: boolean } = {},
   ): Promise<TimeRecordResponse | null> => {
     if (!silent) setLoadingRecord(true);
     try {
@@ -222,7 +226,7 @@ export function WorkerTime({ username }: { username: string }) {
       // else: keep the optimistic record in place
       return rec;
     } catch (err) {
-      if (!preserveOptimistic) {
+      if (!keepOnError) {
         setDay(null);
       }
       return null;
@@ -579,7 +583,6 @@ export function WorkerTime({ username }: { username: string }) {
   async function handleTransitConfirm() {
     if (!transitDestination || !selectedProject) return;
     setTransitSubmitting(true);
-    setErrorMsg(null);
     try {
       const capturedAtClient = new Date().toISOString();
       const response = await createTimeEvent({
@@ -597,14 +600,28 @@ export function WorkerTime({ username }: { username: string }) {
       setTransitDestination(null);
       // Auto-switch to destination project
       setSelectedProject(transitDestination);
-    } catch (err: any) {
-      setErrorMsg(err?.message ?? 'Could not start transit');
+    } catch (err) {
+      // The prompt stays up for another try. Not errorMsg: the banner that
+      // shows it is the punch grid's, up only after a failed punch.
+      toast.error(err instanceof ApiError ? err.message : t('toast.startTransitError'));
     } finally {
       setTransitSubmitting(false);
     }
   }
 
   const effectiveCancelReason = cancelReason === 'OTHER' ? cancelCustomReason.trim() : cancelReason;
+
+  /** A refused cancel or dispute (TRANSIT_ALREADY_REVIEWED, DISPUTE_ALREADY_EXISTS,
+   *  NO_ACTIVE_TRANSIT) means the transit changed since the day was read: a
+   *  supervisor reviewed it, or the worker disputed it, cancelled it or checked
+   *  in from another device. Show the server's reason, already in the worker's
+   *  language, and reload the day: the dialog and the form close on their own
+   *  once it shows the transit reviewed, disputed or over. With no connection
+   *  the reload fails as well, and the day stays as it was, dialog included. */
+  async function transitActionFailed(err: unknown, fallback: string) {
+    toast.error(err instanceof ApiError ? err.message : fallback);
+    if (selectedProject) await fetchTodayRecord(selectedProject.id, { silent: true, keepOnError: true });
+  }
 
   async function handleCancelTransitConfirmed() {
     if (!effectiveCancelReason) return;
@@ -615,8 +632,8 @@ export function WorkerTime({ username }: { username: string }) {
       setCancelReason('');
       setCancelCustomReason('');
       if (selectedProject) await fetchTodayRecord(selectedProject.id);
-    } catch (err: any) {
-      setErrorMsg(err?.message ?? 'Could not cancel transit');
+    } catch (err) {
+      await transitActionFailed(err, t('toast.cancelTransitError'));
     } finally {
       setCancellingTransit(false);
     }
@@ -624,7 +641,7 @@ export function WorkerTime({ username }: { username: string }) {
 
   async function handleDisputeTransit() {
     if (disputeReason.trim().length < 10) {
-      setErrorMsg(t('punch.disputeReasonMinLength'));
+      toast.error(t('punch.disputeReasonMinLength'));
       return;
     }
     setSubmittingDispute(true);
@@ -633,8 +650,8 @@ export function WorkerTime({ username }: { username: string }) {
       setDisputeFormFor(null);
       setDisputeReason('');
       if (selectedProject) await fetchTodayRecord(selectedProject.id);
-    } catch (err: any) {
-      setErrorMsg(err?.message ?? 'Could not submit dispute');
+    } catch (err) {
+      await transitActionFailed(err, t('toast.disputeTransitError'));
     } finally {
       setSubmittingDispute(false);
     }

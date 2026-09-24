@@ -246,6 +246,9 @@
 
   "toast.loadProjectsError": "No se pudieron cargar los proyectos",
   "toast.loadRecordsError": "No se pudieron cargar los registros",
+  "toast.startTransitError": "No se pudo iniciar el traslado. Inténtalo de nuevo.",
+  "toast.cancelTransitError": "No se pudo cancelar el traslado. Inténtalo de nuevo.",
+  "toast.disputeTransitError": "No se pudo enviar la disputa. Inténtalo de nuevo.",
 
   "modalCorrect.correct.title": "Agregar nota de corrección",
   "modalCorrect.correct.submitLabel": "Enviar corrección",
