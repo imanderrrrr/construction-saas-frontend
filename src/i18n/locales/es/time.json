@@ -123,6 +123,7 @@
   "punch.startTransit": "Iniciar Tránsito",
   "punch.inTransitTo": "En tránsito hacia {{project}}",
   "punch.transitActiveDesc": "El tiempo de traslado terminará cuando registres tu entrada en el proyecto destino.",
+  "punch.transitReviewedDesc": "Tu supervisor ya revisó este traslado, así que ya no se puede cancelar ni disputar. Registra tu entrada cuando llegues.",
   "punch.transitInlineDesc": "Registra tu tiempo de traslado hacia otro proyecto.",
   "punch.selectAndGo": "Seleccionar proyecto",
   "myHours.table.transit": "Traslado",

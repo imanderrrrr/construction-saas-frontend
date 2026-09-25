@@ -479,6 +479,25 @@ export function currentTransit(dayRecords: readonly TimeRecordResponse[]): Recor
 }
 
 /**
+ * Whether a supervisor already ruled on this transit — resolved its dispute, or
+ * reviewed the IN_TRANSIT or its record. From then on it is no longer the
+ * worker's to cancel or dispute: the server refuses both with
+ * TRANSIT_ALREADY_REVIEWED (TimeServiceImpl.assertTransitNotReviewed), and what
+ * is left is the arrival CHECK_IN. A server without that guard deletes the
+ * transit's record on a cancel, and the supervisor's review with it.
+ *
+ * `record` is the one holding the transit. The guard's last test, a record
+ * already paid, has no field to read here — the response carries none — and
+ * needs none: payroll pays a record only once it, or on a transit-only record
+ * its IN_TRANSIT, is approved or observed, which the checks below already read.
+ */
+export function isTransitReviewed(transit: RecordEvent, record: TimeRecordResponse): boolean {
+  return transit.disputeStatus === 'RESOLVED'
+    || transit.eventApprovalStatus !== 'PENDING'
+    || record.approvalStatus !== 'PENDING';
+}
+
+/**
  * The worker's state from their last punch of the day, across every project —
  * what the server validates each punch against (WorkerStateMachine.deriveState).
  *

@@ -21,7 +21,7 @@ import { ClosedProjectBanner } from './ClosedProjectBanner';
 import { FIELD_LIMITS } from '../../shared/fieldLimits';
 import {
   getMyProjects, createTimeEvent, getMyRecords, haversineMeters,
-  cancelTransit, disputeTransit, currentRecord, currentTransit, deriveWorkerState,
+  cancelTransit, disputeTransit, currentRecord, currentTransit, deriveWorkerState, isTransitReviewed,
   type TimeEventResponse, type TimeRecordResponse,
 } from '../services/time';
 
@@ -112,10 +112,12 @@ export function WorkerTime({ username }: { username: string }) {
   const [transitDestination, setTransitDestination] = useState<WorkerProject | null>(null);
   const [transitSubmitting, setTransitSubmitting] = useState(false);
   const [cancellingTransit, setCancellingTransit] = useState(false);
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  // The cancel dialog and the dispute form hold the id of the transit they were
+  // opened for (see showCancelConfirm / showDisputeForm below).
+  const [cancelConfirmFor, setCancelConfirmFor] = useState<number | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelCustomReason, setCancelCustomReason] = useState('');
-  const [showDisputeForm, setShowDisputeForm] = useState(false);
+  const [disputeFormFor, setDisputeFormFor] = useState<number | null>(null);
   const [disputeReason, setDisputeReason] = useState('');
   const [submittingDispute, setSubmittingDispute] = useState(false);
 
@@ -162,6 +164,16 @@ export function WorkerTime({ username }: { username: string }) {
   // on a transit-only record all day.
   const transitEvent = todayRecord?.events.find(e => e.type === 'IN_TRANSIT') ?? null;
   const transitInProgress = !!transitEvent && transitEvent.id === currentTransit(dayRecords)?.id;
+  // Cancel and dispute are the worker's moves on a transit nobody has ruled on:
+  // not once a dispute is filed, nor once a supervisor reviewed it — then all
+  // that is left is the arrival CHECK_IN.
+  const transitReviewed = !!todayRecord && !!transitEvent && isTransitReviewed(transitEvent, todayRecord);
+  const canCancelOrDispute = transitInProgress && !transitEvent?.disputeStatus && !transitReviewed;
+  // The dialog and the form stay up only while their transit can still be
+  // cancelled or disputed: a review the poll brings in closes them, and they
+  // never reopen on a later transit.
+  const showCancelConfirm = canCancelOrDispute && cancelConfirmFor === transitEvent?.id;
+  const showDisputeForm = canCancelOrDispute && disputeFormFor === transitEvent?.id;
 
   const nextType = projectClosed || isDayComplete
     ? null
@@ -599,7 +611,7 @@ export function WorkerTime({ username }: { username: string }) {
     setCancellingTransit(true);
     try {
       await cancelTransit(effectiveCancelReason);
-      setShowCancelConfirm(false);
+      setCancelConfirmFor(null);
       setCancelReason('');
       setCancelCustomReason('');
       if (selectedProject) await fetchTodayRecord(selectedProject.id);
@@ -618,7 +630,7 @@ export function WorkerTime({ username }: { username: string }) {
     setSubmittingDispute(true);
     try {
       await disputeTransit(disputeReason.trim());
-      setShowDisputeForm(false);
+      setDisputeFormFor(null);
       setDisputeReason('');
       if (selectedProject) await fetchTodayRecord(selectedProject.id);
     } catch (err: any) {
@@ -836,7 +848,7 @@ export function WorkerTime({ username }: { username: string }) {
           )}
 
           {/* Dispute form (inline) */}
-          {showDisputeForm && !transitEvent?.disputeStatus && (
+          {showDisputeForm && (
             <div className="space-y-2 p-3 bg-white border border-amber-200 rounded-xl">
               <p className="text-xs text-[#71717A]">{t('punch.disputeTransitDesc')}</p>
               <div className="space-y-1">
@@ -863,7 +875,7 @@ export function WorkerTime({ username }: { username: string }) {
               <div className="flex gap-2">
                 <Button
                   type="button" variant="outline" size="sm"
-                  onClick={() => { setShowDisputeForm(false); setDisputeReason(''); }}
+                  onClick={() => { setDisputeFormFor(null); setDisputeReason(''); }}
                   className="border-[#D4D4D8] text-[#0A0A0A]"
                 >
                   {t('buttons.cancel', { ns: 'common' })}
@@ -882,19 +894,27 @@ export function WorkerTime({ username }: { username: string }) {
             </div>
           )}
 
+          {/* Reviewed en route, no dispute: the arrival is what is left */}
+          {transitReviewed && !transitEvent?.disputeStatus && (
+            <div className="flex items-start gap-2 p-3 bg-white border border-blue-200 rounded-xl">
+              <CheckCircle className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-blue-800">{t('punch.transitReviewedDesc')}</p>
+            </div>
+          )}
+
           {/* Action buttons */}
-          {!transitEvent?.disputeStatus && !showDisputeForm && (
+          {canCancelOrDispute && !showDisputeForm && (
             <div className="flex gap-2">
               <Button
                 variant="outline" size="sm"
-                onClick={() => setShowCancelConfirm(true)}
+                onClick={() => { setCancelReason(''); setCancelCustomReason(''); setCancelConfirmFor(transitEvent.id); }}
                 className="border-blue-200 text-blue-700 hover:bg-blue-100 gap-2"
               >
                 <X className="w-3.5 h-3.5" />{t('punch.cancelTransit')}
               </Button>
               <Button
                 variant="outline" size="sm"
-                onClick={() => setShowDisputeForm(true)}
+                onClick={() => { setDisputeReason(''); setDisputeFormFor(transitEvent.id); }}
                 className="border-amber-200 text-amber-700 hover:bg-amber-100 gap-2"
               >
                 <AlertTriangle className="w-3.5 h-3.5" />{t('punch.disputeTransit')}
@@ -1131,7 +1151,7 @@ export function WorkerTime({ username }: { username: string }) {
       </Dialog>
 
       {/* Cancel transit confirmation modal */}
-      <Dialog open={showCancelConfirm} onOpenChange={o => { if (!o) { setShowCancelConfirm(false); setCancelReason(''); setCancelCustomReason(''); } }}>
+      <Dialog open={showCancelConfirm} onOpenChange={o => { if (!o) { setCancelConfirmFor(null); setCancelReason(''); setCancelCustomReason(''); } }}>
         <DialogContent className="sm:max-w-2xl bg-white">
           <DialogHeader>
             <DialogTitle className="text-[#0A0A0A]">{t('punch.cancelTransitConfirmTitle')}</DialogTitle>
@@ -1180,7 +1200,7 @@ export function WorkerTime({ username }: { username: string }) {
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => { setShowCancelConfirm(false); setCancelReason(''); setCancelCustomReason(''); }}
+            <Button type="button" variant="outline" onClick={() => { setCancelConfirmFor(null); setCancelReason(''); setCancelCustomReason(''); }}
               className="border-[#D4D4D8] text-[#0A0A0A]">{t('buttons.cancel', { ns: 'common' })}</Button>
             <Button type="button" onClick={handleCancelTransitConfirmed}
               disabled={cancellingTransit || !effectiveCancelReason}
