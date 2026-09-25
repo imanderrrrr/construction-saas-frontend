@@ -145,6 +145,21 @@ export function isOpenShift(r: TimeRecordResponse): boolean {
 }
 
 /**
+ * A transit the worker MAY still be on the road for: an IN_TRANSIT with no
+ * CHECK_IN in the record yet, and no resolved dispute exempting it. It is the
+ * record's own half of the backend's assertTransitNotInProgress, which answers
+ * approve/correct with 409 TRANSIT_IN_PROGRESS while that IN_TRANSIT is the
+ * worker's LAST punch of the day. Only the server can check that part, across
+ * all of the worker's records for the day: a transit abandoned by clocking in
+ * at another project looks the same here and approves fine. So this is only
+ * good for a "may stay pending" warning. The backend decides.
+ */
+export function mayBeTransitInProgress(r: TimeRecordResponse): boolean {
+  const transit = r.events.find(e => e.type === 'IN_TRANSIT');
+  return !!transit && !r.events.some(isIn) && transit.disputeStatus !== 'RESOLVED';
+}
+
+/**
  * What's off with this day. Order matters — the first one becomes the row's
  * inline reason, so the most actionable comes first.
  */
