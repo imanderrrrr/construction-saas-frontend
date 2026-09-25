@@ -406,25 +406,97 @@ export function haversineMeters(
   return 2 * EARTH_RADIUS_M * Math.asin(Math.sqrt(a));
 }
 
-// Worker state
+// A worker's day: the record in force, the transit in progress, the state
+//
+// Since V10 a project can carry several records a day — a transit-only record
+// next to the shift the arrival opened, a morning and an afternoon shift — and
+// GET /worker/time-records hands a day's records over by their FIRST punch, so
+// the first one is usually the oldest. Nothing here relies on that order.
 
-export interface WorkerStateResponse {
-  state: WorkerState;
+type RecordEvent = TimeRecordResponse['events'][number];
+
+/**
+ * The order the server reads a worker's day in: the client stamp, then the id
+ * when two stamps tie (TimeEventRepository.findAllByWorkerAndDate). Compared as
+ * instants — as strings, "…:00.250Z" would sort before "…:00Z".
+ */
+function compareEvents(a: RecordEvent, b: RecordEvent): number {
+  return Date.parse(a.capturedAtClient) - Date.parse(b.capturedAtClient) || a.id - b.id;
+}
+
+function latestEvent(events: readonly RecordEvent[]): RecordEvent | null {
+  let latest: RecordEvent | null = null;
+  for (const e of events) {
+    if (latest === null || compareEvents(e, latest) > 0) latest = e;
+  }
+  return latest;
+}
+
+function isOpenShift(record: TimeRecordResponse): boolean {
+  return record.events.some(e => e.type === 'CHECK_IN')
+    && !record.events.some(e => e.type === 'CHECK_OUT');
 }
 
 /**
- * Get the authenticated worker's current global state.
- * The backend returns a per-project map (projectId → WorkerState).
- * We derive the global state with priority: IN_TRANSIT > WORKING > ON_LUNCH > OFF_DUTY.
+ * The record in force among ONE project's records for a day: its open shift
+ * (CHECK_IN without CHECK_OUT) if there is one, else the one holding the latest
+ * punch. The app picks the same way (DayProgress.primaryRecord).
+ *
+ * Taking the first record is what went wrong: after a transit settled before
+ * arrival — re-derived out of PENDING, the arrival CHECK_IN opens a new record
+ * (TimeServiceImpl.resolveTransitDispute) — the panel kept offering CHECK_IN
+ * on the transit record, and a second shift hid behind the finished morning.
  */
-export async function getWorkerState(): Promise<WorkerStateResponse> {
-  const map = await api<Record<string, WorkerState>>('/api/v1/worker/my-state');
-  const states = Object.values(map);
-  let state: WorkerState = 'OFF_DUTY';
-  if (states.includes('IN_TRANSIT')) state = 'IN_TRANSIT';
-  else if (states.includes('WORKING')) state = 'WORKING';
-  else if (states.includes('ON_LUNCH')) state = 'ON_LUNCH';
-  return { state };
+export function currentRecord(records: readonly TimeRecordResponse[]): TimeRecordResponse | null {
+  const open = records.filter(isOpenShift);
+  const pool = open.length > 0 ? open : records;
+  let best: TimeRecordResponse | null = null;
+  let bestLatest: RecordEvent | null = null;
+  for (const record of pool) {
+    const latest = latestEvent(record.events);
+    const later = latest !== null && (bestLatest === null || compareEvents(latest, bestLatest) > 0);
+    if (best === null || later) {
+      best = record;
+      bestLatest = latest;
+    }
+  }
+  return best;
+}
+
+/**
+ * The transit the worker is in right now: their last punch of the day, on
+ * whatever project, when it is an IN_TRANSIT — the server's rule
+ * (TimeServiceImpl.findCurrentTransit), so it is the very event cancel and
+ * dispute act on, whose endpoints carry no id.
+ *
+ * Not "a record with an IN_TRANSIT and no CHECK_IN": that shape outlives the
+ * transit. A transit settled before arrival stays transit-only all day, and so
+ * does one abandoned by checking in at another project.
+ */
+export function currentTransit(dayRecords: readonly TimeRecordResponse[]): RecordEvent | null {
+  const last = latestEvent(dayRecords.flatMap(r => r.events));
+  return last?.type === 'IN_TRANSIT' ? last : null;
+}
+
+/**
+ * The worker's state from their last punch of the day, across every project —
+ * what the server validates each punch against (WorkerStateMachine.deriveState).
+ *
+ * GET /worker/my-state can't stand in for it: it derives one state per record
+ * from that record's own punches, so a transit abandoned by checking in at
+ * another project reads IN_TRANSIT all day. And the map carries no times, so no
+ * precedence over it can tell that day, once the worker checks out elsewhere,
+ * from a real transit taken after that checkout: both are
+ * {destination: IN_TRANSIT, other: OFF_DUTY}. Only the punches' order can.
+ */
+export function deriveWorkerState(dayRecords: readonly TimeRecordResponse[]): WorkerState {
+  switch (latestEvent(dayRecords.flatMap(r => r.events))?.type) {
+    case 'CHECK_IN':
+    case 'LUNCH_END':   return 'WORKING';
+    case 'LUNCH_START': return 'ON_LUNCH';
+    case 'IN_TRANSIT':  return 'IN_TRANSIT';
+    default:            return 'OFF_DUTY'; // CHECK_OUT, or nothing punched yet
+  }
 }
 
 /** Cancel an active IN_TRANSIT event. */
