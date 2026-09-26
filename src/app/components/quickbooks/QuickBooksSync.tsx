@@ -174,7 +174,11 @@ export function QuickBooksSync({ onOpenMapping }: {
           ? t('sync.list.desc', { date: fmtDate(settings.cutoverDate, lang) })
           : t('sync.list.noCutover')}
         right={
-          <PrimaryButton onClick={sendAll} disabled={busy !== null || pending === 0 || !settings.cutoverDate} data-testid="quickbooks-send-all">
+          <PrimaryButton
+            onClick={sendAll}
+            disabled={busy !== null || pending === 0 || !settings.cutoverDate || !settings.preferencesRead}
+            data-testid="quickbooks-send-all"
+          >
             <SendHorizonal className="w-3.5 h-3.5" strokeWidth={2} aria-hidden="true" />
             {busy === 'all' ? t('sync.sending') : t('sync.sendAll', { count: pending })}
           </PrimaryButton>
@@ -218,6 +222,7 @@ export function QuickBooksSync({ onOpenMapping }: {
                 lang={lang}
                 busy={busy === `${row.type}:${row.docId}`}
                 disabled={busy !== null}
+                sendBlocked={!settings.preferencesRead}
                 when={when}
                 onSend={() => void sendOne(row)}
                 onSkip={() => void run(`${row.type}:${row.docId}`, () => skipQuickBooksDocument(row.type, row.docId))}
@@ -322,7 +327,7 @@ function SettingsBlock({ settings, busy, lang, onSave, onOpenMapping, when }: {
               <Switch
                 on={settings.autoSend}
                 label={t('sync.settings.auto')}
-                disabled={busy !== null || (!settings.autoSend && !settings.cutoverDate)}
+                disabled={busy !== null || (!settings.autoSend && (!settings.cutoverDate || !settings.preferencesRead))}
                 onToggle={toggle}
               />
               <span className={cn('text-[13.5px] font-semibold', settings.autoSend ? 'text-[#0A0A0A]' : 'text-[#8A8175]')}>
@@ -330,7 +335,9 @@ function SettingsBlock({ settings, busy, lang, onSave, onOpenMapping, when }: {
               </span>
             </div>
             <p className="mt-2 max-w-[520px] text-[12.5px] leading-[1.5] text-[#5A5346]">
-              {!settings.cutoverDate ? t('sync.settings.autoNeedsCutover') : t('sync.settings.autoHelp')}
+              {!settings.preferencesRead
+                ? t('sync.settings.autoNeedsPrefs')
+                : !settings.cutoverDate ? t('sync.settings.autoNeedsCutover') : t('sync.settings.autoHelp')}
             </p>
             {settings.autoSendChangedAt && settings.autoSendChangedBy && (
               <Mono className="mt-1.5 block text-[9.5px] tracking-[0.08em] text-[#A69C8D] normal-case">
@@ -425,7 +432,7 @@ function StateLight({ state, label }: { state: QuickBooksSyncState; label: strin
 
 // ── One document ────────────────────────────────────────────────────────────
 
-function SyncRow({ row, autoSend, paymentsFromQbo, lang, busy, disabled, when, onSend, onSkip, onUnskip, onOpenMapping }: {
+function SyncRow({ row, autoSend, paymentsFromQbo, lang, busy, disabled, sendBlocked, when, onSend, onSkip, onUnskip, onOpenMapping }: {
   row: QuickBooksSyncRow;
   autoSend: boolean;
   /** The company reads its payments from QuickBooks: "already paid" then means paid THERE. */
@@ -433,6 +440,8 @@ function SyncRow({ row, autoSend, paymentsFromQbo, lang, busy, disabled, when, o
   lang: string;
   busy: boolean;
   disabled: boolean;
+  /** Nothing reaches QuickBooks until the company's preferences are read (the server refuses too). */
+  sendBlocked: boolean;
   when: (iso: string) => string;
   onSend: () => void;
   onSkip: () => void;
@@ -462,7 +471,7 @@ function SyncRow({ row, autoSend, paymentsFromQbo, lang, busy, disabled, when, o
 
   const actions: ReactNode[] = [];
   const primary = (label: string, Icon: typeof Send) => (
-    <PrimaryButton key="send" onClick={onSend} disabled={disabled}>
+    <PrimaryButton key="send" onClick={onSend} disabled={disabled || sendBlocked}>
       <Icon className="w-3.5 h-3.5" strokeWidth={2} aria-hidden="true" />
       {busy ? t('sync.sending') : label}
     </PrimaryButton>
@@ -485,7 +494,7 @@ function SyncRow({ row, autoSend, paymentsFromQbo, lang, busy, disabled, when, o
     case 'SENT':
       if (row.warning) {
         actions.push(
-          <SecondaryButton key="files" onClick={onSend} disabled={disabled}>
+          <SecondaryButton key="files" onClick={onSend} disabled={disabled || sendBlocked}>
             <RotateCcw className="w-3.5 h-3.5" strokeWidth={2} aria-hidden="true" />
             {t('sync.action.retryFiles')}
           </SecondaryButton>,

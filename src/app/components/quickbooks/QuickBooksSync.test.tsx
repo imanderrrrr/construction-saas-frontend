@@ -19,7 +19,7 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.f
 import { QuickBooksSync } from './QuickBooksSync';
 import { toast } from 'sonner';
 import i18n from '../../../i18n';
-import { NoResponseError, type ApiOptions } from '../../lib/api';
+import { ApiError, NoResponseError, type ApiOptions } from '../../lib/api';
 import { QUICKBOOKS_LONG_TIMEOUT_MS } from '../../services/quickbooks';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -480,13 +480,49 @@ describe('QuickBooksSync', () => {
     expect(calls.filter(c => c.key.startsWith(`GET ${BASE}`)).length).toBe(readsBefore + 1);
   });
 
-  it('asks for the company preferences before anything is sent with a guess', async () => {
-    current = overview(undefined, { ...SETTINGS, preferencesRead: false });
+  it('sends nothing before the company preferences are read, and points at the button that reads them', async () => {
+    // A new connection, or a reconnect after «Desconectar», starts unread:
+    // the server refuses to send until then (audit M6), so the panel does not offer it.
+    const filesFailed = row({ ...SENT, docId: 12, number: 'INV-2026-0012', warning: 'ATTACHMENT_FAILED' });
+    current = overview([READY, NO_VENDOR, SIMPLE_START, filesFailed], { ...SETTINGS, preferencesRead: false });
     await render();
 
-    expect(text()).toContain('Todavía no se leyeron las preferencias de facturación');
-    await click(buttons('Ir a Vincular')[0]);
+    expect(text()).toContain('Antes de enviar hay que leer las preferencias de tu empresa en QuickBooks');
+    expect(text()).toContain('no se envía nada, ni a mano ni en automático');
+    expect(buttons('Enviar todos los listos')[0].disabled).toBe(true);
+    expect(buttonIn(rowOf('INV-2026-0005'), 'Enviar')?.disabled).toBe(true);
+    expect(buttonIn(rowOf('BILL-2026-0010'), 'Reintentar')?.disabled).toBe(true);
+    expect(buttonIn(rowOf('INV-2026-0012'), 'Reintentar adjuntos')?.disabled).toBe(true);
+    expect((document.querySelector('[role=switch]') as HTMLButtonElement).disabled).toBe(true);
+    expect(text()).toContain('No envía nada hasta leer las preferencias de tu empresa.');
+    // Fixing a link or setting a document aside never reaches QuickBooks: still offered.
+    expect(buttonIn(rowOf('BILL-2026-0009'), 'Vincular proveedor')?.disabled).toBe(false);
+    expect(buttonIn(rowOf('INV-2026-0005'), 'No enviar')?.disabled).toBe(false);
+
+    await click(buttons('Ir a «Actualizar desde QuickBooks»')[0]);
     expect(openMapping).toHaveBeenCalledWith('clients');
+  });
+
+  it('with the preferences read, sending is offered as usual', async () => {
+    await render();
+
+    expect(text()).not.toContain('Antes de enviar hay que leer las preferencias');
+    expect(buttons('Enviar todos los listos')[0].disabled).toBe(false);
+    expect(buttonIn(rowOf('INV-2026-0005'), 'Enviar')?.disabled).toBe(false);
+    expect((document.querySelector('[role=switch]') as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('a send the server refuses for unread preferences re-reads the list, which then says why', async () => {
+    replies[`POST ${BASE}/send-ready`] = new ApiError(409, 'Antes de enviar hay que leer las preferencias de la empresa.', undefined, 'QUICKBOOKS_PREFERENCES_UNREAD');
+    await render();
+    // Read elsewhere as unread meanwhile (a reconnect in another tab).
+    current = overview(undefined, { ...SETTINGS, preferencesRead: false });
+
+    await click(buttons('Enviar todos los listos (2)')[0]);
+
+    expect(toast.error).toHaveBeenCalledWith('No se pudo completar.', { description: 'Antes de enviar hay que leer las preferencias de la empresa.' });
+    expect(text()).toContain('Antes de enviar hay que leer las preferencias de tu empresa en QuickBooks');
+    expect(buttons('Enviar todos los listos')[0].disabled).toBe(true);
   });
 
   it('stays failed, with a retry, when the list cannot be loaded', async () => {
