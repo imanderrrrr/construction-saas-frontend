@@ -140,6 +140,9 @@ describe('QuickBooksSection', () => {
 
     expect(text()).toContain('Tu QuickBooks todavía no está conectado');
     expect(text()).toContain('solo se puede conectar una empresa sandbox');
+    // Before the trip to Intuit, not only after a refusal: one company, one constructora.
+    expect(document.querySelector('[data-testid="quickbooks-one-company"]')?.textContent)
+      .toContain('Una empresa de QuickBooks solo puede estar conectada a una constructora de BuildTrack');
     await click('Conectar con QuickBooks');
 
     expect(calls).toContain(`POST ${BASE}/connect`);

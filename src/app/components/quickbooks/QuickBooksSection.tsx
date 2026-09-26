@@ -158,6 +158,12 @@ export function QuickBooksSection({ outcome = null }: {
             ) : status.state === 'NOT_CONNECTED' ? (
               <>
                 <Explain title={t('notConnected.title')}>{t('notConnected.body')}</Explain>
+                {/* Said before the trip, not only after a refusal: an outside
+                    accountant with access to several constructoras' books is
+                    exactly who picks the wrong one on Intuit's screen. */}
+                <p className="text-[12.5px] leading-[1.5] text-[#5A5346]" data-testid="quickbooks-one-company">
+                  {t('notConnected.oneCompany')}
+                </p>
                 {status.environment === 'SANDBOX' && (
                   <Mono className="block text-[9.5px] tracking-[0.06em] text-[#A69C8D] normal-case">{t('notConnected.sandboxHint')}</Mono>
                 )}

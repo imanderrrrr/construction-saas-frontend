@@ -13,6 +13,7 @@
   "notConfigured.body": "BuildTrack does not have the keys of its Intuit app yet. As soon as the BuildTrack team adds them, the button to connect your company appears here.",
   "notConnected.title": "Your QuickBooks is not connected yet",
   "notConnected.body": "When you connect, Intuit asks you to sign in and pick your company. BuildTrack never sees your password: Intuit hands it a permission that is stored encrypted, only works for your company and can be revoked at any time.",
+  "notConnected.oneCompany": "A QuickBooks company can be connected to only one construction company on BuildTrack. On Intuit's screen, pick your own company.",
   "notConnected.sandboxHint": "Testing environment: only an Intuit sandbox company can be connected, not the real books.",
   "button.connect": "Connect to QuickBooks",
   "button.reconnect": "Connect again",

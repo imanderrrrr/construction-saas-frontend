@@ -13,6 +13,7 @@
   "notConfigured.body": "BuildTrack todavía no tiene las claves de su app de Intuit. En cuanto el equipo de BuildTrack las agregue, aquí aparece el botón para conectar tu empresa.",
   "notConnected.title": "Tu QuickBooks todavía no está conectado",
   "notConnected.body": "Al conectar, Intuit te pide iniciar sesión y elegir tu empresa. BuildTrack nunca ve tu contraseña: Intuit le entrega un permiso que se guarda cifrado, solo sirve para tu constructora y se puede revocar en cualquier momento.",
+  "notConnected.oneCompany": "Una empresa de QuickBooks solo puede estar conectada a una constructora de BuildTrack. En la pantalla de Intuit, elige la empresa de tu constructora.",
   "notConnected.sandboxHint": "Ambiente de pruebas: solo se puede conectar una empresa sandbox de Intuit, no la contabilidad real.",
   "button.connect": "Conectar con QuickBooks",
   "button.reconnect": "Volver a conectar",
