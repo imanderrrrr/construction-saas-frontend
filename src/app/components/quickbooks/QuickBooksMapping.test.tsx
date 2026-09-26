@@ -13,6 +13,7 @@ vi.mock('../../lib/api', async (importOriginal) => ({
 }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
+import { toast } from 'sonner';
 import { QuickBooksMapping } from './QuickBooksMapping';
 import { ApiError } from '../../lib/api';
 import i18n from '../../../i18n';
@@ -124,6 +125,7 @@ beforeEach(async () => {
   overview = OVERVIEW;
   replies = {};
   calls.length = 0;
+  vi.mocked(toast.error).mockClear();
 });
 
 afterEach(async () => {
@@ -175,21 +177,53 @@ describe('QuickBooksMapping', () => {
     expect(notice!.textContent).toContain('Actualización en espera');
     expect(notice!.textContent).toContain('Puedes volver a actualizar en 42 s');
     // …and nothing red: the brake is the system looking after the shared meter.
-    expect(document.querySelector('[data-testid="quickbooks-mapping-error"]')).toBeNull();
+    expect(toast.error).not.toHaveBeenCalled();
     expect(text()).not.toContain('Hay un problema con la conexión');
     expect(text()).not.toContain('Demasiadas solicitudes');
   });
 
-  it('a real refresh failure still shows the red band', async () => {
+  it('a real refresh failure is a toast, never the calm brake band', async () => {
     replies[`POST ${BASE}/company/refresh`] = new ApiError(502, 'QuickBooks no respondió.', undefined, 'QUICKBOOKS_UNAVAILABLE');
     await render();
 
     await click(buttons('Actualizar desde QuickBooks')[0], 'refresh');
 
-    const error = document.querySelector('[data-testid="quickbooks-mapping-error"]');
-    expect(error).not.toBeNull();
-    expect(error!.textContent).toContain('QuickBooks no respondió.');
+    expect(toast.error).toHaveBeenCalledWith('No se pudo completar.', { description: 'QuickBooks no respondió.' });
     expect(document.querySelector('[data-testid="quickbooks-cooldown"]')).toBeNull();
+  });
+
+  it('a refused create is a toast where the admin is looking, and nothing is pushed on top of the list', async () => {
+    replies[`POST ${BASE}/mappings/create`] = new Error('QuickBooks ya tiene un cliente, proveedor o empleado llamado «Freeman Sporting Goods».');
+    await render();
+
+    await click(buttons('Crear en QuickBooks')[0], 'create');
+
+    expect(calls.find(c => c.key === `POST ${BASE}/mappings/create`)?.body).toEqual({ type: 'CLIENT', localKey: '1' });
+    // The button can sit far down a long list: a band on top of the section
+    // was out of view and slid another row's «Crear en QuickBooks» under the
+    // pointer. It is not a connection problem either.
+    expect(toast.error).toHaveBeenCalledWith('No se pudo completar.', {
+      description: 'QuickBooks ya tiene un cliente, proveedor o empleado llamado «Freeman Sporting Goods».',
+    });
+    expect(document.querySelectorAll('[role="alert"]')).toHaveLength(0);
+    expect(text()).not.toContain('Hay un problema con la conexión');
+    // The company card is still the first thing in the section.
+    expect(document.querySelector('[data-testid="quickbooks-mapping"]')!.firstElementChild!.getAttribute('data-testid')).toBe('quickbooks-company');
+    expect(buttons('Crear en QuickBooks')[0].disabled).toBe(false);
+  });
+
+  it('keeps the picker the same height while its options load and narrow, so nothing slides under the pointer', async () => {
+    await render();
+
+    await click(buttons('Elegir en QuickBooks')[1], 'pick for Cliente Demo');
+    const box = () => document.querySelector('[data-testid="quickbooks-picker-options"]') as HTMLElement;
+    // Loading: the fixed box is already there, at its final height.
+    expect(box().className).toContain('h-[50vh]');
+    expect(box().className).not.toContain('max-h-');
+
+    await flush(250); // the picker debounces its search
+    expect(text()).toContain('55 Twin Lane');
+    expect(box().className).toContain('h-[50vh]');
   });
 
   it('offers accept + pick + create on an unlinked row with a suggestion, and change + unlink on a linked one', async () => {

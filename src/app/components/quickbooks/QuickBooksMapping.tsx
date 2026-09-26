@@ -46,7 +46,6 @@ export function QuickBooksMapping({ initialTab = 'clients' }: {
   const [loadFailed, setLoadFailed] = useState(false);
   const [tab, setTab] = useState<Tab>(initialTab);
   const [busy, setBusy] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
   /** The per-company brake, when it held a refresh: information, not an error. */
   const [cooldownNotice, setCooldownNotice] = useState<string | null>(null);
   const [picking, setPicking] = useState<QuickBooksMappingRow | null>(null);
@@ -64,10 +63,14 @@ export function QuickBooksMapping({ initialTab = 'clients' }: {
 
   useEffect(() => { void load(); }, [load]);
 
-  /** Runs one action; the server answers every mutation with a fresh overview. */
+  /**
+   * Runs one action; the server answers every mutation with a fresh overview.
+   * A refusal is a toast where the admin is looking, not a band on top of the
+   * section: the button is often far down a list, and a band pushing the page
+   * down slid another row's «Crear en QuickBooks» under the pointer.
+   */
   const run = async (key: string, action: () => Promise<QuickBooksMappingOverview | void>, success?: string) => {
     setBusy(key);
-    setActionError(null);
     setCooldownNotice(null);
     try {
       const next = await action();
@@ -80,7 +83,7 @@ export function QuickBooksMapping({ initialTab = 'clients' }: {
       if (e instanceof ApiError && e.code === QUICKBOOKS_REFRESH_COOLDOWN_CODE) {
         setCooldownNotice(t('quickbooks:company.cooldown', { seconds: e.retryAfterSeconds ?? 60 }));
       } else {
-        setActionError(e instanceof Error ? e.message : String(e));
+        toast.error(t('quickbooks:error.actionFailed'), { description: e instanceof Error ? e.message : String(e) });
       }
     } finally {
       setBusy(null);
@@ -125,7 +128,6 @@ export function QuickBooksMapping({ initialTab = 'clients' }: {
 
   return (
     <div className="space-y-4 md:space-y-5" data-testid="quickbooks-mapping">
-      {actionError && <Band tone="danger" title={t('quickbooks:error.generic')} role="alert" testId="quickbooks-mapping-error">{actionError}</Band>}
       {cooldownNotice && <Band tone="info" title={t('quickbooks:company.cooldownTitle')} role="status" testId="quickbooks-cooldown">{cooldownNotice}</Band>}
 
       <CompanyBlock
@@ -421,7 +423,10 @@ function OptionPicker({ row, label, onClose, onPick }: {
           data-testid="quickbooks-picker-search"
         />
       </label>
-      <div className="mt-3 max-h-[50vh] overflow-y-auto">
+      {/* A fixed height, not a maximum: the window is centred, so a list that
+          grew as options loaded (or as the search narrowed them) moved the
+          search box and dropped an option under the pointer, linked on one click. */}
+      <div className="mt-3 h-[50vh] overflow-y-auto" data-testid="quickbooks-picker-options">
         {failed ? (
           <p className="py-4 text-[13px] text-[#8A8175]">{t('load.errorBody')}</p>
         ) : options == null ? (

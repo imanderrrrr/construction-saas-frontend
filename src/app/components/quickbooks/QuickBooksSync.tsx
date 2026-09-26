@@ -22,7 +22,7 @@ import {
   type QuickBooksMappingTab, type QuickBooksSyncOverview, type QuickBooksSyncRow, type QuickBooksSyncRunResult,
   type QuickBooksSyncSettings, type QuickBooksSyncState, type QuickBooksSyncStateFilter, type QuickBooksSyncType,
 } from '../../services/quickbooks';
-import { Band, Block, Bones, LoadFailed, TabButton, Tag, money } from './bits';
+import { Band, Block, Bones, LoadFailed, Switch, TabButton, Tag, money } from './bits';
 
 const PAGE_SIZE = 25;
 
@@ -53,7 +53,6 @@ export function QuickBooksSync({ onOpenMapping }: {
   const [stateFilter, setStateFilter] = useState<QuickBooksSyncStateFilter>('ALL');
   const [page, setPage] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
   const [lastRun, setLastRun] = useState<QuickBooksSyncRunResult | null>(null);
 
   // State is only touched after the await (react-hooks/set-state-in-effect).
@@ -69,15 +68,19 @@ export function QuickBooksSync({ onOpenMapping }: {
 
   useEffect(() => { void load(); }, [load]);
 
-  /** Runs one action, then re-reads the list: a send moves counters, not just one row. */
+  /**
+   * Runs one action, then re-reads the list: a send moves counters, not just
+   * one row. A refusal is a toast where the admin is looking: the button is
+   * often far down the list, and a band pushed in on top of the section was
+   * out of view and slid another row's button under the pointer.
+   */
   const run = async (key: string, action: () => Promise<unknown>) => {
     setBusy(key);
-    setActionError(null);
     try {
       await action();
       await load();
     } catch (e) {
-      setActionError(e instanceof Error ? e.message : String(e));
+      toast.error(t('error.actionFailed'), { description: e instanceof Error ? e.message : String(e) });
     } finally {
       setBusy(null);
     }
@@ -124,8 +127,6 @@ export function QuickBooksSync({ onOpenMapping }: {
 
   return (
     <div className="space-y-4 md:space-y-5" data-testid="quickbooks-sync">
-      {actionError && <Band tone="danger" title={t('error.generic')} role="alert" testId="quickbooks-sync-error">{actionError}</Band>}
-
       <SettingsBlock
         settings={settings}
         busy={busy}
@@ -145,6 +146,12 @@ export function QuickBooksSync({ onOpenMapping }: {
         <Counter value={summary.sent} label={t('sync.count.sent')} />
         <Counter value={summary.changed} label={t('sync.count.changed')} />
       </dl>
+
+      {(summary.localPayments ?? 0) > 0 && (
+        <Band tone="danger" title={t('payments.local.title')} role="status" testId="quickbooks-sync-local-payments">
+          {t('sync.localPayments', { count: summary.localPayments ?? 0 })}
+        </Band>
+      )}
 
       {lastRun && (lastRun.stoppedBy || lastRun.remaining > 0) && (
         <Band tone="info" role="status" testId="quickbooks-sync-run">
@@ -360,30 +367,6 @@ function SettingsBlock({ settings, busy, lang, onSave, onOpenMapping, when }: {
   );
 }
 
-/** A square on/off switch in the section's grammar: filled track = on. */
-function Switch({ on, label, disabled, onToggle }: { on: boolean; label: string; disabled: boolean; onToggle: () => void }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      aria-label={label}
-      disabled={disabled}
-      onClick={onToggle}
-      className={cn(
-        'relative inline-flex h-6 w-11 flex-shrink-0 items-center border transition-colors disabled:cursor-not-allowed disabled:opacity-50',
-        on ? 'border-[#F97316] bg-[#F97316]' : 'border-[#DBD0BB] bg-[#FAF7F0]',
-        FOCUS_RING,
-      )}
-    >
-      <span
-        aria-hidden="true"
-        className={cn('absolute h-4 w-4 transition-all', on ? 'left-[22px] bg-white' : 'left-[3px] bg-[#DBD0BB]')}
-      />
-    </button>
-  );
-}
-
 /** One of the five counters: the figure in display type over its mono label. */
 function Counter({ value, label, alarm = false }: { value: number; label: string; alarm?: boolean }) {
   const hot = alarm && value > 0;
@@ -577,6 +560,12 @@ function SyncRow({ row, autoSend, lang, busy, disabled, when, onSend, onSkip, on
         {row.warning && (
           <p className="text-[12.5px] leading-[1.5] text-[#B3402A]">
             {t(`sync.warning.${row.warning}`, { sent: row.attachmentsSent ?? 0, total: row.attachmentsTotal ?? 0 })}
+          </p>
+        )}
+        {(row.localPaymentsCount ?? 0) > 0 && (
+          <p className="text-[12.5px] leading-[1.5] text-[#B3402A]" data-testid="quickbooks-sync-row-local-payments">
+            {t('sync.localPaymentsRow', { count: row.localPaymentsCount ?? 0 })}{' '}
+            <span className="font-bt-mono text-[12px] tracking-[0.04em]">{money(row.localPaymentsCents ?? 0, lang)}</span>
           </p>
         )}
         {!row.warning && row.type === 'BILL' && (row.attachmentsTotal ?? 0) > 0 && row.state === 'SENT' && (

@@ -257,6 +257,13 @@ export interface QuickBooksSyncRow {
   skippedBy: string | null;
   attachmentsTotal: number | null;
   attachmentsSent: number | null;
+  /**
+   * Phase 4, with payments read from QuickBooks: payments recorded in
+   * BuildTrack on this sent document. They no longer count until someone
+   * records them in QuickBooks.
+   */
+  localPaymentsCount?: number;
+  localPaymentsCents?: number;
 }
 
 export interface QuickBooksSyncSettings {
@@ -278,6 +285,8 @@ export interface QuickBooksSyncSettings {
   allowDiscount: boolean | null;
   usingSalesTax: boolean | null;
   preferencesRead: boolean;
+  /** Phase 4: payments of the tenant's sent documents come from its QuickBooks. */
+  paymentsFromQbo?: boolean;
 }
 
 export interface QuickBooksSyncSummary {
@@ -288,6 +297,8 @@ export interface QuickBooksSyncSummary {
   changed: number;
   skipped: number;
   closed: number;
+  /** Phase 4: sent documents that still carry payments recorded in BuildTrack. */
+  localPayments?: number;
 }
 
 export interface QuickBooksSyncOverview {
@@ -349,4 +360,88 @@ export function skipQuickBooksDocument(type: QuickBooksSyncType, id: number): Pr
 
 export function unskipQuickBooksDocument(type: QuickBooksSyncType, id: number): Promise<QuickBooksSyncRow> {
   return api<QuickBooksSyncRow>(`${BASE}/sync/${type}/${id}/unskip`, { method: 'POST' });
+}
+
+// ── Phase 4: payments read from QuickBooks ─────────────────────────────────
+//
+// Once the tenant's switch is on, the payments of every document it sent to
+// QuickBooks are recorded THERE (it is tied to the bank) and read back here:
+// what each document and each jobsite shows as paid comes from QuickBooks. The
+// status call never reaches QuickBooks; "Actualizar pagos" spends one read.
+
+export interface QuickBooksWebhookStatus {
+  /** Whether BuildTrack's server has Intuit's verifier token (set once, for every company). */
+  configured: boolean;
+  /** The address registered in the Intuit portal, when the server can work it out. */
+  url: string | null;
+  /** Last signed notice for THIS tenant's company. */
+  lastEventAt: string | null;
+  /** This tenant's notices received and not yet followed by a read. */
+  pendingEvents: number;
+}
+
+export interface QuickBooksPaymentRead {
+  type: QuickBooksSyncType;
+  docId: number;
+  number: string;
+  /** Client or vendor. */
+  party: string | null;
+  amountCents: number;
+  /** yyyy-MM-dd */
+  date: string;
+  method: string;
+  reference: string | null;
+  qboPaymentId: string;
+  /** Deleted, voided or unapplied in QuickBooks: kept as history. */
+  voided: boolean;
+  readAt: string;
+}
+
+export interface QuickBooksPaymentsStatus {
+  connected: boolean;
+  enabled: boolean;
+  changedBy: string | null;
+  changedAt: string | null;
+  intervalMinutes: number;
+  readAt: string | null;
+  /** Where the next read starts; null = the next read is a full one. */
+  cursor: string | null;
+  /** QUICKBOOKS_UNAVAILABLE | RATE_LIMITED | QUICKBOOKS_NEEDS_RECONNECT | PAYMENTS_APPLY_FAILED… */
+  lastError: string | null;
+  /** A read of this tenant is running right now. */
+  running: boolean;
+  webhook: QuickBooksWebhookStatus;
+  localPaymentsDocuments: number;
+  localPaymentsCents: number;
+  recent: QuickBooksPaymentRead[];
+}
+
+export interface QuickBooksPaymentsRunResult {
+  /** CDC (changes since the last read, one call) | FULL (every sent document) */
+  mode: 'CDC' | 'FULL';
+  /** Metered calls spent. */
+  reads: number;
+  paymentsRead: number;
+  documentsChecked: number;
+  documentsUpdated: number;
+  failed: number;
+  stoppedBy: string | null;
+}
+
+export function getQuickBooksPayments(): Promise<QuickBooksPaymentsStatus> {
+  return api<QuickBooksPaymentsStatus>(`${BASE}/payments`);
+}
+
+export function updateQuickBooksPaymentsSettings(enabled: boolean): Promise<QuickBooksPaymentsStatus> {
+  return api<QuickBooksPaymentsStatus>(`${BASE}/payments/settings`, {
+    method: 'PUT',
+    body: JSON.stringify({ enabled }),
+  });
+}
+
+export function refreshQuickBooksPayments(full = false): Promise<{ result: QuickBooksPaymentsRunResult; status: QuickBooksPaymentsStatus }> {
+  return api<{ result: QuickBooksPaymentsRunResult; status: QuickBooksPaymentsStatus }>(
+    `${BASE}/payments/refresh${full ? '?full=true' : ''}`,
+    { method: 'POST' },
+  );
 }

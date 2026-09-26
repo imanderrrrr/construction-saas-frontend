@@ -170,6 +170,30 @@ export function TabButton({ active, onClick, children }: { active: boolean; onCl
   );
 }
 
+/** A square on/off switch in the section's grammar: filled track = on. */
+export function Switch({ on, label, disabled, onToggle }: { on: boolean; label: string; disabled: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      disabled={disabled}
+      onClick={onToggle}
+      className={cn(
+        'relative inline-flex h-6 w-11 flex-shrink-0 items-center border transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+        on ? 'border-[#F97316] bg-[#F97316]' : 'border-[#DBD0BB] bg-[#FAF7F0]',
+        FOCUS_RING,
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className={cn('absolute h-4 w-4 transition-all', on ? 'left-[22px] bg-white' : 'left-[3px] bg-[#DBD0BB]')}
+      />
+    </button>
+  );
+}
+
 /** `$1,234.56` — the sum of a vendor's bills. */
 export function money(cents: number, lang: string): string {
   try {
