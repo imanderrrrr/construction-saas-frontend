@@ -15,7 +15,7 @@ import { cn } from '../ui/utils';
 import { INPUT, Mono } from '../projects/bt';
 import { PrimaryButton, SecondaryButton, DestroyButton, TertiaryButton } from '../onboarding/chrome';
 import { BtModal } from '../bt/windows';
-import { ApiError } from '../../lib/api';
+import { ApiError, NoResponseError } from '../../lib/api';
 import { fmtDateTime } from '../../helpers/dateTime';
 import {
   acceptQuickBooksSuggestions, createInQuickBooks, getQuickBooksMappings, linkQuickBooks, QUICKBOOKS_CREATABLE,
@@ -65,9 +65,12 @@ export function QuickBooksMapping({ initialTab = 'clients' }: {
 
   /**
    * Runs one action; the server answers every mutation with a fresh overview.
-   * A refusal is a toast where the admin is looking, not a band on top of the
-   * section: the button is often far down a list, and a band pushing the page
-   * down slid another row's «Crear en QuickBooks» under the pointer.
+   * Without that answer the lists are re-read: an action that got no answer in
+   * time most likely went on (QuickBooks was still at it — not a failure to
+   * report). A refusal is a toast where the admin is looking, not a band on
+   * top of the section: the button is often far down a list, and a band
+   * pushing the page down slid another row's «Crear en QuickBooks» under the
+   * pointer.
    */
   const run = async (key: string, action: () => Promise<QuickBooksMappingOverview | void>, success?: string) => {
     setBusy(key);
@@ -82,9 +85,12 @@ export function QuickBooksMapping({ initialTab = 'clients' }: {
       // says when, never the red one.
       if (e instanceof ApiError && e.code === QUICKBOOKS_REFRESH_COOLDOWN_CODE) {
         setCooldownNotice(t('quickbooks:company.cooldown', { seconds: e.retryAfterSeconds ?? 60 }));
+      } else if (e instanceof NoResponseError) {
+        toast.info(t('quickbooks:stillWorking.list'));
       } else {
         toast.error(t('quickbooks:error.actionFailed'), { description: e instanceof Error ? e.message : String(e) });
       }
+      await load();
     } finally {
       setBusy(null);
     }

@@ -12,13 +12,15 @@ import type { QuickBooksSyncOverview, QuickBooksSyncRow, QuickBooksSyncSettings 
 
 vi.mock('../../lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../lib/api')>()),
-  api: (path: string, init?: RequestInit) => fakeApi(path, init),
+  api: (path: string, init?: ApiOptions) => fakeApi(path, init),
 }));
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 
 import { QuickBooksSync } from './QuickBooksSync';
 import { toast } from 'sonner';
 import i18n from '../../../i18n';
+import { NoResponseError, type ApiOptions } from '../../lib/api';
+import { QUICKBOOKS_LONG_TIMEOUT_MS } from '../../services/quickbooks';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -105,11 +107,11 @@ function overview(rows: QuickBooksSyncRow[] = [READY, TAXED, NO_VENDOR, SIMPLE_S
 
 let current: QuickBooksSyncOverview = overview();
 let replies: Record<string, unknown> = {};
-const calls: Array<{ key: string; body: unknown }> = [];
+const calls: Array<{ key: string; body: unknown; timeoutMs?: number }> = [];
 
-async function fakeApi(path: string, init?: RequestInit): Promise<unknown> {
+async function fakeApi(path: string, init?: ApiOptions): Promise<unknown> {
   const method = (init?.method ?? 'GET').toUpperCase();
-  calls.push({ key: `${method} ${path}`, body: init?.body ? JSON.parse(String(init.body)) : undefined });
+  calls.push({ key: `${method} ${path}`, body: init?.body ? JSON.parse(String(init.body)) : undefined, timeoutMs: init?.timeoutMs });
   const key = `${method} ${path.split('?')[0]}`;
   if (key in replies) {
     const reply = replies[key];
@@ -167,6 +169,7 @@ beforeEach(async () => {
   openMapping.mockClear();
   vi.mocked(toast.success).mockClear();
   vi.mocked(toast.error).mockClear();
+  vi.mocked(toast.info).mockClear();
 });
 
 afterEach(async () => {
@@ -422,6 +425,59 @@ describe('QuickBooksSync', () => {
     await click(buttons('Volver a crear')[0]);
 
     expect(calls.map(c => c.key)).toContain(`POST ${BASE}/INVOICE/8/send`);
+  });
+
+  it('waits for a send as long as QuickBooks may take, not the usual 15 s', async () => {
+    replies[`POST ${BASE}/INVOICE/5/send`] = { ...READY, state: 'SENT', qboId: '146' };
+    replies[`POST ${BASE}/send-ready`] = {
+      processed: 0, created: 0, updated: 0, voided: 0, deleted: 0, failed: 0, blocked: 0,
+      attachmentsSent: 0, attachmentsFailed: 0, remaining: 0, stoppedBy: null,
+    };
+    await render();
+
+    await click(buttonIn(rowOf('INV-2026-0005'), 'Enviar'));
+    await click(buttons('Enviar todos los listos (2)')[0]);
+
+    expect(calls.find(c => c.key === `POST ${BASE}/INVOICE/5/send`)?.timeoutMs).toBe(QUICKBOOKS_LONG_TIMEOUT_MS);
+    expect(calls.find(c => c.key === `POST ${BASE}/send-ready`)?.timeoutMs).toBe(QUICKBOOKS_LONG_TIMEOUT_MS);
+    // Reading the list never reaches QuickBooks: the usual wait.
+    expect(calls.find(c => c.key.startsWith(`GET ${BASE}`))?.timeoutMs).toBeUndefined();
+  });
+
+  it('a send-all that outlives the wait is not a failure: QuickBooks is still at it, and the list is re-read', async () => {
+    replies[`POST ${BASE}/send-ready`] = new NoResponseError(true, new DOMException('signal is aborted without reason', 'AbortError'));
+    await render();
+    const readsBefore = calls.filter(c => c.key.startsWith(`GET ${BASE}`)).length;
+
+    await click(buttons('Enviar todos los listos (2)')[0]);
+
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(toast.info).toHaveBeenCalledWith('QuickBooks sigue trabajando; la lista se actualizará.');
+    expect(calls.filter(c => c.key.startsWith(`GET ${BASE}`)).length).toBe(readsBefore + 1);
+    expect(text()).not.toContain('aborted');
+    expect(buttons('Enviar todos los listos (2)')[0].disabled).toBe(false);
+  });
+
+  it('a send cut off by the connection says the same, in English too', async () => {
+    await i18n.changeLanguage('en');
+    replies[`POST ${BASE}/INVOICE/5/send`] = new NoResponseError(false, new TypeError('Failed to fetch'));
+    await render();
+
+    await click(buttonIn(rowOf('INV-2026-0005'), 'Send'));
+
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(toast.info).toHaveBeenCalledWith('QuickBooks is still working; the list will update.');
+  });
+
+  it('a refusal re-reads the list too: part of a batch may have gone out', async () => {
+    replies[`POST ${BASE}/send-ready`] = new Error('Ya hay un envío en curso. Espera a que termine.');
+    await render();
+    const readsBefore = calls.filter(c => c.key.startsWith(`GET ${BASE}`)).length;
+
+    await click(buttons('Enviar todos los listos (2)')[0]);
+
+    expect(toast.error).toHaveBeenCalledWith('No se pudo completar.', { description: 'Ya hay un envío en curso. Espera a que termine.' });
+    expect(calls.filter(c => c.key.startsWith(`GET ${BASE}`)).length).toBe(readsBefore + 1);
   });
 
   it('asks for the company preferences before anything is sent with a guess', async () => {

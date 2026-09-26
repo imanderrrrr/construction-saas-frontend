@@ -114,6 +114,21 @@ export function parseRetryAfter(header: string | null): number | undefined {
   return Math.max(0, Math.round((at - Date.now()) / 1000));
 }
 
+/**
+ * No answer came back: the panel stopped waiting ([timedOut]) or the
+ * connection dropped. Unlike an [ApiError] nothing was refused — the server may
+ * have done, or still be doing, what was asked. The message stays the
+ * browser's own, so a screen that only shows `message` reads as before.
+ */
+export class NoResponseError extends Error {
+  constructor(public readonly timedOut: boolean, cause: unknown) {
+    // Read, not `instanceof Error`: an abort is a DOMException, not an Error in every realm.
+    const message = (cause as { message?: unknown } | null)?.message;
+    super(typeof message === 'string' ? message : String(cause));
+    this.name = 'NoResponseError';
+  }
+}
+
 // ── Auto-refresh on 401 ────────────────────────────────────────────────────
 
 // Auth endpoints that must never trigger auto-refresh (prevents infinite loops).
@@ -242,32 +257,46 @@ async function handleErrorResponse(res: Response): Promise<never> {
 
 // ── Core fetch wrapper ──────────────────────────────────────────────────────
 
+/** How long a call waits for its answer unless it asks for more. */
+const DEFAULT_TIMEOUT_MS = 15000;
+
+export interface ApiOptions extends RequestInit {
+  /**
+   * For the few actions that legitimately keep the server busy longer than
+   * [DEFAULT_TIMEOUT_MS] (the QuickBooks ones).
+   */
+  timeoutMs?: number;
+}
+
 export async function api<T>(
   endpoint: string,
-  options: RequestInit = {},
+  options: ApiOptions = {},
 ): Promise<T> {
+  const { timeoutMs = DEFAULT_TIMEOUT_MS, ...init } = options;
   const res = await withAutoRefresh(endpoint, () => {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'Accept-Language': i18n.language,
-      ...(options.headers as Record<string, string> ?? {}),
+      ...(init.headers as Record<string, string> ?? {}),
     };
 
     // Add CSRF header for mutating methods
-    const method = (options.method ?? 'GET').toUpperCase();
+    const method = (init.method ?? 'GET').toUpperCase();
     if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
       const csrf = getCsrfToken();
       if (csrf) headers['X-XSRF-TOKEN'] = csrf;
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     return fetch(`${BASE_URL}${endpoint}`, {
-      ...options,
+      ...init,
       headers,
       credentials: 'include',
       signal: controller.signal,
-    }).finally(() => clearTimeout(timeoutId));
+    })
+      .catch((e: unknown) => { throw new NoResponseError(controller.signal.aborted, e); })
+      .finally(() => clearTimeout(timeoutId));
   });
 
   if (!res.ok) {
@@ -306,7 +335,9 @@ export async function apiMultipart<T>(
       body,
       credentials: 'include',
       signal: controller.signal,
-    }).finally(() => clearTimeout(timeoutId));
+    })
+      .catch((e: unknown) => { throw new NoResponseError(controller.signal.aborted, e); })
+      .finally(() => clearTimeout(timeoutId));
   });
 
   if (!res.ok) {

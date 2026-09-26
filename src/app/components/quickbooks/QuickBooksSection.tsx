@@ -17,7 +17,7 @@ import { Link2, RefreshCw, Unplug } from 'lucide-react';
 import { Mono } from '../projects/bt';
 import { DestroyButton, PrimaryButton, SecondaryButton } from '../onboarding/chrome';
 import { BtModal } from '../bt/windows';
-import { ApiError } from '../../lib/api';
+import { ApiError, NoResponseError } from '../../lib/api';
 import { fmtDateTime } from '../../helpers/dateTime';
 import {
   disconnectQuickBooks, getQuickBooksStatus, openIntuitConsent, QUICKBOOKS_SUCCESS_OUTCOMES, startQuickBooksConnect,
@@ -87,6 +87,12 @@ export function QuickBooksSection({ outcome = null }: {
     }
   };
 
+  /** No answer in time is not a refusal: the server most likely carried on. */
+  const failed = (e: unknown) => {
+    if (e instanceof NoResponseError) toast.info(t('stillWorking.status'));
+    else setActionError(messageOf(e));
+  };
+
   const test = async () => {
     setBusy('test');
     setActionError(null);
@@ -99,7 +105,7 @@ export function QuickBooksSection({ outcome = null }: {
       // A permission Intuit no longer renews is the card's to explain: the
       // reload turns it into "Hay que reconectar", with the button to do it.
       // A band on top would say the same thing twice, in red.
-      if (!(e instanceof ApiError && e.code === 'QUICKBOOKS_NEEDS_RECONNECT')) setActionError(messageOf(e));
+      if (!(e instanceof ApiError && e.code === 'QUICKBOOKS_NEEDS_RECONNECT')) failed(e);
       void load();
     } finally {
       setBusy(null);
@@ -115,7 +121,13 @@ export function QuickBooksSection({ outcome = null }: {
       setConfirmOpen(false);
       toast.success(t('toast.disconnected'));
     } catch (e) {
-      setActionError(messageOf(e));
+      failed(e);
+      if (e instanceof NoResponseError) {
+        // The link is undone here before Intuit is told, so by now it most
+        // likely is: say so with the card, not behind the still-open modal.
+        setConfirmOpen(false);
+        void load();
+      }
     } finally {
       setBusy(null);
     }

@@ -8,6 +8,20 @@
 
 import { api } from '../lib/api';
 
+/**
+ * How long the panel waits for an action that keeps QuickBooks busy: sending
+ * (one document, or "Enviar todos los listos", which keeps going for ~25 s
+ * plus the document in hand), switching payments on (a full read right away),
+ * reading payments, re-reading the company, creating a record, testing or
+ * undoing the link. Each of those calls Intuit, and every call to Intuit may
+ * take up to a minute on the server — far past the panel's usual 15 s, which
+ * used to say "failed" over work that went on and finished. 90 s stays under
+ * the 120 s the Vercel proxy waits. If even this runs out, the call throws
+ * NoResponseError: QuickBooks is most likely still at it, not refusing.
+ */
+export const QUICKBOOKS_LONG_TIMEOUT_MS = 90000;
+const LONG = { timeoutMs: QUICKBOOKS_LONG_TIMEOUT_MS };
+
 export type QuickBooksState = 'NOT_CONNECTED' | 'ACTIVE' | 'NEEDS_RECONNECT';
 
 export interface QuickBooksStatus {
@@ -62,11 +76,11 @@ export function startQuickBooksConnect(): Promise<{ authorizationUrl: string }> 
 }
 
 export function testQuickBooksConnection(): Promise<QuickBooksStatus> {
-  return api<QuickBooksStatus>(`${BASE}/test`, { method: 'POST' });
+  return api<QuickBooksStatus>(`${BASE}/test`, { method: 'POST', ...LONG });
 }
 
 export function disconnectQuickBooks(): Promise<QuickBooksStatus> {
-  return api<QuickBooksStatus>(`${BASE}/disconnect`, { method: 'POST' });
+  return api<QuickBooksStatus>(`${BASE}/disconnect`, { method: 'POST', ...LONG });
 }
 
 /** Leaves the panel for Intuit's consent screen (a full navigation, not a popup). */
@@ -155,7 +169,7 @@ export function getQuickBooksCompany(): Promise<QuickBooksCompany> {
 }
 
 export function refreshQuickBooksCompany(): Promise<QuickBooksCompany> {
-  return api<QuickBooksCompany>(`${BASE}/company/refresh`, { method: 'POST' });
+  return api<QuickBooksCompany>(`${BASE}/company/refresh`, { method: 'POST', ...LONG });
 }
 
 export function getQuickBooksMappings(): Promise<QuickBooksMappingOverview> {
@@ -185,6 +199,7 @@ export function createInQuickBooks(type: QuickBooksLinkType, localKey: string): 
   return api<QuickBooksMappingOverview>(`${BASE}/mappings/create`, {
     method: 'POST',
     body: JSON.stringify({ type, localKey }),
+    ...LONG,
   });
 }
 
@@ -347,11 +362,11 @@ export function updateQuickBooksSyncSettings(cutoverDate: string | null, autoSen
 }
 
 export function sendQuickBooksDocument(type: QuickBooksSyncType, id: number): Promise<QuickBooksSyncRow> {
-  return api<QuickBooksSyncRow>(`${BASE}/sync/${type}/${id}/send`, { method: 'POST' });
+  return api<QuickBooksSyncRow>(`${BASE}/sync/${type}/${id}/send`, { method: 'POST', ...LONG });
 }
 
 export function sendReadyToQuickBooks(): Promise<QuickBooksSyncRunResult> {
-  return api<QuickBooksSyncRunResult>(`${BASE}/sync/send-ready`, { method: 'POST' });
+  return api<QuickBooksSyncRunResult>(`${BASE}/sync/send-ready`, { method: 'POST', ...LONG });
 }
 
 export function skipQuickBooksDocument(type: QuickBooksSyncType, id: number): Promise<QuickBooksSyncRow> {
@@ -436,12 +451,13 @@ export function updateQuickBooksPaymentsSettings(enabled: boolean): Promise<Quic
   return api<QuickBooksPaymentsStatus>(`${BASE}/payments/settings`, {
     method: 'PUT',
     body: JSON.stringify({ enabled }),
+    ...LONG,
   });
 }
 
 export function refreshQuickBooksPayments(full = false): Promise<{ result: QuickBooksPaymentsRunResult; status: QuickBooksPaymentsStatus }> {
   return api<{ result: QuickBooksPaymentsRunResult; status: QuickBooksPaymentsStatus }>(
     `${BASE}/payments/refresh${full ? '?full=true' : ''}`,
-    { method: 'POST' },
+    { method: 'POST', ...LONG },
   );
 }

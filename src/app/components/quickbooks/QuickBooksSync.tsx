@@ -16,6 +16,7 @@ import { INPUT, Mono, MonoSelect } from '../projects/bt';
 import { FOCUS_RING, PrimaryButton, SecondaryButton, TertiaryButton } from '../onboarding/chrome';
 import { BtModal } from '../bt/windows';
 import { fmtDate, fmtDateTime } from '../../helpers/dateTime';
+import { NoResponseError } from '../../lib/api';
 import {
   getQuickBooksSync, sendQuickBooksDocument, sendReadyToQuickBooks, skipQuickBooksDocument, unskipQuickBooksDocument,
   updateQuickBooksSyncSettings, QUICKBOOKS_SYNC_COMPUTED_REASONS,
@@ -69,19 +70,25 @@ export function QuickBooksSync({ onOpenMapping }: {
   useEffect(() => { void load(); }, [load]);
 
   /**
-   * Runs one action, then re-reads the list: a send moves counters, not just
-   * one row. A refusal is a toast where the admin is looking: the button is
-   * often far down the list, and a band pushed in on top of the section was
-   * out of view and slid another row's button under the pointer.
+   * Runs one action, then re-reads the list whatever the answer: a send moves
+   * counters, not just one row, and a send that got no answer in time most
+   * likely went on (QuickBooks was still at it — not a failure to report). A
+   * refusal is a toast where the admin is looking: the button is often far
+   * down the list, and a band pushed in on top of the section was out of view
+   * and slid another row's button under the pointer.
    */
   const run = async (key: string, action: () => Promise<unknown>) => {
     setBusy(key);
     try {
       await action();
-      await load();
     } catch (e) {
-      toast.error(t('error.actionFailed'), { description: e instanceof Error ? e.message : String(e) });
+      if (e instanceof NoResponseError) {
+        toast.info(t('stillWorking.list'));
+      } else {
+        toast.error(t('error.actionFailed'), { description: e instanceof Error ? e.message : String(e) });
+      }
     } finally {
+      await load();
       setBusy(null);
     }
   };

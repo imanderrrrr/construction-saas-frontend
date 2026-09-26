@@ -17,6 +17,7 @@ import { Mono } from '../projects/bt';
 import { PrimaryButton, SecondaryButton } from '../onboarding/chrome';
 import { BtModal } from '../bt/windows';
 import { fmtDate, fmtDateTime } from '../../helpers/dateTime';
+import { NoResponseError } from '../../lib/api';
 import { paymentMethodLabel } from '../PayableCommon';
 import {
   getQuickBooksPayments, refreshQuickBooksPayments, updateQuickBooksPaymentsSettings,
@@ -47,9 +48,18 @@ export function QuickBooksPayments({ onOpenSync }: {
   const errorText = (code: string) => t(`payments.error.${code}`, { defaultValue: t('payments.error.other') });
 
   // A refusal is a toast where the admin is looking, never a band pushed in
-  // on top of the section (the same rule as "Vincular" and "Envíos").
-  const failed = (e: unknown) =>
-    toast.error(t('error.actionFailed'), { description: e instanceof Error ? e.message : String(e) });
+  // on top of the section (the same rule as "Vincular" and "Envíos"). Without
+  // the server's answer the status is re-read: switching on commits first and
+  // then reads everything, so a switch that got no answer in time is most
+  // likely on and still reading — not a failure to report.
+  const failed = async (e: unknown) => {
+    if (e instanceof NoResponseError) {
+      toast.info(t('stillWorking.payments'));
+    } else {
+      toast.error(t('error.actionFailed'), { description: e instanceof Error ? e.message : String(e) });
+    }
+    await load();
+  };
 
   const setEnabled = async (enabled: boolean) => {
     setBusy('settings');
@@ -57,7 +67,7 @@ export function QuickBooksPayments({ onOpenSync }: {
       setStatus(await updateQuickBooksPaymentsSettings(enabled));
       toast.success(t(enabled ? 'payments.toast.on' : 'payments.toast.off'));
     } catch (e) {
-      failed(e);
+      await failed(e);
     } finally {
       setBusy(null);
     }
@@ -74,7 +84,7 @@ export function QuickBooksPayments({ onOpenSync }: {
         toast.success(t('payments.toast.read', { count: result.documentsUpdated }));
       }
     } catch (e) {
-      failed(e);
+      await failed(e);
     } finally {
       setBusy(null);
     }
