@@ -134,6 +134,19 @@ describe('QuickBooksSection', () => {
     expect(button('Conectar con QuickBooks')).toBeUndefined();
   });
 
+  it('without the Intuit keys, wears no «Sandbox · pruebas» tag — that is only the server\'s default', async () => {
+    // Audit B14 (seen in OFJR's production): the tag called a live system «pruebas».
+    statusReply = { ...NOT_CONNECTED, configured: false, environment: 'SANDBOX' };
+    await render();
+    expect(text()).not.toContain('Sandbox · pruebas');
+
+    await act(async () => root.unmount());
+    host.remove();
+    statusReply = NOT_CONNECTED;
+    await render();
+    expect(text()).toContain('Sandbox · pruebas');
+  });
+
   it('sends the browser to the consent URL the server minted', async () => {
     replies[`POST ${BASE}/connect`] = { authorizationUrl: 'https://appcenter.intuit.com/connect/oauth2?state=abc' };
     await render();

@@ -133,7 +133,9 @@ export function QuickBooksSection({ outcome = null }: {
           <h2 className="font-bt-display font-extrabold uppercase text-[30px] md:text-[36px] leading-[0.9] text-[#0A0A0A] mt-1.5">{t('title')}</h2>
           <p className="text-[13.5px] leading-[1.55] text-[#5A5346] mt-2 max-w-[720px]">{t('lede')}</p>
         </div>
-        {status && <Tag tone={status.environment === 'PRODUCTION' ? 'orange' : 'sand'}>{t(`env.${status.environment}`)}</Tag>}
+        {/* Without the Intuit keys the environment is only the server's default
+            (sandbox): the tag would call a live BuildTrack "pruebas" (audit B14). */}
+        {status?.configured && <Tag tone={status.environment === 'PRODUCTION' ? 'orange' : 'sand'}>{t(`env.${status.environment}`)}</Tag>}
       </div>
 
       {outcome && showOutcome && <OutcomeBand outcome={outcome} />}
