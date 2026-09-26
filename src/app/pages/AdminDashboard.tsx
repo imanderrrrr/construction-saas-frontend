@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect, useRef, lazy, Suspense, Component, type ComponentType, type ReactNode } from 'react';
 import { useMarkDashboardReady } from '../lib/dashboardReady';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { AuthService } from '../services/auth';
 import { Button } from '../components/ui/button';
@@ -12,7 +12,7 @@ import {
   Clock, CalendarClock, ClipboardList, Receipt, FileBarChart,
   Wallet, Wrench, Banknote, HardHat,
   ArrowDownToLine, ArrowUpFromLine, UserRound, FileText, Briefcase,
-  CreditCard, FileSignature, HelpCircle, Star, PenLine,
+  CreditCard, FileSignature, HelpCircle, Star, PenLine, PlugZap,
 } from 'lucide-react';
 import { OnboardingTour } from '../components/onboarding/OnboardingTour';
 import { SectionTour } from '../components/onboarding/SectionTour';
@@ -29,6 +29,7 @@ import { ApprovalsInbox } from '../components/approvals/ApprovalsInbox';
 import { ClientsSection } from '../components/clients/ClientsSection';
 import { Toaster } from '../components/ui/sonner';
 import { TimezoneSwitcher } from '../components/TimezoneSwitcher';
+import { parseQuickBooksOutcome, type QuickBooksOutcome } from '../services/quickbooks';
 
 // Error boundary for lazy-loaded sections — prevents white screen on chunk load failure
 class SectionErrorBoundary extends Component<
@@ -167,6 +168,11 @@ const InvoiceBrandingSettings = lazyWithRetry(() =>
   import('../components/InvoiceBrandingSettings').then(m => ({ default: m.InvoiceBrandingSettings }))
 );
 
+// Lazy-loaded QuickBooks Online connection (the tenant's own company)
+const QuickBooksSection = lazyWithRetry(() =>
+  import('../components/quickbooks/QuickBooksSection').then(m => ({ default: m.QuickBooksSection }))
+);
+
 type ActiveSection =
   | 'dashboard' | 'users' | 'schedules' | 'hours' | 'projects' | 'audit'
   | 'clients'
@@ -180,6 +186,7 @@ type ActiveSection =
   | 'office-expenses'
   | 'tm-field' | 'tm-office'
   | 'subcontractors'
+  | 'quickbooks'
   | 'billing';
 
 // Nav items are either internal sections (clicking sets `activeSection`) or
@@ -246,6 +253,7 @@ const NAV_FINANCE: NavItem[] = [
   { key: 'accounts-receivable',  labelKey: 'admin:nav.accountsReceivable',  icon: ArrowDownToLine },
   { key: 'accounts-payable',     labelKey: 'admin:nav.accountsPayable',     icon: ArrowUpFromLine },
   { key: 'tm-office',            labelKey: 'tm:nav.office',                icon: FileSignature   },
+  { key: 'quickbooks',           labelKey: 'admin:nav.quickbooks',          icon: PlugZap         },
 ];
 
 /** Flat list used for lookups (section meta, rendering content, etc.) */
@@ -284,15 +292,20 @@ const SECTION_META: Record<ActiveSection, { titleKey: string; subtitleKey: strin
   'billing':              { titleKey: 'admin:section.billing.title',              subtitleKey: 'admin:section.billing.subtitle'              },
   'tm-field':             { titleKey: 'tm:section.field.title',                    subtitleKey: 'tm:section.field.subtitle'                   },
   'tm-office':            { titleKey: 'tm:section.office.title',                   subtitleKey: 'tm:section.office.subtitle'                  },
+  'quickbooks':           { titleKey: 'admin:section.quickbooks.title',           subtitleKey: 'admin:section.quickbooks.subtitle'           },
 };
 
 export function AdminDashboard() {
   // The welcome overlay fades once this page is on screen (lib/dashboardReady).
   useMarkDashboardReady();
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation(['admin', 'common', 'tm']);
   const username = AuthService.getUsername();
-  const [activeSection, setActiveSection] = useState<ActiveSection>('dashboard');
+  /** Set when the browser comes back from Intuit (`?quickbooks=<OUTCOME>`, see
+      QuickBooksCallbackController): open the QuickBooks section and say how it went. */
+  const [qbOutcome, setQbOutcome] = useState<QuickBooksOutcome | null>(() => parseQuickBooksOutcome(location.search));
+  const [activeSection, setActiveSection] = useState<ActiveSection>(() => (qbOutcome ? 'quickbooks' : 'dashboard'));
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [tourReplay, setTourReplay] = useState(0);
@@ -336,7 +349,18 @@ export function AdminDashboard() {
     AuthService.logout(); // fire-and-forget server revocation
   };
 
+  // Drop the outcome from the address bar once read, so a reload does not
+  // replay "connected" (or an old error) as if it had just happened.
+  useEffect(() => {
+    if (!new URLSearchParams(location.search).has('quickbooks')) return;
+    const params = new URLSearchParams(location.search);
+    params.delete('quickbooks');
+    const rest = params.toString();
+    navigate({ pathname: location.pathname, search: rest ? `?${rest}` : '' }, { replace: true });
+  }, [location.pathname, location.search, navigate]);
+
   const handleNavigate = (section: string) => {
+    setQbOutcome(null);
     setActiveSection(section as ActiveSection);
     setSidebarOpen(false);
   };
@@ -695,6 +719,11 @@ export function AdminDashboard() {
             // rounded white card left over from the old look.
             <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="bt-skeleton h-64 border border-[#E7E1D5]" />}>
               <SubcontractorsSection onNavigate={handleNavigate} />
+            </Suspense></SectionErrorBoundary>
+          )}
+          {activeSection === 'quickbooks' && (
+            <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="bt-skeleton h-64 border border-[#E7E1D5]" />}>
+              <QuickBooksSection outcome={qbOutcome} />
             </Suspense></SectionErrorBoundary>
           )}
           {activeSection === 'projects'     && <ProjectManagement onNavigate={handleNavigate} />}

@@ -1,4 +1,4 @@
-import type { Payable, PayableSummary, Receivable } from '../../services/finance';
+import { paymentCounts, type Payable, type PayableSummary, type Receivable } from '../../services/finance';
 
 /**
  * The arithmetic behind Cobrar and Pagar — all of it, and nothing else.
@@ -347,14 +347,20 @@ export interface DatedAmount {
   amount: number;
 }
 
-/** Every collection that still counts: a voided one stays listed but not counted. */
+/**
+ * Every collection that still counts, as the server's paidCents does: a voided
+ * one stays listed but not counted, and on a document whose payments come from
+ * QuickBooks only the ones read from there count — one registered here before
+ * stays listed, flagged, and would otherwise be collected twice once QuickBooks
+ * reports the same money.
+ */
 export function receivablePayments(rows: Receivable[]): DatedAmount[] {
-  return rows.flatMap(r => r.payments.filter(p => !p.voided).map(p => ({ date: p.date, amount: p.amount })));
+  return rows.flatMap(r => r.payments.filter(p => paymentCounts(r, p)).map(p => ({ date: p.date, amount: p.amount })));
 }
 
-/** Every payment that still counts: a voided one stays listed but not counted. */
+/** Every payment that still counts — the same rule as receivablePayments. */
 export function payablePayments(rows: Payable[]): DatedAmount[] {
-  return rows.flatMap(p => p.payments.filter(x => !x.voided).map(x => ({ date: x.date, amount: x.amount })));
+  return rows.flatMap(p => p.payments.filter(x => paymentCounts(p, x)).map(x => ({ date: x.date, amount: x.amount })));
 }
 
 /* ── The week's cash bridge ────────────────────────────────────────────── */

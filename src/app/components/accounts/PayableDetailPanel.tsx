@@ -10,8 +10,10 @@ import { CategoryBadge, paymentMethodLabel, type VendorBill, type VendorPayment 
 import { PayableAttachmentsPanel } from '../PayableAttachmentsPanel';
 import { fmtMoney } from '../invoices/bits';
 import { fmtDate } from '../../helpers/dateTime';
+import { paymentCounts } from '../../services/finance';
 import { balanceOf, daysLate, isSettled, round2 } from './accounting';
 import { MENU_CONTENT, MENU_ITEM, MENU_ITEM_DANGER, MENU_LABEL, Tag, WindowHead } from './ui';
+import { PaymentOriginTag, RegisterInQuickBooksNote } from './PaymentOrigin';
 import type { ProjectBudget } from './PayableDialogs';
 
 /**
@@ -47,6 +49,9 @@ export function PayableDetailPanel({ bill, project, canManage, today, dateLocale
   const settled = isSettled({ ...bill, party: bill.vendor, status: bill.status });
   const late = daysLate(bill.dueDate, today);
   const hasActivePayments = bill.payments.some(p => !p.voided);
+  // Phase 4: sent to the tenant's QuickBooks, whose payments are read from
+  // there — they are registered, changed and undone in QuickBooks, not here.
+  const inQuickBooks = bill.paymentsInQuickBooks;
   const remaining = project?.remainingBudgetCents == null ? null : round2(project.remainingBudgetCents / 100);
   const after = remaining == null ? null : round2(remaining - balance);
 
@@ -108,33 +113,48 @@ export function PayableDetailPanel({ bill, project, canManage, today, dateLocale
             {bill.notes && <Field label={t('finance:payable.info.notes')} wide>{bill.notes}</Field>}
           </div>
 
-          {/* Payments — the voided ones stay, struck through, with the reason */}
+          {/* Payments — the voided ones stay, struck through, with the reason;
+              each says where it came from. */}
           <div className="px-4 py-3.5 border-b border-[#E7E1D5]">
             <Mono className="block text-[9.5px] tracking-[0.13em] text-[#8A8175] mb-2">
               {t('finance:payable.detail.payments', { count: bill.payments.length })}
             </Mono>
+            {inQuickBooks && <RegisterInQuickBooksNote className="mb-2" />}
             {bill.payments.length === 0 ? (
               <p className="text-[12.5px] text-[#8A8175]">{t('finance:payable.detail.noPayments')}</p>
             ) : (
               <div className="space-y-2">
-                {bill.payments.map(p => (
-                  <div key={p.id} className={cn('flex items-center gap-3 flex-wrap bg-[#FAF7F0] border-l-2 px-3 py-2.5', p.voided ? 'border-l-[#CDBFA6]' : 'border-l-[#2E7D4F]')}>
-                    <Mono className={cn('text-[13px] font-semibold normal-case tabular-nums', p.voided && 'text-[#8A8175] line-through')}>
+                {bill.payments.map(p => {
+                  const counts = paymentCounts(bill, p);
+                  const fromQuickBooks = p.source === 'QUICKBOOKS';
+                  return (
+                  <div key={p.id} data-testid="payable-payment" className={cn('flex items-center gap-3 flex-wrap bg-[#FAF7F0] border-l-2 px-3 py-2.5', counts ? 'border-l-[#2E7D4F]' : 'border-l-[#CDBFA6]')}>
+                    <Mono className={cn('text-[13px] font-semibold normal-case tabular-nums', !counts && 'text-[#8A8175] line-through')}>
                       {fmtMoney(p.amount)}
                     </Mono>
                     <div className="min-w-0">
-                      <Mono className={cn('block text-[10.5px] normal-case', p.voided ? 'text-[#8A8175] line-through' : 'text-[#5A5346]')}>
+                      <Mono className={cn('block text-[10.5px] normal-case', !counts ? 'text-[#8A8175] line-through' : 'text-[#5A5346]')}>
                         {fmtDate(p.date, dateLocale)} · {paymentMethodLabel(p.method, t)}
                       </Mono>
-                      {p.voided
+                      {/* A QuickBooks copy's void note is the server's fixed English
+                          sentence: its tag says it in the panel's language instead. */}
+                      {p.voided && !fromQuickBooks
                         ? <Mono className="block text-[9.5px] text-[#B3402A] mt-[3px] normal-case">
                             {t('finance:payable.void.voided')}{p.voidReason ? ` · ${p.voidReason}` : ''}
                           </Mono>
                         : p.reference && <Mono className="block text-[9.5px] text-[#A69C8D] mt-[3px] normal-case">{p.reference}</Mono>}
+                      <PaymentOriginTag
+                        className="mt-1.5 inline-flex"
+                        source={p.source}
+                        inQuickBooks={inQuickBooks}
+                        voided={p.voided}
+                        qboPaymentId={p.qboPaymentId}
+                      />
                     </div>
                     {p.voided
-                      ? <Tag tone="red" className="ml-auto">{t('finance:payable.void.voided')}</Tag>
-                      : canManage && (
+                      ? !fromQuickBooks && <Tag tone="red" className="ml-auto">{t('finance:payable.void.voided')}</Tag>
+                      // A payment read from QuickBooks is changed or undone there.
+                      : canManage && !fromQuickBooks && (
                         <div className="ml-auto flex items-center gap-3">
                           <button type="button" disabled={busy} onClick={() => onEditPayment(bill, p)}
                             className={cn('font-bt-mono text-[9.5px] uppercase tracking-[0.09em] text-[#0A0A0A] hover:text-[#C2410C] disabled:opacity-40 cursor-pointer', FOCUS_RING)}>
@@ -147,7 +167,8 @@ export function PayableDetailPanel({ bill, project, canManage, today, dateLocale
                         </div>
                       )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -180,13 +201,17 @@ export function PayableDetailPanel({ bill, project, canManage, today, dateLocale
         {/* Actions: the everyday one, and the rest behind a menu */}
         <div className="bg-[#FBF8F2] border-t border-[#E7E1D5] px-4 py-3.5 flex items-center gap-2.5">
           {!settled && (
-            <button
-              type="button"
-              onClick={() => onPay(bill)}
-              className={cn('flex-1 bg-[#0A0A0A] text-[#F5F1E8] border-0 cursor-pointer px-4 py-3.5 font-bt-mono text-[11px] font-semibold uppercase tracking-[0.09em] transition-colors hover:bg-[#F97316] hover:text-[#0A0A0A]', FOCUS_RING)}
-            >
-              {t('finance:payable.action.pay')}
-            </button>
+            // A disabled button fires no hover, so the reason sits on its wrapper.
+            <span className="flex-1 flex" title={inQuickBooks ? t('finance:paymentOrigin.registerInQuickBooks') : undefined}>
+              <button
+                type="button"
+                disabled={inQuickBooks}
+                onClick={() => onPay(bill)}
+                className={cn('flex-1 bg-[#0A0A0A] text-[#F5F1E8] border-0 cursor-pointer px-4 py-3.5 font-bt-mono text-[11px] font-semibold uppercase tracking-[0.09em] transition-colors hover:bg-[#F97316] hover:text-[#0A0A0A] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#0A0A0A] disabled:hover:text-[#F5F1E8]', FOCUS_RING)}
+              >
+                {t('finance:payable.action.pay')}
+              </button>
+            </span>
           )}
           {settled && (
             <Mono className="flex-1 text-[10px] tracking-[0.09em] text-[#8A8175]">{t('finance:payable.detail.settledNote')}</Mono>
@@ -217,7 +242,7 @@ export function PayableDetailPanel({ bill, project, canManage, today, dateLocale
                 <DropdownMenuItem className={MENU_ITEM} onClick={() => onReassign(bill)}>
                   <ArrowRightLeft className="w-3 h-3 mr-2" />{t('finance:payable.reassign.action')}
                 </DropdownMenuItem>
-                {hasActivePayments && (
+                {hasActivePayments && !inQuickBooks && (
                   <DropdownMenuItem className={cn(MENU_ITEM, 'text-[#C2410C] border-t border-t-[#EDE7DB]')} onClick={() => onUnpay(bill)}>
                     <RotateCcw className="w-3 h-3 mr-2" />{t('finance:payable.unpay.action')}
                   </DropdownMenuItem>

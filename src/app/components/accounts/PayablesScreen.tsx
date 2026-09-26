@@ -28,6 +28,7 @@ import {
   FilterBar, PhotoCell, SearchField, Tag, ViewToggle,
 } from './ui';
 import { PayableDetailPanel } from './PayableDetailPanel';
+import { RegisterInQuickBooksNote } from './PaymentOrigin';
 import {
   BatchPayDialog, ConvertDialog, CreateBillDialog, DeleteBillDialog, EditAmountDatesDialog,
   EditBillInfoDialog, EditPaymentDialog, PayDialog, ReassignDialog, UnpayDialog, voidOnePayment,
@@ -186,7 +187,7 @@ export function PayablesScreen({ onNavigate }: { onNavigate?: (section: string) 
   /* ── Selection ──────────────────────────────────────────────────────── */
 
   const selectedBills = useMemo(
-    () => [...selected].map(id => byId.get(id)).filter((b): b is VendorBill => !!b && !isSettled(payableToOwed(b as unknown as Payable))),
+    () => [...selected].map(id => byId.get(id)).filter((b): b is VendorBill => !!b && payableHere(b)),
     [selected, byId],
   );
   const selectedTotal = useMemo(() => sumBalances(selectedBills.map(b => payableToOwed(b as unknown as Payable))), [selectedBills]);
@@ -200,7 +201,7 @@ export function PayablesScreen({ onNavigate }: { onNavigate?: (section: string) 
   }
 
   function toggleLane(lane: { docs: Owed[] }) {
-    const ids = lane.docs.map(d => d.id);
+    const ids = lane.docs.map(d => byId.get(d.id)).filter((b): b is VendorBill => !!b && payableHere(b)).map(b => b.id);
     const allOn = ids.every(id => selected.has(id));
     setSelected(prev => {
       const next = new Set(prev);
@@ -440,11 +441,12 @@ export function PayablesScreen({ onNavigate }: { onNavigate?: (section: string) 
               </div>
             );
           }
-          const allOn = rows.length > 0 && rows.every(b => selected.has(b.id));
+          const selectable = rows.filter(payableHere);
+          const allOn = selectable.length > 0 && selectable.every(b => selected.has(b.id));
           return (
             <div key={lane.key}>
               <div className={cn('flex items-center gap-3 px-5 py-2', LANE_TONE[lane.key])}>
-                {rows.length > 0 && canManage ? (
+                {selectable.length > 0 && canManage ? (
                   <LaneCheckbox checked={allOn} onChange={() => toggleLane(lane)} label={t('finance:payable.batch.selectLane')} dark={lane.key === 'overdue' || lane.key === 'week'} />
                 ) : <span className="w-[15px]" />}
                 <Mono className="text-[10.5px] font-semibold tracking-[0.13em]">{t(`finance:payable.lane.${lane.key}`)}</Mono>
@@ -588,6 +590,15 @@ export function PayablesScreen({ onNavigate }: { onNavigate?: (section: string) 
 
 /* ── Lane furniture ────────────────────────────────────────────────────── */
 
+/**
+ * Whether a bill can be paid from here: open, and not one whose payments come
+ * from the tenant's QuickBooks (those are registered there; the server would
+ * refuse each one of a batch run with 409).
+ */
+function payableHere(b: VendorBill): boolean {
+  return !b.paymentsInQuickBooks && !isSettled(payableToOwed(b as unknown as Payable));
+}
+
 function laneMeta(key: LaneKey, count: number, today: string, locale: string, t: (k: string, o?: Record<string, unknown>) => string): string {
   if (count === 0) return t(`finance:payable.lane.empty.${key}`);
   if (key === 'week') return `${fmtDate(today, locale)} – ${fmtDate(addDays(today, 7), locale)} · ${t('finance:payable.billCount', { count })}`;
@@ -643,17 +654,25 @@ function BillRow({ bill, today, dateLocale, selected, onSelect, onOpen, onPay }:
 
   const edge = !settled && late > 0 ? 'border-l-[#B3402A]' : !settled && late >= -1 ? 'border-l-[#F97316]' : 'border-l-transparent';
   const stop = { onClick: (e: React.MouseEvent) => e.stopPropagation(), onKeyDown: (e: React.KeyboardEvent) => e.stopPropagation() };
-  const tick = onSelect && !settled
+  // Phase 4: its payments are registered in QuickBooks and read back, so it
+  // is neither paid nor batched from here — the button stays, off, and says why.
+  const inQuickBooks = bill.paymentsInQuickBooks;
+  const tick = onSelect && !settled && !inQuickBooks
     ? <LaneCheckbox checked={selected} onChange={onSelect} label={t('finance:payable.batch.selectOne', { vendor: bill.vendor })} />
     : <span className="block w-[15px]" />;
+  const whyOff = inQuickBooks ? t('finance:paymentOrigin.registerInQuickBooks') : undefined;
   const payButton = !settled && (
-    <button
-      type="button"
-      onClick={onPay}
-      className={cn('bg-[#0A0A0A] text-[#F5F1E8] border-0 cursor-pointer px-3 py-2 font-bt-mono text-[10px] font-semibold uppercase tracking-[0.09em] transition-colors hover:bg-[#F97316] hover:text-[#0A0A0A] whitespace-nowrap', FOCUS_RING)}
-    >
-      {t('finance:payable.action.pay')}
-    </button>
+    // A disabled button fires no hover, so the reason sits on its wrapper.
+    <span title={whyOff} className="inline-flex">
+      <button
+        type="button"
+        onClick={onPay}
+        disabled={inQuickBooks}
+        className={cn('bg-[#0A0A0A] text-[#F5F1E8] border-0 cursor-pointer px-3 py-2 font-bt-mono text-[10px] font-semibold uppercase tracking-[0.09em] transition-colors hover:bg-[#F97316] hover:text-[#0A0A0A] whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#0A0A0A] disabled:hover:text-[#F5F1E8]', FOCUS_RING)}
+      >
+        {t('finance:payable.action.pay')}
+      </button>
+    </span>
   );
   const dueBlock = settled
     ? <Mono className="text-[10px] tracking-[0.06em] text-[#A69C8D]">{t('common:status.paid')}</Mono>
@@ -730,10 +749,13 @@ function BillRow({ bill, today, dateLocale, selected, onSelect, onOpen, onPay }:
             <button
               type="button"
               onClick={onPay}
-              className={cn('w-full bg-[#0A0A0A] text-[#F5F1E8] border-0 cursor-pointer py-3.5 font-bt-mono text-[10.5px] font-semibold uppercase tracking-[0.09em] min-h-11', FOCUS_RING)}
+              disabled={inQuickBooks}
+              className={cn('w-full bg-[#0A0A0A] text-[#F5F1E8] border-0 cursor-pointer py-3.5 font-bt-mono text-[10.5px] font-semibold uppercase tracking-[0.09em] min-h-11 disabled:opacity-40 disabled:cursor-not-allowed', FOCUS_RING)}
             >
               {t('finance:payable.action.pay')}
             </button>
+            {/* No hover on a phone: the reason is written under the button. */}
+            {inQuickBooks && <RegisterInQuickBooksNote className="mt-1.5" />}
           </div>
         )}
       </div>

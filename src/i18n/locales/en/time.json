@@ -123,6 +123,7 @@
   "punch.startTransit": "Start Transit",
   "punch.inTransitTo": "In transit to {{project}}",
   "punch.transitActiveDesc": "Transit time will end when you check in at the destination project.",
+  "punch.transitReviewedDesc": "Your supervisor already reviewed this transit, so it can no longer be cancelled or disputed. Check in when you arrive.",
   "punch.transitInlineDesc": "Track your transit time to another project.",
   "punch.selectAndGo": "Select project",
   "myHours.table.transit": "Transit",
@@ -245,6 +246,9 @@
 
   "toast.loadProjectsError": "Failed to load projects",
   "toast.loadRecordsError": "Failed to load records",
+  "toast.startTransitError": "Could not start the transit. Please try again.",
+  "toast.cancelTransitError": "Could not cancel the transit. Please try again.",
+  "toast.disputeTransitError": "Could not submit the dispute. Please try again.",
 
   "modalCorrect.correct.title": "Add correction note",
   "modalCorrect.correct.submitLabel": "Submit correction",

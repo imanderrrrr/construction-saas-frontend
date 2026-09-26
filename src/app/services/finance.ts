@@ -24,6 +24,35 @@ function qs(params: Record<string, string | number | null | undefined>): string 
 }
 
 
+// ── Where a payment came from (QuickBooks phase 4) ──
+
+/** SYSTEM = registered here; QUICKBOOKS = a payment registered in the tenant's QuickBooks, read back. */
+export type PaymentSource = 'SYSTEM' | 'QUICKBOOKS';
+
+/**
+ * Whether a payment adds to what its document shows as paid. Voided ones
+ * never do; on a document whose payments come from QuickBooks, only the ones
+ * read from there do — one registered here stays listed, flagged, until
+ * someone registers it in QuickBooks. Mirrors the server's paidCents.
+ */
+export function paymentCounts(
+  doc: { paymentsInQuickBooks?: boolean },
+  p: { voided?: boolean; source?: PaymentSource },
+): boolean {
+  if (p.voided) return false;
+  if (doc.paymentsInQuickBooks) return p.source === 'QUICKBOOKS';
+  return true;
+}
+
+/**
+ * A live payment read from QuickBooks. It is undone in QuickBooks (the next
+ * read voids its copy), never here — so "void it first" is the wrong advice
+ * for such a document.
+ */
+export function hasLiveQuickBooksPayment(doc: { payments: Array<{ voided?: boolean; source?: PaymentSource }> }): boolean {
+  return doc.payments.some(p => !p.voided && p.source === 'QUICKBOOKS');
+}
+
 // ── Payables (Accounts Payable) ─────────────────────
 
 export interface PayablePayment {
@@ -37,6 +66,10 @@ export interface PayablePayment {
   voidedAt?: string | null;
   voidedBy?: string | null;
   voidReason?: string | null;
+  /** Absent on a server without phase 4, which reads as SYSTEM. */
+  source?: PaymentSource;
+  /** The QuickBooks BillPayment this row mirrors. */
+  qboPaymentId?: string | null;
 }
 
 export type PayableDocumentType = 'BILL' | 'INVOICE';
@@ -70,6 +103,8 @@ export interface Payable {
    * bill carries only PDFs, even though `attachmentCount` is then > 0.
    */
   firstAttachmentId?: number | null;
+  /** Sent to the tenant's QuickBooks, whose payments are read from there: no "record payment" here. */
+  paymentsInQuickBooks?: boolean;
 }
 
 const PAYABLES = '/api/v1/finance/payables';
@@ -320,6 +355,10 @@ export interface ReceivablePayment {
   voidedAt?: string | null;
   voidedBy?: string | null;
   voidReason?: string | null;
+  /** Absent on a server without phase 4, which reads as SYSTEM. */
+  source?: PaymentSource;
+  /** The QuickBooks Payment this row mirrors. */
+  qboPaymentId?: string | null;
 }
 
 export interface ReceivableLineItem {
@@ -364,6 +403,8 @@ export interface Receivable {
    * server without phase 2, and then the row shows a dash instead of a chip.
    */
   signatureStatus?: 'PENDING' | 'SIGNED' | 'DECLINED' | 'REVOKED' | null;
+  /** Sent to the tenant's QuickBooks, whose payments are read from there: no "record payment" here. */
+  paymentsInQuickBooks?: boolean;
 }
 
 const RECEIVABLES = '/api/v1/finance/receivables';
