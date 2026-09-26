@@ -32,6 +32,7 @@
   "error.REFRESH_REJECTED": "Intuit rejected the permission: it was revoked from QuickBooks, went unused for too long, or reached its 5-year limit. Connect again to continue.",
   "error.COMPANY_INFO_FAILED": "The connection exists, but the company details could not be read. Test the connection; if it keeps failing, tell the BuildTrack team.",
   "error.ENVIRONMENT_CHANGED": "The server switched environment (sandbox ↔ production) since this company was connected. Disconnect and connect again with a company of the new environment.",
+  "error.TOKEN_KEY_MISMATCH": "The stored permission can no longer be read: the key BuildTrack encrypts it with changed or was lost. Connect your QuickBooks again; nothing is lost in QuickBooks.",
   "error.generic": "There is a problem with the connection.",
   "error.actionFailed": "That didn't go through.",
   "outcome.successTitle": "Done",

@@ -221,6 +221,17 @@ describe('QuickBooksSection', () => {
     expect(document.querySelector('[data-testid="quickbooks-action-error"]')?.textContent).toContain('QuickBooks no respondió.');
   });
 
+  it('a lost or changed encryption key reads as a reconnect with its reason, not a raw code', async () => {
+    // Audit B6: the server used to answer 500 under a card saying «Conectado».
+    statusReply = { ...ACTIVE, state: 'NEEDS_RECONNECT', lastError: 'TOKEN_KEY_MISMATCH' };
+    await render();
+
+    expect(text()).toContain('La conexión dejó de funcionar');
+    expect(text()).toContain('cambió o se perdió la clave con la que BuildTrack lo cifra');
+    expect(text()).not.toContain('TOKEN_KEY_MISMATCH');
+    expect(button('Volver a conectar')).toBeTruthy();
+  });
+
   it('after an environment switch, only offers disconnecting — a reconnect would hit the other company', async () => {
     statusReply = { ...ACTIVE, state: 'NEEDS_RECONNECT', lastError: 'ENVIRONMENT_CHANGED' };
     await render();

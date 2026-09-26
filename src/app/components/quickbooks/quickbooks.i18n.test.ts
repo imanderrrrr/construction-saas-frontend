@@ -50,7 +50,7 @@ describe('quickbooks locale coverage', () => {
   });
 
   it('has a sentence for every lastError code the server stores', () => {
-    for (const code of ['REFRESH_REJECTED', 'COMPANY_INFO_FAILED', 'ENVIRONMENT_CHANGED']) {
+    for (const code of ['REFRESH_REJECTED', 'COMPANY_INFO_FAILED', 'ENVIRONMENT_CHANGED', 'TOKEN_KEY_MISMATCH']) {
       expect(enMap[`error.${code}`], code).toBeTruthy();
       expect(esMap[`error.${code}`], code).toBeTruthy();
     }

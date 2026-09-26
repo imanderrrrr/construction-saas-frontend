@@ -32,6 +32,7 @@
   "error.REFRESH_REJECTED": "Intuit rechazó el permiso: se revocó desde QuickBooks, pasó demasiado tiempo sin uso o llegó a su límite de 5 años. Hay que volver a conectar para seguir.",
   "error.COMPANY_INFO_FAILED": "La conexión existe, pero no se pudieron leer los datos de la empresa. Prueba la conexión; si sigue fallando, avisa al equipo de BuildTrack.",
   "error.ENVIRONMENT_CHANGED": "El servidor cambió de ambiente (sandbox ↔ producción) desde que se conectó esta empresa. Desconecta y vuelve a conectar con una empresa del ambiente nuevo.",
+  "error.TOKEN_KEY_MISMATCH": "El permiso guardado ya no se puede leer: cambió o se perdió la clave con la que BuildTrack lo cifra. Vuelve a conectar tu QuickBooks; en QuickBooks no se pierde nada.",
   "error.generic": "Hay un problema con la conexión.",
   "error.actionFailed": "No se pudo completar.",
   "outcome.successTitle": "Listo",
