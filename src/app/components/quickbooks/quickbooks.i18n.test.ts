@@ -120,6 +120,19 @@ describe('quickbooks locale coverage', () => {
     }
   });
 
+  it('a number of minutes is a plural pair, so one minute never reads «1 minutos»', () => {
+    // Audit B15: payments.webhook.onHelp/offHelp said «cada 1 minutos».
+    // "{{minutes}} min" (abbreviated) reads right either way.
+    for (const [lang, map] of [['en', enMap], ['es', esMap]] as const) {
+      for (const [key, value] of Object.entries(map)) {
+        if (/\{\{\s*\w+\s*\}\}\s+(minutos|minutes)\b/.test(value)) {
+          expect(key.endsWith('_other'), `${lang} ${key}: "${value}"`).toBe(true);
+          expect(map[key.replace(/_other$/, '_one')], `${lang} ${key} without its _one`).toBeTruthy();
+        }
+      }
+    }
+  });
+
   it('labels the section in the admin menu, header and first-visit banner', () => {
     for (const map of [enAdmin, esAdmin] as Record<string, string>[]) {
       expect(map['nav.quickbooks']).toBeTruthy();

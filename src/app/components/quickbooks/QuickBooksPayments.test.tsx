@@ -258,6 +258,21 @@ describe('QuickBooksPayments', () => {
     expect(openSync).toHaveBeenCalled();
   });
 
+  it('a one-minute interval reads «cada minuto», never «cada 1 minutos»', async () => {
+    // Audit B15: payments.webhook.onHelp (and offHelp) took a bare number.
+    current = { ...ON, intervalMinutes: 1 };
+    await render();
+    expect(text()).toContain('La lectura de cada minuto recoge lo que un aviso no traiga.');
+    expect(text()).not.toContain('cada 1 minutos');
+
+    await act(async () => root.unmount());
+    host.remove();
+    current = { ...OFF, intervalMinutes: 1 };
+    await render();
+    expect(text()).toContain('Sin avisos, los pagos se leen cada minuto');
+    expect(text()).not.toContain('cada 1 minutos');
+  });
+
   it('speaks English too', async () => {
     await i18n.changeLanguage('en');
     current = ON;

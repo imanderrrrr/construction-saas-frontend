@@ -221,9 +221,10 @@ function WebhookBlock({ status, when }: { status: QuickBooksPaymentsStatus; when
     >
       <div className="space-y-4 px-4 py-5 md:px-[18px]">
         <Band tone="info">
+          {/* A count: a one-minute interval reads "cada minuto", never "cada 1 minutos" (audit B15). */}
           {webhook.configured
-            ? t('payments.webhook.onHelp', { minutes: status.intervalMinutes })
-            : t('payments.webhook.offHelp', { minutes: status.intervalMinutes })}
+            ? t('payments.webhook.onHelp', { count: status.intervalMinutes })
+            : t('payments.webhook.offHelp', { count: status.intervalMinutes })}
         </Band>
         {webhook.configured && (
           <dl className="grid grid-cols-1 border border-[#EDE7DB] sm:grid-cols-2">
