@@ -166,6 +166,7 @@ beforeEach(async () => {
   calls.length = 0;
   openMapping.mockClear();
   vi.mocked(toast.success).mockClear();
+  vi.mocked(toast.error).mockClear();
 });
 
 afterEach(async () => {
@@ -356,14 +357,41 @@ describe('QuickBooksSync', () => {
     expect(calls.map(c => c.key)).toContain(`GET ${BASE}?type=BILL&state=BLOCKED&page=0&size=25`);
   });
 
-  it('shows why a send was refused', async () => {
+  it('shows why a send was refused, in a toast rather than a band pushed in on top of the list', async () => {
     replies[`POST ${BASE}/INVOICE/5/send`] = new Error('Ya hay un envío en curso para tu empresa. Espera a que termine.');
     await render();
 
     await click(buttonIn(rowOf('INV-2026-0005'), 'Enviar'));
 
-    expect(text()).toContain('Ya hay un envío en curso para tu empresa. Espera a que termine.');
-    expect(document.querySelector('[data-testid="quickbooks-sync-error"]')).toBeTruthy();
+    // The button can be far down the list: a band on top would be out of view
+    // and would slide another row's button under the pointer.
+    expect(toast.error).toHaveBeenCalledWith('No se pudo completar.', {
+      description: 'Ya hay un envío en curso para tu empresa. Espera a que termine.',
+    });
+    expect(document.querySelectorAll('[role="alert"]')).toHaveLength(0);
+    expect(text()).not.toContain('Hay un problema con la conexión');
+    expect(buttonIn(rowOf('INV-2026-0005'), 'Enviar')?.disabled).toBe(false);
+  });
+
+  it('with payments read from QuickBooks, flags sent documents that still carry payments recorded in BuildTrack', async () => {
+    current = {
+      ...overview([{ ...SENT, localPaymentsCount: 1, localPaymentsCents: 50_00 }], { ...SETTINGS, paymentsFromQbo: true }),
+      summary: { ready: 0, blocked: 0, failed: 0, sent: 1, changed: 0, skipped: 0, closed: 0, localPayments: 1 },
+    };
+    await render();
+
+    const band = document.querySelector('[data-testid="quickbooks-sync-local-payments"]');
+    expect(band?.textContent).toContain('1 documento enviado tiene pagos registrados en BuildTrack que no están en QuickBooks.');
+    const flag = rowOf('INV-2026-0007').querySelector('[data-testid="quickbooks-sync-row-local-payments"]');
+    expect(flag?.textContent).toContain('1 pago registrado en BuildTrack, no en QuickBooks:');
+    expect(flag?.textContent).toContain('50.00');
+  });
+
+  it('says nothing about local payments while payments are recorded in BuildTrack', async () => {
+    await render();
+
+    expect(document.querySelector('[data-testid="quickbooks-sync-local-payments"]')).toBeNull();
+    expect(document.querySelector('[data-testid="quickbooks-sync-row-local-payments"]')).toBeNull();
   });
 
   it('offers to create again a document someone deleted inside QuickBooks', async () => {

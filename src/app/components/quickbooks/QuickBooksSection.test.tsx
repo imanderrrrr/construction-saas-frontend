@@ -256,6 +256,40 @@ describe('QuickBooksSection', () => {
     expect(document.querySelector('[data-testid="quickbooks-sync"]')).toBeNull();
   });
 
+  it('the third tab, "Pagos", reads its own status — nothing from QuickBooks — and its flagged documents open "Envíos"', async () => {
+    statusReply = ACTIVE;
+    replies[`GET ${BASE}/payments`] = {
+      connected: true, enabled: true, changedBy: 'admin', changedAt: '2026-09-25T20:00:00Z', intervalMinutes: 60,
+      readAt: '2026-09-25T20:05:00Z', cursor: '2026-09-25T20:05:00Z', lastError: null, running: false,
+      webhook: { configured: true, url: null, lastEventAt: null, pendingEvents: 0 },
+      localPaymentsDocuments: 1, localPaymentsCents: 5_000, recent: [],
+    };
+    replies[`GET ${BASE}/sync?page=0&size=25`] = {
+      settings: {
+        connected: true, environment: 'SANDBOX', realmId: '9130000001', companyName: 'Constructora Peña S.A.',
+        cutoverDate: '2026-09-20', autoSend: false, autoSendChangedBy: null, autoSendChangedAt: null,
+        autoSendIntervalMinutes: 2, lastRunAt: null, lastRunSummary: null, plan: 'PLUS', expensesByCustomer: true,
+        customTxnNumbers: false, allowDiscount: true, usingSalesTax: true, preferencesRead: true, paymentsFromQbo: true,
+      },
+      summary: { ready: 0, blocked: 0, failed: 0, sent: 0, changed: 0, skipped: 0, closed: 0, localPayments: 1 },
+      rows: [], page: 0, size: 25, totalElements: 0, totalPages: 0,
+    };
+    await render();
+    const tab = (label: string) => [...document.querySelectorAll('[role=tab]')].find(b => b.textContent?.startsWith(label)) as HTMLElement;
+
+    await act(async () => { tab('Pagos').click(); });
+    await flush();
+    expect(tab('Pagos').getAttribute('aria-selected')).toBe('true');
+    expect(text()).toContain('Pagos desde QuickBooks');
+    expect(calls).toContain(`GET ${BASE}/payments`);
+    expect(calls.some(c => c.startsWith('POST'))).toBe(false);
+
+    await click('Ver en Envíos');
+
+    expect(tab('Envíos').getAttribute('aria-selected')).toBe('true');
+    expect(document.querySelector('[data-testid="quickbooks-sync-local-payments"]')).toBeTruthy();
+  });
+
   it('explains a company held by another constructora in words, not a code', async () => {
     await render('REALM_IN_USE');
 

@@ -12,7 +12,7 @@ import { ApiError } from '../../lib/api';
 import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 import { businessToday } from '../../helpers/dateTime';
 import {
-  deleteReceivable, recordReceivablePayment, rejectChangeOrder, updateReceivableInfo,
+  deleteReceivable, hasLiveQuickBooksPayment, recordReceivablePayment, rejectChangeOrder, updateReceivableInfo,
   type Receivable,
 } from '../../services/finance';
 
@@ -357,7 +357,12 @@ export function DeleteReceivableDialog({ doc, onClose, onDeleted }: {
       onClose();
     } catch (err: unknown) {
       if (err instanceof ApiError && err.code === 'RECEIVABLE_HAS_PAYMENTS') {
-        toast.error(t('finance:receivable.delete.hasPayments'), { description: err.message });
+        // A collection read from QuickBooks is undone there; the server's
+        // sentence (the description) already says so.
+        toast.error(
+          t(hasLiveQuickBooksPayment(doc) ? 'finance:receivable.delete.hasQuickBooksPayments' : 'finance:receivable.delete.hasPayments'),
+          { description: err.message },
+        );
       } else {
         toast.error(t('finance:receivable.delete.failed'), { description: err instanceof Error ? err.message : undefined });
       }

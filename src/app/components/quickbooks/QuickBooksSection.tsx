@@ -3,8 +3,9 @@
 //
 // Ported from OFJR's phase 1–3 screens and redrawn in the panel's own
 // language. It connects, proves the link works and lets it be undone; under
-// the connection, two sections: "Vincular" (phase 2: which record is which)
-// and "Envíos" (phase 3: invoices and bills going to QuickBooks). It says in
+// the connection, three sections: "Vincular" (phase 2: which record is
+// which), "Envíos" (phase 3: invoices and bills going to QuickBooks) and
+// "Pagos" (phase 4: their payments, read back from QuickBooks). It says in
 // plain words what is sent and what is not. Each constructora connects ITS
 // company — the server keys everything by the session's tenant, so this
 // screen never mentions one.
@@ -24,10 +25,11 @@ import {
 import { Band, Block, Bones, Explain, Fact, LoadFailed, StateChip, TabButton, Tag } from './bits';
 import { QuickBooksMapping } from './QuickBooksMapping';
 import { QuickBooksSync } from './QuickBooksSync';
+import { QuickBooksPayments } from './QuickBooksPayments';
 
 type Busy = 'connect' | 'test' | 'disconnect' | null;
-type Section = 'mapping' | 'sync';
-const SECTIONS: Section[] = ['mapping', 'sync'];
+type Section = 'mapping' | 'sync' | 'payments';
+const SECTIONS: Section[] = ['mapping', 'sync', 'payments'];
 
 export function QuickBooksSection({ outcome = null }: {
   /** How the last trip through Intuit ended, read from `?quickbooks=` by the dashboard. */
@@ -219,9 +221,9 @@ export function QuickBooksSection({ outcome = null }: {
               </TabButton>
             ))}
           </div>
-          {section === 'mapping'
-            ? <QuickBooksMapping key={mappingVisit} initialTab={mappingTab} />
-            : <QuickBooksSync onOpenMapping={openMapping} />}
+          {section === 'mapping' && <QuickBooksMapping key={mappingVisit} initialTab={mappingTab} />}
+          {section === 'sync' && <QuickBooksSync onOpenMapping={openMapping} />}
+          {section === 'payments' && <QuickBooksPayments onOpenSync={() => setSection('sync')} />}
         </>
       )}
 

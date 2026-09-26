@@ -15,8 +15,8 @@ import { AuthService } from '../../services/auth';
 import { listProjects } from '../../services/projects';
 import { businessToday, currentMonth, currentMonthLabel, fmtDate } from '../../helpers/dateTime';
 import {
-  approveChangeOrder, downloadReceivableDocument, listAllPayables, listAllReceivables,
-  voidReceivablePayment, type Receivable,
+  approveChangeOrder, downloadReceivableDocument, hasLiveQuickBooksPayment, listAllPayables, listAllReceivables,
+  paymentCounts, voidReceivablePayment, type Receivable,
 } from '../../services/finance';
 import {
   agingByParty, agingTotals, balanceOf, cashBridge, daysLate, isBillable, isSettled, matches,
@@ -28,6 +28,7 @@ import {
   MENU_CONTENT, MENU_ITEM, MENU_ITEM_DANGER, MENU_LABEL, RowMenuButton, SearchField, Tag, ViewToggle,
 } from './ui';
 import { CollectDialog, DeleteReceivableDialog, EditInfoDialog, RejectChangeOrderDialog } from './ReceivableDialogs';
+import { PaymentOriginTag, RegisterInQuickBooksNote } from './PaymentOrigin';
 
 /**
  * Cobrar — the screen of money coming in.
@@ -638,6 +639,12 @@ function DocumentRow({ doc, open, onToggle, onCollect, onEdit, onDelete, onDownl
   // Only collections still standing block the delete: the server stopped
   // counting the voided ones, so blocking on them would be stricter than it.
   const hasPayments = doc.payments.some(p => !p.voided);
+  // Phase 4: collected in the tenant's QuickBooks and read back — no "Cobrar"
+  // here, and a collection read from there is undone there, not voided here.
+  const inQuickBooks = doc.paymentsInQuickBooks ?? false;
+  const deleteBlockedKey = hasLiveQuickBooksPayment(doc)
+    ? 'finance:receivable.action.deleteBlockedQuickBooks'
+    : 'finance:receivable.action.deleteBlocked';
 
   const chevron = open
     ? <ChevronDown className="w-3 h-3 text-[#C2410C] flex-shrink-0" strokeWidth={2.4} />
@@ -661,13 +668,17 @@ function DocumentRow({ doc, open, onToggle, onCollect, onEdit, onDelete, onDownl
     );
 
   const collect = !settled && (
-    <button
-      type="button"
-      onClick={() => onCollect(doc)}
-      className={cn('bg-[#F97316] text-[#0A0A0A] border-0 cursor-pointer px-3 py-2 font-bt-mono text-[10px] font-semibold uppercase tracking-[0.09em] transition-colors hover:bg-[#C2410C] hover:text-[#F5F1E8] whitespace-nowrap', FOCUS_RING)}
-    >
-      {t('finance:receivable.action.collect')}
-    </button>
+    // A disabled button fires no hover, so the reason sits on its wrapper.
+    <span className="inline-flex" title={inQuickBooks ? t('finance:paymentOrigin.registerInQuickBooks') : undefined}>
+      <button
+        type="button"
+        onClick={() => onCollect(doc)}
+        disabled={inQuickBooks}
+        className={cn('bg-[#F97316] text-[#0A0A0A] border-0 cursor-pointer px-3 py-2 font-bt-mono text-[10px] font-semibold uppercase tracking-[0.09em] transition-colors hover:bg-[#C2410C] hover:text-[#F5F1E8] whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-[#F97316] disabled:hover:text-[#0A0A0A]', FOCUS_RING)}
+      >
+        {t('finance:receivable.action.collect')}
+      </button>
+    </span>
   );
   const pdf = (
     <button
@@ -695,7 +706,7 @@ function DocumentRow({ doc, open, onToggle, onCollect, onEdit, onDelete, onDownl
           onClick={() => { if (!hasPayments) onDelete(doc); }}
         >
           <Trash2 className="w-3 h-3 mr-2" />
-          {hasPayments ? t('finance:receivable.action.deleteBlocked') : t('finance:receivable.action.delete')}
+          {hasPayments ? t(deleteBlockedKey) : t('finance:receivable.action.delete')}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -756,7 +767,7 @@ function DocumentRow({ doc, open, onToggle, onCollect, onEdit, onDelete, onDownl
           </div>
         </button>
         <div className="flex items-center gap-1.5 mt-2.5">
-          {collect && <div className="flex-1 [&>button]:w-full [&>button]:py-3 [&>button]:min-h-11">{collect}</div>}
+          {collect && <div className="flex-1 [&>span]:w-full [&_button]:w-full [&_button]:py-3 [&_button]:min-h-11">{collect}</div>}
           <div className="[&>button]:min-h-11 [&>button]:px-3.5">{pdf}</div>
           <div className="[&>button]:w-11 [&>button]:h-11">{menu}</div>
         </div>
@@ -835,33 +846,48 @@ function DocumentDetail({ doc, dateLocale, onVoid, voiding }: {
           <Mono className="block text-[9.5px] tracking-[0.13em] text-[#8A8175]">
             {t('finance:receivable.detail.collections', { count: doc.payments.length })}
           </Mono>
+          {doc.paymentsInQuickBooks && <RegisterInQuickBooksNote className="mt-1.5" />}
           {doc.payments.length === 0 ? (
             <p className="text-[12.5px] text-[#8A8175] mt-2">{t('finance:receivable.detail.noCollections')}</p>
           ) : (
             <div className="mt-2 space-y-2">
-              {doc.payments.map(p => (
+              {doc.payments.map(p => {
+                const counts = paymentCounts(doc, p);
+                const fromQuickBooks = p.source === 'QUICKBOOKS';
+                return (
                 <div
                   key={p.id}
-                  className={cn('flex items-center gap-3 flex-wrap bg-[#FAF7F0] border-l-2 px-3 py-2.5', p.voided ? 'border-l-[#CDBFA6]' : 'border-l-[#2E7D4F]')}
+                  data-testid="receivable-payment"
+                  className={cn('flex items-center gap-3 flex-wrap bg-[#FAF7F0] border-l-2 px-3 py-2.5', counts ? 'border-l-[#2E7D4F]' : 'border-l-[#CDBFA6]')}
                 >
-                  <Mono className={cn('text-[13px] font-semibold normal-case tabular-nums', p.voided && 'text-[#8A8175] line-through')}>
+                  <Mono className={cn('text-[13px] font-semibold normal-case tabular-nums', !counts && 'text-[#8A8175] line-through')}>
                     {fmtMoney(p.amount)}
                   </Mono>
                   <div className="min-w-0">
-                    <Mono className={cn('block text-[10.5px] normal-case', p.voided ? 'text-[#8A8175] line-through' : 'text-[#5A5346]')}>
+                    <Mono className={cn('block text-[10.5px] normal-case', !counts ? 'text-[#8A8175] line-through' : 'text-[#5A5346]')}>
                       {fmtDate(p.date, dateLocale)} · {paymentMethodLabel(p.method, t)}
                     </Mono>
-                    {p.voided
+                    {/* A QuickBooks copy's void note is the server's fixed English
+                        sentence: its tag says it in the panel's language instead. */}
+                    {p.voided && !fromQuickBooks
                       ? (
                         <Mono className="block text-[9.5px] text-[#B3402A] mt-0.5 normal-case">
                           {t('finance:receivable.void.voided')}{p.voidReason ? ` · ${p.voidReason}` : ''}
                         </Mono>
                       )
                       : p.reference && <Mono className="block text-[9.5px] text-[#A69C8D] mt-0.5 normal-case">{p.reference}</Mono>}
+                    <PaymentOriginTag
+                      className="mt-1.5 inline-flex"
+                      source={p.source}
+                      inQuickBooks={doc.paymentsInQuickBooks}
+                      voided={p.voided}
+                      qboPaymentId={p.qboPaymentId}
+                    />
                   </div>
                   {p.voided
-                    ? <Tag tone="red" className="ml-auto">{t('finance:receivable.void.voided')}</Tag>
-                    : (
+                    ? !fromQuickBooks && <Tag tone="red" className="ml-auto">{t('finance:receivable.void.voided')}</Tag>
+                    // A collection read from QuickBooks is changed or undone there.
+                    : !fromQuickBooks && (
                       <button
                         type="button"
                         disabled={voiding != null}
@@ -872,7 +898,8 @@ function DocumentDetail({ doc, dateLocale, onVoid, voiding }: {
                       </button>
                     )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
           <div className="flex items-center justify-between gap-2.5 mt-3">

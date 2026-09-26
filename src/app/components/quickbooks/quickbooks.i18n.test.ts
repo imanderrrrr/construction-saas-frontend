@@ -56,8 +56,8 @@ describe('quickbooks locale coverage', () => {
     }
   });
 
-  it('every static key the two screens ask for is defined in both languages', () => {
-    for (const file of ['QuickBooksSection.tsx', 'QuickBooksMapping.tsx', 'QuickBooksSync.tsx']) {
+  it('every static key the screens ask for is defined in both languages', () => {
+    for (const file of ['QuickBooksSection.tsx', 'QuickBooksMapping.tsx', 'QuickBooksSync.tsx', 'QuickBooksPayments.tsx']) {
       const text = source(file);
       for (const m of text.matchAll(/\bt\(\s*'([^']+)'/g)) {
         const key = m[1];
@@ -96,9 +96,27 @@ describe('quickbooks locale coverage', () => {
       expect(enMap[`sync.stopped.${stop}`], stop).toBeTruthy();
       expect(esMap[`sync.stopped.${stop}`], stop).toBeTruthy();
     }
-    for (const section of ['mapping', 'sync']) {
+    for (const section of ['mapping', 'sync', 'payments']) {
       expect(enMap[`section.${section}`], section).toBeTruthy();
       expect(esMap[`section.${section}`], section).toBeTruthy();
+    }
+  });
+
+  it('says in words every way a payments read stops, the tenant\'s kinds of document included', () => {
+    // QuickBooksPaymentsService: the link's own codes, the reader's, and the
+    // catch-all a new code falls back to — a raw "PAYMENTS_APPLY_FAILED" must
+    // never reach the admin.
+    for (const code of [
+      'QUICKBOOKS_UNAVAILABLE', 'RATE_LIMITED', 'QUICKBOOKS_AUTH_REJECTED', 'QUICKBOOKS_NEEDS_RECONNECT',
+      'QUICKBOOKS_NOT_CONNECTED', 'QUICKBOOKS_NOT_CONFIGURED', 'QUICKBOOKS_REALM_CHANGED', 'QBO_REJECTED',
+      'PAYMENTS_APPLY_FAILED', 'other',
+    ]) {
+      expect(enMap[`payments.error.${code}`], `en payments.error.${code}`).toBeTruthy();
+      expect(esMap[`payments.error.${code}`], `es payments.error.${code}`).toBeTruthy();
+    }
+    for (const kind of ['INVOICE', 'BILL']) {
+      expect(enMap[`payments.kind.${kind}`], kind).toBeTruthy();
+      expect(esMap[`payments.kind.${kind}`], kind).toBeTruthy();
     }
   });
 
