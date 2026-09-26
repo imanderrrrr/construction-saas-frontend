@@ -205,6 +205,7 @@
   "sync.reason.HAS_SALES_TAX": "It has sales tax: waiting for the accountant to confirm how to record it. Not sent.",
   "sync.reason.DISCOUNT_DISABLED": "It has a discount and your company has discounts turned off in QuickBooks (Settings → Sales).",
   "sync.reason.TOTAL_BELOW_PAID": "The total is now below what was already paid in BuildTrack: QuickBooks would unapply part of the payment. Check the payments or the amount before sending.",
+  "sync.reasonQbo.TOTAL_BELOW_PAID": "The total is now below what was already paid in QuickBooks: sent like this, QuickBooks would unapply part of the payment. Check the amount here or the payment in QuickBooks.",
   "sync.reason.PLAN_NO_BILLS": "Your company's QuickBooks plan has no bills (Simple Start). Change the plan or mark it “do not send”.",
   "sync.reason.DUPLICATE_DOC_NUMBER": "QuickBooks already has an invoice with that number. Change the number here and it is retried on its own.",
   "sync.reason.QBO_HAS_PAYMENTS": "Deleted here, but it has payments applied in QuickBooks: it was left alone so no payment is left hanging. Check it in QuickBooks.",

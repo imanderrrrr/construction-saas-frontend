@@ -205,6 +205,7 @@
   "sync.reason.HAS_SALES_TAX": "Tiene impuesto de venta: pendiente confirmar con el contador cómo registrarlo. No se envía.",
   "sync.reason.DISCOUNT_DISABLED": "Tiene descuento y tu empresa tiene los descuentos apagados en QuickBooks (Configuración → Ventas).",
   "sync.reason.TOTAL_BELOW_PAID": "El total quedó por debajo de lo ya pagado en BuildTrack: QuickBooks desaplicaría parte del pago. Revisa los pagos o el monto antes de enviar.",
+  "sync.reasonQbo.TOTAL_BELOW_PAID": "El total quedó por debajo de lo ya pagado en QuickBooks: enviado así, QuickBooks desaplicaría parte del pago. Revisa el monto aquí o el pago en QuickBooks.",
   "sync.reason.PLAN_NO_BILLS": "El plan de QuickBooks de tu empresa no incluye cuentas por pagar (Simple Start). Cambia de plan o marca «No enviar».",
   "sync.reason.DUPLICATE_DOC_NUMBER": "QuickBooks ya tiene una factura con ese número. Cambia el número aquí y se reintenta sola.",
   "sync.reason.QBO_HAS_PAYMENTS": "Se borró aquí, pero en QuickBooks tiene pagos aplicados: no se tocó para no dejar pagos sueltos. Revísalo en QuickBooks.",

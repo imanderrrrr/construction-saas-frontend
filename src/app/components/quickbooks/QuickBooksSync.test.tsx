@@ -394,6 +394,25 @@ describe('QuickBooksSync', () => {
     expect(document.querySelector('[data-testid="quickbooks-sync-row-local-payments"]')).toBeNull();
   });
 
+  it('a total below what was already paid says the payment is in QuickBooks when payments are read from there', async () => {
+    // Seen against the simulated Intuit (2026-09-26): the bill was paid in
+    // QuickBooks, and the block said it was paid «en BuildTrack».
+    const below = row({ type: 'BILL', docId: 22, number: 'BILL-QA-A-L3', state: 'BLOCKED', reasons: ['TOTAL_BELOW_PAID'], qboId: '217' });
+    current = overview([below], { ...SETTINGS, paymentsFromQbo: true });
+    await render();
+
+    expect(text()).toContain('El total quedó por debajo de lo ya pagado en QuickBooks');
+    expect(text()).not.toContain('lo ya pagado en BuildTrack');
+  });
+
+  it('a total below what was already paid says BuildTrack while payments are recorded here', async () => {
+    const below = row({ type: 'BILL', docId: 22, number: 'BILL-QA-A-L3', state: 'BLOCKED', reasons: ['TOTAL_BELOW_PAID'], qboId: '217' });
+    current = overview([below], { ...SETTINGS, paymentsFromQbo: false });
+    await render();
+
+    expect(text()).toContain('El total quedó por debajo de lo ya pagado en BuildTrack');
+  });
+
   it('offers to create again a document someone deleted inside QuickBooks', async () => {
     current = overview([row({ type: 'INVOICE', docId: 8, number: 'INV-2026-0008', state: 'BLOCKED', reasons: ['QBO_DELETED'], qboId: '147' })]);
     replies[`POST ${BASE}/INVOICE/8/send`] = row({ type: 'INVOICE', docId: 8, number: 'INV-2026-0008', state: 'SENT', qboId: '151' });
