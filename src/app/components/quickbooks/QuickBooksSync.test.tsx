@@ -292,6 +292,22 @@ describe('QuickBooksSync', () => {
     expect(calls.find(c => c.key === `PUT ${BASE}/settings`)?.body).toEqual({ cutoverDate: '2026-09-20', autoSend: true });
   });
 
+  it('says a one-minute interval in the singular, in both languages', async () => {
+    // Seen in the browser walk with the sender every 40 s (shown as 1 min):
+    // the confirmation read "Cada 1 minutos".
+    current = overview(undefined, { ...SETTINGS, autoSendIntervalMinutes: 1 });
+    await render();
+    await click(document.querySelector('[role=switch]') as HTMLButtonElement);
+    expect(text()).toContain('Cada minuto BuildTrack enviará');
+    expect(text()).not.toContain('1 minutos');
+    await click(buttons('Cancelar')[0]);
+
+    await act(async () => { await i18n.changeLanguage('en'); });
+    await click(document.querySelector('[role=switch]') as HTMLButtonElement);
+    expect(text()).toContain('Every minute BuildTrack will send');
+    expect(text()).not.toContain('1 minutes');
+  });
+
   it('turns it off at once, and keeps the switch off until there is a cut-over date', async () => {
     current = overview(undefined, { ...SETTINGS, autoSend: true, autoSendChangedBy: 'admin', autoSendChangedAt: '2026-09-25T20:00:00Z' });
     replies[`PUT ${BASE}/settings`] = SETTINGS;

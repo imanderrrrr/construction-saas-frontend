@@ -348,8 +348,9 @@ function SettingsBlock({ settings, busy, lang, onSave, onOpenMapping, when }: {
         }
       >
         <p className="text-[13.5px] leading-[1.55] text-[#0A0A0A]">
+          {/* A count, not a bare number: an interval of one minute reads "Cada minuto", never "Cada 1 minutos". */}
           {t('sync.confirm.body', {
-            minutes: settings.autoSendIntervalMinutes,
+            count: settings.autoSendIntervalMinutes,
             date: settings.cutoverDate ? fmtDate(settings.cutoverDate, lang) : '—',
           })}
         </p>
