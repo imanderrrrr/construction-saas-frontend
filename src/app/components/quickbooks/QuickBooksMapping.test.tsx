@@ -162,14 +162,34 @@ describe('QuickBooksMapping', () => {
     expect(keys.lastIndexOf(`GET ${BASE}/mappings`)).toBeGreaterThan(keys.indexOf(`POST ${BASE}/company/refresh`));
   });
 
-  it('says when the refresh brake lifts instead of showing a bare error', async () => {
+  it('says when the refresh brake lifts, as information rather than as an error', async () => {
     replies[`POST ${BASE}/company/refresh`] = new ApiError(429, 'Demasiadas solicitudes', undefined, 'QUICKBOOKS_REFRESH_COOLDOWN', 42);
     await render();
 
     await click(buttons('Actualizar desde QuickBooks')[0], 'refresh');
 
-    expect(text()).toContain('Puedes volver a actualizar en 42 s');
+    // Its own calm band, with the seconds from Retry-After…
+    const notice = document.querySelector('[data-testid="quickbooks-cooldown"]');
+    expect(notice).not.toBeNull();
+    expect(notice!.getAttribute('role')).toBe('status');
+    expect(notice!.textContent).toContain('Actualización en espera');
+    expect(notice!.textContent).toContain('Puedes volver a actualizar en 42 s');
+    // …and nothing red: the brake is the system looking after the shared meter.
+    expect(document.querySelector('[data-testid="quickbooks-mapping-error"]')).toBeNull();
+    expect(text()).not.toContain('Hay un problema con la conexión');
     expect(text()).not.toContain('Demasiadas solicitudes');
+  });
+
+  it('a real refresh failure still shows the red band', async () => {
+    replies[`POST ${BASE}/company/refresh`] = new ApiError(502, 'QuickBooks no respondió.', undefined, 'QUICKBOOKS_UNAVAILABLE');
+    await render();
+
+    await click(buttons('Actualizar desde QuickBooks')[0], 'refresh');
+
+    const error = document.querySelector('[data-testid="quickbooks-mapping-error"]');
+    expect(error).not.toBeNull();
+    expect(error!.textContent).toContain('QuickBooks no respondió.');
+    expect(document.querySelector('[data-testid="quickbooks-cooldown"]')).toBeNull();
   });
 
   it('offers accept + pick + create on an unlinked row with a suggestion, and change + unlink on a linked one', async () => {

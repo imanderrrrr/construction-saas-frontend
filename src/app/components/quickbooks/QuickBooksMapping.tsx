@@ -44,6 +44,8 @@ export function QuickBooksMapping() {
   const [tab, setTab] = useState<Tab>('clients');
   const [busy, setBusy] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  /** The per-company brake, when it held a refresh: information, not an error. */
+  const [cooldownNotice, setCooldownNotice] = useState<string | null>(null);
   const [picking, setPicking] = useState<QuickBooksMappingRow | null>(null);
 
   // State is only touched after the await (react-hooks/set-state-in-effect).
@@ -63,23 +65,23 @@ export function QuickBooksMapping() {
   const run = async (key: string, action: () => Promise<QuickBooksMappingOverview | void>, success?: string) => {
     setBusy(key);
     setActionError(null);
+    setCooldownNotice(null);
     try {
       const next = await action();
       if (next) setOverview(next);
       if (success) toast.success(success);
     } catch (e) {
-      setActionError(explain(e));
+      // The per-company brake is the system looking after the shared Intuit
+      // meter, not something that went wrong: it gets its own calm band that
+      // says when, never the red one.
+      if (e instanceof ApiError && e.code === QUICKBOOKS_REFRESH_COOLDOWN_CODE) {
+        setCooldownNotice(t('quickbooks:company.cooldown', { seconds: e.retryAfterSeconds ?? 60 }));
+      } else {
+        setActionError(e instanceof Error ? e.message : String(e));
+      }
     } finally {
       setBusy(null);
     }
-  };
-
-  /** The per-company brake is not an error to shout about: it says when. */
-  const explain = (e: unknown): string => {
-    if (e instanceof ApiError && e.code === QUICKBOOKS_REFRESH_COOLDOWN_CODE) {
-      return t('quickbooks:company.cooldown', { seconds: e.retryAfterSeconds ?? 60 });
-    }
-    return e instanceof Error ? e.message : String(e);
   };
 
   const refresh = () => run('refresh', async () => {
@@ -121,6 +123,7 @@ export function QuickBooksMapping() {
   return (
     <div className="space-y-4 md:space-y-5" data-testid="quickbooks-mapping">
       {actionError && <Band tone="danger" title={t('quickbooks:error.generic')} role="alert" testId="quickbooks-mapping-error">{actionError}</Band>}
+      {cooldownNotice && <Band tone="info" title={t('quickbooks:company.cooldownTitle')} role="status" testId="quickbooks-cooldown">{cooldownNotice}</Band>}
 
       <CompanyBlock
         company={company}

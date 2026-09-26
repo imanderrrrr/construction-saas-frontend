@@ -64,6 +64,7 @@
   "company.refreshed": "Se actualizó la información de QuickBooks.",
   "company.refreshedAt": "Copia local actualizada el {{when}}",
   "company.cooldown": "QuickBooks se actualizó hace un momento. Puedes volver a actualizar en {{seconds}} s.",
+  "company.cooldownTitle": "Actualización en espera",
   "company.unread": "Todavía no se leyó la empresa. Al actualizar, BuildTrack lee su plan, qué funciones tiene activadas y sus listas de clientes, proveedores, cuentas y servicios. Son unas pocas lecturas que Intuit cuenta; después las pantallas trabajan con la copia local.",
   "company.cap.projects": "Proyectos de QuickBooks",
   "company.cap.expensesByCustomer": "Gastos asignables a una obra",
