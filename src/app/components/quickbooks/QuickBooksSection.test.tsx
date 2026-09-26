@@ -227,6 +227,9 @@ describe('QuickBooksSection', () => {
 
     await click('Desconectar');
     expect(text()).toContain('¿Desconectar?');
+    // Disconnecting stops the payments read too: what stays counted is said up front.
+    expect(text()).toContain('lo pagado de los documentos enviados queda como lo dejó QuickBooks');
+    expect(text()).toContain('los pagos nuevos se registran aquí');
     expect(calls).not.toContain(`POST ${BASE}/disconnect`);
 
     await click('Sí, desconectar');
