@@ -20,11 +20,11 @@ import { fmtDateTime } from '../../helpers/dateTime';
 import {
   acceptQuickBooksSuggestions, createInQuickBooks, getQuickBooksMappings, linkQuickBooks, QUICKBOOKS_CREATABLE,
   QUICKBOOKS_REFRESH_COOLDOWN_CODE, refreshQuickBooksCompany, searchQuickBooksOptions, unlinkQuickBooks,
-  type QuickBooksCompany, type QuickBooksMappingOverview, type QuickBooksMappingRow, type QuickBooksOption,
+  type QuickBooksCompany, type QuickBooksMappingOverview, type QuickBooksMappingRow, type QuickBooksMappingTab, type QuickBooksOption,
 } from '../../services/quickbooks';
 import { Band, Block, Bones, LoadFailed, TabButton, Tag, money } from './bits';
 
-type Tab = 'clients' | 'projects' | 'vendors' | 'categories' | 'invoiceItem';
+type Tab = QuickBooksMappingTab;
 const TABS: Tab[] = ['clients', 'projects', 'vendors', 'categories', 'invoiceItem'];
 
 /** finance:payable.category.* keys, by PayableCategory. */
@@ -36,12 +36,15 @@ const CATEGORY_KEY: Record<string, string> = {
   OTHER: 'other',
 };
 
-export function QuickBooksMapping() {
+export function QuickBooksMapping({ initialTab = 'clients' }: {
+  /** The list to open on — "Envíos" sends the admin straight to the link a document is missing. */
+  initialTab?: Tab;
+} = {}) {
   const { t, i18n } = useTranslation(['quickbooks', 'finance']);
   const lang = i18n.resolvedLanguage ?? i18n.language ?? 'es';
   const [overview, setOverview] = useState<QuickBooksMappingOverview | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
-  const [tab, setTab] = useState<Tab>('clients');
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [busy, setBusy] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   /** The per-company brake, when it held a refresh: information, not an error. */

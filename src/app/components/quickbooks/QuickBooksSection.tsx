@@ -1,12 +1,13 @@
 // BuildTrack — QuickBooks Online: the tenant's link to the company that keeps
 // its books.
 //
-// Ported from OFJR's phase 1–2 screens and redrawn in the panel's own
-// language. Deliberately honest about scope: it connects, proves the link
-// works, reads the company and lets the admin link records; it says in plain
-// words that nothing is sent yet. Each constructora connects ITS company —
-// the server keys everything by the session's tenant, so this screen never
-// mentions one.
+// Ported from OFJR's phase 1–3 screens and redrawn in the panel's own
+// language. It connects, proves the link works and lets it be undone; under
+// the connection, two sections: "Vincular" (phase 2: which record is which)
+// and "Envíos" (phase 3: invoices and bills going to QuickBooks). It says in
+// plain words what is sent and what is not. Each constructora connects ITS
+// company — the server keys everything by the session's tenant, so this
+// screen never mentions one.
 
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -18,12 +19,15 @@ import { BtModal } from '../bt/windows';
 import { fmtDateTime } from '../../helpers/dateTime';
 import {
   disconnectQuickBooks, getQuickBooksStatus, openIntuitConsent, QUICKBOOKS_SUCCESS_OUTCOMES, startQuickBooksConnect,
-  testQuickBooksConnection, type QuickBooksOutcome, type QuickBooksStatus,
+  testQuickBooksConnection, type QuickBooksMappingTab, type QuickBooksOutcome, type QuickBooksStatus,
 } from '../../services/quickbooks';
-import { Band, Block, Bones, Explain, Fact, LoadFailed, StateChip, Tag } from './bits';
+import { Band, Block, Bones, Explain, Fact, LoadFailed, StateChip, TabButton, Tag } from './bits';
 import { QuickBooksMapping } from './QuickBooksMapping';
+import { QuickBooksSync } from './QuickBooksSync';
 
 type Busy = 'connect' | 'test' | 'disconnect' | null;
+type Section = 'mapping' | 'sync';
+const SECTIONS: Section[] = ['mapping', 'sync'];
 
 export function QuickBooksSection({ outcome = null }: {
   /** How the last trip through Intuit ended, read from `?quickbooks=` by the dashboard. */
@@ -39,6 +43,17 @@ export function QuickBooksSection({ outcome = null }: {
   // The arrival banner reports the trip through Intuit; once the admin acts
   // again it is stale (a "connected" banner above a just-disconnected card).
   const [showOutcome, setShowOutcome] = useState(true);
+  const [section, setSection] = useState<Section>('mapping');
+  // A jump from "Envíos" to the link a document is missing: the tab to open,
+  // and a counter that remounts the list so a second jump to the same tab works.
+  const [mappingTab, setMappingTab] = useState<QuickBooksMappingTab>('clients');
+  const [mappingVisit, setMappingVisit] = useState(0);
+
+  const openMapping = (tab: QuickBooksMappingTab) => {
+    setMappingTab(tab);
+    setMappingVisit(n => n + 1);
+    setSection('mapping');
+  };
 
   // State is only touched after the await: a synchronous set inside the
   // mount effect would cascade a render (react-hooks/set-state-in-effect).
@@ -195,7 +210,20 @@ export function QuickBooksSection({ outcome = null }: {
         </Block>
       )}
 
-      {status?.configured && status.state === 'ACTIVE' && <QuickBooksMapping />}
+      {status?.configured && status.state === 'ACTIVE' && (
+        <>
+          <div role="tablist" aria-label={t('section.label')} className="flex border-b border-[#E7E1D5]" data-testid="quickbooks-sections">
+            {SECTIONS.map(key => (
+              <TabButton key={key} active={key === section} onClick={() => setSection(key)}>
+                {t(`section.${key}`)}
+              </TabButton>
+            ))}
+          </div>
+          {section === 'mapping'
+            ? <QuickBooksMapping key={mappingVisit} initialTab={mappingTab} />
+            : <QuickBooksSync onOpenMapping={openMapping} />}
+        </>
+      )}
 
       <Band tone="info" title={t('scope.title')}>{t('scope.body')}</Band>
 
