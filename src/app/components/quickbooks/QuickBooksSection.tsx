@@ -17,6 +17,7 @@ import { Link2, RefreshCw, Unplug } from 'lucide-react';
 import { Mono } from '../projects/bt';
 import { DestroyButton, PrimaryButton, SecondaryButton } from '../onboarding/chrome';
 import { BtModal } from '../bt/windows';
+import { ApiError } from '../../lib/api';
 import { fmtDateTime } from '../../helpers/dateTime';
 import {
   disconnectQuickBooks, getQuickBooksStatus, openIntuitConsent, QUICKBOOKS_SUCCESS_OUTCOMES, startQuickBooksConnect,
@@ -95,7 +96,10 @@ export function QuickBooksSection({ outcome = null }: {
       setStatus(next);
       toast.success(t('toast.tested', { company: next.companyName ?? t('companyUnknown') }));
     } catch (e) {
-      setActionError(messageOf(e));
+      // A permission Intuit no longer renews is the card's to explain: the
+      // reload turns it into "Hay que reconectar", with the button to do it.
+      // A band on top would say the same thing twice, in red.
+      if (!(e instanceof ApiError && e.code === 'QUICKBOOKS_NEEDS_RECONNECT')) setActionError(messageOf(e));
       void load();
     } finally {
       setBusy(null);

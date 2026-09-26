@@ -207,6 +207,7 @@ export function QuickBooksSync({ onOpenMapping }: {
                 key={`${row.type}:${row.docId}`}
                 row={row}
                 autoSend={settings.autoSend}
+                paymentsFromQbo={settings.paymentsFromQbo === true}
                 lang={lang}
                 busy={busy === `${row.type}:${row.docId}`}
                 disabled={busy !== null}
@@ -417,9 +418,11 @@ function StateLight({ state, label }: { state: QuickBooksSyncState; label: strin
 
 // ── One document ────────────────────────────────────────────────────────────
 
-function SyncRow({ row, autoSend, lang, busy, disabled, when, onSend, onSkip, onUnskip, onOpenMapping }: {
+function SyncRow({ row, autoSend, paymentsFromQbo, lang, busy, disabled, when, onSend, onSkip, onUnskip, onOpenMapping }: {
   row: QuickBooksSyncRow;
   autoSend: boolean;
+  /** The company reads its payments from QuickBooks: "already paid" then means paid THERE. */
+  paymentsFromQbo: boolean;
   lang: string;
   busy: boolean;
   disabled: boolean;
@@ -435,6 +438,9 @@ function SyncRow({ row, autoSend, lang, busy, disabled, when, onSend, onSkip, on
   // Blocks worked out on our side (links, tax, discounts) clear on their
   // own once fixed; a refusal from QuickBooks needs "Reintentar".
   const onlyFromQuickBooks = row.reasons.length > 0 && row.reasons.every(r => !QUICKBOOKS_SYNC_COMPUTED_REASONS.has(r));
+  // The same block, told where the money was registered.
+  const reasonKey = (reason: string) =>
+    paymentsFromQbo && reason === 'TOTAL_BELOW_PAID' ? 'sync.reasonQbo.TOTAL_BELOW_PAID' : `sync.reason.${reason}`;
 
   let detail: ReactNode = null;
   if (row.state === 'CHANGED') {
@@ -547,7 +553,7 @@ function SyncRow({ row, autoSend, lang, busy, disabled, when, onSend, onSkip, on
         </div>
         {row.reasons.map(reason => (
           <p key={reason} className={cn('text-[13px] leading-[1.5]', trouble ? 'text-[#0A0A0A]' : 'text-[#5A5346]')}>
-            {t(`sync.reason.${reason}`, { defaultValue: t('sync.reason.other', { code: reason }) })}
+            {t(reasonKey(reason), { defaultValue: t('sync.reason.other', { code: reason }) })}
           </p>
         ))}
         {row.errorMessage && (

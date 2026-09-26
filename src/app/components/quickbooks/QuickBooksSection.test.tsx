@@ -22,6 +22,7 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 import { QuickBooksSection } from './QuickBooksSection';
 import { openIntuitConsent } from '../../services/quickbooks';
+import { ApiError } from '../../lib/api';
 import i18n from '../../../i18n';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -178,6 +179,33 @@ describe('QuickBooksSection', () => {
     expect(text()).toContain('Intuit rechazó el permiso');
     expect(button('Volver a conectar')).toBeTruthy();
     expect(button('Probar conexión')).toBeUndefined();
+  });
+
+  it('a test that finds the permission gone leaves one explanation, the card\'s, with the reconnect button', async () => {
+    // Seen against the simulated Intuit (2026-09-26): the failed test put
+    // «Hay un problema con la conexión» on top of the card's own «La conexión
+    // dejó de funcionar», two red bands saying one thing.
+    statusReply = ACTIVE;
+    replies[`POST ${BASE}/test`] = new ApiError(409, 'Hay que volver a conectar QuickBooks.', undefined, 'QUICKBOOKS_NEEDS_RECONNECT');
+    await render();
+
+    statusReply = { ...ACTIVE, state: 'NEEDS_RECONNECT', lastError: 'REFRESH_REJECTED' };
+    await click('Probar conexión');
+
+    expect(document.querySelector('[data-testid="quickbooks-action-error"]')).toBeNull();
+    expect(document.querySelectorAll('[role="alert"]')).toHaveLength(1);
+    expect(text()).toContain('La conexión dejó de funcionar');
+    expect(button('Volver a conectar')).toBeTruthy();
+  });
+
+  it('a test that fails any other way still says so above the card', async () => {
+    statusReply = ACTIVE;
+    replies[`POST ${BASE}/test`] = new ApiError(503, 'QuickBooks no respondió.', undefined, 'QUICKBOOKS_UNAVAILABLE');
+    await render();
+
+    await click('Probar conexión');
+
+    expect(document.querySelector('[data-testid="quickbooks-action-error"]')?.textContent).toContain('QuickBooks no respondió.');
   });
 
   it('after an environment switch, only offers disconnecting — a reconnect would hit the other company', async () => {
