@@ -192,3 +192,161 @@ export function acceptQuickBooksSuggestions(type?: QuickBooksLinkType): Promise<
   const query = type ? `?type=${encodeURIComponent(type)}` : '';
   return api<{ linked: number; overview: QuickBooksMappingOverview }>(`${BASE}/mappings/accept-suggestions${query}`, { method: 'POST' });
 }
+
+// ── Phase 3: sending invoices and bills ──────────────────────────────────────
+//
+// The list is computed by the server from the tenant's own data (never live
+// from QuickBooks). The send buttons reach Intuit: creates and updates are
+// free, a void or delete costs one metered read (the server looks for
+// payments first) — counted on the company's share of the shared meter.
+
+export type QuickBooksSyncType = 'INVOICE' | 'BILL';
+
+export type QuickBooksSyncState =
+  | 'READY' | 'BLOCKED' | 'FAILED' | 'SENT' | 'CHANGED' | 'SKIPPED' | 'SENDING' | 'VOIDED' | 'DELETED';
+
+/** Every code the server may put in `reasons` — each one has a sentence in the `quickbooks` namespace (sync.reason.*). */
+export const QUICKBOOKS_SYNC_REASONS = [
+  'PROJECT_NOT_LINKED', 'INVOICE_ITEM_NOT_LINKED', 'VENDOR_NOT_LINKED', 'CATEGORY_NOT_LINKED',
+  'HAS_SALES_TAX', 'DISCOUNT_DISABLED', 'TOTAL_BELOW_PAID', 'PLAN_NO_BILLS', 'DUPLICATE_DOC_NUMBER', 'QBO_HAS_PAYMENTS',
+  'QBO_DELETED', 'FEATURE_NOT_SUPPORTED', 'QUICKBOOKS_UNAVAILABLE', 'RATE_LIMITED', 'QUICKBOOKS_AUTH_REJECTED',
+  'QBO_TEMPORARY_ERROR', 'STALE_OBJECT', 'QBO_REJECTED', 'TOTAL_MISMATCH',
+] as const;
+
+/**
+ * Blocks worked out from our own data (links, sales tax, discounts): they
+ * clear by themselves once fixed. Any other reason is QuickBooks' answer and
+ * takes a "Reintentar".
+ */
+export const QUICKBOOKS_SYNC_COMPUTED_REASONS: ReadonlySet<string> = new Set([
+  'PROJECT_NOT_LINKED', 'INVOICE_ITEM_NOT_LINKED', 'VENDOR_NOT_LINKED', 'CATEGORY_NOT_LINKED', 'HAS_SALES_TAX', 'DISCOUNT_DISABLED',
+  'TOTAL_BELOW_PAID',
+]);
+
+/** The "Vincular" tabs a missing link sends the admin to (QuickBooksMapping's own tab keys). */
+export type QuickBooksMappingTab = 'clients' | 'projects' | 'vendors' | 'categories' | 'invoiceItem';
+
+export interface QuickBooksSyncRow {
+  type: QuickBooksSyncType;
+  docId: number;
+  /** INVOICE | CHANGE_ORDER_REQUEST for invoices; BILL | INVOICE for payables. */
+  documentType: string;
+  number: string;
+  vendorInvoiceNumber: string | null;
+  /** Client or vendor, as typed in the system. */
+  party: string | null;
+  projectName: string | null;
+  date: string | null;
+  amountCents: number | null;
+  state: QuickBooksSyncState;
+  reasons: string[];
+  linkTabs: QuickBooksMappingTab[];
+  /** QuickBooks' own words about the last failure. */
+  errorMessage: string | null;
+  /** ATTACHMENT_FAILED */
+  warning: string | null;
+  deletedHere: boolean;
+  qboId: string | null;
+  qboDocNumber: string | null;
+  qboUrl: string | null;
+  sentAt: string | null;
+  sentBy: string | null;
+  syncedAt: string | null;
+  lastAttemptAt: string | null;
+  nextAttemptAt: string | null;
+  skippedBy: string | null;
+  attachmentsTotal: number | null;
+  attachmentsSent: number | null;
+}
+
+export interface QuickBooksSyncSettings {
+  connected: boolean;
+  environment: 'SANDBOX' | 'PRODUCTION';
+  realmId: string | null;
+  companyName: string | null;
+  /** yyyy-MM-dd */
+  cutoverDate: string | null;
+  autoSend: boolean;
+  autoSendChangedBy: string | null;
+  autoSendChangedAt: string | null;
+  autoSendIntervalMinutes: number;
+  lastRunAt: string | null;
+  lastRunSummary: string | null;
+  plan: string | null;
+  expensesByCustomer: boolean | null;
+  customTxnNumbers: boolean | null;
+  allowDiscount: boolean | null;
+  usingSalesTax: boolean | null;
+  preferencesRead: boolean;
+}
+
+export interface QuickBooksSyncSummary {
+  ready: number;
+  blocked: number;
+  failed: number;
+  sent: number;
+  changed: number;
+  skipped: number;
+  closed: number;
+}
+
+export interface QuickBooksSyncOverview {
+  settings: QuickBooksSyncSettings;
+  summary: QuickBooksSyncSummary;
+  rows: QuickBooksSyncRow[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+export interface QuickBooksSyncRunResult {
+  processed: number;
+  created: number;
+  updated: number;
+  voided: number;
+  deleted: number;
+  failed: number;
+  blocked: number;
+  attachmentsSent: number;
+  attachmentsFailed: number;
+  remaining: number;
+  stoppedBy: string | null;
+}
+
+/** 'ALL', a state, or 'CLOSED' (voided or deleted). */
+export type QuickBooksSyncStateFilter = 'ALL' | QuickBooksSyncState | 'CLOSED';
+
+export function getQuickBooksSync(
+  filter: { type?: QuickBooksSyncType | 'ALL'; state?: QuickBooksSyncStateFilter; page?: number; size?: number } = {},
+): Promise<QuickBooksSyncOverview> {
+  const params = new URLSearchParams();
+  if (filter.type && filter.type !== 'ALL') params.set('type', filter.type);
+  if (filter.state && filter.state !== 'ALL') params.set('state', filter.state);
+  params.set('page', String(filter.page ?? 0));
+  params.set('size', String(filter.size ?? 25));
+  return api<QuickBooksSyncOverview>(`${BASE}/sync?${params.toString()}`);
+}
+
+export function updateQuickBooksSyncSettings(cutoverDate: string | null, autoSend: boolean): Promise<QuickBooksSyncSettings> {
+  return api<QuickBooksSyncSettings>(`${BASE}/sync/settings`, {
+    method: 'PUT',
+    body: JSON.stringify({ cutoverDate, autoSend }),
+  });
+}
+
+export function sendQuickBooksDocument(type: QuickBooksSyncType, id: number): Promise<QuickBooksSyncRow> {
+  return api<QuickBooksSyncRow>(`${BASE}/sync/${type}/${id}/send`, { method: 'POST' });
+}
+
+export function sendReadyToQuickBooks(): Promise<QuickBooksSyncRunResult> {
+  return api<QuickBooksSyncRunResult>(`${BASE}/sync/send-ready`, { method: 'POST' });
+}
+
+export function skipQuickBooksDocument(type: QuickBooksSyncType, id: number): Promise<QuickBooksSyncRow> {
+  return api<QuickBooksSyncRow>(`${BASE}/sync/${type}/${id}/skip`, { method: 'POST' });
+}
+
+export function unskipQuickBooksDocument(type: QuickBooksSyncType, id: number): Promise<QuickBooksSyncRow> {
+  return api<QuickBooksSyncRow>(`${BASE}/sync/${type}/${id}/unskip`, { method: 'POST' });
+}

@@ -219,6 +219,43 @@ describe('QuickBooksSection', () => {
     expect(text()).toContain('Tu QuickBooks todavía no está conectado');
   });
 
+  it('under a live link, "Envíos" lists the documents and a missing link opens the right Vincular tab', async () => {
+    statusReply = ACTIVE;
+    replies[`GET ${BASE}/sync?page=0&size=25`] = {
+      settings: {
+        connected: true, environment: 'SANDBOX', realmId: '9130000001', companyName: 'Constructora Peña S.A.',
+        cutoverDate: '2026-09-20', autoSend: false, autoSendChangedBy: null, autoSendChangedAt: null,
+        autoSendIntervalMinutes: 2, lastRunAt: null, lastRunSummary: null, plan: 'PLUS', expensesByCustomer: true,
+        customTxnNumbers: false, allowDiscount: true, usingSalesTax: true, preferencesRead: true,
+      },
+      summary: { ready: 0, blocked: 1, failed: 0, sent: 0, changed: 0, skipped: 0, closed: 0 },
+      rows: [{
+        type: 'INVOICE', docId: 4, documentType: 'INVOICE', number: 'INV-2026-0004', vendorInvoiceNumber: null,
+        party: 'Cliente Demo', projectName: 'Torre Norte', date: '2026-09-25', amountCents: 10_000, state: 'BLOCKED',
+        reasons: ['PROJECT_NOT_LINKED'], linkTabs: ['projects'], errorMessage: null, warning: null, deletedHere: false,
+        qboId: null, qboDocNumber: null, qboUrl: null, sentAt: null, sentBy: null, syncedAt: null, lastAttemptAt: null,
+        nextAttemptAt: null, skippedBy: null, attachmentsTotal: null, attachmentsSent: null,
+      }],
+      page: 0, size: 25, totalElements: 1, totalPages: 1,
+    };
+    await render();
+    const tab = (label: string) => [...document.querySelectorAll('[role=tab]')].find(b => b.textContent?.startsWith(label)) as HTMLElement;
+    expect(tab('Vincular').getAttribute('aria-selected')).toBe('true');
+    expect(document.querySelector('[data-testid="quickbooks-sync"]')).toBeNull();
+
+    await act(async () => { tab('Envíos').click(); });
+    await flush();
+    expect(calls).toContain(`GET ${BASE}/sync?page=0&size=25`);
+    expect(text()).toContain('INV-2026-0004');
+    expect(text()).toContain('La obra no está vinculada con QuickBooks.');
+
+    await click('Vincular obra');
+
+    expect(tab('Vincular').getAttribute('aria-selected')).toBe('true');
+    expect(tab('Obras').getAttribute('aria-selected')).toBe('true');
+    expect(document.querySelector('[data-testid="quickbooks-sync"]')).toBeNull();
+  });
+
   it('explains a company held by another constructora in words, not a code', async () => {
     await render('REALM_IN_USE');
 

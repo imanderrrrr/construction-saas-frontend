@@ -12,7 +12,7 @@ import en from '../../../i18n/locales/en/quickbooks.json';
 import es from '../../../i18n/locales/es/quickbooks.json';
 import enAdmin from '../../../i18n/locales/en/admin.json';
 import esAdmin from '../../../i18n/locales/es/admin.json';
-import { parseQuickBooksOutcome, QUICKBOOKS_OUTCOMES } from '../../services/quickbooks';
+import { parseQuickBooksOutcome, QUICKBOOKS_OUTCOMES, QUICKBOOKS_SYNC_COMPUTED_REASONS, QUICKBOOKS_SYNC_REASONS } from '../../services/quickbooks';
 
 const enMap = en as Record<string, string>;
 const esMap = es as Record<string, string>;
@@ -57,7 +57,7 @@ describe('quickbooks locale coverage', () => {
   });
 
   it('every static key the two screens ask for is defined in both languages', () => {
-    for (const file of ['QuickBooksSection.tsx', 'QuickBooksMapping.tsx']) {
+    for (const file of ['QuickBooksSection.tsx', 'QuickBooksMapping.tsx', 'QuickBooksSync.tsx']) {
       const text = source(file);
       for (const m of text.matchAll(/\bt\(\s*'([^']+)'/g)) {
         const key = m[1];
@@ -67,6 +67,38 @@ describe('quickbooks locale coverage', () => {
         expect(defines(enMap, bare), `${file}: en ${bare}`).toBe(true);
         expect(defines(esMap, bare), `${file}: es ${bare}`).toBe(true);
       }
+    }
+  });
+
+  it('says every reason a document is held back or failed, in words, not a code', () => {
+    // The server's codes (QuickBooksBlockReason + the sender's error codes):
+    // a missing sentence would put "QBO_HAS_PAYMENTS" in front of the admin.
+    for (const code of QUICKBOOKS_SYNC_REASONS) {
+      expect(enMap[`sync.reason.${code}`], `en sync.reason.${code}`).toBeTruthy();
+      expect(esMap[`sync.reason.${code}`], `es sync.reason.${code}`).toBeTruthy();
+    }
+    for (const code of QUICKBOOKS_SYNC_COMPUTED_REASONS) {
+      expect(QUICKBOOKS_SYNC_REASONS as readonly string[]).toContain(code);
+    }
+  });
+
+  it('names every sending state, every Vincular tab a blocked document points at, and every way a pass stops', () => {
+    for (const state of ['READY', 'BLOCKED', 'FAILED', 'SENT', 'CHANGED', 'SKIPPED', 'SENDING', 'VOIDED', 'DELETED']) {
+      expect(enMap[`sync.state.${state}`], state).toBeTruthy();
+      expect(esMap[`sync.state.${state}`], state).toBeTruthy();
+      expect(enMap[`sync.filter.${state === 'SENDING' || state === 'VOIDED' || state === 'DELETED' ? 'CLOSED' : state}`], `filter ${state}`).toBeTruthy();
+    }
+    for (const tab of ['clients', 'projects', 'vendors', 'categories', 'invoiceItem']) {
+      expect(enMap[`sync.fix.${tab}`], tab).toBeTruthy();
+      expect(esMap[`sync.fix.${tab}`], tab).toBeTruthy();
+    }
+    for (const stop of ['RATE_LIMITED', 'QUICKBOOKS_AUTH_REJECTED', 'QUICKBOOKS_NEEDS_RECONNECT', 'QUICKBOOKS_NOT_CONNECTED', 'QUICKBOOKS_UNAVAILABLE', 'QUICKBOOKS_NOT_CONFIGURED', 'QUICKBOOKS_REALM_CHANGED', 'other']) {
+      expect(enMap[`sync.stopped.${stop}`], stop).toBeTruthy();
+      expect(esMap[`sync.stopped.${stop}`], stop).toBeTruthy();
+    }
+    for (const section of ['mapping', 'sync']) {
+      expect(enMap[`section.${section}`], section).toBeTruthy();
+      expect(esMap[`section.${section}`], section).toBeTruthy();
     }
   });
 
