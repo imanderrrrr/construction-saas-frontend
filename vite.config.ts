@@ -15,7 +15,11 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:58080',
+        // Overridable so a second local backend (e.g. 58090 while another
+        // checkout holds 58080) can sit behind the same relative /api calls —
+        // and behind the QuickBooks OAuth callback, which Intuit sends to this
+        // origin and the proxy hands to the backend.
+        target: process.env.API_PROXY_TARGET ?? 'http://localhost:58080',
         changeOrigin: true,
       },
     },
