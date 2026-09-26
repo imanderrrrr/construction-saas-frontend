@@ -543,7 +543,7 @@ function SyncRow({ row, autoSend, paymentsFromQbo, lang, busy, disabled, when, o
         </p>
         <p className="text-[12.5px] text-[#8A8175]">
           {[row.projectName, row.date ? fmtDate(row.date, lang) : null].filter(Boolean).join(' · ')}
-          {row.amountCents != null && <> · <span className="font-bt-mono text-[12px] tracking-[0.04em] text-[#0A0A0A]">{money(row.amountCents, lang)}</span></>}
+          {row.amountCents != null && <> · <span className="font-bt-mono text-[12px] tracking-[0.04em] text-[#0A0A0A]">{money(row.amountCents)}</span></>}
         </p>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5">
           <StateLight state={row.state} label={t(`sync.state.${row.state}`)} />
@@ -571,7 +571,7 @@ function SyncRow({ row, autoSend, paymentsFromQbo, lang, busy, disabled, when, o
         {(row.localPaymentsCount ?? 0) > 0 && (
           <p className="text-[12.5px] leading-[1.5] text-[#B3402A]" data-testid="quickbooks-sync-row-local-payments">
             {t('sync.localPaymentsRow', { count: row.localPaymentsCount ?? 0 })}{' '}
-            <span className="font-bt-mono text-[12px] tracking-[0.04em]">{money(row.localPaymentsCents ?? 0, lang)}</span>
+            <span className="font-bt-mono text-[12px] tracking-[0.04em]">{money(row.localPaymentsCents ?? 0)}</span>
           </p>
         )}
         {!row.warning && row.type === 'BILL' && (row.attachmentsTotal ?? 0) > 0 && row.state === 'SENT' && (

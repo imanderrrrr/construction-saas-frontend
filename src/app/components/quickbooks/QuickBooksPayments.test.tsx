@@ -258,6 +258,21 @@ describe('QuickBooksPayments', () => {
     expect(openSync).toHaveBeenCalled();
   });
 
+  it('writes amounts as Cobrar and Pagar do — «$1,234.50», never «USD 1,234.50» — in Spanish too', async () => {
+    // Audit B18.
+    current = {
+      ...ON,
+      localPaymentsDocuments: 1,
+      localPaymentsCents: 1_234_50,
+      recent: ON.recent.map(p => ({ ...p, amountCents: 2_500_00 })),
+    };
+    await render();
+
+    expect(document.querySelector('[data-testid="quickbooks-payments-local"]')?.textContent).toContain('$1,234.50');
+    expect(document.querySelector('[data-testid="quickbooks-payment-read"]')?.textContent).toContain('$2,500.00');
+    expect(text()).not.toMatch(/USD\s*[\d,]/);
+  });
+
   it('a one-minute interval reads «cada minuto», never «cada 1 minutos»', async () => {
     // Audit B15: payments.webhook.onHelp (and offHelp) took a bare number.
     current = { ...ON, intervalMinutes: 1 };

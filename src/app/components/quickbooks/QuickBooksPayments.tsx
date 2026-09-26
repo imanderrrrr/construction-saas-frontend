@@ -158,7 +158,7 @@ export function QuickBooksPayments({ onOpenSync }: {
 
       {status.enabled && status.localPaymentsDocuments > 0 && (
         <Band tone="danger" title={t('payments.local.title')} role="status" testId="quickbooks-payments-local">
-          {t('payments.local.body', { count: status.localPaymentsDocuments, amount: money(status.localPaymentsCents, lang) })}
+          {t('payments.local.body', { count: status.localPaymentsDocuments, amount: money(status.localPaymentsCents) })}
           {onOpenSync && (
             <div className="mt-2.5">
               <SecondaryButton onClick={onOpenSync}>
@@ -257,7 +257,7 @@ function RecentPayment({ payment: p, lang, when }: { payment: QuickBooksPaymentR
       </div>
       <div className="flex flex-shrink-0 items-center gap-3">
         {p.voided && <Tag tone="red">{t('payments.recent.voided')}</Tag>}
-        <Amount voided={p.voided}>{money(p.amountCents, lang)}</Amount>
+        <Amount voided={p.voided}>{money(p.amountCents)}</Amount>
       </div>
     </li>
   );

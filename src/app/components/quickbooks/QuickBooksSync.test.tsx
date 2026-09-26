@@ -387,6 +387,20 @@ describe('QuickBooksSync', () => {
     expect(flag?.textContent).toContain('50.00');
   });
 
+  it('writes amounts as Cobrar and Pagar do — «$1,234.50», never «USD 1,234.50» — in Spanish too', async () => {
+    // Audit B18: Intl with es-GT wrote «USD 1,234.50» in the Spanish panel.
+    current = {
+      ...overview([{ ...SENT, amountCents: 1_234_50, localPaymentsCount: 1, localPaymentsCents: 2_500_00 }], { ...SETTINGS, paymentsFromQbo: true }),
+      summary: { ready: 0, blocked: 0, failed: 0, sent: 1, changed: 0, skipped: 0, closed: 0, localPayments: 1 },
+    };
+    await render();
+
+    const item = rowOf('INV-2026-0007');
+    expect(item.textContent).toContain('$1,234.50');
+    expect(item.textContent).toContain('$2,500.00');
+    expect(document.body.textContent).not.toMatch(/USD\s*[\d,]/);
+  });
+
   it('says nothing about local payments while payments are recorded in BuildTrack', async () => {
     await render();
 

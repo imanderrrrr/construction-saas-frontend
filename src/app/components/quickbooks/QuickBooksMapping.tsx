@@ -183,7 +183,6 @@ export function QuickBooksMapping({ initialTab = 'clients' }: {
                       key={`${row.type}:${row.localKey}`}
                       row={row}
                       label={label(row)}
-                      lang={lang}
                       busy={busy === `${row.type}:${row.localKey}`}
                       disabled={busy !== null}
                       onPick={() => setPicking(row)}
@@ -289,10 +288,9 @@ function Capability({ on, label }: { on: boolean | null; label: string }) {
 
 // ── One row ─────────────────────────────────────────────────────────────────
 
-function MappingRow({ row, label, lang, busy, disabled, onPick, onAccept, onUnlink, onCreate }: {
+function MappingRow({ row, label, busy, disabled, onPick, onAccept, onUnlink, onCreate }: {
   row: QuickBooksMappingRow;
   label: string;
-  lang: string;
   busy: boolean;
   disabled: boolean;
   onPick: () => void;
@@ -332,7 +330,7 @@ function MappingRow({ row, label, lang, busy, disabled, onPick, onAccept, onUnli
         <p className="break-words text-[13.5px] font-semibold text-[#0A0A0A]">{label}</p>
         {row.type === 'VENDOR' && row.billCount != null ? (
           <Mono className="block mt-0.5 text-[9.5px] tracking-[0.06em] text-[#8A8175] normal-case">
-            {t('mapping.bills', { count: row.billCount })} · {money(row.billTotalCents ?? 0, lang)}
+            {t('mapping.bills', { count: row.billCount })} · {money(row.billTotalCents ?? 0)}
           </Mono>
         ) : row.detail ? (
           <Mono className="block mt-0.5 text-[9.5px] tracking-[0.06em] text-[#8A8175] normal-case">{row.detail}</Mono>

@@ -4,6 +4,7 @@ import { cn } from '../ui/utils';
 import { Mono } from '../projects/bt';
 import { BlockHead } from '../budgets/ui';
 import { FOCUS_RING, PrimaryButton } from '../onboarding/chrome';
+import { fmtCents } from '../invoices/bits';
 
 /**
  * The small pieces the two QuickBooks screens share, in the redesign's
@@ -194,11 +195,11 @@ export function Switch({ on, label, disabled, onToggle }: { on: boolean; label: 
   );
 }
 
-/** `$1,234.56` — the sum of a vendor's bills. */
-export function money(cents: number, lang: string): string {
-  try {
-    return new Intl.NumberFormat(lang.startsWith('es') ? 'es-GT' : 'en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
-  } catch {
-    return `$${(cents / 100).toFixed(2)}`;
-  }
+/**
+ * `$1,234.56` in both languages, exactly as Cobrar and Pagar write it. The
+ * section used Intl with es-GT, which writes «USD 1,234.56» in Spanish
+ * (audit B18).
+ */
+export function money(cents: number): string {
+  return fmtCents(cents);
 }

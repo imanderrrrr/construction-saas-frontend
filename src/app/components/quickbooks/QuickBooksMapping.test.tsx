@@ -264,7 +264,9 @@ describe('QuickBooksMapping', () => {
 
     expect(text()).toContain('Inactivo en QuickBooks');
     expect(text()).toContain('3 cuentas por pagar');
-    expect(text()).toContain('175');
+    // Audit B18: as Cobrar and Pagar write it, never «USD 175.00».
+    expect(text()).toContain('3 cuentas por pagar · $175.00');
+    expect(text()).not.toMatch(/USD\s*175/);
   });
 
   it('accepts all suggestions of the current tab in one call', async () => {
