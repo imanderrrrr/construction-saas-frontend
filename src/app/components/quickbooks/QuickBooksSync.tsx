@@ -123,7 +123,8 @@ export function QuickBooksSync({ onOpenMapping }: {
   }
 
   const { settings, summary } = data;
-  const pending = summary.ready + summary.changed;
+  // A re-link (REF_CHANGED) waits for its own "Enviar cambios": not in the count.
+  const pending = summary.ready + summary.changed - (summary.refChanged ?? 0);
 
   return (
     <div className="space-y-4 md:space-y-5" data-testid="quickbooks-sync">
@@ -444,7 +445,8 @@ function SyncRow({ row, autoSend, paymentsFromQbo, lang, busy, disabled, when, o
 
   let detail: ReactNode = null;
   if (row.state === 'CHANGED') {
-    detail = row.deletedHere ? t(`sync.detail.deleted.${row.type}`) : t('sync.detail.changed');
+    // A re-link is not updated on its own: its reason says so instead.
+    detail = row.deletedHere ? t(`sync.detail.deleted.${row.type}`) : row.reasons.includes('REF_CHANGED') ? null : t('sync.detail.changed');
   } else if (row.state === 'READY' && autoSend) {
     detail = t('sync.detail.readyAuto');
   } else if (row.state === 'SKIPPED') {
