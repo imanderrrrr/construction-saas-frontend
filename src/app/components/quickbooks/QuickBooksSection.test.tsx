@@ -222,6 +222,19 @@ describe('QuickBooksSection', () => {
     expect(button('Volver a conectar')).toBeTruthy();
   });
 
+  it('a test on its cooldown is a calm notice with the wait the server said, not a red band (audit B8)', async () => {
+    statusReply = ACTIVE;
+    replies[`POST ${BASE}/test`] = new ApiError(
+      429, 'La conexión se probó hace un momento. Intenta de nuevo en 42 segundos.', undefined, 'QUICKBOOKS_TEST_COOLDOWN', 42,
+    );
+    await render();
+
+    await click('Probar conexión');
+
+    expect(toast.info).toHaveBeenCalledWith('La conexión se probó hace un momento. Puedes volver a probarla en 42 s.');
+    expect(document.querySelector('[data-testid="quickbooks-action-error"]')).toBeNull();
+  });
+
   it('a test that fails any other way still says so above the card', async () => {
     statusReply = ACTIVE;
     replies[`POST ${BASE}/test`] = new ApiError(503, 'QuickBooks no respondió.', undefined, 'QUICKBOOKS_UNAVAILABLE');

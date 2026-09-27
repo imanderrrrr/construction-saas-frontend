@@ -286,6 +286,60 @@ describe('QuickBooksPayments', () => {
     expect(text()).not.toContain('SOMETHING_NEW');
   });
 
+  it('a click on its cooldown is a calm notice with the wait the server said, not a failure (audit B8)', async () => {
+    current = ON;
+    replies[`POST ${BASE}/refresh`] = new ApiError(
+      429, 'Los pagos se leyeron hace un momento. Intenta de nuevo en 42 segundos.', undefined, 'QUICKBOOKS_PAYMENTS_COOLDOWN', 42,
+    );
+    await render();
+
+    await click(button('Actualizar pagos'));
+
+    expect(toast.info).toHaveBeenCalledWith('Los pagos se leyeron hace un momento. Puedes volver a leerlos en 42 s.');
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('lists the documents the read set aside, and «Leer todo de nuevo» reads everything again (audit B9)', async () => {
+    current = {
+      ...ON,
+      setAside: [{
+        type: 'BILL', docId: 9, number: 'BILL-2026-0009', party: 'Ferretería Central', error: 'apply refused',
+        failures: 3, since: '2026-09-27T15:00:00Z',
+      }],
+    };
+    replies[`POST ${BASE}/refresh?full=true`] = {
+      result: { mode: 'FULL', reads: 2, paymentsRead: 1, documentsChecked: 3, documentsUpdated: 1, failed: 0, stoppedBy: null },
+      status: { ...ON, setAside: [] },
+    };
+    await render();
+
+    const band = document.querySelector('[data-testid="quickbooks-payments-set-aside"]')!;
+    expect(band.textContent).toContain('1 documento apartado de la lectura de pagos');
+    expect(band.textContent).toContain('Cuenta por pagar BILL-2026-0009');
+    expect(band.textContent).toContain('Ferretería Central');
+    expect(band.textContent).toContain('3 intentos sin éxito');
+    expect(band.textContent).toContain('Detalle técnico: apply refused');
+
+    await click(button('Leer todo de nuevo'));
+
+    expect(calls.map(c => c.key)).toContain(`POST ${BASE}/refresh?full=true`);
+    expect(document.querySelector('[data-testid="quickbooks-payments-set-aside"]')).toBeNull();
+  });
+
+  it('without set-aside documents there is no band, and «Actualizar pagos» reads only the changes', async () => {
+    current = ON;
+    replies[`POST ${BASE}/refresh`] = {
+      result: { mode: 'CDC', reads: 1, paymentsRead: 0, documentsChecked: 0, documentsUpdated: 0, failed: 0, stoppedBy: null },
+      status: ON,
+    };
+    await render();
+
+    expect(document.querySelector('[data-testid="quickbooks-payments-set-aside"]')).toBeNull();
+    await click(button('Actualizar pagos'));
+    expect(calls.map(c => c.key)).toContain(`POST ${BASE}/refresh`);
+    expect(calls.map(c => c.key)).not.toContain(`POST ${BASE}/refresh?full=true`);
+  });
+
   it('while a read of this company runs, "Actualizar pagos" waits', async () => {
     current = { ...ON, running: true };
     await render();

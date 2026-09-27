@@ -21,7 +21,7 @@ import { ApiError, NoResponseError } from '../../lib/api';
 import { paymentMethodLabel } from '../PayableCommon';
 import {
   getQuickBooksPayments, refreshQuickBooksPayments, updateQuickBooksPaymentsSettings,
-  type QuickBooksPaymentRead, type QuickBooksPaymentsStatus,
+  type QuickBooksPaymentRead, type QuickBooksPaymentsSetAside, type QuickBooksPaymentsStatus,
 } from '../../services/quickbooks';
 import { Band, Block, Bones, Fact, LoadFailed, Switch, Tag, money } from './bits';
 import { connectionStop, describeError, loadFailureKey } from './errors';
@@ -71,6 +71,10 @@ export function QuickBooksPayments({ onOpenSync, onConnectionStop }: {
     noticeStop(e);
     if (e instanceof NoResponseError) {
       toast.info(t('stillWorking.payments'));
+    } else if (e instanceof ApiError && e.code === 'QUICKBOOKS_PAYMENTS_COOLDOWN') {
+      // Not a failure: the brake on "Actualizar pagos" (audit B8), with the
+      // wait the server said.
+      toast.info(t('payments.cooldown', { seconds: e.retryAfterSeconds ?? 60 }));
     } else if (!(onConnectionStop && e instanceof ApiError && e.code === 'QUICKBOOKS_NEEDS_RECONNECT')) {
       toast.error(t('error.actionFailed'), { description: describeError(e) });
     }
@@ -92,10 +96,11 @@ export function QuickBooksPayments({ onOpenSync, onConnectionStop }: {
     }
   };
 
-  const refresh = async () => {
+  /** "Actualizar pagos"; [full] reads every sent document again (what a set-aside one needs, audit B9). */
+  const refresh = async (full = false) => {
     setBusy('refresh');
     try {
-      const { result, status: next } = await refreshQuickBooksPayments();
+      const { result, status: next } = await refreshQuickBooksPayments(full);
       setStatus(next);
       if (result.stoppedBy) {
         noticeStop(result.stoppedBy);
@@ -200,6 +205,10 @@ export function QuickBooksPayments({ onOpenSync, onConnectionStop }: {
         </Band>
       )}
 
+      {status.enabled && (status.setAside?.length ?? 0) > 0 && (
+        <SetAsideBand items={status.setAside!} disabled={busy !== null || reading} when={when} onRetry={() => void refresh(true)} />
+      )}
+
       <WebhookBlock status={status} when={when} />
 
       <Block title={t('payments.recent.title')} hint={t('payments.recent.desc')} testId="quickbooks-payments-recent">
@@ -258,6 +267,46 @@ export function QuickBooksPayments({ onOpenSync, onConnectionStop }: {
  * set up once for the whole platform, not per constructora, so the tenant's
  * admin is told what it means — never asked to paste anything into Intuit.
  */
+/**
+ * Documents the payments read set aside (audit B9): their QuickBooks payments
+ * failed to apply three reads in a row, so the read moved on without them
+ * instead of going over the same changes forever. A full read tries them all
+ * again; one that applies leaves the list.
+ */
+function SetAsideBand({ items, disabled, when, onRetry }: {
+  items: QuickBooksPaymentsSetAside[];
+  disabled: boolean;
+  when: (iso: string) => string;
+  onRetry: () => void;
+}) {
+  const { t } = useTranslation('quickbooks');
+  return (
+    <Band tone="danger" title={t('payments.setAside.title', { count: items.length })} role="status" testId="quickbooks-payments-set-aside">
+      {t('payments.setAside.body')}
+      <ul className="mt-2.5 space-y-2">
+        {items.map(doc => (
+          <li key={`${doc.type}:${doc.docId}`}>
+            <span className="font-semibold">{t(`sync.kind.${doc.type}`)} {doc.number ?? `#${doc.docId}`}</span>
+            {doc.party && <span className="text-[#6B6358]"> · {doc.party}</span>}
+            <span className="block text-[12px] text-[#6B6358]">
+              {t('payments.setAside.since', { count: doc.failures, date: when(doc.since) })}
+            </span>
+            {doc.error && (
+              <Mono className="block break-words text-[11px] text-[#A69C8D]">{t('payments.setAside.detail', { error: doc.error })}</Mono>
+            )}
+          </li>
+        ))}
+      </ul>
+      <div className="mt-2.5">
+        <SecondaryButton onClick={onRetry} disabled={disabled}>
+          <RefreshCw className="w-3.5 h-3.5" strokeWidth={2} aria-hidden="true" />
+          {t('payments.setAside.retry')}
+        </SecondaryButton>
+      </div>
+    </Band>
+  );
+}
+
 function WebhookBlock({ status, when }: { status: QuickBooksPaymentsStatus; when: (iso: string) => string }) {
   const { t } = useTranslation('quickbooks');
   const { webhook } = status;

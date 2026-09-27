@@ -452,6 +452,26 @@ export interface QuickBooksPaymentsStatus {
   localPaymentsDocuments: number;
   localPaymentsCents: number;
   recent: QuickBooksPaymentRead[];
+  /** Documents whose payments would not apply, set aside so the read moves on (audit B9). Absent on an older server. */
+  setAside?: QuickBooksPaymentsSetAside[];
+}
+
+/**
+ * A document whose QuickBooks payments failed to apply `failures` reads in a
+ * row: it no longer holds the tenant's read back. Each later read that
+ * touches it tries again, and so does a full one; once it applies, it leaves
+ * the list.
+ */
+export interface QuickBooksPaymentsSetAside {
+  type: 'INVOICE' | 'BILL';
+  docId: number;
+  /** Null when the document was deleted here since. */
+  number: string | null;
+  party: string | null;
+  /** The server's own words for the last failure (technical, in English). */
+  error: string | null;
+  failures: number;
+  since: string;
 }
 
 export interface QuickBooksPaymentsRunResult {
