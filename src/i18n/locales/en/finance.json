@@ -493,6 +493,7 @@
   "paymentMethod.otherPlaceholder": "Specify the payment method",
   "paymentOrigin.quickbooks": "QuickBooks",
   "paymentOrigin.qboId": "Payment #{{id}} in QuickBooks",
+  "paymentOrigin.registerThere": "Recorded in QuickBooks",
   "paymentOrigin.voidedInQuickBooks": "No longer in QuickBooks",
   "paymentOrigin.voidedInQuickBooksHelp": "Deleted, voided or unlinked in QuickBooks, so it no longer counts.",
   "paymentOrigin.notInQuickBooks": "Recorded in BuildTrack, not in QuickBooks",

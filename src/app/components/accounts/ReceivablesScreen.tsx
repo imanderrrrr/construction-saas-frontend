@@ -668,8 +668,9 @@ function DocumentRow({ doc, open, onToggle, onCollect, onEdit, onDelete, onDownl
     );
 
   const collect = !settled && (
-    // A disabled button fires no hover, so the reason sits on its wrapper.
-    <span className="inline-flex" title={inQuickBooks ? t('finance:paymentOrigin.registerInQuickBooks') : undefined}>
+    // A disabled button fires no hover, so the reason sits on its wrapper —
+    // and, short, under the button: seen without hovering (audit B17).
+    <span className="inline-flex flex-col items-end" title={inQuickBooks ? t('finance:paymentOrigin.registerInQuickBooks') : undefined}>
       <button
         type="button"
         onClick={() => onCollect(doc)}
@@ -678,6 +679,9 @@ function DocumentRow({ doc, open, onToggle, onCollect, onEdit, onDelete, onDownl
       >
         {t('finance:receivable.action.collect')}
       </button>
+      {inQuickBooks && (
+        <Mono className="mt-1 block text-[9px] tracking-[0.06em] text-[#C2410C] normal-case">{t('finance:paymentOrigin.registerThere')}</Mono>
+      )}
     </span>
   );
   const pdf = (

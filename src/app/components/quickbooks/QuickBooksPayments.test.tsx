@@ -20,7 +20,7 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.f
 import { QuickBooksPayments } from './QuickBooksPayments';
 import { toast } from 'sonner';
 import i18n from '../../../i18n';
-import { NoResponseError, type ApiOptions } from '../../lib/api';
+import { ApiError, NoResponseError, type ApiOptions } from '../../lib/api';
 import { QUICKBOOKS_LONG_TIMEOUT_MS } from '../../services/quickbooks';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -187,7 +187,7 @@ describe('QuickBooksPayments', () => {
 
   it('a refused switch is a toast, and nothing is pushed on top of the section', async () => {
     current = ON;
-    replies[`PUT ${BASE}/settings`] = new Error('QuickBooks no está conectado.');
+    replies[`PUT ${BASE}/settings`] = new ApiError(409, 'QuickBooks no está conectado.', undefined, 'QUICKBOOKS_NOT_CONNECTED');
     await render();
 
     await click(toggle());
@@ -234,7 +234,7 @@ describe('QuickBooksPayments', () => {
 
   it('a refused read still says why, and re-reads the status', async () => {
     current = ON;
-    replies[`POST ${BASE}/refresh`] = new Error('Ya se están leyendo los pagos.');
+    replies[`POST ${BASE}/refresh`] = new ApiError(409, 'Ya se están leyendo los pagos.', undefined, 'QUICKBOOKS_PAYMENTS_RUNNING');
     await render();
 
     await click(button('Actualizar pagos'));
@@ -318,6 +318,36 @@ describe('QuickBooksPayments', () => {
 
     await click(button('Ver en Envíos'));
     expect(openSync).toHaveBeenCalled();
+  });
+
+  it('writes amounts as Cobrar and Pagar do — «$1,234.50», never «USD 1,234.50» — in Spanish too', async () => {
+    // Audit B18.
+    current = {
+      ...ON,
+      localPaymentsDocuments: 1,
+      localPaymentsCents: 1_234_50,
+      recent: ON.recent.map(p => ({ ...p, amountCents: 2_500_00 })),
+    };
+    await render();
+
+    expect(document.querySelector('[data-testid="quickbooks-payments-local"]')?.textContent).toContain('$1,234.50');
+    expect(document.querySelector('[data-testid="quickbooks-payment-read"]')?.textContent).toContain('$2,500.00');
+    expect(text()).not.toMatch(/USD\s*[\d,]/);
+  });
+
+  it('a one-minute interval reads «cada minuto», never «cada 1 minutos»', async () => {
+    // Audit B15: payments.webhook.onHelp (and offHelp) took a bare number.
+    current = { ...ON, intervalMinutes: 1 };
+    await render();
+    expect(text()).toContain('La lectura de cada minuto recoge lo que un aviso no traiga.');
+    expect(text()).not.toContain('cada 1 minutos');
+
+    await act(async () => root.unmount());
+    host.remove();
+    current = { ...OFF, intervalMinutes: 1 };
+    await render();
+    expect(text()).toContain('Sin avisos, los pagos se leen cada minuto');
+    expect(text()).not.toContain('cada 1 minutos');
   });
 
   it('speaks English too', async () => {

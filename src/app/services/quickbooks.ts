@@ -37,7 +37,7 @@ export interface QuickBooksStatus {
   refreshTokenExpiresAt: string | null;
   /** Intuit's 5-year ceiling: after it, only a new consent works. */
   refreshTokenHardExpiresAt: string | null;
-  /** REFRESH_REJECTED | COMPANY_INFO_FAILED | ENVIRONMENT_CHANGED | null */
+  /** REFRESH_REJECTED | COMPANY_INFO_FAILED | ENVIRONMENT_CHANGED | TOKEN_KEY_MISMATCH | null */
   lastError: string | null;
 }
 

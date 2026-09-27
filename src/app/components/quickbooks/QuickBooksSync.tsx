@@ -16,18 +16,22 @@ import { INPUT, Mono, MonoSelect } from '../projects/bt';
 import { FOCUS_RING, PrimaryButton, SecondaryButton, TertiaryButton } from '../onboarding/chrome';
 import { BtModal } from '../bt/windows';
 import { fmtDate, fmtDateTime } from '../../helpers/dateTime';
-import { NoResponseError } from '../../lib/api';
+import { ApiError, NoResponseError } from '../../lib/api';
 import {
   getQuickBooksSync, sendQuickBooksDocument, sendReadyToQuickBooks, skipQuickBooksDocument, unskipQuickBooksDocument,
   updateQuickBooksSyncSettings, QUICKBOOKS_SYNC_COMPUTED_REASONS,
   type QuickBooksMappingTab, type QuickBooksSyncOverview, type QuickBooksSyncRow, type QuickBooksSyncRunResult,
   type QuickBooksSyncSettings, type QuickBooksSyncState, type QuickBooksSyncStateFilter, type QuickBooksSyncType,
 } from '../../services/quickbooks';
-import { Band, Block, Bones, LoadFailed, Switch, TabButton, Tag, money } from './bits';
+import { Band, Block, Bones, LoadFailed, Switch, TabButton, Tag, money, onTabKey } from './bits';
+import { connectionStop, describeError, loadFailureKey } from './errors';
 
 const PAGE_SIZE = 25;
 
 const STATE_FILTERS: QuickBooksSyncStateFilter[] = ['ALL', 'READY', 'BLOCKED', 'FAILED', 'CHANGED', 'SENT', 'SKIPPED', 'CLOSED'];
+/** Ids that tie each filter tab to the list it shows (one list on the page). */
+const filterTabId = (key: QuickBooksSyncStateFilter) => `qb-sync-filter-${key}`;
+const SYNC_PANEL = 'qb-sync-panel';
 
 /** How each state is drawn: the square light and its colour, in the section's grammar. */
 const STATE_LIGHT: Record<QuickBooksSyncState, { filled: boolean; color: string; pulse?: boolean }> = {
@@ -42,14 +46,24 @@ const STATE_LIGHT: Record<QuickBooksSyncState, { filled: boolean; color: string;
   DELETED: { filled: true, color: '#A69C8D' },
 };
 
-export function QuickBooksSync({ onOpenMapping }: {
+/**
+ * A state this panel does not know yet — the server went out first. The row
+ * says so and offers nothing; it never takes the whole tab down (audit B16).
+ */
+const UNKNOWN_LIGHT: { filled: boolean; color: string; pulse?: boolean } = { filled: false, color: '#A69C8D' };
+const knownState = (state: string) => Object.prototype.hasOwnProperty.call(STATE_LIGHT, state);
+
+export function QuickBooksSync({ onOpenMapping, onConnectionStop }: {
   /** Takes the admin to the "Vincular" tab that fixes a missing link. */
   onOpenMapping?: (tab: QuickBooksMappingTab) => void;
+  /** A send stopped because of the link itself: the connection card re-reads it. */
+  onConnectionStop?: (code: string) => void;
 }) {
   const { t, i18n } = useTranslation('quickbooks');
   const lang = i18n.resolvedLanguage ?? i18n.language ?? 'es';
   const [data, setData] = useState<QuickBooksSyncOverview | null>(null);
-  const [loadFailed, setLoadFailed] = useState(false);
+  /** Why the list could not be read, as the key of the band's body; null = read. */
+  const [loadFailed, setLoadFailed] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<QuickBooksSyncType | 'ALL'>('ALL');
   const [stateFilter, setStateFilter] = useState<QuickBooksSyncStateFilter>('ALL');
   const [page, setPage] = useState(0);
@@ -61,13 +75,19 @@ export function QuickBooksSync({ onOpenMapping }: {
     try {
       const next = await getQuickBooksSync({ type: typeFilter, state: stateFilter, page, size: PAGE_SIZE });
       setData(next);
-      setLoadFailed(false);
-    } catch {
-      setLoadFailed(true);
+      setLoadFailed(null);
+    } catch (e) {
+      setLoadFailed(loadFailureKey(e));
     }
   }, [typeFilter, stateFilter, page]);
 
   useEffect(() => { void load(); }, [load]);
+
+  /** Tells the connection card when QuickBooks stopped a send because of the link. */
+  const noticeStop = (failure: unknown) => {
+    const code = connectionStop(failure);
+    if (code) onConnectionStop?.(code);
+  };
 
   /**
    * Runs one action, then re-reads the list whatever the answer: a send moves
@@ -82,10 +102,13 @@ export function QuickBooksSync({ onOpenMapping }: {
     try {
       await action();
     } catch (e) {
+      noticeStop(e);
       if (e instanceof NoResponseError) {
         toast.info(t('stillWorking.list'));
-      } else {
-        toast.error(t('error.actionFailed'), { description: e instanceof Error ? e.message : String(e) });
+      } else if (!(onConnectionStop && e instanceof ApiError && e.code === 'QUICKBOOKS_NEEDS_RECONNECT')) {
+        // A permission Intuit no longer renews is the connection card's to
+        // explain: it re-reads and offers the reconnect.
+        toast.error(t('error.actionFailed'), { description: describeError(e) });
       }
     } finally {
       await load();
@@ -98,11 +121,14 @@ export function QuickBooksSync({ onOpenMapping }: {
     if (after.state === 'SENT' || after.state === 'VOIDED' || after.state === 'DELETED') {
       toast.success(t(`sync.toast.${after.state}`, { number: after.number }));
     }
+    // A rejected permission comes back as the row's reason, not as an error.
+    after.reasons.forEach(noticeStop);
   });
 
   const sendAll = () => run('all', async () => {
     const result = await sendReadyToQuickBooks();
     setLastRun(result);
+    noticeStop(result.stoppedBy);
     toast.success(t('sync.toast.run', {
       created: result.created, updated: result.updated, removed: result.voided + result.deleted, failed: result.failed + result.blocked,
     }));
@@ -114,7 +140,7 @@ export function QuickBooksSync({ onOpenMapping }: {
     return (
       <LoadFailed
         title={t('load.errorTitle')}
-        body={t('load.errorBody')}
+        body={t(loadFailed)}
         retryLabel={t('retry')}
         onRetry={() => void load()}
         testId="quickbooks-sync-load-error"
@@ -187,9 +213,20 @@ export function QuickBooksSync({ onOpenMapping }: {
         testId="quickbooks-sync-list"
       >
         <div className="flex flex-col gap-3 border-b border-[#EDE7DB] px-2 md:flex-row md:items-center md:justify-between md:px-3">
-          <div role="tablist" aria-label={t('sync.filter.state')} className="flex flex-wrap">
+          <div
+            role="tablist"
+            aria-label={t('sync.filter.state')}
+            onKeyDown={e => onTabKey(e, STATE_FILTERS, stateFilter, key => { setStateFilter(key); setPage(0); }, filterTabId)}
+            className="flex flex-wrap"
+          >
             {STATE_FILTERS.map(key => (
-              <TabButton key={key} active={key === stateFilter} onClick={() => { setStateFilter(key); setPage(0); }}>
+              <TabButton
+                key={key}
+                id={filterTabId(key)}
+                controls={SYNC_PANEL}
+                active={key === stateFilter}
+                onClick={() => { setStateFilter(key); setPage(0); }}
+              >
                 {t(`sync.filter.${key}`)}
               </TabButton>
             ))}
@@ -209,11 +246,11 @@ export function QuickBooksSync({ onOpenMapping }: {
         </div>
 
         {data.rows.length === 0 ? (
-          <p className="px-4 py-10 text-center text-[13px] text-[#A69C8D] md:px-[18px]">
+          <p role="tabpanel" id={SYNC_PANEL} aria-labelledby={filterTabId(stateFilter)} className="px-4 py-10 text-center text-[13px] text-[#A69C8D] md:px-[18px]">
             {settings.cutoverDate ? t('sync.empty') : t('sync.list.noCutover')}
           </p>
         ) : (
-          <ul className="divide-y divide-[#EDE7DB]">
+          <div role="tabpanel" id={SYNC_PANEL} aria-labelledby={filterTabId(stateFilter)}><ul className="divide-y divide-[#EDE7DB]">
             {data.rows.map(row => (
               <SyncRow
                 key={`${row.type}:${row.docId}`}
@@ -231,7 +268,7 @@ export function QuickBooksSync({ onOpenMapping }: {
                 onOpenMapping={onOpenMapping}
               />
             ))}
-          </ul>
+          </ul></div>
         )}
 
         <Pager
@@ -387,9 +424,11 @@ function SettingsBlock({ settings, busy, lang, onSave, onOpenMapping, when }: {
 function Counter({ value, label, alarm = false }: { value: number; label: string; alarm?: boolean }) {
   const hot = alarm && value > 0;
   return (
-    <div className="border-b border-r border-[#EDE7DB] px-4 py-3 last:border-r-0 sm:border-b-0 [&:nth-child(2n)]:border-r-0 sm:[&:nth-child(2n)]:border-r">
-      <dd className={cn('font-bt-display text-[26px] font-extrabold leading-none', hot ? 'text-[#B3402A]' : 'text-[#0A0A0A]')}>{value}</dd>
+    // The term before its value, as a list of terms is read (audit B17); the
+    // column is reversed so the figure still sits on top.
+    <div className="flex flex-col-reverse border-b border-r border-[#EDE7DB] px-4 py-3 last:border-r-0 sm:border-b-0 [&:nth-child(2n)]:border-r-0 sm:[&:nth-child(2n)]:border-r">
       <dt className="mt-1.5"><Mono className={cn('text-[9.5px] tracking-[0.12em]', hot ? 'text-[#B3402A]' : 'text-[#8A8175]')}>{label}</Mono></dt>
+      <dd className={cn('font-bt-display text-[26px] font-extrabold leading-none', hot ? 'text-[#B3402A]' : 'text-[#0A0A0A]')}>{value}</dd>
     </div>
   );
 }
@@ -413,7 +452,7 @@ function Pager({ page, pageCount, disabled, onPage, label }: {
 
 /** The state of one document: a square light and the word. */
 function StateLight({ state, label }: { state: QuickBooksSyncState; label: string }) {
-  const light = STATE_LIGHT[state];
+  const light = knownState(state) ? STATE_LIGHT[state] : UNKNOWN_LIGHT;
   const faint = light.color === '#A69C8D';
   return (
     <span
@@ -538,7 +577,7 @@ function SyncRow({ row, autoSend, paymentsFromQbo, lang, busy, disabled, sendBlo
         {t('sync.action.unskip')}
       </SecondaryButton>,
     );
-  } else if (!['SENDING', 'VOIDED', 'DELETED'].includes(row.state)) {
+  } else if (knownState(row.state) && !['SENDING', 'VOIDED', 'DELETED'].includes(row.state)) {
     actions.push(
       <TertiaryButton key="skip" onClick={onSkip} disabled={disabled} className="inline-flex items-center gap-1.5 px-1 py-2.5">
         <XCircle className="w-3.5 h-3.5" strokeWidth={2} aria-hidden="true" />
@@ -561,10 +600,13 @@ function SyncRow({ row, autoSend, paymentsFromQbo, lang, busy, disabled, sendBlo
         </p>
         <p className="text-[12.5px] text-[#8A8175]">
           {[row.projectName, row.date ? fmtDate(row.date, lang) : null].filter(Boolean).join(' · ')}
-          {row.amountCents != null && <> · <span className="font-bt-mono text-[12px] tracking-[0.04em] text-[#0A0A0A]">{money(row.amountCents, lang)}</span></>}
+          {row.amountCents != null && <> · <span className="font-bt-mono text-[12px] tracking-[0.04em] text-[#0A0A0A]">{money(row.amountCents)}</span></>}
         </p>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5">
-          <StateLight state={row.state} label={t(`sync.state.${row.state}`)} />
+          <StateLight
+            state={row.state}
+            label={knownState(row.state) ? t(`sync.state.${row.state}`) : t('sync.state.unknown', { state: row.state })}
+          />
           {row.qboDocNumber && row.state !== 'READY' && (
             <Mono className="text-[9.5px] tracking-[0.08em] text-[#A69C8D] normal-case">{t('sync.qboNumber', { number: row.qboDocNumber })}</Mono>
           )}
@@ -589,7 +631,7 @@ function SyncRow({ row, autoSend, paymentsFromQbo, lang, busy, disabled, sendBlo
         {(row.localPaymentsCount ?? 0) > 0 && (
           <p className="text-[12.5px] leading-[1.5] text-[#B3402A]" data-testid="quickbooks-sync-row-local-payments">
             {t('sync.localPaymentsRow', { count: row.localPaymentsCount ?? 0 })}{' '}
-            <span className="font-bt-mono text-[12px] tracking-[0.04em]">{money(row.localPaymentsCents ?? 0, lang)}</span>
+            <span className="font-bt-mono text-[12px] tracking-[0.04em]">{money(row.localPaymentsCents ?? 0)}</span>
           </p>
         )}
         {!row.warning && row.type === 'BILL' && (row.attachmentsTotal ?? 0) > 0 && row.state === 'SENT' && (

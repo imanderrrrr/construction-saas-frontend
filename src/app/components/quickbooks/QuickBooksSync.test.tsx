@@ -390,7 +390,9 @@ describe('QuickBooksSync', () => {
   });
 
   it('shows why a send was refused, in a toast rather than a band pushed in on top of the list', async () => {
-    replies[`POST ${BASE}/INVOICE/5/send`] = new Error('Ya hay un envío en curso para tu empresa. Espera a que termine.');
+    replies[`POST ${BASE}/INVOICE/5/send`] = new ApiError(
+      409, 'Ya hay un envío en curso para tu empresa. Espera a que termine.', undefined, 'QUICKBOOKS_SYNC_RUNNING',
+    );
     await render();
 
     await click(buttonIn(rowOf('INV-2026-0005'), 'Enviar'));
@@ -417,6 +419,20 @@ describe('QuickBooksSync', () => {
     const flag = rowOf('INV-2026-0007').querySelector('[data-testid="quickbooks-sync-row-local-payments"]');
     expect(flag?.textContent).toContain('1 pago registrado en BuildTrack, no en QuickBooks:');
     expect(flag?.textContent).toContain('50.00');
+  });
+
+  it('writes amounts as Cobrar and Pagar do — «$1,234.50», never «USD 1,234.50» — in Spanish too', async () => {
+    // Audit B18: Intl with es-GT wrote «USD 1,234.50» in the Spanish panel.
+    current = {
+      ...overview([{ ...SENT, amountCents: 1_234_50, localPaymentsCount: 1, localPaymentsCents: 2_500_00 }], { ...SETTINGS, paymentsFromQbo: true }),
+      summary: { ready: 0, blocked: 0, failed: 0, sent: 1, changed: 0, skipped: 0, closed: 0, localPayments: 1 },
+    };
+    await render();
+
+    const item = rowOf('INV-2026-0007');
+    expect(item.textContent).toContain('$1,234.50');
+    expect(item.textContent).toContain('$2,500.00');
+    expect(document.body.textContent).not.toMatch(/USD\s*[\d,]/);
   });
 
   it('says nothing about local payments while payments are recorded in BuildTrack', async () => {
@@ -499,7 +515,7 @@ describe('QuickBooksSync', () => {
   });
 
   it('a refusal re-reads the list too: part of a batch may have gone out', async () => {
-    replies[`POST ${BASE}/send-ready`] = new Error('Ya hay un envío en curso. Espera a que termine.');
+    replies[`POST ${BASE}/send-ready`] = new ApiError(409, 'Ya hay un envío en curso. Espera a que termine.', undefined, 'QUICKBOOKS_SYNC_RUNNING');
     await render();
     const readsBefore = calls.filter(c => c.key.startsWith(`GET ${BASE}`)).length;
 

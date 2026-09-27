@@ -22,9 +22,13 @@ import {
   QUICKBOOKS_REFRESH_COOLDOWN_CODE, refreshQuickBooksCompany, searchQuickBooksOptions, unlinkQuickBooks,
   type QuickBooksCompany, type QuickBooksMappingOverview, type QuickBooksMappingRow, type QuickBooksMappingTab, type QuickBooksOption,
 } from '../../services/quickbooks';
-import { Band, Block, Bones, LoadFailed, TabButton, Tag, money } from './bits';
+import { Band, Block, Bones, LoadFailed, TabButton, Tag, money, onTabKey } from './bits';
+import { describeError, loadFailureKey } from './errors';
 
 type Tab = QuickBooksMappingTab;
+/** Ids that tie each list's tab to the panel it shows (one list on the page). */
+const mappingTabId = (key: Tab) => `qb-mapping-tab-${key}`;
+const MAPPING_PANEL = 'qb-mapping-panel';
 const TABS: Tab[] = ['clients', 'projects', 'vendors', 'categories', 'invoiceItem'];
 
 /**
@@ -61,7 +65,8 @@ export function QuickBooksMapping({ initialTab = 'clients' }: {
   const { t, i18n } = useTranslation(['quickbooks', 'finance']);
   const lang = i18n.resolvedLanguage ?? i18n.language ?? 'es';
   const [overview, setOverview] = useState<QuickBooksMappingOverview | null>(null);
-  const [loadFailed, setLoadFailed] = useState(false);
+  /** Why the lists could not be read, as the key of the band's body; null = read. */
+  const [loadFailed, setLoadFailed] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>(initialTab);
   const [busy, setBusy] = useState<string | null>(null);
   /** The per-company brake, when it held a refresh: information, not an error. */
@@ -78,9 +83,9 @@ export function QuickBooksMapping({ initialTab = 'clients' }: {
     try {
       const next = await getQuickBooksMappings();
       setOverview(next);
-      setLoadFailed(false);
-    } catch {
-      setLoadFailed(true);
+      setLoadFailed(null);
+    } catch (e) {
+      setLoadFailed(loadFailureKey(e));
     }
   }, []);
 
@@ -121,7 +126,7 @@ export function QuickBooksMapping({ initialTab = 'clients' }: {
         if (e instanceof NoResponseError) {
           toast.info(t('quickbooks:stillWorking.list'));
         } else {
-          toast.error(t('quickbooks:error.actionFailed'), { description: e instanceof Error ? e.message : String(e) });
+          toast.error(t('quickbooks:error.actionFailed'), { description: describeError(e) });
         }
         await load();
       }
@@ -152,7 +157,7 @@ export function QuickBooksMapping({ initialTab = 'clients' }: {
     return (
       <LoadFailed
         title={t('quickbooks:load.errorTitle')}
-        body={t('quickbooks:load.errorBody')}
+        body={t(`quickbooks:${loadFailed}`)}
         retryLabel={t('quickbooks:retry')}
         onRetry={() => void load()}
         testId="quickbooks-mapping-load-error"
@@ -196,19 +201,24 @@ export function QuickBooksMapping({ initialTab = 'clients' }: {
           </SecondaryButton>
         ) : undefined}
       >
-        <div role="tablist" className="flex flex-wrap border-b border-[#EDE7DB] px-2 md:px-3">
+        <div
+          role="tablist"
+          aria-label={t('quickbooks:mapping.title')}
+          onKeyDown={e => onTabKey(e, TABS, tab, setTab, mappingTabId)}
+          className="flex flex-wrap border-b border-[#EDE7DB] px-2 md:px-3"
+        >
           {TABS.map(key => {
             const list = overview[key];
             const linked = list.filter(r => r.link).length;
             return (
-              <TabButton key={key} active={key === tab} onClick={() => setTab(key)}>
+              <TabButton key={key} id={mappingTabId(key)} controls={MAPPING_PANEL} active={key === tab} onClick={() => setTab(key)}>
                 {t(`quickbooks:mapping.tab.${key}`)} <span className="text-[#A69C8D]">{linked}/{list.length}</span>
               </TabButton>
             );
           })}
         </div>
 
-        <div className="px-4 py-4 md:px-[18px]">
+        <div role="tabpanel" id={MAPPING_PANEL} aria-labelledby={mappingTabId(tab)} className="px-4 py-4 md:px-[18px]">
           {!read ? (
             <p className="text-[13px] leading-[1.5] text-[#5A5346]">{t('quickbooks:mapping.needsRefresh')}</p>
           ) : (
@@ -227,7 +237,6 @@ export function QuickBooksMapping({ initialTab = 'clients' }: {
                       key={`${row.type}:${row.localKey}`}
                       row={row}
                       label={label(row)}
-                      lang={lang}
                       busy={busy === `${row.type}:${row.localKey}`}
                       disabled={busy !== null}
                       settling={settling}
@@ -375,21 +384,24 @@ function CompanyBlock({ company, refreshing, disabled, onRefresh, when }: {
 }
 
 function Capability({ on, label }: { on: boolean | null; label: string }) {
+  const { t } = useTranslation('quickbooks');
   const Icon = on ? Check : Minus;
   return (
     <li className={cn('flex items-center gap-2 text-[13px]', on ? 'text-[#0A0A0A]' : 'text-[#A69C8D]')}>
       <Icon className={cn('h-3.5 w-3.5 flex-shrink-0', on ? 'text-[#2E7D4F]' : 'text-[#DBD0BB]')} strokeWidth={2.2} aria-hidden="true" />
-      {label}
+      {/* Said in words, not only by the colour and the mark (audit B17). */}
+      <span>
+        {label}: {t(on ? 'company.cap.state.on' : on === false ? 'company.cap.state.off' : 'company.cap.state.unknown')}
+      </span>
     </li>
   );
 }
 
 // ── One row ─────────────────────────────────────────────────────────────────
 
-function MappingRow({ row, label, lang, busy, disabled, settling, onPick, onAccept, onUnlink, onCreate }: {
+function MappingRow({ row, label, busy, disabled, settling, onPick, onAccept, onUnlink, onCreate }: {
   row: QuickBooksMappingRow;
   label: string;
-  lang: string;
   busy: boolean;
   disabled: boolean;
   /** Rows just changed: the button that writes in QuickBooks waits a moment. */
@@ -431,7 +443,7 @@ function MappingRow({ row, label, lang, busy, disabled, settling, onPick, onAcce
         <p className="break-words text-[13.5px] font-semibold text-[#0A0A0A]">{label}</p>
         {row.type === 'VENDOR' && row.billCount != null ? (
           <Mono className="block mt-0.5 text-[9.5px] tracking-[0.06em] text-[#8A8175] normal-case">
-            {t('mapping.bills', { count: row.billCount })} · {money(row.billTotalCents ?? 0, lang)}
+            {t('mapping.bills', { count: row.billCount })} · {money(row.billTotalCents ?? 0)}
           </Mono>
         ) : row.detail ? (
           <Mono className="block mt-0.5 text-[9.5px] tracking-[0.06em] text-[#8A8175] normal-case">{row.detail}</Mono>
@@ -481,16 +493,17 @@ function OptionPicker({ row, label, onClose, onPick }: {
   const { t } = useTranslation('quickbooks');
   const [query, setQuery] = useState('');
   const [options, setOptions] = useState<QuickBooksOption[] | null>(null);
-  const [failed, setFailed] = useState(false);
+  /** Why the search failed, as the key of the sentence; null = it answered. */
+  const [failed, setFailed] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     const handle = setTimeout(async () => {
       try {
         const found = await searchQuickBooksOptions(row.type, query);
-        if (!cancelled) { setOptions(found); setFailed(false); }
-      } catch {
-        if (!cancelled) setFailed(true);
+        if (!cancelled) { setOptions(found); setFailed(null); }
+      } catch (e) {
+        if (!cancelled) setFailed(loadFailureKey(e));
       }
     }, 200);
     return () => { cancelled = true; clearTimeout(handle); };
@@ -527,7 +540,7 @@ function OptionPicker({ row, label, onClose, onPick }: {
           search box and dropped an option under the pointer, linked on one click. */}
       <div className="mt-3 h-[50vh] overflow-y-auto" data-testid="quickbooks-picker-options">
         {failed ? (
-          <p className="py-4 text-[13px] text-[#8A8175]">{t('load.errorBody')}</p>
+          <p className="py-4 text-[13px] text-[#8A8175]">{t(failed)}</p>
         ) : options == null ? (
           <Bones widths={['70%', '50%']} />
         ) : options.length === 0 ? (
@@ -541,7 +554,7 @@ function OptionPicker({ row, label, onClose, onPick }: {
                   onClick={() => onPick(o)}
                   className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-[13.5px] text-[#0A0A0A] transition-colors hover:bg-[#FBEDE0] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-[#F97316] focus-visible:outline-offset-[-2px]"
                 >
-                  <span className="min-w-0 truncate">{o.fullName ?? o.name}</span>
+                  <QualifiedName name={o.fullName ?? o.name} />
                   {tag(o) && <Tag>{tag(o)}</Tag>}
                 </button>
               </li>
@@ -550,5 +563,19 @@ function OptionPicker({ row, label, onClose, onPick }: {
         )}
       </div>
     </BtModal>
+  );
+}
+
+/**
+ * A QuickBooks name in full, wrapping instead of cut: in «Cliente:Obra» a cut
+ * lost exactly the obra (audit B17). The parents are quieter than the record.
+ */
+function QualifiedName({ name }: { name: string }) {
+  const cut = name.lastIndexOf(':');
+  return (
+    <span className="min-w-0 break-words">
+      {cut > 0 && <span className="text-[#8A8175]">{name.slice(0, cut + 1)}</span>}
+      {cut > 0 ? name.slice(cut + 1) : name}
+    </span>
   );
 }
