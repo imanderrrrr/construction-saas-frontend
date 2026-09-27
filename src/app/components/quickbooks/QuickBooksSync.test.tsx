@@ -252,6 +252,35 @@ describe('QuickBooksSync', () => {
     expect(calls.map(c => c.key)).toContain(`POST ${BASE}/INVOICE/5/unskip`);
   });
 
+  it('a re-linked document says so, waits for its own "Enviar cambios", and "send all" does not count it', async () => {
+    const relinked = row({
+      type: 'INVOICE', docId: 12, number: 'INV-2026-0012', state: 'CHANGED', reasons: ['REF_CHANGED'], qboId: '160',
+      qboUrl: 'https://app.sandbox.qbo.intuit.com/app/invoice?txnId=160',
+    });
+    current = { ...overview([READY, relinked]), summary: { ready: 1, blocked: 0, failed: 0, sent: 0, changed: 1, skipped: 0, closed: 0, refChanged: 1 } };
+    await render();
+
+    const item = rowOf('INV-2026-0012');
+    expect(item.textContent).toContain('Cambió su cliente, proveedor u obra (un vínculo nuevo). No se envía solo');
+    expect(item.textContent).not.toContain('se actualizará en QuickBooks');
+    expect(buttonIn(item, 'Enviar cambios')).toBeTruthy();
+    expect(buttons('Enviar todos los listos (1)')).toHaveLength(1);
+  });
+
+  it('a re-link refused for its payments says why and offers to try again', async () => {
+    const paid = row({
+      type: 'BILL', docId: 13, number: 'BILL-2026-0013', state: 'BLOCKED', reasons: ['REF_CHANGED_PAID'],
+      errorMessage: 'BillPaymentCheck #170', qboId: '161',
+    });
+    current = overview([paid]);
+    await render();
+
+    const item = rowOf('BILL-2026-0013');
+    expect(item.textContent).toContain('tiene pagos (en BuildTrack o en QuickBooks)');
+    expect(item.textContent).toContain('BillPaymentCheck #170');
+    expect(buttonIn(item, 'Reintentar')).toBeTruthy();
+  });
+
   it('sends everything pending at once and says what is left', async () => {
     replies[`POST ${BASE}/send-ready`] = {
       processed: 2, created: 1, updated: 0, voided: 0, deleted: 1, failed: 0, blocked: 0,

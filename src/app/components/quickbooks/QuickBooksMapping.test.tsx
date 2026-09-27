@@ -77,6 +77,8 @@ async function fakeApi(path: string, init?: ApiOptions): Promise<unknown> {
   if (key in replies) {
     const reply = replies[key];
     if (reply instanceof Error) throw reply;
+    // A reply that depends on the request: e.g. refused until `confirm` comes.
+    if (typeof reply === 'function') return (reply as (body: Record<string, unknown>, path: string) => unknown)(init?.body ? JSON.parse(String(init.body)) : {}, path);
     return reply;
   }
   if (key === `GET ${BASE}/mappings`) return overview;
@@ -114,6 +116,24 @@ async function click(el: HTMLElement | undefined, what: string) {
   expect(el, what).toBeTruthy();
   await act(async () => { el!.click(); });
   await flush();
+}
+
+/** The server's refusal of a link change that affects documents already in QuickBooks (audit A2). */
+function affectsSent(documents: number) {
+  return new ApiError(409, 'Este cambio afecta documentos que ya están en QuickBooks.', { documents: String(documents) }, 'QUICKBOOKS_LINK_AFFECTS_SENT');
+}
+
+/** Refused with [documents] until the same call comes with `confirm`. */
+function untilConfirmed(documents: number, then: unknown) {
+  return (body: Record<string, unknown>, path: string) => {
+    if (body.confirm === true || path.includes('confirm=true')) return then;
+    throw affectsSent(documents);
+  };
+}
+
+/** The vendors tab with Home Depot no longer linked. */
+function homeDepotUnlinked(): QuickBooksMappingOverview {
+  return { ...OVERVIEW, vendors: OVERVIEW.vendors.map(v => v.localKey === 'home depot' ? { ...v, link: null } : v) };
 }
 
 async function tab(label: string) {
@@ -211,6 +231,8 @@ describe('QuickBooksMapping', () => {
     expect(text()).not.toContain('Hay un problema con la conexión');
     // The company card is still the first thing in the section.
     expect(document.querySelector('[data-testid="quickbooks-mapping"]')!.firstElementChild!.getAttribute('data-testid')).toBe('quickbooks-company');
+    // Right after the rows changed it waits a moment (audit A2), then takes clicks again.
+    await flush(1300);
     expect(buttons('Crear en QuickBooks')[0].disabled).toBe(false);
   });
 
@@ -220,6 +242,8 @@ describe('QuickBooksMapping', () => {
     await render();
 
     await click(buttons('Actualizar desde QuickBooks')[0], 'refresh');
+    // The rows just changed: «Crear en QuickBooks» waits a moment (audit A2).
+    await flush(1300);
     await click(buttons('Crear en QuickBooks')[0], 'create');
 
     expect(calls.find(c => c.key === `POST ${BASE}/company/refresh`)?.timeoutMs).toBe(QUICKBOOKS_LONG_TIMEOUT_MS);
@@ -239,6 +263,83 @@ describe('QuickBooksMapping', () => {
     expect(calls.filter(c => c.key === `GET ${BASE}/mappings`).length).toBe(readsBefore + 1);
     expect(document.querySelector('[data-testid="quickbooks-cooldown"]')).toBeNull();
     expect(buttons('Actualizar desde QuickBooks')[0].disabled).toBe(false);
+  });
+
+  // ── Documents already in QuickBooks (audit A2) ─────────────────────────
+
+  it('«Quitar vínculo» always asks first, and a change that moves sent documents says how many before going on', async () => {
+    replies[`POST ${BASE}/mappings/unlink`] = untilConfirmed(2, homeDepotUnlinked());
+    await render();
+    await tab('Proveedores');
+
+    await click(buttons('Quitar vínculo')[0], 'unlink');
+    expect(text()).toContain('¿Quitar el vínculo de «Home Depot»?');
+    expect(calls.some(c => c.key.includes('/mappings/unlink'))).toBe(false);
+    await click(buttons('Cancelar')[0], 'cancel');
+    expect(calls.some(c => c.key.includes('/mappings/unlink'))).toBe(false);
+
+    await click(buttons('Quitar vínculo')[0], 'unlink again');
+    await click(buttons('Sí, quitar el vínculo')[0], 'yes, unlink');
+    expect(calls.filter(c => c.key.includes('/mappings/unlink')).map(c => c.body)).toEqual([{ type: 'VENDOR', localKey: 'home depot' }]);
+    expect(document.querySelector('[data-testid="quickbooks-affects-count"]')?.textContent)
+      .toBe('2 documentos que ya están en QuickBooks quedarían con otro cliente, proveedor u obra.');
+    expect(text()).toContain('solo sale con su «Enviar cambios»');
+    expect(toast.error).not.toHaveBeenCalled();
+
+    await click(buttons('Sí, seguir')[0], 'go on');
+    expect(calls.filter(c => c.key.includes('/mappings/unlink')).map(c => c.body)).toEqual([
+      { type: 'VENDOR', localKey: 'home depot' },
+      { type: 'VENDOR', localKey: 'home depot', confirm: true },
+    ]);
+    expect(text()).not.toContain('Inactivo en QuickBooks');
+  });
+
+  it('a new link that moves sent documents asks first, and a no leaves it as it was', async () => {
+    replies[`POST ${BASE}/mappings/link`] = untilConfirmed(1, OVERVIEW);
+    await render();
+
+    await click(buttons('Aceptar')[0], 'accept');
+    expect(document.querySelector('[data-testid="quickbooks-affects-count"]')?.textContent)
+      .toBe('1 documento que ya está en QuickBooks quedaría con otro cliente, proveedor u obra.');
+    await click(buttons('Cancelar')[0], 'cancel');
+
+    expect(calls.filter(c => c.key.includes('/mappings/link')).map(c => c.body))
+      .toEqual([{ type: 'CLIENT', localKey: '1', qboId: '7' }]);
+    expect(document.querySelector('[data-testid="quickbooks-affects-count"]')).toBeNull();
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('accepting all suggestions that move sent documents asks too, and goes on with confirm', async () => {
+    replies[`POST ${BASE}/mappings/accept-suggestions?type=CLIENT`] = untilConfirmed(3, { linked: 1, overview: OVERVIEW });
+    replies[`POST ${BASE}/mappings/accept-suggestions?type=CLIENT&confirm=true`] = { linked: 1, overview: OVERVIEW };
+    await render();
+
+    await click(buttons('Aceptar 1 sugerencia')[0], 'accept all');
+    expect(document.querySelector('[data-testid="quickbooks-affects-count"]')?.textContent)
+      .toBe('3 documentos que ya están en QuickBooks quedarían con otro cliente, proveedor u obra.');
+    await click(buttons('Sí, seguir')[0], 'go on');
+
+    expect(calls.map(c => c.key).filter(k => k.includes('accept-suggestions'))).toEqual([
+      `POST ${BASE}/mappings/accept-suggestions?type=CLIENT`,
+      `POST ${BASE}/mappings/accept-suggestions?type=CLIENT&confirm=true`,
+    ]);
+  });
+
+  it('right after a row changes, «Crear en QuickBooks» takes no click for a moment', async () => {
+    replies[`POST ${BASE}/mappings/unlink`] = homeDepotUnlinked();
+    await render();
+    await tab('Proveedores');
+
+    await click(buttons('Quitar vínculo')[0], 'unlink');
+    await click(buttons('Sí, quitar el vínculo')[0], 'yes, unlink');
+
+    // «Crear en QuickBooks» now stands where «Quitar vínculo» was.
+    expect(buttons('Crear en QuickBooks').length).toBeGreaterThan(0);
+    expect(buttons('Crear en QuickBooks').every(b => b.disabled)).toBe(true);
+    await click(buttons('Crear en QuickBooks')[0], 'create while settling');
+    await flush(1300);
+    expect(buttons('Crear en QuickBooks').every(b => !b.disabled)).toBe(true);
+    expect(calls.some(c => c.key.includes('/mappings/create'))).toBe(false);
   });
 
   it('keeps the picker the same height while its options load and narrow, so nothing slides under the pointer', async () => {

@@ -161,12 +161,25 @@ describe('QuickBooksPayments', () => {
     expect(toggle().getAttribute('aria-checked')).toBe('true');
   });
 
-  it('turning it off needs no confirmation', async () => {
+  it('turning it off asks first and says what stays counted; only then it is sent', async () => {
     current = ON;
     replies[`PUT ${BASE}/settings`] = { ...ON, enabled: false };
     await render();
 
     await click(toggle());
+    expect(text()).toContain('¿Dejar de leer los pagos desde QuickBooks?');
+    expect(text()).toContain('queda como lo dejó QuickBooks en la última lectura');
+    expect(text()).toContain('los pagos leídos de QuickBooks siguen contando');
+    expect(text()).toContain('los pagos nuevos se registran aquí');
+    expect(text()).toContain('Los pagos registrados aquí que QuickBooks reemplazó no vuelven a contar.');
+    expect(calls.map(c => c.key)).not.toContain(`PUT ${BASE}/settings`);
+
+    await click(button('Cancelar'));
+    expect(calls.map(c => c.key)).not.toContain(`PUT ${BASE}/settings`);
+    expect(toggle().getAttribute('aria-checked')).toBe('true');
+
+    await click(toggle());
+    await click(button('Apagar'));
 
     expect(calls.find(c => c.key === `PUT ${BASE}/settings`)?.body).toEqual({ enabled: false });
     expect(toast.success).toHaveBeenCalledWith('Los pagos se registran otra vez en BuildTrack.');
@@ -178,6 +191,7 @@ describe('QuickBooksPayments', () => {
     await render();
 
     await click(toggle());
+    await click(button('Apagar'));
 
     expect(toast.error).toHaveBeenCalledWith('No se pudo completar.', { description: 'QuickBooks no está conectado.' });
     expect(document.querySelectorAll('[role="alert"]')).toHaveLength(0);

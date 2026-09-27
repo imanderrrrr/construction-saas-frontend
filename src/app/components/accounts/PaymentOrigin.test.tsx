@@ -28,6 +28,9 @@ const RECORDED_HERE = {
   id: 2, date: '2026-09-20', amount: 50, method: 'Cash', reference: undefined, approvedBy: 'admin',
   voided: false, source: 'SYSTEM' as const, qboPaymentId: null,
 };
+const REPLACED_BY_QUICKBOOKS = {
+  ...RECORDED_HERE, id: 4, reference: 'LOCAL-400', amount: 400, supersededAt: '2026-09-25T20:05:00Z',
+};
 const DELETED_IN_QUICKBOOKS = {
   ...FROM_QUICKBOOKS, id: 3, qboPaymentId: '170', voided: true, reference: 'CHK-170',
   voidReason: 'No longer applied in QuickBooks (deleted, voided or unlinked there)',
@@ -97,6 +100,9 @@ describe('paymentCounts', () => {
     // Switched off later: what was read from QuickBooks still happened.
     expect(paymentCounts(here, FROM_QUICKBOOKS)).toBe(true);
     expect(paymentCounts(here, { ...RECORDED_HERE, voided: true })).toBe(false);
+    // Replaced by a QuickBooks read: never again, switched off or disconnected (audit M1).
+    expect(paymentCounts(here, REPLACED_BY_QUICKBOOKS)).toBe(false);
+    expect(paymentCounts(inQuickBooks, REPLACED_BY_QUICKBOOKS)).toBe(false);
     // Before phase 4 the server sent neither flag nor source.
     expect(paymentCounts({}, { voided: false })).toBe(true);
   });
@@ -121,6 +127,9 @@ describe('the month figures', () => {
     ]);
     const payable = { paymentsInQuickBooks: true, payments: [FROM_QUICKBOOKS, RECORDED_HERE] } as unknown as Payable;
     expect(payablePayments([payable])).toEqual([{ date: '2026-09-25', amount: 100 }]);
+    // Switched off after QuickBooks replaced a payment: still out of the month (audit M1).
+    const switchedOff = { paymentsInQuickBooks: false, payments: [FROM_QUICKBOOKS, REPLACED_BY_QUICKBOOKS] } as unknown as Payable;
+    expect(payablePayments([switchedOff])).toEqual([{ date: '2026-09-25', amount: 100 }]);
   });
 });
 
@@ -156,6 +165,22 @@ describe('a bill whose payments come from QuickBooks', () => {
     expect(deleted.querySelector('[title="Se borró, anuló o desvinculó en QuickBooks, así que ya no cuenta."]')).toBeTruthy();
     expect(deleted.innerHTML).not.toContain('No longer applied in QuickBooks');
     expect([...deleted.querySelectorAll('button')]).toHaveLength(0);
+  });
+
+  it('a payment QuickBooks replaced still says it does not count after the read is switched off (audit M1)', async () => {
+    await render(bill({
+      paymentsInQuickBooks: false, paidAmount: 100, status: 'paid', amount: 100,
+      payments: [FROM_QUICKBOOKS, REPLACED_BY_QUICKBOOKS],
+    }));
+
+    const replaced = paymentRow('LOCAL-400');
+    expect(replaced.textContent).toContain('No cuenta (reemplazado por QuickBooks)');
+    expect(replaced.querySelector('[data-origin="superseded"]')?.getAttribute('title'))
+      .toMatch(/^Cuando se leyeron los pagos de este documento desde QuickBooks/);
+    expect(replaced.querySelector('.line-through')).toBeTruthy();
+    // It can still be filed away; the server moves no money for it.
+    expect([...replaced.querySelectorAll('button')].map(b => b.textContent?.trim())).toEqual(['Editar', 'Anular']);
+    expect(paymentRow('5001').querySelector('.line-through')).toBeNull();
   });
 
   it('a bill paid here as before keeps its buttons and no origin tag at all', async () => {

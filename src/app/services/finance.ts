@@ -31,15 +31,18 @@ export type PaymentSource = 'SYSTEM' | 'QUICKBOOKS';
 
 /**
  * Whether a payment adds to what its document shows as paid. Voided ones
- * never do; on a document whose payments come from QuickBooks, only the ones
- * read from there do — one registered here stays listed, flagged, until
+ * never do; nor one registered here that a QuickBooks read replaced
+ * (`supersededAt`) — not even after the read is switched off or the company
+ * disconnected; on a document whose payments come from QuickBooks, only the
+ * ones read from there do — one registered here stays listed, flagged, until
  * someone registers it in QuickBooks. Mirrors the server's paidCents.
  */
 export function paymentCounts(
   doc: { paymentsInQuickBooks?: boolean },
-  p: { voided?: boolean; source?: PaymentSource },
+  p: { voided?: boolean; source?: PaymentSource; supersededAt?: string | null },
 ): boolean {
   if (p.voided) return false;
+  if (p.supersededAt) return false;
   if (doc.paymentsInQuickBooks) return p.source === 'QUICKBOOKS';
   return true;
 }
@@ -70,6 +73,8 @@ export interface PayablePayment {
   source?: PaymentSource;
   /** The QuickBooks BillPayment this row mirrors. */
   qboPaymentId?: string | null;
+  /** Registered here and replaced by a QuickBooks read: it never counts again. */
+  supersededAt?: string | null;
 }
 
 export type PayableDocumentType = 'BILL' | 'INVOICE';
@@ -359,6 +364,8 @@ export interface ReceivablePayment {
   source?: PaymentSource;
   /** The QuickBooks Payment this row mirrors. */
   qboPaymentId?: string | null;
+  /** Registered here and replaced by a QuickBooks read: it never counts again. */
+  supersededAt?: string | null;
 }
 
 export interface ReceivableLineItem {
