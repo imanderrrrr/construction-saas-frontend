@@ -9,13 +9,14 @@ import type { QuickBooksCompany, QuickBooksMappingOverview, QuickBooksMappingRow
 
 vi.mock('../../lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../lib/api')>()),
-  api: (path: string, init?: RequestInit) => fakeApi(path, init),
+  api: (path: string, init?: ApiOptions) => fakeApi(path, init),
 }));
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 
 import { toast } from 'sonner';
 import { QuickBooksMapping } from './QuickBooksMapping';
-import { ApiError } from '../../lib/api';
+import { ApiError, NoResponseError, type ApiOptions } from '../../lib/api';
+import { QUICKBOOKS_LONG_TIMEOUT_MS } from '../../services/quickbooks';
 import i18n from '../../../i18n';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -68,11 +69,11 @@ const OVERVIEW: QuickBooksMappingOverview = {
 
 let overview: QuickBooksMappingOverview = OVERVIEW;
 let replies: Record<string, unknown> = {};
-const calls: { key: string; body?: unknown }[] = [];
+const calls: { key: string; body?: unknown; timeoutMs?: number }[] = [];
 
-async function fakeApi(path: string, init?: RequestInit): Promise<unknown> {
+async function fakeApi(path: string, init?: ApiOptions): Promise<unknown> {
   const key = `${(init?.method ?? 'GET').toUpperCase()} ${path}`;
-  calls.push({ key, body: init?.body ? JSON.parse(String(init.body)) : undefined });
+  calls.push({ key, body: init?.body ? JSON.parse(String(init.body)) : undefined, timeoutMs: init?.timeoutMs });
   if (key in replies) {
     const reply = replies[key];
     if (reply instanceof Error) throw reply;
@@ -146,6 +147,7 @@ beforeEach(async () => {
   replies = {};
   calls.length = 0;
   vi.mocked(toast.error).mockClear();
+  vi.mocked(toast.info).mockClear();
 });
 
 afterEach(async () => {
@@ -232,6 +234,35 @@ describe('QuickBooksMapping', () => {
     // Right after the rows changed it waits a moment (audit A2), then takes clicks again.
     await flush(1300);
     expect(buttons('Crear en QuickBooks')[0].disabled).toBe(false);
+  });
+
+  it('reading the company and creating in QuickBooks wait as long as QuickBooks may take', async () => {
+    replies[`POST ${BASE}/company/refresh`] = COMPANY;
+    replies[`POST ${BASE}/mappings/create`] = OVERVIEW;
+    await render();
+
+    await click(buttons('Actualizar desde QuickBooks')[0], 'refresh');
+    // The rows just changed: «Crear en QuickBooks» waits a moment (audit A2).
+    await flush(1300);
+    await click(buttons('Crear en QuickBooks')[0], 'create');
+
+    expect(calls.find(c => c.key === `POST ${BASE}/company/refresh`)?.timeoutMs).toBe(QUICKBOOKS_LONG_TIMEOUT_MS);
+    expect(calls.find(c => c.key === `POST ${BASE}/mappings/create`)?.timeoutMs).toBe(QUICKBOOKS_LONG_TIMEOUT_MS);
+    expect(calls.find(c => c.key === `GET ${BASE}/mappings`)?.timeoutMs).toBeUndefined();
+  });
+
+  it('a company read that outlives the wait is not a failure: QuickBooks is still at it, and the lists are re-read', async () => {
+    replies[`POST ${BASE}/company/refresh`] = new NoResponseError(true, new DOMException('signal is aborted without reason', 'AbortError'));
+    await render();
+    const readsBefore = calls.filter(c => c.key === `GET ${BASE}/mappings`).length;
+
+    await click(buttons('Actualizar desde QuickBooks')[0], 'refresh');
+
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(toast.info).toHaveBeenCalledWith('QuickBooks sigue trabajando; la lista se actualizará.');
+    expect(calls.filter(c => c.key === `GET ${BASE}/mappings`).length).toBe(readsBefore + 1);
+    expect(document.querySelector('[data-testid="quickbooks-cooldown"]')).toBeNull();
+    expect(buttons('Actualizar desde QuickBooks')[0].disabled).toBe(false);
   });
 
   // ── Documents already in QuickBooks (audit A2) ─────────────────────────

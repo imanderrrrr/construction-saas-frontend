@@ -15,7 +15,7 @@ import { cn } from '../ui/utils';
 import { INPUT, Mono } from '../projects/bt';
 import { PrimaryButton, SecondaryButton, DestroyButton, TertiaryButton } from '../onboarding/chrome';
 import { BtModal } from '../bt/windows';
-import { ApiError } from '../../lib/api';
+import { ApiError, NoResponseError } from '../../lib/api';
 import { fmtDateTime } from '../../helpers/dateTime';
 import {
   acceptQuickBooksSuggestions, createInQuickBooks, getQuickBooksMappings, linkAffectsSent, linkQuickBooks, QUICKBOOKS_CREATABLE,
@@ -93,6 +93,8 @@ export function QuickBooksMapping({ initialTab = 'clients' }: {
    * down slid another row's «Crear en QuickBooks» under the pointer. A change
    * the server held back because documents already in QuickBooks are affected
    * asks the admin, with how many, and is repeated with `confirm` only on a yes.
+   * Any other failure re-reads the lists: an action that got no answer in time
+   * most likely went on (QuickBooks was still at it — not a failure to report).
    */
   const run = async (
     key: string,
@@ -116,7 +118,12 @@ export function QuickBooksMapping({ initialTab = 'clients' }: {
       } else if (e instanceof ApiError && e.code === QUICKBOOKS_REFRESH_COOLDOWN_CODE) {
         setCooldownNotice(t('quickbooks:company.cooldown', { seconds: e.retryAfterSeconds ?? 60 }));
       } else {
-        toast.error(t('quickbooks:error.actionFailed'), { description: e instanceof Error ? e.message : String(e) });
+        if (e instanceof NoResponseError) {
+          toast.info(t('quickbooks:stillWorking.list'));
+        } else {
+          toast.error(t('quickbooks:error.actionFailed'), { description: e instanceof Error ? e.message : String(e) });
+        }
+        await load();
       }
     } finally {
       setBusy(null);
