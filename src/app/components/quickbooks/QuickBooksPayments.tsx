@@ -71,6 +71,10 @@ export function QuickBooksPayments({ onOpenSync, onConnectionStop }: {
     noticeStop(e);
     if (e instanceof NoResponseError) {
       toast.info(t('stillWorking.payments'));
+    } else if (e instanceof ApiError && e.code === 'QUICKBOOKS_PAYMENTS_COOLDOWN') {
+      // Not a failure: the brake on "Actualizar pagos" (audit B8), with the
+      // wait the server said.
+      toast.info(t('payments.cooldown', { seconds: e.retryAfterSeconds ?? 60 }));
     } else if (!(onConnectionStop && e instanceof ApiError && e.code === 'QUICKBOOKS_NEEDS_RECONNECT')) {
       toast.error(t('error.actionFailed'), { description: describeError(e) });
     }

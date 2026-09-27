@@ -120,7 +120,11 @@ export function QuickBooksSection({ outcome = null }: {
       // A permission Intuit no longer renews is the card's to explain: the
       // reload turns it into "Hay que reconectar", with the button to do it.
       // A band on top would say the same thing twice, in red.
-      if (!(e instanceof ApiError && e.code === 'QUICKBOOKS_NEEDS_RECONNECT')) failed(e);
+      if (e instanceof ApiError && e.code === 'QUICKBOOKS_TEST_COOLDOWN') {
+        // Not a failure: the brake on "Probar conexión" (audit B8), with the
+        // wait the server said.
+        toast.info(t('toast.testCooldown', { seconds: e.retryAfterSeconds ?? 60 }));
+      } else if (!(e instanceof ApiError && e.code === 'QUICKBOOKS_NEEDS_RECONNECT')) failed(e);
       void load();
     } finally {
       setBusy(null);

@@ -286,6 +286,19 @@ describe('QuickBooksPayments', () => {
     expect(text()).not.toContain('SOMETHING_NEW');
   });
 
+  it('a click on its cooldown is a calm notice with the wait the server said, not a failure (audit B8)', async () => {
+    current = ON;
+    replies[`POST ${BASE}/refresh`] = new ApiError(
+      429, 'Los pagos se leyeron hace un momento. Intenta de nuevo en 42 segundos.', undefined, 'QUICKBOOKS_PAYMENTS_COOLDOWN', 42,
+    );
+    await render();
+
+    await click(button('Actualizar pagos'));
+
+    expect(toast.info).toHaveBeenCalledWith('Los pagos se leyeron hace un momento. Puedes volver a leerlos en 42 s.');
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
   it('while a read of this company runs, "Actualizar pagos" waits', async () => {
     current = { ...ON, running: true };
     await render();
