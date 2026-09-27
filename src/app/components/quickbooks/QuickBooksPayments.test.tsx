@@ -19,6 +19,7 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 import { QuickBooksPayments } from './QuickBooksPayments';
 import { toast } from 'sonner';
+import { ApiError } from '../../lib/api';
 import i18n from '../../../i18n';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -171,7 +172,7 @@ describe('QuickBooksPayments', () => {
 
   it('a refused switch is a toast, and nothing is pushed on top of the section', async () => {
     current = ON;
-    replies[`PUT ${BASE}/settings`] = new Error('QuickBooks no está conectado.');
+    replies[`PUT ${BASE}/settings`] = new ApiError(409, 'QuickBooks no está conectado.', undefined, 'QUICKBOOKS_NOT_CONNECTED');
     await render();
 
     await click(toggle());

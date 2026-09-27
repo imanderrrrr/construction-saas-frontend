@@ -193,7 +193,9 @@ describe('QuickBooksMapping', () => {
   });
 
   it('a refused create is a toast where the admin is looking, and nothing is pushed on top of the list', async () => {
-    replies[`POST ${BASE}/mappings/create`] = new Error('QuickBooks ya tiene un cliente, proveedor o empleado llamado «Freeman Sporting Goods».');
+    replies[`POST ${BASE}/mappings/create`] = new ApiError(
+      409, 'QuickBooks ya tiene un cliente, proveedor o empleado llamado «Freeman Sporting Goods».', undefined, 'QUICKBOOKS_DUPLICATE_NAME',
+    );
     await render();
 
     await click(buttons('Crear en QuickBooks')[0], 'create');

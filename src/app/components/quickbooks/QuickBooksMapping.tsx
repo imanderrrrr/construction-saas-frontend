@@ -23,6 +23,7 @@ import {
   type QuickBooksCompany, type QuickBooksMappingOverview, type QuickBooksMappingRow, type QuickBooksMappingTab, type QuickBooksOption,
 } from '../../services/quickbooks';
 import { Band, Block, Bones, LoadFailed, TabButton, Tag, money } from './bits';
+import { describeError, loadFailureKey } from './errors';
 
 type Tab = QuickBooksMappingTab;
 const TABS: Tab[] = ['clients', 'projects', 'vendors', 'categories', 'invoiceItem'];
@@ -43,7 +44,8 @@ export function QuickBooksMapping({ initialTab = 'clients' }: {
   const { t, i18n } = useTranslation(['quickbooks', 'finance']);
   const lang = i18n.resolvedLanguage ?? i18n.language ?? 'es';
   const [overview, setOverview] = useState<QuickBooksMappingOverview | null>(null);
-  const [loadFailed, setLoadFailed] = useState(false);
+  /** Why the lists could not be read, as the key of the band's body; null = read. */
+  const [loadFailed, setLoadFailed] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>(initialTab);
   const [busy, setBusy] = useState<string | null>(null);
   /** The per-company brake, when it held a refresh: information, not an error. */
@@ -55,9 +57,9 @@ export function QuickBooksMapping({ initialTab = 'clients' }: {
     try {
       const next = await getQuickBooksMappings();
       setOverview(next);
-      setLoadFailed(false);
-    } catch {
-      setLoadFailed(true);
+      setLoadFailed(null);
+    } catch (e) {
+      setLoadFailed(loadFailureKey(e));
     }
   }, []);
 
@@ -83,7 +85,7 @@ export function QuickBooksMapping({ initialTab = 'clients' }: {
       if (e instanceof ApiError && e.code === QUICKBOOKS_REFRESH_COOLDOWN_CODE) {
         setCooldownNotice(t('quickbooks:company.cooldown', { seconds: e.retryAfterSeconds ?? 60 }));
       } else {
-        toast.error(t('quickbooks:error.actionFailed'), { description: e instanceof Error ? e.message : String(e) });
+        toast.error(t('quickbooks:error.actionFailed'), { description: describeError(e) });
       }
     } finally {
       setBusy(null);
@@ -108,7 +110,7 @@ export function QuickBooksMapping({ initialTab = 'clients' }: {
     return (
       <LoadFailed
         title={t('quickbooks:load.errorTitle')}
-        body={t('quickbooks:load.errorBody')}
+        body={t(`quickbooks:${loadFailed}`)}
         retryLabel={t('quickbooks:retry')}
         onRetry={() => void load()}
         testId="quickbooks-mapping-load-error"
@@ -380,16 +382,17 @@ function OptionPicker({ row, label, onClose, onPick }: {
   const { t } = useTranslation('quickbooks');
   const [query, setQuery] = useState('');
   const [options, setOptions] = useState<QuickBooksOption[] | null>(null);
-  const [failed, setFailed] = useState(false);
+  /** Why the search failed, as the key of the sentence; null = it answered. */
+  const [failed, setFailed] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     const handle = setTimeout(async () => {
       try {
         const found = await searchQuickBooksOptions(row.type, query);
-        if (!cancelled) { setOptions(found); setFailed(false); }
-      } catch {
-        if (!cancelled) setFailed(true);
+        if (!cancelled) { setOptions(found); setFailed(null); }
+      } catch (e) {
+        if (!cancelled) setFailed(loadFailureKey(e));
       }
     }, 200);
     return () => { cancelled = true; clearTimeout(handle); };
@@ -426,7 +429,7 @@ function OptionPicker({ row, label, onClose, onPick }: {
           search box and dropped an option under the pointer, linked on one click. */}
       <div className="mt-3 h-[50vh] overflow-y-auto" data-testid="quickbooks-picker-options">
         {failed ? (
-          <p className="py-4 text-[13px] text-[#8A8175]">{t('load.errorBody')}</p>
+          <p className="py-4 text-[13px] text-[#8A8175]">{t(failed)}</p>
         ) : options == null ? (
           <Bones widths={['70%', '50%']} />
         ) : options.length === 0 ? (

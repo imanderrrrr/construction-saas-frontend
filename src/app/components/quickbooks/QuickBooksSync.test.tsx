@@ -358,7 +358,10 @@ describe('QuickBooksSync', () => {
   });
 
   it('shows why a send was refused, in a toast rather than a band pushed in on top of the list', async () => {
-    replies[`POST ${BASE}/INVOICE/5/send`] = new Error('Ya hay un envío en curso para tu empresa. Espera a que termine.');
+    const { ApiError } = await import('../../lib/api');
+    replies[`POST ${BASE}/INVOICE/5/send`] = new ApiError(
+      409, 'Ya hay un envío en curso para tu empresa. Espera a que termine.', undefined, 'QUICKBOOKS_SYNC_RUNNING',
+    );
     await render();
 
     await click(buttonIn(rowOf('INV-2026-0005'), 'Enviar'));

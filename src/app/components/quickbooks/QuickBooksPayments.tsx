@@ -23,39 +23,54 @@ import {
   type QuickBooksPaymentRead, type QuickBooksPaymentsStatus,
 } from '../../services/quickbooks';
 import { Band, Block, Bones, Fact, LoadFailed, Switch, Tag, money } from './bits';
+import { connectionStop, describeError, loadFailureKey } from './errors';
 
-export function QuickBooksPayments({ onOpenSync }: {
+export function QuickBooksPayments({ onOpenSync, onConnectionStop }: {
   /** Takes the admin to "Envíos", where each document with a local payment is flagged. */
   onOpenSync?: () => void;
+  /** A read stopped because of the link itself: the connection card re-reads it. */
+  onConnectionStop?: (code: string) => void;
 }) {
   const { t, i18n } = useTranslation('quickbooks');
   const lang = i18n.resolvedLanguage ?? i18n.language ?? 'es';
   const [status, setStatus] = useState<QuickBooksPaymentsStatus | null>(null);
-  const [loadFailed, setLoadFailed] = useState(false);
+  /** Why the status could not be read, as the key of the band's body; null = read. */
+  const [loadFailed, setLoadFailed] = useState<string | null>(null);
   const [busy, setBusy] = useState<'settings' | 'refresh' | null>(null);
   const [confirming, setConfirming] = useState(false);
 
   // State is only touched in the promise's callbacks, never synchronously in
   // the mount effect (react-hooks/set-state-in-effect).
   const load = useCallback(() => getQuickBooksPayments()
-    .then(next => { setStatus(next); setLoadFailed(false); })
-    .catch(() => { setLoadFailed(true); }), []);
+    .then(next => { setStatus(next); setLoadFailed(null); })
+    .catch((e: unknown) => { setLoadFailed(loadFailureKey(e)); }), []);
 
   useEffect(() => { void load(); }, [load]);
+
+  /** Tells the connection card when QuickBooks stopped a read because of the link. */
+  const noticeStop = (failure: unknown) => {
+    const code = connectionStop(failure);
+    if (code) onConnectionStop?.(code);
+  };
 
   const when = (iso: string) => fmtDateTime(iso, lang);
   const errorText = (code: string) => t(`payments.error.${code}`, { defaultValue: t('payments.error.other') });
 
   // A refusal is a toast where the admin is looking, never a band pushed in
   // on top of the section (the same rule as "Vincular" and "Envíos").
-  const failed = (e: unknown) =>
-    toast.error(t('error.actionFailed'), { description: e instanceof Error ? e.message : String(e) });
+  const failed = (e: unknown) => {
+    noticeStop(e);
+    toast.error(t('error.actionFailed'), { description: describeError(e) });
+  };
 
   const setEnabled = async (enabled: boolean) => {
     setBusy('settings');
     try {
-      setStatus(await updateQuickBooksPaymentsSettings(enabled));
+      const next = await updateQuickBooksPaymentsSettings(enabled);
+      setStatus(next);
       toast.success(t(enabled ? 'payments.toast.on' : 'payments.toast.off'));
+      // Switching on reads everything at once; that read may stop on the link.
+      noticeStop(next.lastError);
     } catch (e) {
       failed(e);
     } finally {
@@ -69,6 +84,7 @@ export function QuickBooksPayments({ onOpenSync }: {
       const { result, status: next } = await refreshQuickBooksPayments();
       setStatus(next);
       if (result.stoppedBy) {
+        noticeStop(result.stoppedBy);
         toast.error(t('payments.toast.stopped'), { description: errorText(result.stoppedBy) });
       } else {
         toast.success(t('payments.toast.read', { count: result.documentsUpdated }));
@@ -84,7 +100,7 @@ export function QuickBooksPayments({ onOpenSync }: {
     return (
       <LoadFailed
         title={t('load.errorTitle')}
-        body={t('load.errorBody')}
+        body={t(loadFailed)}
         retryLabel={t('retry')}
         onRetry={() => void load()}
         testId="quickbooks-payments-load-error"

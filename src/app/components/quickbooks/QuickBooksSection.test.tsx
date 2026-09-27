@@ -160,7 +160,9 @@ describe('QuickBooksSection', () => {
   });
 
   it('shows why connecting failed and lets the admin try again', async () => {
-    replies[`POST ${BASE}/connect`] = new Error('La integración con QuickBooks todavía no está configurada en el servidor.');
+    replies[`POST ${BASE}/connect`] = new ApiError(
+      409, 'La integración con QuickBooks todavía no está configurada en el servidor.', undefined, 'QUICKBOOKS_NOT_CONFIGURED',
+    );
     await render();
 
     await click('Conectar con QuickBooks');

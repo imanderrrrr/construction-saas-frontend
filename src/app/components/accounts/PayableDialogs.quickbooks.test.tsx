@@ -23,12 +23,15 @@ vi.mock('../../services/finance', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../services/finance')>()),
   reassignPayableProject: vi.fn(),
   deletePayable: vi.fn(),
+  recordPayablePayment: vi.fn(),
+  markPayableUnpaid: vi.fn(),
+  getPayable: vi.fn(),
 }));
 
 import { toast } from 'sonner';
-import { DeleteBillDialog, ReassignDialog } from './PayableDialogs';
+import { DeleteBillDialog, PayDialog, ReassignDialog, UnpayDialog } from './PayableDialogs';
 import { ApiError } from '../../lib/api';
-import { deletePayable, reassignPayableProject } from '../../services/finance';
+import { deletePayable, getPayable, markPayableUnpaid, reassignPayableProject, recordPayablePayment, type Payable } from '../../services/finance';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -92,6 +95,9 @@ beforeEach(() => {
   vi.mocked(toast.error).mockClear();
   vi.mocked(reassignPayableProject).mockReset();
   vi.mocked(deletePayable).mockReset();
+  vi.mocked(recordPayablePayment).mockReset();
+  vi.mocked(markPayableUnpaid).mockReset();
+  vi.mocked(getPayable).mockReset();
 });
 
 afterEach(async () => {
@@ -165,5 +171,56 @@ describe('Eliminar, refused because of live payments', () => {
     await clickLabel('finance:payable.delete.confirm');
 
     expect(toast.error).toHaveBeenCalledWith('finance:payable.delete.failed', { description: 'Error interno.' });
+  });
+});
+
+describe('«Pagar» and «Marcar como no pagada», refused because the bill is in QuickBooks now', () => {
+  // Sent to QuickBooks (whose payments are read from there) after the screen loaded.
+  const IN_QUICKBOOKS = () => new ApiError(
+    409, 'Este documento está en QuickBooks: registra sus pagos allá y aparecerán aquí solos.', undefined, 'QUICKBOOKS_PAYMENTS_IN_QBO',
+  );
+  const NOW_IN_QUICKBOOKS = { id: 9, paymentsInQuickBooks: true } as unknown as Payable;
+
+  it('Pagar: the dialog hands the screen the bill as it is now, and closes (audit B16)', async () => {
+    vi.mocked(recordPayablePayment).mockRejectedValue(IN_QUICKBOOKS());
+    vi.mocked(getPayable).mockResolvedValue(NOW_IN_QUICKBOOKS);
+    const onPaid = vi.fn();
+    const onClose = vi.fn();
+    await render(<PayDialog bill={PAID_HERE} project={undefined} onClose={onClose} onPaid={onPaid} />);
+
+    await clickLabel('finance:payable.pay.confirm');
+
+    expect(getPayable).toHaveBeenCalledWith(9);
+    expect(onPaid).toHaveBeenCalledWith(NOW_IN_QUICKBOOKS);
+    expect(onClose).toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith('finance:payable.toast.paymentFailed', {
+      description: 'Este documento está en QuickBooks: registra sus pagos allá y aparecerán aquí solos.',
+    });
+  });
+
+  it('Pagar: any other refusal leaves the dialog open, to fix what was wrong', async () => {
+    vi.mocked(recordPayablePayment).mockRejectedValue(new ApiError(400, 'El monto supera el saldo.', undefined, 'PAYMENT_EXCEEDS_BALANCE'));
+    const onPaid = vi.fn();
+    const onClose = vi.fn();
+    await render(<PayDialog bill={PAID_HERE} project={undefined} onClose={onClose} onPaid={onPaid} />);
+
+    await clickLabel('finance:payable.pay.confirm');
+
+    expect(getPayable).not.toHaveBeenCalled();
+    expect(onPaid).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('Marcar como no pagada: the same', async () => {
+    vi.mocked(markPayableUnpaid).mockRejectedValue(IN_QUICKBOOKS());
+    vi.mocked(getPayable).mockResolvedValue(NOW_IN_QUICKBOOKS);
+    const onUnpaid = vi.fn();
+    const onClose = vi.fn();
+    await render(<UnpayDialog bill={PAID_HERE} onClose={onClose} onUnpaid={onUnpaid} />);
+
+    await clickLabel('finance:payable.unpay.confirm');
+
+    expect(onUnpaid).toHaveBeenCalledWith(NOW_IN_QUICKBOOKS);
+    expect(onClose).toHaveBeenCalled();
   });
 });

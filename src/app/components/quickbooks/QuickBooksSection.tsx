@@ -27,6 +27,7 @@ import { Band, Block, Bones, Explain, Fact, LoadFailed, StateChip, TabButton, Ta
 import { QuickBooksMapping } from './QuickBooksMapping';
 import { QuickBooksSync } from './QuickBooksSync';
 import { QuickBooksPayments } from './QuickBooksPayments';
+import { describeError, loadFailureKey } from './errors';
 
 type Busy = 'connect' | 'test' | 'disconnect' | null;
 type Section = 'mapping' | 'sync' | 'payments';
@@ -39,7 +40,8 @@ export function QuickBooksSection({ outcome = null }: {
   const { t, i18n } = useTranslation('quickbooks');
   const lang = i18n.resolvedLanguage ?? i18n.language ?? 'es';
   const [status, setStatus] = useState<QuickBooksStatus | null>(null);
-  const [loadFailed, setLoadFailed] = useState(false);
+  /** Why the status could not be read, as the key of the band's body; null = read. */
+  const [loadFailed, setLoadFailed] = useState<string | null>(null);
   const [busy, setBusy] = useState<Busy>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -51,6 +53,10 @@ export function QuickBooksSection({ outcome = null }: {
   // and a counter that remounts the list so a second jump to the same tab works.
   const [mappingTab, setMappingTab] = useState<QuickBooksMappingTab>('clients');
   const [mappingVisit, setMappingVisit] = useState(0);
+  // "Envíos" or "Pagos" stopped because of the link itself (a rejected
+  // permission): the card re-reads its state and, while it still reads
+  // «Conectado», says so — until a test of the link comes out fine.
+  const [stoppedBy, setStoppedBy] = useState<string | null>(null);
 
   const openMapping = (tab: QuickBooksMappingTab) => {
     setMappingTab(tab);
@@ -64,13 +70,18 @@ export function QuickBooksSection({ outcome = null }: {
     try {
       const next = await getQuickBooksStatus();
       setStatus(next);
-      setLoadFailed(false);
-    } catch {
-      setLoadFailed(true);
+      setLoadFailed(null);
+    } catch (e) {
+      setLoadFailed(loadFailureKey(e));
     }
   }, []);
 
   useEffect(() => { void load(); }, [load]);
+
+  const onConnectionStop = (code: string) => {
+    setStoppedBy(code);
+    void load();
+  };
 
   const connect = async () => {
     setBusy('connect');
@@ -94,6 +105,7 @@ export function QuickBooksSection({ outcome = null }: {
     try {
       const next = await testQuickBooksConnection();
       setStatus(next);
+      setStoppedBy(null);
       toast.success(t('toast.tested', { company: next.companyName ?? t('companyUnknown') }));
     } catch (e) {
       // A permission Intuit no longer renews is the card's to explain: the
@@ -139,10 +151,11 @@ export function QuickBooksSection({ outcome = null }: {
       </div>
 
       {outcome && showOutcome && <OutcomeBand outcome={outcome} />}
-      {actionError && <Band tone="danger" title={t('error.generic')} role="alert" testId="quickbooks-action-error">{actionError}</Band>}
+      {/* While the disconnect window is open, its failure is said inside it, not behind it. */}
+      {actionError && !confirmOpen && <Band tone="danger" title={t('error.generic')} role="alert" testId="quickbooks-action-error">{actionError}</Band>}
 
       {loadFailed ? (
-        <LoadFailed title={t('load.errorTitle')} body={t('load.errorBody')} retryLabel={t('retry')} onRetry={() => void load()} testId="quickbooks-load-error" />
+        <LoadFailed title={t('load.errorTitle')} body={t(loadFailed)} retryLabel={t('retry')} onRetry={() => void load()} testId="quickbooks-load-error" />
       ) : !status || !shownState ? (
         <Block title={t('connection.title')}>
           <Bones widths={['35%', '70%', '55%']} />
@@ -180,6 +193,11 @@ export function QuickBooksSection({ outcome = null }: {
                     {t(`error.${status.lastError}`, { defaultValue: t('error.generic') })}
                   </Band>
                 )}
+                {status.state === 'ACTIVE' && stoppedBy && (
+                  <Band tone="danger" title={t('stopped.title')} role="alert" testId="quickbooks-stopped">
+                    {t(`stopped.${stoppedBy}`, { defaultValue: t('stopped.other') })}
+                  </Band>
+                )}
 
                 <dl className="grid grid-cols-1 border border-[#EDE7DB] sm:grid-cols-2">
                   <Fact label={t('field.company')} strong>{status.companyName ?? t('companyUnknown')}</Fact>
@@ -207,7 +225,7 @@ export function QuickBooksSection({ outcome = null }: {
                       {t('button.test')}
                     </SecondaryButton>
                   )}
-                  <DestroyButton onClick={() => setConfirmOpen(true)} disabled={busy !== null}>
+                  <DestroyButton onClick={() => { setActionError(null); setConfirmOpen(true); }} disabled={busy !== null}>
                     <Unplug className="w-3.5 h-3.5" strokeWidth={2} aria-hidden="true" />
                     {t('button.disconnect')}
                   </DestroyButton>
@@ -228,8 +246,8 @@ export function QuickBooksSection({ outcome = null }: {
             ))}
           </div>
           {section === 'mapping' && <QuickBooksMapping key={mappingVisit} initialTab={mappingTab} />}
-          {section === 'sync' && <QuickBooksSync onOpenMapping={openMapping} />}
-          {section === 'payments' && <QuickBooksPayments onOpenSync={() => setSection('sync')} />}
+          {section === 'sync' && <QuickBooksSync onOpenMapping={openMapping} onConnectionStop={onConnectionStop} />}
+          {section === 'payments' && <QuickBooksPayments onOpenSync={() => setSection('sync')} onConnectionStop={onConnectionStop} />}
         </>
       )}
 
@@ -253,6 +271,11 @@ export function QuickBooksSection({ outcome = null }: {
           </>
         }
       >
+        {actionError && (
+          <div className="mb-4">
+            <Band tone="danger" title={t('disconnect.failed')} role="alert" testId="quickbooks-disconnect-error">{actionError}</Band>
+          </div>
+        )}
         <p className="text-[13.5px] leading-[1.55] text-[#0A0A0A]">{t('disconnect.body')}</p>
       </BtModal>
     </div>
@@ -268,6 +291,7 @@ function OutcomeBand({ outcome }: { outcome: QuickBooksOutcome }) {
   return <Band tone="danger" title={t('outcome.errorTitle')} role="alert" testId="quickbooks-outcome">{t(`outcome.${outcome}`)}</Band>;
 }
 
+/** The server's sentence, or the panel's when no answer came back — never the browser's (audit B16). */
 function messageOf(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
+  return describeError(e);
 }
