@@ -312,6 +312,41 @@ describe('a send or a read stopped by the link itself', () => {
 
     expect(text()).toContain('La conexión dejó de funcionar');
     expect(button('Volver a conectar')).toBeTruthy();
+    // The card explains it; a red toast would say the same thing twice.
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('a payments read refused because the link needs a reconnect: the card explains it, no toast', async () => {
+    let status: QuickBooksStatus = ACTIVE;
+    replies[`GET ${BASE}`] = () => status;
+    replies[`GET ${BASE}/mappings`] = MAPPINGS;
+    replies[`GET ${BASE}/payments`] = PAYMENTS;
+    replies[`POST ${BASE}/payments/refresh`] = new ApiError(409, 'Hay que volver a conectar QuickBooks.', undefined, 'QUICKBOOKS_NEEDS_RECONNECT');
+    await render(<QuickBooksSection />);
+    await openTab('Pagos');
+
+    status = { ...ACTIVE, state: 'NEEDS_RECONNECT', lastError: 'REFRESH_REJECTED' };
+    await click(button('Actualizar pagos'), 'Actualizar pagos');
+
+    expect(text()).toContain('La conexión dejó de funcionar');
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('on their own (no card to explain it), Envíos and Pagos still say it', async () => {
+    const reconnect = () => new ApiError(409, 'Hay que volver a conectar QuickBooks.', undefined, 'QUICKBOOKS_NEEDS_RECONNECT');
+    replies[`GET ${BASE}/sync`] = syncOverview([syncRow(5, 'READY')]);
+    replies[`POST ${BASE}/sync/INVOICE/5/send`] = reconnect();
+    await render(<QuickBooksSync />);
+    await click(button('Enviar', document.querySelector('li')!), 'Enviar');
+    expect(toast.error).toHaveBeenLastCalledWith('No se pudo completar.', { description: 'Hay que volver a conectar QuickBooks.' });
+    await act(async () => root.unmount());
+
+    vi.mocked(toast.error).mockClear();
+    replies[`GET ${BASE}/payments`] = PAYMENTS;
+    replies[`POST ${BASE}/payments/refresh`] = reconnect();
+    await render(<QuickBooksPayments />);
+    await click(button('Actualizar pagos'), 'Actualizar pagos');
+    expect(toast.error).toHaveBeenLastCalledWith('No se pudo completar.', { description: 'Hay que volver a conectar QuickBooks.' });
   });
 
   it('a single send that comes back failed on a rejected permission reaches the card', async () => {
