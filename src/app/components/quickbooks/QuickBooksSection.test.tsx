@@ -12,17 +12,18 @@ import type { QuickBooksOutcome, QuickBooksStatus } from '../../services/quickbo
 
 vi.mock('../../lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../lib/api')>()),
-  api: (path: string, init?: RequestInit) => fakeApi(path, init),
+  api: (path: string, init?: ApiOptions) => fakeApi(path, init),
 }));
 vi.mock('../../services/quickbooks', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../services/quickbooks')>()),
   openIntuitConsent: vi.fn(),
 }));
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 
 import { QuickBooksSection } from './QuickBooksSection';
-import { openIntuitConsent } from '../../services/quickbooks';
-import { ApiError } from '../../lib/api';
+import { openIntuitConsent, QUICKBOOKS_LONG_TIMEOUT_MS } from '../../services/quickbooks';
+import { ApiError, NoResponseError, type ApiOptions } from '../../lib/api';
+import { toast } from 'sonner';
 import i18n from '../../../i18n';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -65,10 +66,13 @@ const COMPANY_UNREAD = {
 let statusReply: QuickBooksStatus = NOT_CONNECTED;
 let replies: Record<string, unknown> = {};
 const calls: string[] = [];
+/** The wait each call asked for (undefined = the panel's usual one). */
+const waits: Record<string, number | undefined> = {};
 
-async function fakeApi(path: string, init?: RequestInit): Promise<unknown> {
+async function fakeApi(path: string, init?: ApiOptions): Promise<unknown> {
   const key = `${(init?.method ?? 'GET').toUpperCase()} ${path}`;
   calls.push(key);
+  waits[key] = init?.timeoutMs;
   if (key in replies) {
     const reply = replies[key];
     if (reply instanceof Error) throw reply;
@@ -116,7 +120,9 @@ beforeEach(async () => {
   statusReply = NOT_CONNECTED;
   replies = {};
   calls.length = 0;
+  for (const k of Object.keys(waits)) delete waits[k];
   vi.mocked(openIntuitConsent).mockClear();
+  vi.mocked(toast.info).mockClear();
 });
 
 afterEach(async () => {
@@ -153,6 +159,9 @@ describe('QuickBooksSection', () => {
 
     expect(text()).toContain('Tu QuickBooks todavía no está conectado');
     expect(text()).toContain('solo se puede conectar una empresa sandbox');
+    // Before the trip to Intuit, not only after a refusal: one company, one constructora.
+    expect(document.querySelector('[data-testid="quickbooks-one-company"]')?.textContent)
+      .toContain('Una empresa de QuickBooks solo puede estar conectada a una constructora de BuildTrack');
     await click('Conectar con QuickBooks');
 
     expect(calls).toContain(`POST ${BASE}/connect`);
@@ -250,12 +259,58 @@ describe('QuickBooksSection', () => {
 
     await click('Desconectar');
     expect(text()).toContain('¿Desconectar?');
+    // Disconnecting stops the payments read too: what stays counted is said up front.
+    expect(text()).toContain('lo pagado de los documentos enviados queda como lo dejó QuickBooks');
+    expect(text()).toContain('los pagos nuevos se registran aquí');
     expect(calls).not.toContain(`POST ${BASE}/disconnect`);
 
     await click('Sí, desconectar');
 
     expect(calls).toContain(`POST ${BASE}/disconnect`);
     expect(text()).toContain('Tu QuickBooks todavía no está conectado');
+  });
+
+  it('testing and disconnecting wait as long as Intuit may take, not the usual 15 s', async () => {
+    statusReply = ACTIVE;
+    replies[`POST ${BASE}/test`] = ACTIVE;
+    replies[`POST ${BASE}/disconnect`] = NOT_CONNECTED;
+    await render();
+
+    await click('Probar conexión');
+    await click('Desconectar');
+    await click('Sí, desconectar');
+
+    expect(waits[`POST ${BASE}/test`]).toBe(QUICKBOOKS_LONG_TIMEOUT_MS);
+    expect(waits[`POST ${BASE}/disconnect`]).toBe(QUICKBOOKS_LONG_TIMEOUT_MS);
+    expect(waits[`GET ${BASE}`]).toBeUndefined();
+  });
+
+  it('a disconnect that outlives the wait is not a failure: the modal closes and the card is re-read', async () => {
+    statusReply = ACTIVE;
+    replies[`POST ${BASE}/disconnect`] = new NoResponseError(true, new DOMException('signal is aborted without reason', 'AbortError'));
+    await render();
+
+    await click('Desconectar');
+    // Undone here first, then Intuit is told: by now the server shows it gone.
+    statusReply = NOT_CONNECTED;
+    await click('Sí, desconectar');
+
+    expect(toast.info).toHaveBeenCalledWith('QuickBooks sigue trabajando; el estado se actualizará.');
+    expect(text()).not.toContain('¿Desconectar?');
+    expect(text()).not.toContain('aborted');
+    expect(text()).toContain('Tu QuickBooks todavía no está conectado');
+  });
+
+  it('a test that outlives the wait says QuickBooks is still at it, not a raw browser error', async () => {
+    statusReply = ACTIVE;
+    replies[`POST ${BASE}/test`] = new NoResponseError(false, new TypeError('Failed to fetch'));
+    await render();
+
+    await click('Probar conexión');
+
+    expect(toast.info).toHaveBeenCalledWith('QuickBooks sigue trabajando; el estado se actualizará.');
+    expect(text()).not.toContain('Failed to fetch');
+    expect(calls.filter(c => c === `GET ${BASE}`).length).toBe(2);
   });
 
   it('greets the return from Intuit with the outcome, and drops it once the admin acts again', async () => {

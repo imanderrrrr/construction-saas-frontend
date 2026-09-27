@@ -498,6 +498,8 @@
   "paymentOrigin.voidedInQuickBooksHelp": "Se borró, anuló o desvinculó en QuickBooks, así que ya no cuenta.",
   "paymentOrigin.notInQuickBooks": "Registrado en BuildTrack, no en QuickBooks",
   "paymentOrigin.notInQuickBooksHelp": "Este documento ya lee sus pagos de QuickBooks, así que este pago no cuenta. Regístralo en QuickBooks para que cuente.",
+  "paymentOrigin.superseded": "No cuenta (reemplazado por QuickBooks)",
+  "paymentOrigin.supersededHelp": "Cuando se leyeron los pagos de este documento desde QuickBooks, lo pagado pasó a ser lo que dice QuickBooks y este pago registrado aquí dejó de contar. No vuelve a contar aunque se apague la lectura de pagos o se desconecte QuickBooks. Si falta en QuickBooks, regístralo allá.",
   "paymentOrigin.registerInQuickBooks": "Regístralo en QuickBooks; aparecerá aquí solo.",
   "projectFinancials.noProjects": "No se encontraron proyectos con datos de presupuesto.",
   "projectFinancials.kpi.totalBudget": "Presupuesto Total",

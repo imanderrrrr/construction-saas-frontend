@@ -12,13 +12,15 @@ import type { QuickBooksSyncOverview, QuickBooksSyncRow, QuickBooksSyncSettings 
 
 vi.mock('../../lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../lib/api')>()),
-  api: (path: string, init?: RequestInit) => fakeApi(path, init),
+  api: (path: string, init?: ApiOptions) => fakeApi(path, init),
 }));
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 
 import { QuickBooksSync } from './QuickBooksSync';
 import { toast } from 'sonner';
 import i18n from '../../../i18n';
+import { ApiError, NoResponseError, type ApiOptions } from '../../lib/api';
+import { QUICKBOOKS_LONG_TIMEOUT_MS } from '../../services/quickbooks';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -105,11 +107,11 @@ function overview(rows: QuickBooksSyncRow[] = [READY, TAXED, NO_VENDOR, SIMPLE_S
 
 let current: QuickBooksSyncOverview = overview();
 let replies: Record<string, unknown> = {};
-const calls: Array<{ key: string; body: unknown }> = [];
+const calls: Array<{ key: string; body: unknown; timeoutMs?: number }> = [];
 
-async function fakeApi(path: string, init?: RequestInit): Promise<unknown> {
+async function fakeApi(path: string, init?: ApiOptions): Promise<unknown> {
   const method = (init?.method ?? 'GET').toUpperCase();
-  calls.push({ key: `${method} ${path}`, body: init?.body ? JSON.parse(String(init.body)) : undefined });
+  calls.push({ key: `${method} ${path}`, body: init?.body ? JSON.parse(String(init.body)) : undefined, timeoutMs: init?.timeoutMs });
   const key = `${method} ${path.split('?')[0]}`;
   if (key in replies) {
     const reply = replies[key];
@@ -167,6 +169,7 @@ beforeEach(async () => {
   openMapping.mockClear();
   vi.mocked(toast.success).mockClear();
   vi.mocked(toast.error).mockClear();
+  vi.mocked(toast.info).mockClear();
 });
 
 afterEach(async () => {
@@ -247,6 +250,35 @@ describe('QuickBooksSync', () => {
 
     await click(buttonIn(rowOf('INV-2026-0005'), 'Reactivar'));
     expect(calls.map(c => c.key)).toContain(`POST ${BASE}/INVOICE/5/unskip`);
+  });
+
+  it('a re-linked document says so, waits for its own "Enviar cambios", and "send all" does not count it', async () => {
+    const relinked = row({
+      type: 'INVOICE', docId: 12, number: 'INV-2026-0012', state: 'CHANGED', reasons: ['REF_CHANGED'], qboId: '160',
+      qboUrl: 'https://app.sandbox.qbo.intuit.com/app/invoice?txnId=160',
+    });
+    current = { ...overview([READY, relinked]), summary: { ready: 1, blocked: 0, failed: 0, sent: 0, changed: 1, skipped: 0, closed: 0, refChanged: 1 } };
+    await render();
+
+    const item = rowOf('INV-2026-0012');
+    expect(item.textContent).toContain('Cambió su cliente, proveedor u obra (un vínculo nuevo). No se envía solo');
+    expect(item.textContent).not.toContain('se actualizará en QuickBooks');
+    expect(buttonIn(item, 'Enviar cambios')).toBeTruthy();
+    expect(buttons('Enviar todos los listos (1)')).toHaveLength(1);
+  });
+
+  it('a re-link refused for its payments says why and offers to try again', async () => {
+    const paid = row({
+      type: 'BILL', docId: 13, number: 'BILL-2026-0013', state: 'BLOCKED', reasons: ['REF_CHANGED_PAID'],
+      errorMessage: 'BillPaymentCheck #170', qboId: '161',
+    });
+    current = overview([paid]);
+    await render();
+
+    const item = rowOf('BILL-2026-0013');
+    expect(item.textContent).toContain('tiene pagos (en BuildTrack o en QuickBooks)');
+    expect(item.textContent).toContain('BillPaymentCheck #170');
+    expect(buttonIn(item, 'Reintentar')).toBeTruthy();
   });
 
   it('sends everything pending at once and says what is left', async () => {
@@ -358,7 +390,6 @@ describe('QuickBooksSync', () => {
   });
 
   it('shows why a send was refused, in a toast rather than a band pushed in on top of the list', async () => {
-    const { ApiError } = await import('../../lib/api');
     replies[`POST ${BASE}/INVOICE/5/send`] = new ApiError(
       409, 'Ya hay un envío en curso para tu empresa. Espera a que termine.', undefined, 'QUICKBOOKS_SYNC_RUNNING',
     );
@@ -441,13 +472,102 @@ describe('QuickBooksSync', () => {
     expect(calls.map(c => c.key)).toContain(`POST ${BASE}/INVOICE/8/send`);
   });
 
-  it('asks for the company preferences before anything is sent with a guess', async () => {
-    current = overview(undefined, { ...SETTINGS, preferencesRead: false });
+  it('waits for a send as long as QuickBooks may take, not the usual 15 s', async () => {
+    replies[`POST ${BASE}/INVOICE/5/send`] = { ...READY, state: 'SENT', qboId: '146' };
+    replies[`POST ${BASE}/send-ready`] = {
+      processed: 0, created: 0, updated: 0, voided: 0, deleted: 0, failed: 0, blocked: 0,
+      attachmentsSent: 0, attachmentsFailed: 0, remaining: 0, stoppedBy: null,
+    };
     await render();
 
-    expect(text()).toContain('Todavía no se leyeron las preferencias de facturación');
-    await click(buttons('Ir a Vincular')[0]);
+    await click(buttonIn(rowOf('INV-2026-0005'), 'Enviar'));
+    await click(buttons('Enviar todos los listos (2)')[0]);
+
+    expect(calls.find(c => c.key === `POST ${BASE}/INVOICE/5/send`)?.timeoutMs).toBe(QUICKBOOKS_LONG_TIMEOUT_MS);
+    expect(calls.find(c => c.key === `POST ${BASE}/send-ready`)?.timeoutMs).toBe(QUICKBOOKS_LONG_TIMEOUT_MS);
+    // Reading the list never reaches QuickBooks: the usual wait.
+    expect(calls.find(c => c.key.startsWith(`GET ${BASE}`))?.timeoutMs).toBeUndefined();
+  });
+
+  it('a send-all that outlives the wait is not a failure: QuickBooks is still at it, and the list is re-read', async () => {
+    replies[`POST ${BASE}/send-ready`] = new NoResponseError(true, new DOMException('signal is aborted without reason', 'AbortError'));
+    await render();
+    const readsBefore = calls.filter(c => c.key.startsWith(`GET ${BASE}`)).length;
+
+    await click(buttons('Enviar todos los listos (2)')[0]);
+
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(toast.info).toHaveBeenCalledWith('QuickBooks sigue trabajando; la lista se actualizará.');
+    expect(calls.filter(c => c.key.startsWith(`GET ${BASE}`)).length).toBe(readsBefore + 1);
+    expect(text()).not.toContain('aborted');
+    expect(buttons('Enviar todos los listos (2)')[0].disabled).toBe(false);
+  });
+
+  it('a send cut off by the connection says the same, in English too', async () => {
+    await i18n.changeLanguage('en');
+    replies[`POST ${BASE}/INVOICE/5/send`] = new NoResponseError(false, new TypeError('Failed to fetch'));
+    await render();
+
+    await click(buttonIn(rowOf('INV-2026-0005'), 'Send'));
+
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(toast.info).toHaveBeenCalledWith('QuickBooks is still working; the list will update.');
+  });
+
+  it('a refusal re-reads the list too: part of a batch may have gone out', async () => {
+    replies[`POST ${BASE}/send-ready`] = new ApiError(409, 'Ya hay un envío en curso. Espera a que termine.', undefined, 'QUICKBOOKS_SYNC_RUNNING');
+    await render();
+    const readsBefore = calls.filter(c => c.key.startsWith(`GET ${BASE}`)).length;
+
+    await click(buttons('Enviar todos los listos (2)')[0]);
+
+    expect(toast.error).toHaveBeenCalledWith('No se pudo completar.', { description: 'Ya hay un envío en curso. Espera a que termine.' });
+    expect(calls.filter(c => c.key.startsWith(`GET ${BASE}`)).length).toBe(readsBefore + 1);
+  });
+
+  it('sends nothing before the company preferences are read, and points at the button that reads them', async () => {
+    // A new connection, or a reconnect after «Desconectar», starts unread:
+    // the server refuses to send until then (audit M6), so the panel does not offer it.
+    const filesFailed = row({ ...SENT, docId: 12, number: 'INV-2026-0012', warning: 'ATTACHMENT_FAILED' });
+    current = overview([READY, NO_VENDOR, SIMPLE_START, filesFailed], { ...SETTINGS, preferencesRead: false });
+    await render();
+
+    expect(text()).toContain('Antes de enviar hay que leer las preferencias de tu empresa en QuickBooks');
+    expect(text()).toContain('no se envía nada, ni a mano ni en automático');
+    expect(buttons('Enviar todos los listos')[0].disabled).toBe(true);
+    expect(buttonIn(rowOf('INV-2026-0005'), 'Enviar')?.disabled).toBe(true);
+    expect(buttonIn(rowOf('BILL-2026-0010'), 'Reintentar')?.disabled).toBe(true);
+    expect(buttonIn(rowOf('INV-2026-0012'), 'Reintentar adjuntos')?.disabled).toBe(true);
+    expect((document.querySelector('[role=switch]') as HTMLButtonElement).disabled).toBe(true);
+    expect(text()).toContain('No envía nada hasta leer las preferencias de tu empresa.');
+    // Fixing a link or setting a document aside never reaches QuickBooks: still offered.
+    expect(buttonIn(rowOf('BILL-2026-0009'), 'Vincular proveedor')?.disabled).toBe(false);
+    expect(buttonIn(rowOf('INV-2026-0005'), 'No enviar')?.disabled).toBe(false);
+
+    await click(buttons('Ir a «Actualizar desde QuickBooks»')[0]);
     expect(openMapping).toHaveBeenCalledWith('clients');
+  });
+
+  it('with the preferences read, sending is offered as usual', async () => {
+    await render();
+
+    expect(text()).not.toContain('Antes de enviar hay que leer las preferencias');
+    expect(buttons('Enviar todos los listos')[0].disabled).toBe(false);
+    expect(buttonIn(rowOf('INV-2026-0005'), 'Enviar')?.disabled).toBe(false);
+    expect((document.querySelector('[role=switch]') as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('a send the server refuses for unread preferences re-reads the list, which then says why', async () => {
+    replies[`POST ${BASE}/send-ready`] = new ApiError(409, 'Antes de enviar hay que leer las preferencias de la empresa.', undefined, 'QUICKBOOKS_PREFERENCES_UNREAD');
+    await render();
+    // Read elsewhere as unread meanwhile (a reconnect in another tab).
+    current = overview(undefined, { ...SETTINGS, preferencesRead: false });
+
+    await click(buttons('Enviar todos los listos (2)')[0]);
+
+    expect(toast.error).toHaveBeenCalledWith('No se pudo completar.', { description: 'Antes de enviar hay que leer las preferencias de la empresa.' });
+    expect(text()).toContain('Antes de enviar hay que leer las preferencias de tu empresa en QuickBooks');
+    expect(buttons('Enviar todos los listos')[0].disabled).toBe(true);
   });
 
   it('stays failed, with a retry, when the list cannot be loaded', async () => {

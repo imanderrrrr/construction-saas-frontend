@@ -13,14 +13,15 @@ import type { QuickBooksPaymentsStatus } from '../../services/quickbooks';
 
 vi.mock('../../lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../lib/api')>()),
-  api: (path: string, init?: RequestInit) => fakeApi(path, init),
+  api: (path: string, init?: ApiOptions) => fakeApi(path, init),
 }));
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 
 import { QuickBooksPayments } from './QuickBooksPayments';
 import { toast } from 'sonner';
-import { ApiError } from '../../lib/api';
 import i18n from '../../../i18n';
+import { ApiError, NoResponseError, type ApiOptions } from '../../lib/api';
+import { QUICKBOOKS_LONG_TIMEOUT_MS } from '../../services/quickbooks';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -65,12 +66,12 @@ const ON: QuickBooksPaymentsStatus = {
 
 let current: QuickBooksPaymentsStatus = OFF;
 let replies: Record<string, unknown> = {};
-const calls: Array<{ key: string; body: unknown }> = [];
+const calls: Array<{ key: string; body: unknown; timeoutMs?: number }> = [];
 
-async function fakeApi(path: string, init?: RequestInit): Promise<unknown> {
+async function fakeApi(path: string, init?: ApiOptions): Promise<unknown> {
   const method = (init?.method ?? 'GET').toUpperCase();
   const key = `${method} ${path}`;
-  calls.push({ key, body: init?.body ? JSON.parse(String(init.body)) : undefined });
+  calls.push({ key, body: init?.body ? JSON.parse(String(init.body)) : undefined, timeoutMs: init?.timeoutMs });
   if (key in replies) {
     const reply = replies[key];
     if (reply instanceof Error) throw reply;
@@ -118,6 +119,7 @@ beforeEach(async () => {
   openSync.mockClear();
   vi.mocked(toast.success).mockClear();
   vi.mocked(toast.error).mockClear();
+  vi.mocked(toast.info).mockClear();
 });
 
 afterEach(async () => {
@@ -159,12 +161,25 @@ describe('QuickBooksPayments', () => {
     expect(toggle().getAttribute('aria-checked')).toBe('true');
   });
 
-  it('turning it off needs no confirmation', async () => {
+  it('turning it off asks first and says what stays counted; only then it is sent', async () => {
     current = ON;
     replies[`PUT ${BASE}/settings`] = { ...ON, enabled: false };
     await render();
 
     await click(toggle());
+    expect(text()).toContain('¿Dejar de leer los pagos desde QuickBooks?');
+    expect(text()).toContain('queda como lo dejó QuickBooks en la última lectura');
+    expect(text()).toContain('los pagos leídos de QuickBooks siguen contando');
+    expect(text()).toContain('los pagos nuevos se registran aquí');
+    expect(text()).toContain('Los pagos registrados aquí que QuickBooks reemplazó no vuelven a contar.');
+    expect(calls.map(c => c.key)).not.toContain(`PUT ${BASE}/settings`);
+
+    await click(button('Cancelar'));
+    expect(calls.map(c => c.key)).not.toContain(`PUT ${BASE}/settings`);
+    expect(toggle().getAttribute('aria-checked')).toBe('true');
+
+    await click(toggle());
+    await click(button('Apagar'));
 
     expect(calls.find(c => c.key === `PUT ${BASE}/settings`)?.body).toEqual({ enabled: false });
     expect(toast.success).toHaveBeenCalledWith('Los pagos se registran otra vez en BuildTrack.');
@@ -176,11 +191,57 @@ describe('QuickBooksPayments', () => {
     await render();
 
     await click(toggle());
+    await click(button('Apagar'));
 
     expect(toast.error).toHaveBeenCalledWith('No se pudo completar.', { description: 'QuickBooks no está conectado.' });
     expect(document.querySelectorAll('[role="alert"]')).toHaveLength(0);
     expect(document.querySelector('[data-testid="quickbooks-payments"]')!.firstElementChild!.getAttribute('data-testid'))
       .toBe('quickbooks-payments-settings');
+  });
+
+  it('switching on and reading wait as long as a full read may take, not the usual 15 s', async () => {
+    replies[`PUT ${BASE}/settings`] = ON;
+    replies[`POST ${BASE}/refresh`] = {
+      result: { mode: 'CDC', reads: 1, paymentsRead: 0, documentsChecked: 0, documentsUpdated: 0, failed: 0, stoppedBy: null },
+      status: ON,
+    };
+    await render();
+
+    await click(toggle());
+    await click(button('Encender'));
+    await click(button('Actualizar pagos'));
+
+    expect(calls.find(c => c.key === `PUT ${BASE}/settings`)?.timeoutMs).toBe(QUICKBOOKS_LONG_TIMEOUT_MS);
+    expect(calls.find(c => c.key === `POST ${BASE}/refresh`)?.timeoutMs).toBe(QUICKBOOKS_LONG_TIMEOUT_MS);
+    expect(calls.find(c => c.key === `GET ${BASE}`)?.timeoutMs).toBeUndefined();
+  });
+
+  it('switching on that outlives the wait is not a failure: QuickBooks is still reading, and the switch shows on', async () => {
+    replies[`PUT ${BASE}/settings`] = new NoResponseError(true, new DOMException('signal is aborted without reason', 'AbortError'));
+    await render();
+
+    await click(toggle());
+    // The server switched it on first and is still reading everything.
+    current = { ...ON, running: true };
+    await click(button('Encender'));
+
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(toast.info).toHaveBeenCalledWith('QuickBooks sigue trabajando; los pagos se actualizarán.');
+    expect(toggle().getAttribute('aria-checked')).toBe('true');
+    expect(text()).not.toContain('aborted');
+    expect(calls.filter(c => c.key === `GET ${BASE}`).length).toBe(2);
+  });
+
+  it('a refused read still says why, and re-reads the status', async () => {
+    current = ON;
+    replies[`POST ${BASE}/refresh`] = new ApiError(409, 'Ya se están leyendo los pagos.', undefined, 'QUICKBOOKS_PAYMENTS_RUNNING');
+    await render();
+
+    await click(button('Actualizar pagos'));
+
+    expect(toast.error).toHaveBeenCalledWith('No se pudo completar.', { description: 'Ya se están leyendo los pagos.' });
+    expect(toast.info).not.toHaveBeenCalled();
+    expect(calls.filter(c => c.key === `GET ${BASE}`).length).toBe(2);
   });
 
   it('"Actualizar pagos" reads once and says how many documents moved', async () => {

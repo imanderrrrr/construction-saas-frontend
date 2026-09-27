@@ -148,6 +148,7 @@ export function PayableDetailPanel({ bill, project, canManage, today, dateLocale
                         source={p.source}
                         inQuickBooks={inQuickBooks}
                         voided={p.voided}
+                        superseded={!!p.supersededAt}
                         qboPaymentId={p.qboPaymentId}
                       />
                     </div>

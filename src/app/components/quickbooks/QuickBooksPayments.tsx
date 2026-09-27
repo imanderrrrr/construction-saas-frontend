@@ -17,6 +17,7 @@ import { Mono } from '../projects/bt';
 import { PrimaryButton, SecondaryButton } from '../onboarding/chrome';
 import { BtModal } from '../bt/windows';
 import { fmtDate, fmtDateTime } from '../../helpers/dateTime';
+import { ApiError, NoResponseError } from '../../lib/api';
 import { paymentMethodLabel } from '../PayableCommon';
 import {
   getQuickBooksPayments, refreshQuickBooksPayments, updateQuickBooksPaymentsSettings,
@@ -38,6 +39,9 @@ export function QuickBooksPayments({ onOpenSync, onConnectionStop }: {
   const [loadFailed, setLoadFailed] = useState<string | null>(null);
   const [busy, setBusy] = useState<'settings' | 'refresh' | null>(null);
   const [confirming, setConfirming] = useState(false);
+  // Switching off is asked too: what stays counted afterwards is not obvious
+  // (QuickBooks' figures and payments stay; new payments are registered here).
+  const [confirmingOff, setConfirmingOff] = useState(false);
 
   // State is only touched in the promise's callbacks, never synchronously in
   // the mount effect (react-hooks/set-state-in-effect).
@@ -57,10 +61,20 @@ export function QuickBooksPayments({ onOpenSync, onConnectionStop }: {
   const errorText = (code: string) => t(`payments.error.${code}`, { defaultValue: t('payments.error.other') });
 
   // A refusal is a toast where the admin is looking, never a band pushed in
-  // on top of the section (the same rule as "Vincular" and "Envíos").
-  const failed = (e: unknown) => {
+  // on top of the section (the same rule as "Vincular" and "Envíos"). Without
+  // the server's answer the status is re-read: switching on commits first and
+  // then reads everything, so a switch that got no answer in time is most
+  // likely on and still reading — not a failure to report. A permission
+  // Intuit no longer renews is the connection card's to explain (it re-reads
+  // and offers the reconnect); anything else is said here.
+  const failed = async (e: unknown) => {
     noticeStop(e);
-    toast.error(t('error.actionFailed'), { description: describeError(e) });
+    if (e instanceof NoResponseError) {
+      toast.info(t('stillWorking.payments'));
+    } else if (!(onConnectionStop && e instanceof ApiError && e.code === 'QUICKBOOKS_NEEDS_RECONNECT')) {
+      toast.error(t('error.actionFailed'), { description: describeError(e) });
+    }
+    await load();
   };
 
   const setEnabled = async (enabled: boolean) => {
@@ -72,7 +86,7 @@ export function QuickBooksPayments({ onOpenSync, onConnectionStop }: {
       // Switching on reads everything at once; that read may stop on the link.
       noticeStop(next.lastError);
     } catch (e) {
-      failed(e);
+      await failed(e);
     } finally {
       setBusy(null);
     }
@@ -90,7 +104,7 @@ export function QuickBooksPayments({ onOpenSync, onConnectionStop }: {
         toast.success(t('payments.toast.read', { count: result.documentsUpdated }));
       }
     } catch (e) {
-      failed(e);
+      await failed(e);
     } finally {
       setBusy(null);
     }
@@ -142,7 +156,7 @@ export function QuickBooksPayments({ onOpenSync, onConnectionStop }: {
                 on={status.enabled}
                 label={t('payments.switch')}
                 disabled={busy !== null}
-                onToggle={() => (status.enabled ? void setEnabled(false) : setConfirming(true))}
+                onToggle={() => (status.enabled ? setConfirmingOff(true) : setConfirming(true))}
               />
               <span className={cn('text-[13.5px] font-semibold', status.enabled ? 'text-[#0A0A0A]' : 'text-[#8A8175]')}>
                 {status.enabled ? t('payments.on', { minutes: status.intervalMinutes }) : t('payments.off')}
@@ -216,6 +230,24 @@ export function QuickBooksPayments({ onOpenSync, onConnectionStop }: {
       >
         <p className="text-[13.5px] leading-[1.55] text-[#0A0A0A]">{t('payments.confirm.body')}</p>
         <p className="mt-3 text-[12.5px] leading-[1.5] text-[#5A5346]">{t('payments.confirm.note')}</p>
+      </BtModal>
+
+      <BtModal
+        open={confirmingOff}
+        onOpenChange={setConfirmingOff}
+        kicker={t('payments.confirmOff.kicker')}
+        title={t('payments.confirmOff.title')}
+        footer={
+          <>
+            <SecondaryButton onClick={() => setConfirmingOff(false)}>{t('disconnect.cancel')}</SecondaryButton>
+            <PrimaryButton onClick={() => { setConfirmingOff(false); void setEnabled(false); }}>
+              {t('payments.confirmOff.yes')}
+            </PrimaryButton>
+          </>
+        }
+      >
+        <p className="text-[13.5px] leading-[1.55] text-[#0A0A0A]">{t('payments.confirmOff.body')}</p>
+        <p className="mt-3 text-[12.5px] leading-[1.5] text-[#5A5346]">{t('payments.confirmOff.note')}</p>
       </BtModal>
     </div>
   );

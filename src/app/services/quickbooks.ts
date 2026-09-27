@@ -6,7 +6,21 @@
 // the browser, and the tenant is whatever the session says — there is no
 // tenant parameter anywhere in this API.
 
-import { api } from '../lib/api';
+import { api, ApiError } from '../lib/api';
+
+/**
+ * How long the panel waits for an action that keeps QuickBooks busy: sending
+ * (one document, or "Enviar todos los listos", which keeps going for ~25 s
+ * plus the document in hand), switching payments on (a full read right away),
+ * reading payments, re-reading the company, creating a record, testing or
+ * undoing the link. Each of those calls Intuit, and every call to Intuit may
+ * take up to a minute on the server — far past the panel's usual 15 s, which
+ * used to say "failed" over work that went on and finished. 90 s stays under
+ * the 120 s the Vercel proxy waits. If even this runs out, the call throws
+ * NoResponseError: QuickBooks is most likely still at it, not refusing.
+ */
+export const QUICKBOOKS_LONG_TIMEOUT_MS = 90000;
+const LONG = { timeoutMs: QUICKBOOKS_LONG_TIMEOUT_MS };
 
 export type QuickBooksState = 'NOT_CONNECTED' | 'ACTIVE' | 'NEEDS_RECONNECT';
 
@@ -62,11 +76,11 @@ export function startQuickBooksConnect(): Promise<{ authorizationUrl: string }> 
 }
 
 export function testQuickBooksConnection(): Promise<QuickBooksStatus> {
-  return api<QuickBooksStatus>(`${BASE}/test`, { method: 'POST' });
+  return api<QuickBooksStatus>(`${BASE}/test`, { method: 'POST', ...LONG });
 }
 
 export function disconnectQuickBooks(): Promise<QuickBooksStatus> {
-  return api<QuickBooksStatus>(`${BASE}/disconnect`, { method: 'POST' });
+  return api<QuickBooksStatus>(`${BASE}/disconnect`, { method: 'POST', ...LONG });
 }
 
 /** Leaves the panel for Intuit's consent screen (a full navigation, not a popup). */
@@ -155,7 +169,7 @@ export function getQuickBooksCompany(): Promise<QuickBooksCompany> {
 }
 
 export function refreshQuickBooksCompany(): Promise<QuickBooksCompany> {
-  return api<QuickBooksCompany>(`${BASE}/company/refresh`, { method: 'POST' });
+  return api<QuickBooksCompany>(`${BASE}/company/refresh`, { method: 'POST', ...LONG });
 }
 
 export function getQuickBooksMappings(): Promise<QuickBooksMappingOverview> {
@@ -167,30 +181,48 @@ export function searchQuickBooksOptions(type: QuickBooksLinkType, q: string): Pr
   return api<QuickBooksOption[]>(`${BASE}/mappings/options?${params.toString()}`);
 }
 
-export function linkQuickBooks(type: QuickBooksLinkType, localKey: string, qboId: string): Promise<QuickBooksMappingOverview> {
+// A link change that affects documents already in QuickBooks answers 409
+// QUICKBOOKS_LINK_AFFECTS_SENT with how many (audit A2); the same call with
+// `confirm` goes through once the admin agreed.
+
+export function linkQuickBooks(type: QuickBooksLinkType, localKey: string, qboId: string, confirm = false): Promise<QuickBooksMappingOverview> {
   return api<QuickBooksMappingOverview>(`${BASE}/mappings/link`, {
     method: 'POST',
-    body: JSON.stringify({ type, localKey, qboId }),
+    body: JSON.stringify({ type, localKey, qboId, ...(confirm ? { confirm: true } : {}) }),
   });
 }
 
-export function unlinkQuickBooks(type: QuickBooksLinkType, localKey: string): Promise<QuickBooksMappingOverview> {
+export function unlinkQuickBooks(type: QuickBooksLinkType, localKey: string, confirm = false): Promise<QuickBooksMappingOverview> {
   return api<QuickBooksMappingOverview>(`${BASE}/mappings/unlink`, {
     method: 'POST',
-    body: JSON.stringify({ type, localKey }),
+    body: JSON.stringify({ type, localKey, ...(confirm ? { confirm: true } : {}) }),
   });
 }
 
-export function createInQuickBooks(type: QuickBooksLinkType, localKey: string): Promise<QuickBooksMappingOverview> {
+export function createInQuickBooks(type: QuickBooksLinkType, localKey: string, confirm = false): Promise<QuickBooksMappingOverview> {
   return api<QuickBooksMappingOverview>(`${BASE}/mappings/create`, {
     method: 'POST',
-    body: JSON.stringify({ type, localKey }),
+    body: JSON.stringify({ type, localKey, ...(confirm ? { confirm: true } : {}) }),
+    ...LONG,
   });
 }
 
-export function acceptQuickBooksSuggestions(type?: QuickBooksLinkType): Promise<{ linked: number; overview: QuickBooksMappingOverview }> {
-  const query = type ? `?type=${encodeURIComponent(type)}` : '';
+export function acceptQuickBooksSuggestions(type?: QuickBooksLinkType, confirm = false): Promise<{ linked: number; overview: QuickBooksMappingOverview }> {
+  const params = new URLSearchParams();
+  if (type) params.set('type', type);
+  if (confirm) params.set('confirm', 'true');
+  const query = params.toString() ? `?${params.toString()}` : '';
   return api<{ linked: number; overview: QuickBooksMappingOverview }>(`${BASE}/mappings/accept-suggestions${query}`, { method: 'POST' });
+}
+
+/**
+ * How many documents already in QuickBooks a refused link change would
+ * affect (409 QUICKBOOKS_LINK_AFFECTS_SENT); null for any other error.
+ */
+export function linkAffectsSent(e: unknown): number | null {
+  if (!(e instanceof ApiError) || e.code !== 'QUICKBOOKS_LINK_AFFECTS_SENT') return null;
+  const n = Number(e.details?.documents);
+  return Number.isFinite(n) && n > 0 ? n : 1;
 }
 
 // ── Phase 3: sending invoices and bills ──────────────────────────────────────
@@ -210,7 +242,7 @@ export const QUICKBOOKS_SYNC_REASONS = [
   'PROJECT_NOT_LINKED', 'INVOICE_ITEM_NOT_LINKED', 'VENDOR_NOT_LINKED', 'CATEGORY_NOT_LINKED',
   'HAS_SALES_TAX', 'DISCOUNT_DISABLED', 'TOTAL_BELOW_PAID', 'PLAN_NO_BILLS', 'DUPLICATE_DOC_NUMBER', 'QBO_HAS_PAYMENTS',
   'QBO_DELETED', 'FEATURE_NOT_SUPPORTED', 'QUICKBOOKS_UNAVAILABLE', 'RATE_LIMITED', 'QUICKBOOKS_AUTH_REJECTED',
-  'QBO_TEMPORARY_ERROR', 'STALE_OBJECT', 'QBO_REJECTED', 'TOTAL_MISMATCH',
+  'QBO_TEMPORARY_ERROR', 'STALE_OBJECT', 'QBO_REJECTED', 'TOTAL_MISMATCH', 'REF_CHANGED', 'REF_CHANGED_PAID',
 ] as const;
 
 /**
@@ -299,6 +331,12 @@ export interface QuickBooksSyncSummary {
   closed: number;
   /** Phase 4: sent documents that still carry payments recorded in BuildTrack. */
   localPayments?: number;
+  /**
+   * Of `changed`, those whose customer, vendor or project changed here (a
+   * re-link, audit A2): each waits for its own "Enviar cambios", so "Enviar
+   * todos los listos" leaves them out.
+   */
+  refChanged?: number;
 }
 
 export interface QuickBooksSyncOverview {
@@ -347,11 +385,11 @@ export function updateQuickBooksSyncSettings(cutoverDate: string | null, autoSen
 }
 
 export function sendQuickBooksDocument(type: QuickBooksSyncType, id: number): Promise<QuickBooksSyncRow> {
-  return api<QuickBooksSyncRow>(`${BASE}/sync/${type}/${id}/send`, { method: 'POST' });
+  return api<QuickBooksSyncRow>(`${BASE}/sync/${type}/${id}/send`, { method: 'POST', ...LONG });
 }
 
 export function sendReadyToQuickBooks(): Promise<QuickBooksSyncRunResult> {
-  return api<QuickBooksSyncRunResult>(`${BASE}/sync/send-ready`, { method: 'POST' });
+  return api<QuickBooksSyncRunResult>(`${BASE}/sync/send-ready`, { method: 'POST', ...LONG });
 }
 
 export function skipQuickBooksDocument(type: QuickBooksSyncType, id: number): Promise<QuickBooksSyncRow> {
@@ -436,12 +474,13 @@ export function updateQuickBooksPaymentsSettings(enabled: boolean): Promise<Quic
   return api<QuickBooksPaymentsStatus>(`${BASE}/payments/settings`, {
     method: 'PUT',
     body: JSON.stringify({ enabled }),
+    ...LONG,
   });
 }
 
 export function refreshQuickBooksPayments(full = false): Promise<{ result: QuickBooksPaymentsRunResult; status: QuickBooksPaymentsStatus }> {
   return api<{ result: QuickBooksPaymentsRunResult; status: QuickBooksPaymentsStatus }>(
     `${BASE}/payments/refresh${full ? '?full=true' : ''}`,
-    { method: 'POST' },
+    { method: 'POST', ...LONG },
   );
 }

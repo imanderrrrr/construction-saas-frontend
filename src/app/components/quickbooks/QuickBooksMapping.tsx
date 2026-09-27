@@ -7,7 +7,7 @@
 // never lists QuickBooks live, and the refresh answers 429 while the company's
 // cooldown runs.
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Check, Minus, Plus, RefreshCw, Search, Unlink } from 'lucide-react';
@@ -15,10 +15,10 @@ import { cn } from '../ui/utils';
 import { INPUT, Mono } from '../projects/bt';
 import { PrimaryButton, SecondaryButton, DestroyButton, TertiaryButton } from '../onboarding/chrome';
 import { BtModal } from '../bt/windows';
-import { ApiError } from '../../lib/api';
+import { ApiError, NoResponseError } from '../../lib/api';
 import { fmtDateTime } from '../../helpers/dateTime';
 import {
-  acceptQuickBooksSuggestions, createInQuickBooks, getQuickBooksMappings, linkQuickBooks, QUICKBOOKS_CREATABLE,
+  acceptQuickBooksSuggestions, createInQuickBooks, getQuickBooksMappings, linkAffectsSent, linkQuickBooks, QUICKBOOKS_CREATABLE,
   QUICKBOOKS_REFRESH_COOLDOWN_CODE, refreshQuickBooksCompany, searchQuickBooksOptions, unlinkQuickBooks,
   type QuickBooksCompany, type QuickBooksMappingOverview, type QuickBooksMappingRow, type QuickBooksMappingTab, type QuickBooksOption,
 } from '../../services/quickbooks';
@@ -30,6 +30,24 @@ type Tab = QuickBooksMappingTab;
 const mappingTabId = (key: Tab) => `qb-mapping-tab-${key}`;
 const MAPPING_PANEL = 'qb-mapping-panel';
 const TABS: Tab[] = ['clients', 'projects', 'vendors', 'categories', 'invoiceItem'];
+
+/**
+ * How long, right after a row changes, a button that writes in QuickBooks
+ * waits before it takes a click: after «Quitar vínculo», «Crear en
+ * QuickBooks» takes its place under the pointer, and a double click would
+ * create a record there (audit A2).
+ */
+const SETTLE_MS = 1200;
+
+/** A link change the server held back: documents already in QuickBooks are affected. */
+interface PendingConfirm {
+  key: string;
+  /** How many, as the server counted them. */
+  count: number;
+  /** The same call; `true` = the admin agreed. */
+  action: (confirm: boolean) => Promise<QuickBooksMappingOverview | void>;
+  success?: string;
+}
 
 /** finance:payable.category.* keys, by PayableCategory. */
 const CATEGORY_KEY: Record<string, string> = {
@@ -54,6 +72,11 @@ export function QuickBooksMapping({ initialTab = 'clients' }: {
   /** The per-company brake, when it held a refresh: information, not an error. */
   const [cooldownNotice, setCooldownNotice] = useState<string | null>(null);
   const [picking, setPicking] = useState<QuickBooksMappingRow | null>(null);
+  const [pending, setPending] = useState<PendingConfirm | null>(null);
+  const [unlinking, setUnlinking] = useState<QuickBooksMappingRow | null>(null);
+  const [settling, setSettling] = useState(false);
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(settleTimer.current), []);
 
   // State is only touched after the await (react-hooks/set-state-in-effect).
   const load = useCallback(async () => {
@@ -72,26 +95,47 @@ export function QuickBooksMapping({ initialTab = 'clients' }: {
    * Runs one action; the server answers every mutation with a fresh overview.
    * A refusal is a toast where the admin is looking, not a band on top of the
    * section: the button is often far down a list, and a band pushing the page
-   * down slid another row's «Crear en QuickBooks» under the pointer.
+   * down slid another row's «Crear en QuickBooks» under the pointer. A change
+   * the server held back because documents already in QuickBooks are affected
+   * asks the admin, with how many, and is repeated with `confirm` only on a yes.
+   * Any other failure re-reads the lists: an action that got no answer in time
+   * most likely went on (QuickBooks was still at it — not a failure to report).
    */
-  const run = async (key: string, action: () => Promise<QuickBooksMappingOverview | void>, success?: string) => {
+  const run = async (
+    key: string,
+    action: (confirm: boolean) => Promise<QuickBooksMappingOverview | void>,
+    success?: string,
+    confirm = false,
+  ) => {
     setBusy(key);
     setCooldownNotice(null);
     try {
-      const next = await action();
+      const next = await action(confirm);
       if (next) setOverview(next);
       if (success) toast.success(success);
     } catch (e) {
+      const count = confirm ? null : linkAffectsSent(e);
       // The per-company brake is the system looking after the shared Intuit
       // meter, not something that went wrong: it gets its own calm band that
       // says when, never the red one.
-      if (e instanceof ApiError && e.code === QUICKBOOKS_REFRESH_COOLDOWN_CODE) {
+      if (count != null) {
+        setPending({ key, count, action, success });
+      } else if (e instanceof ApiError && e.code === QUICKBOOKS_REFRESH_COOLDOWN_CODE) {
         setCooldownNotice(t('quickbooks:company.cooldown', { seconds: e.retryAfterSeconds ?? 60 }));
       } else {
-        toast.error(t('quickbooks:error.actionFailed'), { description: describeError(e) });
+        if (e instanceof NoResponseError) {
+          toast.info(t('quickbooks:stillWorking.list'));
+        } else {
+          toast.error(t('quickbooks:error.actionFailed'), { description: describeError(e) });
+        }
+        await load();
       }
     } finally {
       setBusy(null);
+      // The rows just changed under the pointer: «Crear en QuickBooks» waits.
+      setSettling(true);
+      clearTimeout(settleTimer.current);
+      settleTimer.current = setTimeout(() => setSettling(false), SETTLE_MS);
     }
   };
 
@@ -149,7 +193,7 @@ export function QuickBooksMapping({ initialTab = 'clients' }: {
         right={suggestions > 0 ? (
           <SecondaryButton
             disabled={busy !== null}
-            onClick={() => run('accept', async () => (await acceptQuickBooksSuggestions(rows[0]?.type)).overview,
+            onClick={() => run('accept', async (confirm) => (await acceptQuickBooksSuggestions(rows[0]?.type, confirm)).overview,
               t('quickbooks:mapping.accepted', { count: suggestions }))}
           >
             <Check className="w-3.5 h-3.5" strokeWidth={2.2} aria-hidden="true" />
@@ -195,11 +239,12 @@ export function QuickBooksMapping({ initialTab = 'clients' }: {
                       label={label(row)}
                       busy={busy === `${row.type}:${row.localKey}`}
                       disabled={busy !== null}
+                      settling={settling}
                       onPick={() => setPicking(row)}
                       onAccept={() => row.suggestion && run(`${row.type}:${row.localKey}`,
-                        () => linkQuickBooks(row.type, row.localKey, row.suggestion!.qboId))}
-                      onUnlink={() => run(`${row.type}:${row.localKey}`, () => unlinkQuickBooks(row.type, row.localKey))}
-                      onCreate={() => run(`${row.type}:${row.localKey}`, () => createInQuickBooks(row.type, row.localKey),
+                        (confirm) => linkQuickBooks(row.type, row.localKey, row.suggestion!.qboId, confirm))}
+                      onUnlink={() => setUnlinking(row)}
+                      onCreate={() => run(`${row.type}:${row.localKey}`, (confirm) => createInQuickBooks(row.type, row.localKey, confirm),
                         t('quickbooks:mapping.created', { name: label(row) }))}
                     />
                   ))}
@@ -218,10 +263,62 @@ export function QuickBooksMapping({ initialTab = 'clients' }: {
           onPick={(option) => {
             const row = picking;
             setPicking(null);
-            void run(`${row.type}:${row.localKey}`, () => linkQuickBooks(row.type, row.localKey, option.qboId));
+            void run(`${row.type}:${row.localKey}`, (confirm) => linkQuickBooks(row.type, row.localKey, option.qboId, confirm));
           }}
         />
       )}
+
+      {/* «Quitar vínculo» always asks: it is one click away from what sends documents. */}
+      <BtModal
+        open={unlinking != null}
+        onOpenChange={(open) => { if (!open) setUnlinking(null); }}
+        kicker={t('quickbooks:mapping.unlinkConfirm.kicker')}
+        kickerTone="red"
+        title={unlinking ? t('quickbooks:mapping.unlinkConfirm.title', { name: label(unlinking) }) : ''}
+        footer={
+          <>
+            <SecondaryButton onClick={() => setUnlinking(null)}>{t('quickbooks:disconnect.cancel')}</SecondaryButton>
+            <DestroyButton
+              onClick={() => {
+                const row = unlinking;
+                setUnlinking(null);
+                if (row) void run(`${row.type}:${row.localKey}`, (confirm) => unlinkQuickBooks(row.type, row.localKey, confirm));
+              }}
+            >
+              {t('quickbooks:mapping.unlinkConfirm.yes')}
+            </DestroyButton>
+          </>
+        }
+      >
+        <p className="text-[13.5px] leading-[1.55] text-[#0A0A0A]">{t('quickbooks:mapping.unlinkConfirm.body')}</p>
+      </BtModal>
+
+      <BtModal
+        open={pending != null}
+        onOpenChange={(open) => { if (!open) setPending(null); }}
+        kicker={t('quickbooks:mapping.affects.kicker')}
+        kickerTone="red"
+        title={t('quickbooks:mapping.affects.title')}
+        footer={
+          <>
+            <SecondaryButton onClick={() => setPending(null)}>{t('quickbooks:disconnect.cancel')}</SecondaryButton>
+            <DestroyButton
+              onClick={() => {
+                const change = pending;
+                setPending(null);
+                if (change) void run(change.key, change.action, change.success, true);
+              }}
+            >
+              {t('quickbooks:mapping.affects.yes')}
+            </DestroyButton>
+          </>
+        }
+      >
+        <p className="text-[13.5px] leading-[1.55] text-[#0A0A0A]" data-testid="quickbooks-affects-count">
+          {t('quickbooks:mapping.affects.body', { count: pending?.count ?? 0 })}
+        </p>
+        <p className="mt-3 text-[12.5px] leading-[1.5] text-[#5A5346]">{t('quickbooks:mapping.affects.note')}</p>
+      </BtModal>
     </div>
   );
 }
@@ -302,11 +399,13 @@ function Capability({ on, label }: { on: boolean | null; label: string }) {
 
 // ── One row ─────────────────────────────────────────────────────────────────
 
-function MappingRow({ row, label, busy, disabled, onPick, onAccept, onUnlink, onCreate }: {
+function MappingRow({ row, label, busy, disabled, settling, onPick, onAccept, onUnlink, onCreate }: {
   row: QuickBooksMappingRow;
   label: string;
   busy: boolean;
   disabled: boolean;
+  /** Rows just changed: the button that writes in QuickBooks waits a moment. */
+  settling: boolean;
   onPick: () => void;
   onAccept: () => void;
   onUnlink: () => void;
@@ -372,7 +471,7 @@ function MappingRow({ row, label, busy, disabled, onPick, onAccept, onUnlink, on
               <Search className="w-3.5 h-3.5" strokeWidth={2} aria-hidden="true" />{t('mapping.pick')}
             </SecondaryButton>
             {QUICKBOOKS_CREATABLE.has(row.type) && (
-              <SecondaryButton onClick={onCreate} disabled={disabled}>
+              <SecondaryButton onClick={onCreate} disabled={disabled || settling}>
                 <Plus className="w-3.5 h-3.5" strokeWidth={2.2} aria-hidden="true" />{t('mapping.create')}
               </SecondaryButton>
             )}
