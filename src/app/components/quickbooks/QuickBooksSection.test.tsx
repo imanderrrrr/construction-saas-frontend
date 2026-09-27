@@ -140,6 +140,9 @@ describe('QuickBooksSection', () => {
 
     expect(text()).toContain('Tu QuickBooks todavía no está conectado');
     expect(text()).toContain('solo se puede conectar una empresa sandbox');
+    // Before the trip to Intuit, not only after a refusal: one company, one constructora.
+    expect(document.querySelector('[data-testid="quickbooks-one-company"]')?.textContent)
+      .toContain('Una empresa de QuickBooks solo puede estar conectada a una constructora de BuildTrack');
     await click('Conectar con QuickBooks');
 
     expect(calls).toContain(`POST ${BASE}/connect`);
@@ -224,6 +227,9 @@ describe('QuickBooksSection', () => {
 
     await click('Desconectar');
     expect(text()).toContain('¿Desconectar?');
+    // Disconnecting stops the payments read too: what stays counted is said up front.
+    expect(text()).toContain('lo pagado de los documentos enviados queda como lo dejó QuickBooks');
+    expect(text()).toContain('los pagos nuevos se registran aquí');
     expect(calls).not.toContain(`POST ${BASE}/disconnect`);
 
     await click('Sí, desconectar');

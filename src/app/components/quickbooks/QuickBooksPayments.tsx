@@ -34,6 +34,9 @@ export function QuickBooksPayments({ onOpenSync }: {
   const [loadFailed, setLoadFailed] = useState(false);
   const [busy, setBusy] = useState<'settings' | 'refresh' | null>(null);
   const [confirming, setConfirming] = useState(false);
+  // Switching off is asked too: what stays counted afterwards is not obvious
+  // (QuickBooks' figures and payments stay; new payments are registered here).
+  const [confirmingOff, setConfirmingOff] = useState(false);
 
   // State is only touched in the promise's callbacks, never synchronously in
   // the mount effect (react-hooks/set-state-in-effect).
@@ -126,7 +129,7 @@ export function QuickBooksPayments({ onOpenSync }: {
                 on={status.enabled}
                 label={t('payments.switch')}
                 disabled={busy !== null}
-                onToggle={() => (status.enabled ? void setEnabled(false) : setConfirming(true))}
+                onToggle={() => (status.enabled ? setConfirmingOff(true) : setConfirming(true))}
               />
               <span className={cn('text-[13.5px] font-semibold', status.enabled ? 'text-[#0A0A0A]' : 'text-[#8A8175]')}>
                 {status.enabled ? t('payments.on', { minutes: status.intervalMinutes }) : t('payments.off')}
@@ -200,6 +203,24 @@ export function QuickBooksPayments({ onOpenSync }: {
       >
         <p className="text-[13.5px] leading-[1.55] text-[#0A0A0A]">{t('payments.confirm.body')}</p>
         <p className="mt-3 text-[12.5px] leading-[1.5] text-[#5A5346]">{t('payments.confirm.note')}</p>
+      </BtModal>
+
+      <BtModal
+        open={confirmingOff}
+        onOpenChange={setConfirmingOff}
+        kicker={t('payments.confirmOff.kicker')}
+        title={t('payments.confirmOff.title')}
+        footer={
+          <>
+            <SecondaryButton onClick={() => setConfirmingOff(false)}>{t('disconnect.cancel')}</SecondaryButton>
+            <PrimaryButton onClick={() => { setConfirmingOff(false); void setEnabled(false); }}>
+              {t('payments.confirmOff.yes')}
+            </PrimaryButton>
+          </>
+        }
+      >
+        <p className="text-[13.5px] leading-[1.55] text-[#0A0A0A]">{t('payments.confirmOff.body')}</p>
+        <p className="mt-3 text-[12.5px] leading-[1.5] text-[#5A5346]">{t('payments.confirmOff.note')}</p>
       </BtModal>
     </div>
   );

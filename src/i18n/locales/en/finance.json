@@ -497,6 +497,8 @@
   "paymentOrigin.voidedInQuickBooksHelp": "Deleted, voided or unlinked in QuickBooks, so it no longer counts.",
   "paymentOrigin.notInQuickBooks": "Recorded in BuildTrack, not in QuickBooks",
   "paymentOrigin.notInQuickBooksHelp": "This document now reads its payments from QuickBooks, so this payment does not count. Record it in QuickBooks for it to count.",
+  "paymentOrigin.superseded": "Does not count (replaced by QuickBooks)",
+  "paymentOrigin.supersededHelp": "When this document's payments were read from QuickBooks, its paid amount became QuickBooks' figure and this payment recorded here stopped counting. It does not count again even if payment reading is switched off or QuickBooks is disconnected. If it is missing in QuickBooks, record it there.",
   "paymentOrigin.registerInQuickBooks": "Record it in QuickBooks; it will show up here on its own.",
   "projectFinancials.noProjects": "No projects with budget data found.",
   "projectFinancials.kpi.totalBudget": "Total Budget",

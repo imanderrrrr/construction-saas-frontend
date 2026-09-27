@@ -881,6 +881,7 @@ function DocumentDetail({ doc, dateLocale, onVoid, voiding }: {
                       source={p.source}
                       inQuickBooks={doc.paymentsInQuickBooks}
                       voided={p.voided}
+                      superseded={!!p.supersededAt}
                       qboPaymentId={p.qboPaymentId}
                     />
                   </div>

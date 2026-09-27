@@ -11,18 +11,22 @@ import { Tag } from './ui';
  * Once a document was sent to the tenant's QuickBooks and the constructora
  * reads its payments from there, what counts as paid is QuickBooks'. A payment
  * registered here before that stays in the history — never deleted — but no
- * longer counts, and says so until someone registers it in QuickBooks.
+ * longer counts, and says so until someone registers it in QuickBooks. Once a
+ * read replaced it, it says so for good: switching the read off or
+ * disconnecting does not make it count again.
  *
  * A payment recorded here on a document that never went to QuickBooks — every
  * payment of a constructora without QuickBooks — carries no tag at all: its
  * origin says nothing new. The tooltips sit on a wrapper: Mono forwards
  * nothing but className.
  */
-export function PaymentOriginTag({ source, inQuickBooks, voided, qboPaymentId, className }: {
+export function PaymentOriginTag({ source, inQuickBooks, voided, qboPaymentId, superseded, className }: {
   source?: PaymentSource;
   /** The document's payments come from QuickBooks. */
   inQuickBooks?: boolean;
   voided?: boolean;
+  /** Registered here and replaced by a QuickBooks read: it never counts again. */
+  superseded?: boolean;
   qboPaymentId?: string | null;
   className?: string;
 }) {
@@ -38,6 +42,13 @@ export function PaymentOriginTag({ source, inQuickBooks, voided, qboPaymentId, c
             <Tag tone="red">{t('paymentOrigin.voidedInQuickBooks')}</Tag>
           </span>
         )}
+      </span>
+    );
+  }
+  if (superseded) {
+    return (
+      <span className={className} title={t('paymentOrigin.supersededHelp')} data-testid="payment-origin" data-origin="superseded">
+        <Tag tone="orangeDashed">{t('paymentOrigin.superseded')}</Tag>
       </span>
     );
   }
