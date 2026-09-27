@@ -22,12 +22,15 @@ import {
   type QuickBooksMappingTab, type QuickBooksSyncOverview, type QuickBooksSyncRow, type QuickBooksSyncRunResult,
   type QuickBooksSyncSettings, type QuickBooksSyncState, type QuickBooksSyncStateFilter, type QuickBooksSyncType,
 } from '../../services/quickbooks';
-import { Band, Block, Bones, LoadFailed, Switch, TabButton, Tag, money } from './bits';
+import { Band, Block, Bones, LoadFailed, Switch, TabButton, Tag, money, onTabKey } from './bits';
 import { connectionStop, describeError, loadFailureKey } from './errors';
 
 const PAGE_SIZE = 25;
 
 const STATE_FILTERS: QuickBooksSyncStateFilter[] = ['ALL', 'READY', 'BLOCKED', 'FAILED', 'CHANGED', 'SENT', 'SKIPPED', 'CLOSED'];
+/** Ids that tie each filter tab to the list it shows (one list on the page). */
+const filterTabId = (key: QuickBooksSyncStateFilter) => `qb-sync-filter-${key}`;
+const SYNC_PANEL = 'qb-sync-panel';
 
 /** How each state is drawn: the square light and its colour, in the section's grammar. */
 const STATE_LIGHT: Record<QuickBooksSyncState, { filled: boolean; color: string; pulse?: boolean }> = {
@@ -196,9 +199,20 @@ export function QuickBooksSync({ onOpenMapping, onConnectionStop }: {
         testId="quickbooks-sync-list"
       >
         <div className="flex flex-col gap-3 border-b border-[#EDE7DB] px-2 md:flex-row md:items-center md:justify-between md:px-3">
-          <div role="tablist" aria-label={t('sync.filter.state')} className="flex flex-wrap">
+          <div
+            role="tablist"
+            aria-label={t('sync.filter.state')}
+            onKeyDown={e => onTabKey(e, STATE_FILTERS, stateFilter, key => { setStateFilter(key); setPage(0); }, filterTabId)}
+            className="flex flex-wrap"
+          >
             {STATE_FILTERS.map(key => (
-              <TabButton key={key} active={key === stateFilter} onClick={() => { setStateFilter(key); setPage(0); }}>
+              <TabButton
+                key={key}
+                id={filterTabId(key)}
+                controls={SYNC_PANEL}
+                active={key === stateFilter}
+                onClick={() => { setStateFilter(key); setPage(0); }}
+              >
                 {t(`sync.filter.${key}`)}
               </TabButton>
             ))}
@@ -218,11 +232,11 @@ export function QuickBooksSync({ onOpenMapping, onConnectionStop }: {
         </div>
 
         {data.rows.length === 0 ? (
-          <p className="px-4 py-10 text-center text-[13px] text-[#A69C8D] md:px-[18px]">
+          <p role="tabpanel" id={SYNC_PANEL} aria-labelledby={filterTabId(stateFilter)} className="px-4 py-10 text-center text-[13px] text-[#A69C8D] md:px-[18px]">
             {settings.cutoverDate ? t('sync.empty') : t('sync.list.noCutover')}
           </p>
         ) : (
-          <ul className="divide-y divide-[#EDE7DB]">
+          <div role="tabpanel" id={SYNC_PANEL} aria-labelledby={filterTabId(stateFilter)}><ul className="divide-y divide-[#EDE7DB]">
             {data.rows.map(row => (
               <SyncRow
                 key={`${row.type}:${row.docId}`}
@@ -239,7 +253,7 @@ export function QuickBooksSync({ onOpenMapping, onConnectionStop }: {
                 onOpenMapping={onOpenMapping}
               />
             ))}
-          </ul>
+          </ul></div>
         )}
 
         <Pager
@@ -393,9 +407,11 @@ function SettingsBlock({ settings, busy, lang, onSave, onOpenMapping, when }: {
 function Counter({ value, label, alarm = false }: { value: number; label: string; alarm?: boolean }) {
   const hot = alarm && value > 0;
   return (
-    <div className="border-b border-r border-[#EDE7DB] px-4 py-3 last:border-r-0 sm:border-b-0 [&:nth-child(2n)]:border-r-0 sm:[&:nth-child(2n)]:border-r">
-      <dd className={cn('font-bt-display text-[26px] font-extrabold leading-none', hot ? 'text-[#B3402A]' : 'text-[#0A0A0A]')}>{value}</dd>
+    // The term before its value, as a list of terms is read (audit B17); the
+    // column is reversed so the figure still sits on top.
+    <div className="flex flex-col-reverse border-b border-r border-[#EDE7DB] px-4 py-3 last:border-r-0 sm:border-b-0 [&:nth-child(2n)]:border-r-0 sm:[&:nth-child(2n)]:border-r">
       <dt className="mt-1.5"><Mono className={cn('text-[9.5px] tracking-[0.12em]', hot ? 'text-[#B3402A]' : 'text-[#8A8175]')}>{label}</Mono></dt>
+      <dd className={cn('font-bt-display text-[26px] font-extrabold leading-none', hot ? 'text-[#B3402A]' : 'text-[#0A0A0A]')}>{value}</dd>
     </div>
   );
 }

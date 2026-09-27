@@ -22,10 +22,13 @@ import {
   QUICKBOOKS_REFRESH_COOLDOWN_CODE, refreshQuickBooksCompany, searchQuickBooksOptions, unlinkQuickBooks,
   type QuickBooksCompany, type QuickBooksMappingOverview, type QuickBooksMappingRow, type QuickBooksMappingTab, type QuickBooksOption,
 } from '../../services/quickbooks';
-import { Band, Block, Bones, LoadFailed, TabButton, Tag, money } from './bits';
+import { Band, Block, Bones, LoadFailed, TabButton, Tag, money, onTabKey } from './bits';
 import { describeError, loadFailureKey } from './errors';
 
 type Tab = QuickBooksMappingTab;
+/** Ids that tie each list's tab to the panel it shows (one list on the page). */
+const mappingTabId = (key: Tab) => `qb-mapping-tab-${key}`;
+const MAPPING_PANEL = 'qb-mapping-panel';
 const TABS: Tab[] = ['clients', 'projects', 'vendors', 'categories', 'invoiceItem'];
 
 /** finance:payable.category.* keys, by PayableCategory. */
@@ -154,19 +157,24 @@ export function QuickBooksMapping({ initialTab = 'clients' }: {
           </SecondaryButton>
         ) : undefined}
       >
-        <div role="tablist" className="flex flex-wrap border-b border-[#EDE7DB] px-2 md:px-3">
+        <div
+          role="tablist"
+          aria-label={t('quickbooks:mapping.title')}
+          onKeyDown={e => onTabKey(e, TABS, tab, setTab, mappingTabId)}
+          className="flex flex-wrap border-b border-[#EDE7DB] px-2 md:px-3"
+        >
           {TABS.map(key => {
             const list = overview[key];
             const linked = list.filter(r => r.link).length;
             return (
-              <TabButton key={key} active={key === tab} onClick={() => setTab(key)}>
+              <TabButton key={key} id={mappingTabId(key)} controls={MAPPING_PANEL} active={key === tab} onClick={() => setTab(key)}>
                 {t(`quickbooks:mapping.tab.${key}`)} <span className="text-[#A69C8D]">{linked}/{list.length}</span>
               </TabButton>
             );
           })}
         </div>
 
-        <div className="px-4 py-4 md:px-[18px]">
+        <div role="tabpanel" id={MAPPING_PANEL} aria-labelledby={mappingTabId(tab)} className="px-4 py-4 md:px-[18px]">
           {!read ? (
             <p className="text-[13px] leading-[1.5] text-[#5A5346]">{t('quickbooks:mapping.needsRefresh')}</p>
           ) : (
@@ -279,11 +287,15 @@ function CompanyBlock({ company, refreshing, disabled, onRefresh, when }: {
 }
 
 function Capability({ on, label }: { on: boolean | null; label: string }) {
+  const { t } = useTranslation('quickbooks');
   const Icon = on ? Check : Minus;
   return (
     <li className={cn('flex items-center gap-2 text-[13px]', on ? 'text-[#0A0A0A]' : 'text-[#A69C8D]')}>
       <Icon className={cn('h-3.5 w-3.5 flex-shrink-0', on ? 'text-[#2E7D4F]' : 'text-[#DBD0BB]')} strokeWidth={2.2} aria-hidden="true" />
-      {label}
+      {/* Said in words, not only by the colour and the mark (audit B17). */}
+      <span>
+        {label}: {t(on ? 'company.cap.state.on' : on === false ? 'company.cap.state.off' : 'company.cap.state.unknown')}
+      </span>
     </li>
   );
 }
@@ -443,7 +455,7 @@ function OptionPicker({ row, label, onClose, onPick }: {
                   onClick={() => onPick(o)}
                   className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-[13.5px] text-[#0A0A0A] transition-colors hover:bg-[#FBEDE0] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-[#F97316] focus-visible:outline-offset-[-2px]"
                 >
-                  <span className="min-w-0 truncate">{o.fullName ?? o.name}</span>
+                  <QualifiedName name={o.fullName ?? o.name} />
                   {tag(o) && <Tag>{tag(o)}</Tag>}
                 </button>
               </li>
@@ -452,5 +464,19 @@ function OptionPicker({ row, label, onClose, onPick }: {
         )}
       </div>
     </BtModal>
+  );
+}
+
+/**
+ * A QuickBooks name in full, wrapping instead of cut: in «Cliente:Obra» a cut
+ * lost exactly the obra (audit B17). The parents are quieter than the record.
+ */
+function QualifiedName({ name }: { name: string }) {
+  const cut = name.lastIndexOf(':');
+  return (
+    <span className="min-w-0 break-words">
+      {cut > 0 && <span className="text-[#8A8175]">{name.slice(0, cut + 1)}</span>}
+      {cut > 0 ? name.slice(cut + 1) : name}
+    </span>
   );
 }

@@ -662,8 +662,9 @@ function BillRow({ bill, today, dateLocale, selected, onSelect, onOpen, onPay }:
     : <span className="block w-[15px]" />;
   const whyOff = inQuickBooks ? t('finance:paymentOrigin.registerInQuickBooks') : undefined;
   const payButton = !settled && (
-    // A disabled button fires no hover, so the reason sits on its wrapper.
-    <span title={whyOff} className="inline-flex">
+    // A disabled button fires no hover, so the reason sits on its wrapper —
+    // and, short, under the button: seen without hovering (audit B17).
+    <span title={whyOff} className="inline-flex flex-col items-end">
       <button
         type="button"
         onClick={onPay}
@@ -672,6 +673,9 @@ function BillRow({ bill, today, dateLocale, selected, onSelect, onOpen, onPay }:
       >
         {t('finance:payable.action.pay')}
       </button>
+      {inQuickBooks && (
+        <Mono className="mt-1 block text-[9px] tracking-[0.06em] text-[#C2410C] normal-case">{t('finance:paymentOrigin.registerThere')}</Mono>
+      )}
     </span>
   );
   const dueBlock = settled

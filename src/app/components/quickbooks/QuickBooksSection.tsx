@@ -23,7 +23,7 @@ import {
   disconnectQuickBooks, getQuickBooksStatus, openIntuitConsent, QUICKBOOKS_SUCCESS_OUTCOMES, startQuickBooksConnect,
   testQuickBooksConnection, type QuickBooksMappingTab, type QuickBooksOutcome, type QuickBooksStatus,
 } from '../../services/quickbooks';
-import { Band, Block, Bones, Explain, Fact, LoadFailed, StateChip, TabButton, Tag } from './bits';
+import { Band, Block, Bones, Explain, Fact, LoadFailed, StateChip, TabButton, Tag, onTabKey } from './bits';
 import { QuickBooksMapping } from './QuickBooksMapping';
 import { QuickBooksSync } from './QuickBooksSync';
 import { QuickBooksPayments } from './QuickBooksPayments';
@@ -32,6 +32,9 @@ import { describeError, loadFailureKey } from './errors';
 type Busy = 'connect' | 'test' | 'disconnect' | null;
 type Section = 'mapping' | 'sync' | 'payments';
 const SECTIONS: Section[] = ['mapping', 'sync', 'payments'];
+/** Ids that tie each tab to the panel it shows (one section on the page). */
+const sectionTabId = (key: Section) => `qb-section-tab-${key}`;
+const SECTION_PANEL = 'qb-section-panel';
 
 export function QuickBooksSection({ outcome = null }: {
   /** How the last trip through Intuit ended, read from `?quickbooks=` by the dashboard. */
@@ -238,16 +241,24 @@ export function QuickBooksSection({ outcome = null }: {
 
       {status?.configured && status.state === 'ACTIVE' && (
         <>
-          <div role="tablist" aria-label={t('section.label')} className="flex border-b border-[#E7E1D5]" data-testid="quickbooks-sections">
+          <div
+            role="tablist"
+            aria-label={t('section.label')}
+            onKeyDown={e => onTabKey(e, SECTIONS, section, setSection, sectionTabId)}
+            className="flex border-b border-[#E7E1D5]"
+            data-testid="quickbooks-sections"
+          >
             {SECTIONS.map(key => (
-              <TabButton key={key} active={key === section} onClick={() => setSection(key)}>
+              <TabButton key={key} id={sectionTabId(key)} controls={SECTION_PANEL} active={key === section} onClick={() => setSection(key)}>
                 {t(`section.${key}`)}
               </TabButton>
             ))}
           </div>
-          {section === 'mapping' && <QuickBooksMapping key={mappingVisit} initialTab={mappingTab} />}
-          {section === 'sync' && <QuickBooksSync onOpenMapping={openMapping} onConnectionStop={onConnectionStop} />}
-          {section === 'payments' && <QuickBooksPayments onOpenSync={() => setSection('sync')} onConnectionStop={onConnectionStop} />}
+          <div role="tabpanel" id={SECTION_PANEL} aria-labelledby={sectionTabId(section)}>
+            {section === 'mapping' && <QuickBooksMapping key={mappingVisit} initialTab={mappingTab} />}
+            {section === 'sync' && <QuickBooksSync onOpenMapping={openMapping} onConnectionStop={onConnectionStop} />}
+            {section === 'payments' && <QuickBooksPayments onOpenSync={() => setSection('sync')} onConnectionStop={onConnectionStop} />}
+          </div>
         </>
       )}
 

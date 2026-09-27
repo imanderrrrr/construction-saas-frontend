@@ -155,6 +155,9 @@ describe('Cobrar — un documento cuyos cobros vienen de QuickBooks', () => {
     expect(qbDesk.parentElement!.getAttribute('title')).toBe('finance:paymentOrigin.registerInQuickBooks');
     expect(hereDesk.disabled).toBe(false);
     expect(hereDesk.parentElement!.getAttribute('title')).toBeNull();
+    // The reason is also written under the button — seen without hovering (audit B17).
+    expect(qbDesk.parentElement!.textContent).toContain('finance:paymentOrigin.registerThere');
+    expect(hereDesk.parentElement!.textContent).not.toContain('finance:paymentOrigin.registerThere');
   });
 
   it('counts in «Cobrado este mes» only what the server counts', async () => {
@@ -206,6 +209,9 @@ describe('Pagar — una cuenta cuyos pagos vienen de QuickBooks', () => {
     expect(qbDesk.disabled).toBe(true);
     expect(qbDesk.parentElement!.getAttribute('title')).toBe('finance:paymentOrigin.registerInQuickBooks');
     expect(hereDesk.disabled).toBe(false);
+    // The reason is also written under the button — seen without hovering (audit B17).
+    expect(qbDesk.parentElement!.textContent).toContain('finance:paymentOrigin.registerThere');
+    expect(hereDesk.parentElement!.textContent).not.toContain('finance:paymentOrigin.registerThere');
 
     // One tick per payable bill (desk + phone), none for the QuickBooks one.
     const ticks = [...container.querySelectorAll('input[type="checkbox"][aria-label="finance:payable.batch.selectOne"]')];

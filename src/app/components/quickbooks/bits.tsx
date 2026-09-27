@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { KeyboardEvent, ReactNode } from 'react';
 import { AlertTriangle, CheckCircle2, Info } from 'lucide-react';
 import { cn } from '../ui/utils';
 import { Mono } from '../projects/bt';
@@ -130,7 +130,7 @@ export function LoadFailed({ title, body, retryLabel, onRetry, testId }: {
   title: string; body: string; retryLabel: string; onRetry: () => void; testId?: string;
 }) {
   return (
-    <div className="bg-white border border-[#E7E1D5] border-l-[3px] border-l-[#B3402A] px-4 py-[15px]" data-testid={testId}>
+    <div role="alert" className="bg-white border border-[#E7E1D5] border-l-[3px] border-l-[#B3402A] px-4 py-[15px]" data-testid={testId}>
       <div className="flex items-start gap-3 flex-wrap">
         <span className="font-bt-display font-extrabold text-[22px] leading-none text-[#B3402A] mt-[1px]" aria-hidden="true">!</span>
         <div className="min-w-0 flex-1">
@@ -153,12 +153,26 @@ export function Bones({ widths }: { widths: string[] }) {
 }
 
 /** A square tab of the mapping block. */
-export function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
+/**
+ * One tab. With the ARIA tabs pattern (audit B17): only the selected tab is
+ * in the Tab order — the list moves with [onTabKey] — and [controls] names
+ * the tabpanel it shows.
+ */
+export function TabButton({ active, onClick, children, id, controls }: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+  id?: string;
+  controls?: string;
+}) {
   return (
     <button
       type="button"
       role="tab"
+      id={id}
       aria-selected={active}
+      aria-controls={controls}
+      tabIndex={active ? 0 : -1}
       onClick={onClick}
       className={cn(
         'px-3 py-3 font-bt-mono text-[10.5px] font-semibold uppercase tracking-[0.1em] transition-colors border-b-2 -mb-px md:px-4',
@@ -169,6 +183,25 @@ export function TabButton({ active, onClick, children }: { active: boolean; onCl
       {children}
     </button>
   );
+}
+
+/**
+ * The keyboard of a tab list: the arrow keys, Home and End move to another
+ * tab, select it and take the focus there (the ARIA tabs pattern).
+ */
+export function onTabKey<K extends string>(
+  e: KeyboardEvent, keys: readonly K[], active: K, select: (key: K) => void, tabId: (key: K) => string,
+): void {
+  const i = keys.indexOf(active);
+  const next = e.key === 'ArrowRight' ? (i + 1) % keys.length
+    : e.key === 'ArrowLeft' ? (i - 1 + keys.length) % keys.length
+      : e.key === 'Home' ? 0
+        : e.key === 'End' ? keys.length - 1
+          : null;
+  if (next == null) return;
+  e.preventDefault();
+  select(keys[next]);
+  document.getElementById(tabId(keys[next]))?.focus();
 }
 
 /** A square on/off switch in the section's grammar: filled track = on. */
