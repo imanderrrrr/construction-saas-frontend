@@ -1,6 +1,6 @@
 {
   "page.title": "Suscripción",
-  "page.subtitle": "Revisá el estado de tu suscripción de BuildTrack. Cualquier cambio de plan lo coordinamos con vos por correo.",
+  "page.subtitle": "Revisa el estado de tu suscripción de BuildTrack. Cualquier cambio de plan lo coordinamos contigo por correo.",
   "page.backToDashboard": "Volver al panel",
 
   "toggle.monthly": "Mensual",
@@ -10,11 +10,11 @@
 
   "activation.required.title": "Tu espacio de trabajo no está activo.",
   "activation.required.body": "Tu cuenta fue creada, pero el acceso a BuildTrack está pausado.",
-  "activation.required.cta": "Escribinos y te activamos el acceso el mismo día.",
+  "activation.required.cta": "Escríbenos y te activamos el acceso el mismo día.",
   "activation.pending.title": "Pago en confirmación",
   "activation.pending.body": "Estamos esperando la confirmación del pago. Hasta entonces, el espacio de trabajo queda bloqueado.",
   "activation.statusError.title": "No pudimos verificar el estado de tu suscripción.",
-  "activation.statusError.body": "Actualizá la página o contactá a soporte. El espacio de trabajo queda bloqueado hasta poder confirmar tu suscripción.",
+  "activation.statusError.body": "Actualiza la página o contacta a soporte. El espacio de trabajo queda bloqueado hasta poder confirmar tu suscripción.",
   "activation.signOut": "Cerrar sesión",
 
   "status.title": "Suscripción actual",
@@ -23,7 +23,7 @@
   "status.refreshing": "Actualizando estado",
   "status.error": "El estado no está disponible en este momento.",
   "status.empty.title": "Sin suscripción todavía",
-  "status.empty.body": "Escribinos y configuramos tu suscripción.",
+  "status.empty.body": "Escríbenos y configuramos tu suscripción.",
   "status.trialFlag": "En prueba",
   "status.paddleEnv.sandbox": "Sandbox",
   "status.paddleEnv.live": "Producción",
@@ -38,7 +38,7 @@
   "status.field.lastEventAt": "Último evento (fecha)",
   "status.field.updatedAt": "Última actualización",
   "status.cancelAtPeriodEnd.title": "Cancelación programada",
-  "status.cancelAtPeriodEnd.body": "Tu suscripción quedará cancelada al final del período actual ({{date}}). Mientras tanto seguís con acceso completo.",
+  "status.cancelAtPeriodEnd.body": "Tu suscripción quedará cancelada al final del período actual ({{date}}). Mientras tanto sigues con acceso completo.",
 
   "status.badge.active": "Activa",
   "status.badge.trialing": "Prueba activa",
@@ -64,18 +64,18 @@
   "status.headline.unknown": "Estado de suscripción inesperado.",
   "status.headline.error": "No pudimos verificar el estado de tu suscripción.",
 
-  "status.body.active": "Tenés acceso completo a BuildTrack. Si necesitás mover tu plan, escribinos y lo hacemos por vos.",
-  "status.body.trialing": "Estás usando BuildTrack en período de prueba. Si necesitás mover tu plan, escribinos y lo hacemos por vos.",
-  "status.body.pending": "Estamos esperando la confirmación del pago. Actualizá el estado en unos minutos; si sigue igual, escribinos.",
-  "status.body.missing": "Todavía no tenés una suscripción activa. Escribinos y la configuramos por vos.",
-  "status.body.pastDue": "Tu acceso está pausado por un pago vencido. Escribinos y lo regularizamos el mismo día.",
-  "status.body.paymentRequired": "Tu acceso está pausado: hace falta actualizar el método de pago. Escribinos y lo resolvemos el mismo día.",
-  "status.body.canceled": "Tu suscripción está cancelada y el acceso está pausado. Escribinos y lo reactivamos el mismo día.",
-  "status.body.expired": "Tu acceso está pausado. Escribinos y lo reactivamos el mismo día.",
-  "status.body.incomplete": "La configuración de tu suscripción quedó incompleta. Escribinos y la terminamos por vos.",
-  "status.body.unknown": "Actualizá el estado — si el problema persiste, escribinos.",
+  "status.body.active": "Tienes acceso completo a BuildTrack. Si necesitas mover tu plan, escríbenos y lo hacemos por ti.",
+  "status.body.trialing": "Estás usando BuildTrack en período de prueba. Si necesitas mover tu plan, escríbenos y lo hacemos por ti.",
+  "status.body.pending": "Estamos esperando la confirmación del pago. Actualiza el estado en unos minutos; si sigue igual, escríbenos.",
+  "status.body.missing": "Todavía no tienes una suscripción activa. Escríbenos y la configuramos por ti.",
+  "status.body.pastDue": "Tu acceso está pausado por un pago vencido. Escríbenos y lo regularizamos el mismo día.",
+  "status.body.paymentRequired": "Tu acceso está pausado: hace falta actualizar el método de pago. Escríbenos y lo resolvemos el mismo día.",
+  "status.body.canceled": "Tu suscripción está cancelada y el acceso está pausado. Escríbenos y lo reactivamos el mismo día.",
+  "status.body.expired": "Tu acceso está pausado. Escríbenos y lo reactivamos el mismo día.",
+  "status.body.incomplete": "La configuración de tu suscripción quedó incompleta. Escríbenos y la terminamos por ti.",
+  "status.body.unknown": "Actualiza el estado — si el problema persiste, escríbenos.",
   "status.body.error": "Actualiza la página o inténtalo de nuevo. Si el problema continúa, contacta a soporte.",
 
-  "status.cta.contact": "Escribinos",
+  "status.cta.contact": "Escríbenos",
   "status.cta.contactHint": "Te respondemos el mismo día hábil."
 }

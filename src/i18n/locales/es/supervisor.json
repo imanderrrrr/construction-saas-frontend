@@ -52,7 +52,7 @@
   "projects.daysAgo_one": "hace {{count}} día",
   "projects.daysAgo_other": "hace {{count}} días",
   "projects.empty.title": "No se encontraron proyectos",
-  "projects.empty.desc": "Probá cambiando el filtro o contactá a tu administrador.",
+  "projects.empty.desc": "Prueba cambiando el filtro o contacta a tu administrador.",
 
   "dash.welcome": "¡Bienvenido, {{username}}!",
   "dash.overview": "Aquí está tu resumen operativo del día.",
@@ -89,7 +89,7 @@
   "dash.punchedWithoutGps": "marcó sin señal GPS",
   "dash.projectWithoutWorkArea": "marcó en un proyecto sin área definida",
   "dash.noGeofenceCount": "· {{count}} sin verificar",
-  "dash.setUpProjectArea": "Configurá el área del proyecto para poder verificar las marcas.",
+  "dash.setUpProjectArea": "Configura el área del proyecto para poder verificar las marcas.",
   "dash.viewInMaps": "Ver en Google Maps",
 
   "dash.errorTitle": "No se pudieron cargar los datos del panel",
