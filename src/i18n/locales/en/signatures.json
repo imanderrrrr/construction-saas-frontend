@@ -57,7 +57,7 @@
   "panel.signedBy": "Signed by {{name}} ({{title}}) on {{date}}",
   "panel.viewSignature": "View the signature",
   "panel.hash": "Document fingerprint",
-  "panel.recipientEmail": "Signer's email",
+  "panel.recipientEmail": "Signer's email (optional)",
   "panel.recipientName": "Signer's name (optional)",
   "panel.send": "Send request",
   "panel.cancel": "Cancel",
@@ -65,5 +65,7 @@
   "panel.declineReason": "Reason: {{reason}}",
   "panel.error": "The operation could not be completed. Please try again.",
   "panel.documentChanged": "Heads up: this invoice changed after the link went out.",
-  "panel.documentChangedHint": "The client sees and signs the version that was sent. To have them sign the new one, request the signature again."
+  "panel.documentChangedHint": "The client sees and signs the version that was sent. To have them sign the new one, request the signature again.",
+  "panel.signedDocumentChanged": "Heads up: this invoice changed after it was signed. The signature belongs to the earlier version.",
+  "panel.signedDocumentChangedHint": "The PDF no longer prints that signature. To have the new version signed, request the signature again."
 }

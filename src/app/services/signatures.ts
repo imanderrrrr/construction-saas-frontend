@@ -42,6 +42,14 @@ export interface SignatureRequestState {
    * not invisible on our side too.
    */
   documentChanged: boolean;
+  /**
+   * The document was edited AFTER it was signed. The counterpart of
+   * `documentChanged` for a SIGNED request: the signature is still evidence
+   * of the version it was put on, but it does not cover the current one. The
+   * panel warns and offers to ask again; the PDF prints a notice instead of
+   * the stroke. Editing is not blocked.
+   */
+  documentChangedSinceSigned: boolean;
 }
 
 export interface CreateSignatureRequestBody {
@@ -136,9 +144,20 @@ export function signatureImageUrl(signatureRequestId: number): string {
  * not signed (or the stored image cannot be read). Resolves to undefined on
  * ANY failure on purpose: a signature we cannot fetch must degrade to the
  * blank ruled line the PDF always printed, never block the download.
+ *
+ * `documentChangedSinceSigned` travels with it: the PDF is drawn from the
+ * CURRENT row, so when the invoice moved after the signature the stroke must
+ * not be printed under numbers nobody signed.
  */
 export async function loadSignatureForPdf(receivableId: number): Promise<
-  | { imageDataUrl: string; signerName: string; signerTitle: string; signedAt: string; documentHash: string }
+  | {
+      imageDataUrl: string;
+      signerName: string;
+      signerTitle: string;
+      signedAt: string;
+      documentHash: string;
+      documentChangedSinceSigned: boolean;
+    }
   | undefined
 > {
   try {
@@ -163,6 +182,7 @@ export async function loadSignatureForPdf(receivableId: number): Promise<
       signerTitle: state.signerTitle ?? '',
       signedAt: state.signedAt,
       documentHash: state.documentHash,
+      documentChangedSinceSigned: state.documentChangedSinceSigned === true,
     };
   } catch {
     return undefined;

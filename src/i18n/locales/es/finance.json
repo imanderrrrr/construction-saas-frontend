@@ -767,6 +767,7 @@
   "invoice.pdf.pendingApproval": "Pendiente de aprobación · no es un cobro",
   "invoice.pdf.signedOn": "Firmado el {{when}}",
   "invoice.pdf.fingerprint": "Huella del documento (SHA-256): {{hash}}",
+  "invoice.pdf.signedEarlierVersion": "Firmado sobre una versión anterior de este documento (huella {{hash}}) el {{when}}. Esta versión no está firmada.",
   "invoice.pdf.issuedWith": "Documento emitido con BuildTrack",
   "invoice.pdf.units_one": "{{count}} unidad",
   "invoice.pdf.units_other": "{{count}} unidades",

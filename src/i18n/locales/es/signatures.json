@@ -57,7 +57,7 @@
   "panel.signedBy": "Firmó {{name}} ({{title}}) el {{date}}",
   "panel.viewSignature": "Ver la firma",
   "panel.hash": "Huella del documento",
-  "panel.recipientEmail": "Correo de quien firma",
+  "panel.recipientEmail": "Correo de quien firma (opcional)",
   "panel.recipientName": "Nombre de quien firma (opcional)",
   "panel.send": "Enviar solicitud",
   "panel.cancel": "Cancelar",
@@ -65,5 +65,7 @@
   "panel.declineReason": "Motivo: {{reason}}",
   "panel.error": "No se pudo completar la operación. Inténtalo de nuevo.",
   "panel.documentChanged": "Ojo: la factura cambió después de mandar el enlace.",
-  "panel.documentChangedHint": "El cliente ve y firma la versión que se le mandó. Si quieres que firme la nueva, pide la firma otra vez."
+  "panel.documentChangedHint": "El cliente ve y firma la versión que se le mandó. Si quieres que firme la nueva, pide la firma otra vez.",
+  "panel.signedDocumentChanged": "Ojo: la factura cambió después de que la firmaron. La firma es de la versión anterior.",
+  "panel.signedDocumentChangedHint": "El PDF ya no imprime esa firma. Si quieres que firmen la versión nueva, pide la firma de nuevo."
 }
