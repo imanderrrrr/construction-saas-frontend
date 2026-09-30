@@ -93,7 +93,15 @@ export const SECTION_TOUR_STEPS: Record<string, string[]> = {
   // money, its leading figure, how its list is grouped, and the verb it owns.
   // Every anchor is a container that exists while loading, on an error and on
   // an empty account, so `visibleSteps()` never silently shrinks the tour.
-  'accounts-receivable': ['header', 'overdue', 'rows', 'views'],
+  //
+  // `signature` describes the block at the end of an open document, which
+  // only exists with a document open. Like the T&M `sign` stop, it borrows a
+  // zone that is always there: while no document is open, ReceivablesScreen
+  // puts the anchor on a wrapper of the rows (the copy says to open one);
+  // with a document open it sits on the block itself, so «Ver cómo» on the
+  // invoice-created notice — which opens the document first — rings the
+  // real thing. One element carries the anchor at any time.
+  'accounts-receivable': ['header', 'overdue', 'rows', 'views', 'signature'],
   'accounts-payable': ['header', 'week', 'lanes', 'new-bill'],
   audit: ['kpis', 'filters', 'list'],
   // Tiempo y material. `tm-field` doubles as the supervisor panel's tour (its
