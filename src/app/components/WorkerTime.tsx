@@ -5,7 +5,7 @@ import {
   Calendar, ChevronDown, AlertCircle, CheckCircle,
   RefreshCw, Loader2, Clock, MapPin, AlertTriangle, Car, X,
 } from 'lucide-react';
-import { getStoredRole } from '../lib/api';
+import { ApiError, getStoredRole } from '../lib/api';
 import { Button } from './ui/button';
 import { TimePunchButton, PunchState } from './phase2/TimePunchButton';
 import { LocationIndicator } from './phase2/LocationIndicator';
@@ -15,14 +15,13 @@ import {
 } from './ui/dialog';
 import {
   TimeEventType, TIME_EVENT_SEQUENCE, LocationStatus, WorkerProject,
-  type WorkerState,
 } from '../types';
 import { isProjectClosed } from '../helpers/project-utils';
 import { ClosedProjectBanner } from './ClosedProjectBanner';
 import { FIELD_LIMITS } from '../../shared/fieldLimits';
 import {
   getMyProjects, createTimeEvent, getMyRecords, haversineMeters,
-  getWorkerState, cancelTransit, disputeTransit,
+  cancelTransit, disputeTransit, currentRecord, currentTransit, deriveWorkerState, isTransitReviewed,
   type TimeEventResponse, type TimeRecordResponse,
 } from '../services/time';
 
@@ -86,8 +85,10 @@ export function WorkerTime({ username }: { username: string }) {
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [showProjectPicker, setShowProjectPicker] = useState(false);
 
-  // -- Day state (derived from today's record)
-  const [todayRecord, setTodayRecord] = useState<TimeRecordResponse | null>(null);
+  // -- Day state: today's records on EVERY project, as last fetched for
+  // `projectId`. The punch grid works on that project's record in force; the
+  // transit in progress and the worker's state are the whole day's.
+  const [day, setDay] = useState<{ projectId: number; records: TimeRecordResponse[] } | null>(null);
   const [loadingRecord, setLoadingRecord] = useState(false);
 
   // -- Geolocation
@@ -106,22 +107,30 @@ export function WorkerTime({ username }: { username: string }) {
   // -- Auto check-in flag
   const autoCheckedIn = useRef(false);
 
-  // -- Worker state
-  const [workerState, setWorkerState] = useState<WorkerState>('OFF_DUTY');
-
   // -- Transit
   const [showTransitPrompt, setShowTransitPrompt] = useState(false);
   const [transitDestination, setTransitDestination] = useState<WorkerProject | null>(null);
   const [transitSubmitting, setTransitSubmitting] = useState(false);
   const [cancellingTransit, setCancellingTransit] = useState(false);
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  // The cancel dialog and the dispute form hold the id of the transit they were
+  // opened for (see showCancelConfirm / showDisputeForm below).
+  const [cancelConfirmFor, setCancelConfirmFor] = useState<number | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelCustomReason, setCancelCustomReason] = useState('');
-  const [showDisputeForm, setShowDisputeForm] = useState(false);
+  const [disputeFormFor, setDisputeFormFor] = useState<number | null>(null);
   const [disputeReason, setDisputeReason] = useState('');
   const [submittingDispute, setSubmittingDispute] = useState(false);
 
   // === Derived state ====================================================
+  const dayRecords = day?.records ?? [];
+  // A project can hold several records a day: work on the one in force.
+  const todayRecord = day
+    ? currentRecord(dayRecords.filter(r => r.projectId === day.projectId))
+    : null;
+  // The day's last punch, wherever it landed — the server's rule, not a
+  // precedence over GET /worker/my-state (see deriveWorkerState).
+  const workerState = deriveWorkerState(dayRecords);
+
   const recorded: Partial<Record<TimeEventType, string>> = {};
   // Lookup of reviewed events (status != PENDING) keyed by event type
   const eventReviews: Partial<Record<TimeEventType, {
@@ -149,9 +158,22 @@ export function WorkerTime({ username }: { username: string }) {
   const locationReady = geo.status === 'OK' || geo.status === 'OUT_OF_RANGE' || geo.status === 'NO_GEOFENCE' || geo.status === 'UNAVAILABLE';
   const locationBlocked = !locationReady && geo.status !== 'detecting';
 
-  // Check for IN_TRANSIT event in today's record (destination project)
+  // The record's own transit, for the history. Only the transit in progress —
+  // the day's last punch, the one cancel/dispute act on — gets the in-transit
+  // block: one settled before arrival, or abandoned for another project, stays
+  // on a transit-only record all day.
   const transitEvent = todayRecord?.events.find(e => e.type === 'IN_TRANSIT') ?? null;
-  const hasTransitWithoutCheckIn = !!transitEvent && !recorded.CHECK_IN;
+  const transitInProgress = !!transitEvent && transitEvent.id === currentTransit(dayRecords)?.id;
+  // Cancel and dispute are the worker's moves on a transit nobody has ruled on:
+  // not once a dispute is filed, nor once a supervisor reviewed it — then all
+  // that is left is the arrival CHECK_IN.
+  const transitReviewed = !!todayRecord && !!transitEvent && isTransitReviewed(transitEvent, todayRecord);
+  const canCancelOrDispute = transitInProgress && !transitEvent?.disputeStatus && !transitReviewed;
+  // The dialog and the form stay up only while their transit can still be
+  // cancelled or disputed: a review the poll brings in closes them, and they
+  // never reopen on a later transit.
+  const showCancelConfirm = canCancelOrDispute && cancelConfirmFor === transitEvent?.id;
+  const showDisputeForm = canCancelOrDispute && disputeFormFor === transitEvent?.id;
 
   const nextType = projectClosed || isDayComplete
     ? null
@@ -182,25 +204,30 @@ export function WorkerTime({ username }: { username: string }) {
   // after an optimistic update so the punch grid stays visible.
   // `preserveOptimistic` prevents overwriting todayRecord with null
   // when the server hasn't committed the new event yet.
+  // `keepOnError` only keeps the day on screen when the request itself fails
+  // (preserveOptimistic implies it): a day the server does answer replaces it,
+  // even one where this project has no record left.
   const fetchTodayRecord = useCallback(async (
     projectId: number,
-    { preserveOptimistic = false, silent = false }: { preserveOptimistic?: boolean; silent?: boolean } = {},
+    { preserveOptimistic = false, silent = false, keepOnError = preserveOptimistic }:
+      { preserveOptimistic?: boolean; silent?: boolean; keepOnError?: boolean } = {},
   ): Promise<TimeRecordResponse | null> => {
     if (!silent) setLoadingRecord(true);
     try {
       const today = todayYMD();
-      const records = await getMyRecords({ dateFrom: today, dateTo: today, projectId });
-      const rec = records.find(r => r.workDate === today && r.projectId === projectId) ?? null;
-      if (rec) {
-        setTodayRecord(rec);
-      } else if (!preserveOptimistic) {
-        setTodayRecord(null);
+      // Every project's records, not just this one's: the transit in progress
+      // and the worker's state are the day's last punch, wherever it landed.
+      const records = (await getMyRecords({ dateFrom: today, dateTo: today }))
+        .filter(r => r.workDate === today);
+      const rec = currentRecord(records.filter(r => r.projectId === projectId));
+      if (rec || !preserveOptimistic) {
+        setDay({ projectId, records });
       }
       // else: keep the optimistic record in place
       return rec;
     } catch (err) {
-      if (!preserveOptimistic) {
-        setTodayRecord(null);
+      if (!keepOnError) {
+        setDay(null);
       }
       return null;
     } finally {
@@ -216,36 +243,25 @@ export function WorkerTime({ username }: { username: string }) {
     }
   }, [selectedProject, fetchTodayRecord]);
 
-  // === Worker state polling ==============================================
-  const fetchWorkerState = useCallback(async () => {
-    try {
-      const { state } = await getWorkerState();
-      setWorkerState(state);
-    } catch {
-      // If endpoint not available, fall back to OFF_DUTY
-    }
-  }, []);
-
-  // Poll worker state AND today's record every 30s so cross-device
-  // punches (e.g. mobile ↔ web) are reflected without manual refresh.
+  // === Polling ===========================================================
+  // Poll today's records every 30s — the worker's state comes with them — so
+  // cross-device punches (e.g. mobile ↔ web) are reflected without manual refresh.
   // Uses a ref flag to skip ticks when a previous poll is still in-flight,
   // preventing request pile-up on slow networks.
   const pollingRef = useRef(false);
   useEffect(() => {
-    fetchWorkerState();
     const interval = setInterval(async () => {
       if (pollingRef.current) return; // skip if previous poll still running
       if (getStoredRole() !== 'WORKER') return; // guard: skip if role changed
       pollingRef.current = true;
       try {
-        await fetchWorkerState();
         if (selectedProject) await fetchTodayRecord(selectedProject.id, { silent: true });
       } finally {
         pollingRef.current = false;
       }
     }, 30_000);
     return () => clearInterval(interval);
-  }, [fetchWorkerState, selectedProject, fetchTodayRecord]);
+  }, [selectedProject, fetchTodayRecord]);
 
   // === Geolocation helpers ================================================
 
@@ -449,55 +465,65 @@ export function WorkerTime({ username }: { username: string }) {
     setActionState('confirming');
   }
 
-  /** Optimistically add an event to the local todayRecord so the UI updates
+  /** Optimistically add a punch to today's records so the UI updates
    *  immediately (button goes to "done", next one unlocks) even when
-   *  fetchTodayRecord fails due to auth / network issues. */
+   *  fetchTodayRecord fails due to auth / network issues. The punch goes on
+   *  the record the server says took it: a CHECK_IN after a transit that was
+   *  already settled opens a new record instead of joining the transit's. */
   function optimisticAddEvent(
     type: TimeEventType,
     capturedAtClient: string,
     response: TimeEventResponse,
+    project: WorkerProject,
+    source?: WorkerProject,
   ) {
-    setTodayRecord(prev => {
-      const newEvent = {
-        id: response.eventId,
-        type,
-        capturedAtClient,
-        capturedAtServer: response.serverCapturedAt,
-        lat: geo.lat,
-        lng: geo.lng,
-        locationStatus: response.locationStatus,
-        distanceMeters:
-          geo.lat != null && geo.lng != null &&
-          selectedProject?.latitude != null && selectedProject?.longitude != null
-            ? Math.round(haversineMeters(geo.lat, geo.lng, selectedProject.latitude, selectedProject.longitude))
-            : null,
-        eventApprovalStatus: 'PENDING' as const,
-        eventReviewComment: null,
-        eventReviewerUsername: null,
-        eventReviewedAt: null,
-      };
-      if (prev) {
-        return { ...prev, events: [...prev.events, newEvent] };
-      }
-      // No record existed yet — create a minimal one
+    const newEvent = {
+      id: response.eventId,
+      type,
+      capturedAtClient,
+      capturedAtServer: response.serverCapturedAt,
+      lat: geo.lat,
+      lng: geo.lng,
+      locationStatus: response.locationStatus,
+      distanceMeters:
+        geo.lat != null && geo.lng != null &&
+        project.latitude != null && project.longitude != null
+          ? Math.round(haversineMeters(geo.lat, geo.lng, project.latitude, project.longitude))
+          : null,
+      eventApprovalStatus: 'PENDING' as const,
+      eventReviewComment: null,
+      eventReviewerUsername: null,
+      eventReviewedAt: null,
+      sourceProjectId: source?.id ?? null,
+      sourceProjectName: source?.name ?? null,
+    };
+    setDay(prev => {
+      const records = prev?.records ?? [];
+      const target = records.find(r => r.id === response.recordId);
       return {
-        id: response.recordId,
-        workerId: 0,
-        workerUsername: username,
-        workerName: null,
-        projectId: selectedProject!.id,
-        projectName: selectedProject!.name,
-        projectLatitude: selectedProject!.latitude,
-        projectLongitude: selectedProject!.longitude,
-        geofenceRadiusMeters: selectedProject!.geofenceRadiusMeters,
-        workDate: todayYMD(),
-        approvalStatus: 'PENDING' as const,
-        isLate: false,
-        pendingEventCount: 1,
-        events: [newEvent],
-        reviews: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        projectId: prev?.projectId ?? project.id,
+        records: target
+          ? records.map(r => (r === target ? { ...r, events: [...r.events, newEvent] } : r))
+          // A new record — create a minimal one
+          : [...records, {
+            id: response.recordId,
+            workerId: 0,
+            workerUsername: username,
+            workerName: null,
+            projectId: project.id,
+            projectName: project.name,
+            projectLatitude: project.latitude,
+            projectLongitude: project.longitude,
+            geofenceRadiusMeters: project.geofenceRadiusMeters,
+            workDate: todayYMD(),
+            approvalStatus: 'PENDING' as const,
+            isLate: false,
+            pendingEventCount: 1,
+            events: [newEvent],
+            reviews: [],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }],
       };
     });
   }
@@ -518,7 +544,7 @@ export function WorkerTime({ username }: { username: string }) {
         hasLocationPermission: geo.hasPermission,
       });
       // 1) Optimistic update — instant UI feedback
-      optimisticAddEvent(punchType, capturedAtClient, response);
+      optimisticAddEvent(punchType, capturedAtClient, response, selectedProject);
       setLastSuccessType(punchType);
       setActionState('success');
       // 2) Background refresh for full server data (non-blocking).
@@ -557,24 +583,27 @@ export function WorkerTime({ username }: { username: string }) {
   async function handleTransitConfirm() {
     if (!transitDestination || !selectedProject) return;
     setTransitSubmitting(true);
-    setErrorMsg(null);
     try {
-      await createTimeEvent({
+      const capturedAtClient = new Date().toISOString();
+      const response = await createTimeEvent({
         projectId: transitDestination.id,
         type: 'IN_TRANSIT',
-        capturedAtClient: new Date().toISOString(),
+        capturedAtClient,
         lat: geo.lat,
         lng: geo.lng,
         hasLocationPermission: geo.hasPermission,
         sourceProjectId: selectedProject.id,
       });
+      // In transit from now on: the day's last punch is this one.
+      optimisticAddEvent('IN_TRANSIT', capturedAtClient, response, transitDestination, selectedProject);
       setShowTransitPrompt(false);
       setTransitDestination(null);
-      setWorkerState('IN_TRANSIT');
       // Auto-switch to destination project
       setSelectedProject(transitDestination);
-    } catch (err: any) {
-      setErrorMsg(err?.message ?? 'Could not start transit');
+    } catch (err) {
+      // The prompt stays up for another try. Not errorMsg: the banner that
+      // shows it is the punch grid's, up only after a failed punch.
+      toast.error(err instanceof ApiError ? err.message : t('toast.startTransitError'));
     } finally {
       setTransitSubmitting(false);
     }
@@ -582,19 +611,29 @@ export function WorkerTime({ username }: { username: string }) {
 
   const effectiveCancelReason = cancelReason === 'OTHER' ? cancelCustomReason.trim() : cancelReason;
 
+  /** A refused cancel or dispute (TRANSIT_ALREADY_REVIEWED, DISPUTE_ALREADY_EXISTS,
+   *  NO_ACTIVE_TRANSIT) means the transit changed since the day was read: a
+   *  supervisor reviewed it, or the worker disputed it, cancelled it or checked
+   *  in from another device. Show the server's reason, already in the worker's
+   *  language, and reload the day: the dialog and the form close on their own
+   *  once it shows the transit reviewed, disputed or over. With no connection
+   *  the reload fails as well, and the day stays as it was, dialog included. */
+  async function transitActionFailed(err: unknown, fallback: string) {
+    toast.error(err instanceof ApiError ? err.message : fallback);
+    if (selectedProject) await fetchTodayRecord(selectedProject.id, { silent: true, keepOnError: true });
+  }
+
   async function handleCancelTransitConfirmed() {
     if (!effectiveCancelReason) return;
     setCancellingTransit(true);
     try {
       await cancelTransit(effectiveCancelReason);
-      setWorkerState('OFF_DUTY');
-      setShowCancelConfirm(false);
+      setCancelConfirmFor(null);
       setCancelReason('');
       setCancelCustomReason('');
       if (selectedProject) await fetchTodayRecord(selectedProject.id);
-      fetchWorkerState();
-    } catch (err: any) {
-      setErrorMsg(err?.message ?? 'Could not cancel transit');
+    } catch (err) {
+      await transitActionFailed(err, t('toast.cancelTransitError'));
     } finally {
       setCancellingTransit(false);
     }
@@ -602,19 +641,17 @@ export function WorkerTime({ username }: { username: string }) {
 
   async function handleDisputeTransit() {
     if (disputeReason.trim().length < 10) {
-      setErrorMsg(t('punch.disputeReasonMinLength'));
+      toast.error(t('punch.disputeReasonMinLength'));
       return;
     }
     setSubmittingDispute(true);
     try {
       await disputeTransit(disputeReason.trim());
-      setShowDisputeForm(false);
+      setDisputeFormFor(null);
       setDisputeReason('');
-      setWorkerState('OFF_DUTY');
       if (selectedProject) await fetchTodayRecord(selectedProject.id);
-      fetchWorkerState();
-    } catch (err: any) {
-      setErrorMsg(err?.message ?? 'Could not submit dispute');
+    } catch (err) {
+      await transitActionFailed(err, t('toast.disputeTransitError'));
     } finally {
       setSubmittingDispute(false);
     }
@@ -784,7 +821,7 @@ export function WorkerTime({ username }: { username: string }) {
       )}
 
       {/* In-transit banner */}
-      {hasTransitWithoutCheckIn && (
+      {transitInProgress && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 space-y-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -828,7 +865,7 @@ export function WorkerTime({ username }: { username: string }) {
           )}
 
           {/* Dispute form (inline) */}
-          {showDisputeForm && !transitEvent?.disputeStatus && (
+          {showDisputeForm && (
             <div className="space-y-2 p-3 bg-white border border-amber-200 rounded-xl">
               <p className="text-xs text-[#71717A]">{t('punch.disputeTransitDesc')}</p>
               <div className="space-y-1">
@@ -855,7 +892,7 @@ export function WorkerTime({ username }: { username: string }) {
               <div className="flex gap-2">
                 <Button
                   type="button" variant="outline" size="sm"
-                  onClick={() => { setShowDisputeForm(false); setDisputeReason(''); }}
+                  onClick={() => { setDisputeFormFor(null); setDisputeReason(''); }}
                   className="border-[#D4D4D8] text-[#0A0A0A]"
                 >
                   {t('buttons.cancel', { ns: 'common' })}
@@ -874,19 +911,27 @@ export function WorkerTime({ username }: { username: string }) {
             </div>
           )}
 
+          {/* Reviewed en route, no dispute: the arrival is what is left */}
+          {transitReviewed && !transitEvent?.disputeStatus && (
+            <div className="flex items-start gap-2 p-3 bg-white border border-blue-200 rounded-xl">
+              <CheckCircle className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-blue-800">{t('punch.transitReviewedDesc')}</p>
+            </div>
+          )}
+
           {/* Action buttons */}
-          {!transitEvent?.disputeStatus && !showDisputeForm && (
+          {canCancelOrDispute && !showDisputeForm && (
             <div className="flex gap-2">
               <Button
                 variant="outline" size="sm"
-                onClick={() => setShowCancelConfirm(true)}
+                onClick={() => { setCancelReason(''); setCancelCustomReason(''); setCancelConfirmFor(transitEvent.id); }}
                 className="border-blue-200 text-blue-700 hover:bg-blue-100 gap-2"
               >
                 <X className="w-3.5 h-3.5" />{t('punch.cancelTransit')}
               </Button>
               <Button
                 variant="outline" size="sm"
-                onClick={() => setShowDisputeForm(true)}
+                onClick={() => { setDisputeReason(''); setDisputeFormFor(transitEvent.id); }}
                 className="border-amber-200 text-amber-700 hover:bg-amber-100 gap-2"
               >
                 <AlertTriangle className="w-3.5 h-3.5" />{t('punch.disputeTransit')}
@@ -1123,7 +1168,7 @@ export function WorkerTime({ username }: { username: string }) {
       </Dialog>
 
       {/* Cancel transit confirmation modal */}
-      <Dialog open={showCancelConfirm} onOpenChange={o => { if (!o) { setShowCancelConfirm(false); setCancelReason(''); setCancelCustomReason(''); } }}>
+      <Dialog open={showCancelConfirm} onOpenChange={o => { if (!o) { setCancelConfirmFor(null); setCancelReason(''); setCancelCustomReason(''); } }}>
         <DialogContent className="sm:max-w-2xl bg-white">
           <DialogHeader>
             <DialogTitle className="text-[#0A0A0A]">{t('punch.cancelTransitConfirmTitle')}</DialogTitle>
@@ -1172,7 +1217,7 @@ export function WorkerTime({ username }: { username: string }) {
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => { setShowCancelConfirm(false); setCancelReason(''); setCancelCustomReason(''); }}
+            <Button type="button" variant="outline" onClick={() => { setCancelConfirmFor(null); setCancelReason(''); setCancelCustomReason(''); }}
               className="border-[#D4D4D8] text-[#0A0A0A]">{t('buttons.cancel', { ns: 'common' })}</Button>
             <Button type="button" onClick={handleCancelTransitConfirmed}
               disabled={cancellingTransit || !effectiveCancelReason}

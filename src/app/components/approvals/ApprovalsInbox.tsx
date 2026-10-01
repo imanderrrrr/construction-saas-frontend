@@ -9,7 +9,8 @@ import { ApiError } from '../../lib/api';
 import { RecordDrawer } from './RecordDrawer';
 import { ModalCreateDay } from '../phase2/ModalCreateDay';
 import {
-  Mono, alertsFor, dayHours, initials, isOpenShift, sequenceOf, statusPillClass,
+  Mono, alertsFor, dayHours, initials, isOpenShift, mayBeTransitInProgress, sequenceOf,
+  statusPillClass,
 } from './shared';
 
 /**
@@ -129,9 +130,10 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
     setRowBusy(id);
     try { await approveRecord(id); await load(); setSelected(p => { const n = new Set(p); n.delete(id); return n; }); }
     catch (err) {
-      // The record stays in the list — but the admin must hear WHY. The one
-      // rejection that matters here is SHIFT_STILL_OPEN: the worker hasn't
-      // clocked out yet, so approving would strand the shift at 0 minutes.
+      // The record stays in the list — but the admin must hear WHY. The
+      // rejections that matter here are SHIFT_STILL_OPEN (no clock-out yet)
+      // and TRANSIT_IN_PROGRESS (still on the road): approving either would
+      // strand it at 0 minutes, and the backend's sentence says so.
       toast.error(err instanceof Error && err.message ? err.message : t('admin:apr.bulk.genericError'));
     }
     finally { setRowBusy(null); }
@@ -141,33 +143,44 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
     setBulkBusy(true);
     const ids = [...selected];
     const results = await Promise.allSettled(ids.map(id => approveRecord(id)));
-    // The backend is the referee, per record: an open shift (no clock-out yet)
-    // answers 409 SHIFT_STILL_OPEN and must be reported as "left pending", not
-    // silently dropped — that silence is how open shifts got stranded at 0
-    // minutes in production. Anything else that failed is a real error.
+    // The backend is the referee, per record. Two 409s are waits, not errors,
+    // and must be reported as "left pending", not silently dropped — that
+    // silence is how open shifts got stranded at 0 minutes in production:
+    // SHIFT_STILL_OPEN (no clock-out yet) and TRANSIT_IN_PROGRESS (the worker
+    // is still on the road, and a transit is paid up to the arrival). Each
+    // keeps its own words. Anything else that failed is a real error.
     const openShiftIds: number[] = [];
+    const transitIds: number[] = [];
     const failedIds: number[] = [];
     results.forEach((r, i) => {
       if (r.status !== 'rejected') return;
-      if (r.reason instanceof ApiError && r.reason.code === 'SHIFT_STILL_OPEN') openShiftIds.push(ids[i]);
+      const code = r.reason instanceof ApiError ? r.reason.code : undefined;
+      if (code === 'SHIFT_STILL_OPEN') openShiftIds.push(ids[i]);
+      else if (code === 'TRANSIT_IN_PROGRESS') transitIds.push(ids[i]);
       else failedIds.push(ids[i]);
     });
-    const approved = ids.length - openShiftIds.length - failedIds.length;
+    const approved = ids.length - openShiftIds.length - transitIds.length - failedIds.length;
     // Keep the not-approved ones selected so the admin sees exactly which
     // rows the summary is talking about; the approved ones leave the set.
-    setSelected(new Set([...openShiftIds, ...failedIds]));
+    setSelected(new Set([...openShiftIds, ...transitIds, ...failedIds]));
     await load();
     setBulkBusy(false);
 
-    if (openShiftIds.length === 0 && failedIds.length === 0) {
+    if (openShiftIds.length === 0 && transitIds.length === 0 && failedIds.length === 0) {
       toast.success(t('admin:apr.bulk.allApproved', { count: approved }));
     } else {
       const parts = [t('admin:apr.bulk.approved', { count: approved })];
       if (openShiftIds.length > 0) parts.push(t('admin:apr.bulk.openSkipped', { count: openShiftIds.length }));
+      if (transitIds.length > 0) parts.push(t('admin:apr.bulk.transitSkipped', { count: transitIds.length }));
       if (failedIds.length > 0) parts.push(t('admin:apr.bulk.failed', { count: failedIds.length }));
       const report = parts.join(' · ');
       if (failedIds.length > 0) toast.error(report);
-      else toast.warning(`${report} — ${t('admin:apr.bulk.openHint')}`);
+      else {
+        const hints: string[] = [];
+        if (openShiftIds.length > 0) hints.push(t('admin:apr.bulk.openHint'));
+        if (transitIds.length > 0) hints.push(t('admin:apr.bulk.transitHint'));
+        toast.warning(`${report} — ${hints.join(' ')}`);
+      }
     }
   }
 
@@ -192,6 +205,10 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
   // Open shifts (no clock-out yet) in the selection: warn BEFORE the bulk
   // approve — the backend will leave them pending (SHIFT_STILL_OPEN).
   const selectedOpen = flat.filter(r => selected.has(r.id) && isOpenShift(r)).length;
+  // Transits with no arrival yet MAY stay pending (TRANSIT_IN_PROGRESS). Only
+  // "may": whether the transit is still the worker's last punch of the day is
+  // for the backend to say.
+  const selectedTransit = flat.filter(r => selected.has(r.id) && mayBeTransitInProgress(r)).length;
 
   function setF<K extends keyof Filters>(k: K, v: Filters[K]) {
     setFilters(f => ({ ...f, [k]: v }));
@@ -425,6 +442,14 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
                     <AlertTriangle className="w-3 h-3 text-[#F97316]" />
                     <Mono className="text-[9.5px] tracking-[0.06em] text-[#F97316]">
                       {t('admin:apr.bulk.openWarning', { count: selectedOpen })}
+                    </Mono>
+                  </span>
+                )}
+                {selectedTransit > 0 && (
+                  <span data-testid="bulk-transit-warning" className="flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3 text-[#F97316]" />
+                    <Mono className="text-[9.5px] tracking-[0.06em] text-[#F97316]">
+                      {t('admin:apr.bulk.transitWarning', { count: selectedTransit })}
                     </Mono>
                   </span>
                 )}

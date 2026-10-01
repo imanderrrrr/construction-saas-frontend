@@ -1,0 +1,417 @@
+// BuildTrack — the "Pagos" tab (QuickBooks phase 4): the switch is never
+// turned on without saying what changes, "Actualizar pagos" reaches its
+// endpoint and says what moved, and what was read — notices, errors, local
+// payments that no longer count, the last payments — is said in words. A
+// refusal is a toast, never a band pushed in on top of the section.
+//
+// The backend is faked at the HTTP helper, like the other QuickBooks tabs.
+
+import { act } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { QuickBooksPaymentsStatus } from '../../services/quickbooks';
+
+vi.mock('../../lib/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../lib/api')>()),
+  api: (path: string, init?: ApiOptions) => fakeApi(path, init),
+}));
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
+
+import { QuickBooksPayments } from './QuickBooksPayments';
+import { toast } from 'sonner';
+import i18n from '../../../i18n';
+import { ApiError, NoResponseError, type ApiOptions } from '../../lib/api';
+import { QUICKBOOKS_LONG_TIMEOUT_MS } from '../../services/quickbooks';
+
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+const BASE = '/api/v1/admin/integrations/quickbooks/payments';
+const WEBHOOK_URL = 'https://api.example.test/api/v1/integrations/quickbooks/webhooks';
+
+const OFF: QuickBooksPaymentsStatus = {
+  connected: true,
+  enabled: false,
+  changedBy: null,
+  changedAt: null,
+  intervalMinutes: 60,
+  readAt: null,
+  cursor: null,
+  lastError: null,
+  running: false,
+  webhook: { configured: false, url: WEBHOOK_URL, lastEventAt: null, pendingEvents: 0 },
+  localPaymentsDocuments: 0,
+  localPaymentsCents: 0,
+  recent: [],
+};
+
+const ON: QuickBooksPaymentsStatus = {
+  ...OFF,
+  enabled: true,
+  changedBy: 'admin',
+  changedAt: '2026-09-25T20:00:00Z',
+  readAt: '2026-09-25T20:05:00Z',
+  cursor: '2026-09-25T20:05:00Z',
+  webhook: { configured: true, url: WEBHOOK_URL, lastEventAt: '2026-09-25T20:04:00Z', pendingEvents: 1 },
+  recent: [
+    {
+      type: 'INVOICE', docId: 5, number: 'INV-2026-0005', party: 'Cliente Demo', amountCents: 100_00, date: '2026-09-25',
+      method: 'Check', reference: 'CHK-1001', qboPaymentId: '157', voided: false, readAt: '2026-09-25T20:05:00Z',
+    },
+    {
+      type: 'BILL', docId: 9, number: 'BILL-2026-0009', party: 'Ferretería Central', amountCents: 30_00, date: '2026-09-25',
+      method: 'Credit memo', reference: '5001', qboPaymentId: '161', voided: true, readAt: '2026-09-25T20:06:00Z',
+    },
+  ],
+};
+
+let current: QuickBooksPaymentsStatus = OFF;
+let replies: Record<string, unknown> = {};
+const calls: Array<{ key: string; body: unknown; timeoutMs?: number }> = [];
+
+async function fakeApi(path: string, init?: ApiOptions): Promise<unknown> {
+  const method = (init?.method ?? 'GET').toUpperCase();
+  const key = `${method} ${path}`;
+  calls.push({ key, body: init?.body ? JSON.parse(String(init.body)) : undefined, timeoutMs: init?.timeoutMs });
+  if (key in replies) {
+    const reply = replies[key];
+    if (reply instanceof Error) throw reply;
+    return reply;
+  }
+  if (key === `GET ${BASE}`) return current;
+  throw new Error(`unscripted ${key}`);
+}
+
+let host: HTMLDivElement;
+let root: Root;
+const openSync = vi.fn();
+
+async function flush() {
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); });
+}
+
+async function render() {
+  host = document.createElement('div');
+  document.body.appendChild(host);
+  root = createRoot(host);
+  await act(async () => { root.render(<QuickBooksPayments onOpenSync={openSync} />); });
+  await flush();
+}
+
+const text = () => document.body.textContent ?? '';
+
+function button(label: string): HTMLButtonElement | undefined {
+  return [...document.querySelectorAll('button')].find(b => b.textContent?.trim().startsWith(label)) as HTMLButtonElement | undefined;
+}
+
+const toggle = () => document.querySelector('[role=switch]') as HTMLButtonElement;
+
+async function click(el: HTMLElement | undefined) {
+  expect(el).toBeTruthy();
+  await act(async () => { el!.click(); });
+  await flush();
+}
+
+beforeEach(async () => {
+  await i18n.changeLanguage('es');
+  current = OFF;
+  replies = {};
+  calls.length = 0;
+  openSync.mockClear();
+  vi.mocked(toast.success).mockClear();
+  vi.mocked(toast.error).mockClear();
+  vi.mocked(toast.info).mockClear();
+});
+
+afterEach(async () => {
+  await act(async () => root.unmount());
+  host.remove();
+  document.body.innerHTML = '';
+});
+
+describe('QuickBooksPayments', () => {
+  it('off: says payments are recorded in BuildTrack, reads nothing, and explains the notices without asking the tenant to set anything up', async () => {
+    await render();
+
+    expect(text()).toContain('Apagado — los pagos se registran en BuildTrack');
+    expect(toggle().getAttribute('aria-checked')).toBe('false');
+    expect(button('Actualizar pagos')!.disabled).toBe(true);
+    expect(text()).toContain('Sin configurar');
+    expect(text()).toContain('Los avisos los configura quien administra el servidor de BuildTrack');
+    // The platform's set-up is not the constructora's business.
+    expect(text()).not.toContain('QUICKBOOKS_WEBHOOK_VERIFIER_TOKEN');
+    expect(text()).not.toContain(WEBHOOK_URL);
+    expect(text()).toContain('Todavía no se ha leído ningún pago de QuickBooks.');
+    expect(calls.map(c => c.key)).toEqual([`GET ${BASE}`]);
+  });
+
+  it('turning it on asks first and says what changes; only then it is sent', async () => {
+    replies[`PUT ${BASE}/settings`] = ON;
+    await render();
+
+    await click(toggle());
+    expect(text()).toContain('¿Leer los pagos desde QuickBooks?');
+    expect(text()).toContain('En BuildTrack ya no se podrán registrar para esos documentos.');
+    expect(calls.map(c => c.key)).not.toContain(`PUT ${BASE}/settings`);
+
+    await click(button('Encender'));
+
+    expect(calls.find(c => c.key === `PUT ${BASE}/settings`)?.body).toEqual({ enabled: true });
+    expect(toast.success).toHaveBeenCalledWith('Listo: los pagos ahora se leen de QuickBooks.');
+    expect(text()).toContain('Encendido — cada 60 min y cuando QuickBooks avisa de un cambio');
+    expect(toggle().getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('turning it off asks first and says what stays counted; only then it is sent', async () => {
+    current = ON;
+    replies[`PUT ${BASE}/settings`] = { ...ON, enabled: false };
+    await render();
+
+    await click(toggle());
+    expect(text()).toContain('¿Dejar de leer los pagos desde QuickBooks?');
+    expect(text()).toContain('queda como lo dejó QuickBooks en la última lectura');
+    expect(text()).toContain('los pagos leídos de QuickBooks siguen contando');
+    expect(text()).toContain('los pagos nuevos se registran aquí');
+    expect(text()).toContain('Los pagos registrados aquí que QuickBooks reemplazó no vuelven a contar.');
+    expect(calls.map(c => c.key)).not.toContain(`PUT ${BASE}/settings`);
+
+    await click(button('Cancelar'));
+    expect(calls.map(c => c.key)).not.toContain(`PUT ${BASE}/settings`);
+    expect(toggle().getAttribute('aria-checked')).toBe('true');
+
+    await click(toggle());
+    await click(button('Apagar'));
+
+    expect(calls.find(c => c.key === `PUT ${BASE}/settings`)?.body).toEqual({ enabled: false });
+    expect(toast.success).toHaveBeenCalledWith('Los pagos se registran otra vez en BuildTrack.');
+  });
+
+  it('a refused switch is a toast, and nothing is pushed on top of the section', async () => {
+    current = ON;
+    replies[`PUT ${BASE}/settings`] = new ApiError(409, 'QuickBooks no está conectado.', undefined, 'QUICKBOOKS_NOT_CONNECTED');
+    await render();
+
+    await click(toggle());
+    await click(button('Apagar'));
+
+    expect(toast.error).toHaveBeenCalledWith('No se pudo completar.', { description: 'QuickBooks no está conectado.' });
+    expect(document.querySelectorAll('[role="alert"]')).toHaveLength(0);
+    expect(document.querySelector('[data-testid="quickbooks-payments"]')!.firstElementChild!.getAttribute('data-testid'))
+      .toBe('quickbooks-payments-settings');
+  });
+
+  it('switching on and reading wait as long as a full read may take, not the usual 15 s', async () => {
+    replies[`PUT ${BASE}/settings`] = ON;
+    replies[`POST ${BASE}/refresh`] = {
+      result: { mode: 'CDC', reads: 1, paymentsRead: 0, documentsChecked: 0, documentsUpdated: 0, failed: 0, stoppedBy: null },
+      status: ON,
+    };
+    await render();
+
+    await click(toggle());
+    await click(button('Encender'));
+    await click(button('Actualizar pagos'));
+
+    expect(calls.find(c => c.key === `PUT ${BASE}/settings`)?.timeoutMs).toBe(QUICKBOOKS_LONG_TIMEOUT_MS);
+    expect(calls.find(c => c.key === `POST ${BASE}/refresh`)?.timeoutMs).toBe(QUICKBOOKS_LONG_TIMEOUT_MS);
+    expect(calls.find(c => c.key === `GET ${BASE}`)?.timeoutMs).toBeUndefined();
+  });
+
+  it('switching on that outlives the wait is not a failure: QuickBooks is still reading, and the switch shows on', async () => {
+    replies[`PUT ${BASE}/settings`] = new NoResponseError(true, new DOMException('signal is aborted without reason', 'AbortError'));
+    await render();
+
+    await click(toggle());
+    // The server switched it on first and is still reading everything.
+    current = { ...ON, running: true };
+    await click(button('Encender'));
+
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(toast.info).toHaveBeenCalledWith('QuickBooks sigue trabajando; los pagos se actualizarán.');
+    expect(toggle().getAttribute('aria-checked')).toBe('true');
+    expect(text()).not.toContain('aborted');
+    expect(calls.filter(c => c.key === `GET ${BASE}`).length).toBe(2);
+  });
+
+  it('a refused read still says why, and re-reads the status', async () => {
+    current = ON;
+    replies[`POST ${BASE}/refresh`] = new ApiError(409, 'Ya se están leyendo los pagos.', undefined, 'QUICKBOOKS_PAYMENTS_RUNNING');
+    await render();
+
+    await click(button('Actualizar pagos'));
+
+    expect(toast.error).toHaveBeenCalledWith('No se pudo completar.', { description: 'Ya se están leyendo los pagos.' });
+    expect(toast.info).not.toHaveBeenCalled();
+    expect(calls.filter(c => c.key === `GET ${BASE}`).length).toBe(2);
+  });
+
+  it('"Actualizar pagos" reads once and says how many documents moved', async () => {
+    current = ON;
+    replies[`POST ${BASE}/refresh`] = {
+      result: { mode: 'CDC', reads: 1, paymentsRead: 2, documentsChecked: 3, documentsUpdated: 2, failed: 0, stoppedBy: null },
+      status: ON,
+    };
+    await render();
+    expect(text()).toContain('Solo lo que cambió desde la última (una consulta)');
+
+    await click(button('Actualizar pagos'));
+
+    expect(calls.map(c => c.key)).toContain(`POST ${BASE}/refresh`);
+    expect(toast.success).toHaveBeenCalledWith('Pagos leídos: 2 documentos actualizados.');
+  });
+
+  it('a read stopped on the way says why, in words, never the code', async () => {
+    current = ON;
+    replies[`POST ${BASE}/refresh`] = {
+      result: { mode: 'CDC', reads: 1, paymentsRead: 0, documentsChecked: 0, documentsUpdated: 0, failed: 0, stoppedBy: 'QUICKBOOKS_UNAVAILABLE' },
+      status: { ...ON, lastError: 'QUICKBOOKS_UNAVAILABLE' },
+    };
+    await render();
+
+    await click(button('Actualizar pagos'));
+
+    expect(toast.error).toHaveBeenCalledWith('La lectura no terminó.', {
+      description: 'QuickBooks no respondió. Intenta de nuevo en unos minutos.',
+    });
+    expect(document.querySelector('[data-testid="quickbooks-payments-last-error"]')?.textContent)
+      .toContain('QuickBooks no respondió. Intenta de nuevo en unos minutos.');
+    expect(text()).not.toContain('QUICKBOOKS_UNAVAILABLE');
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it('a code it has no sentence for still reads as words', async () => {
+    current = { ...ON, lastError: 'SOMETHING_NEW' };
+    await render();
+
+    expect(text()).toContain('La lectura de pagos se detuvo antes de terminar. Intenta de nuevo.');
+    expect(text()).not.toContain('SOMETHING_NEW');
+  });
+
+  it('a click on its cooldown is a calm notice with the wait the server said, not a failure (audit B8)', async () => {
+    current = ON;
+    replies[`POST ${BASE}/refresh`] = new ApiError(
+      429, 'Los pagos se leyeron hace un momento. Intenta de nuevo en 42 segundos.', undefined, 'QUICKBOOKS_PAYMENTS_COOLDOWN', 42,
+    );
+    await render();
+
+    await click(button('Actualizar pagos'));
+
+    expect(toast.info).toHaveBeenCalledWith('Los pagos se leyeron hace un momento. Puedes volver a leerlos en 42 s.');
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it('lists the documents the read set aside, and «Leer todo de nuevo» reads everything again (audit B9)', async () => {
+    current = {
+      ...ON,
+      setAside: [{
+        type: 'BILL', docId: 9, number: 'BILL-2026-0009', party: 'Ferretería Central', error: 'apply refused',
+        failures: 3, since: '2026-09-27T15:00:00Z',
+      }],
+    };
+    replies[`POST ${BASE}/refresh?full=true`] = {
+      result: { mode: 'FULL', reads: 2, paymentsRead: 1, documentsChecked: 3, documentsUpdated: 1, failed: 0, stoppedBy: null },
+      status: { ...ON, setAside: [] },
+    };
+    await render();
+
+    const band = document.querySelector('[data-testid="quickbooks-payments-set-aside"]')!;
+    expect(band.textContent).toContain('1 documento apartado de la lectura de pagos');
+    expect(band.textContent).toContain('Cuenta por pagar BILL-2026-0009');
+    expect(band.textContent).toContain('Ferretería Central');
+    expect(band.textContent).toContain('3 intentos sin éxito');
+    expect(band.textContent).toContain('Detalle técnico: apply refused');
+
+    await click(button('Leer todo de nuevo'));
+
+    expect(calls.map(c => c.key)).toContain(`POST ${BASE}/refresh?full=true`);
+    expect(document.querySelector('[data-testid="quickbooks-payments-set-aside"]')).toBeNull();
+  });
+
+  it('without set-aside documents there is no band, and «Actualizar pagos» reads only the changes', async () => {
+    current = ON;
+    replies[`POST ${BASE}/refresh`] = {
+      result: { mode: 'CDC', reads: 1, paymentsRead: 0, documentsChecked: 0, documentsUpdated: 0, failed: 0, stoppedBy: null },
+      status: ON,
+    };
+    await render();
+
+    expect(document.querySelector('[data-testid="quickbooks-payments-set-aside"]')).toBeNull();
+    await click(button('Actualizar pagos'));
+    expect(calls.map(c => c.key)).toContain(`POST ${BASE}/refresh`);
+    expect(calls.map(c => c.key)).not.toContain(`POST ${BASE}/refresh?full=true`);
+  });
+
+  it('while a read of this company runs, "Actualizar pagos" waits', async () => {
+    current = { ...ON, running: true };
+    await render();
+
+    expect(button('Leyendo…')!.disabled).toBe(true);
+  });
+
+  it('lists the last payments read, marking one deleted in QuickBooks, and shows the notices of this company', async () => {
+    current = { ...ON, lastError: 'PAYMENTS_APPLY_FAILED' };
+    await render();
+
+    expect(text()).toContain('INV-2026-0005');
+    expect(text()).toContain('CHK-1001');
+    expect(text()).toContain('Pago #157 en QuickBooks');
+    expect(text()).toContain('BILL-2026-0009');
+    expect(text()).toContain('Nota de crédito');
+    expect(text()).toContain('Ya no está en QuickBooks');
+    expect(text()).toContain('Activos');
+    expect(text()).toContain('1 aviso');
+    expect(text()).toContain('Algunos documentos no se pudieron actualizar. La próxima lectura los vuelve a intentar.');
+  });
+
+  it('warns about payments recorded in BuildTrack that no longer count, and opens Envíos', async () => {
+    current = { ...ON, localPaymentsDocuments: 2, localPaymentsCents: 150_00 };
+    await render();
+
+    const band = document.querySelector('[data-testid="quickbooks-payments-local"]');
+    expect(band?.textContent).toContain('2 documentos enviados tienen pagos registrados en BuildTrack por');
+    expect(band?.textContent).toContain('150.00');
+
+    await click(button('Ver en Envíos'));
+    expect(openSync).toHaveBeenCalled();
+  });
+
+  it('writes amounts as Cobrar and Pagar do — «$1,234.50», never «USD 1,234.50» — in Spanish too', async () => {
+    // Audit B18.
+    current = {
+      ...ON,
+      localPaymentsDocuments: 1,
+      localPaymentsCents: 1_234_50,
+      recent: ON.recent.map(p => ({ ...p, amountCents: 2_500_00 })),
+    };
+    await render();
+
+    expect(document.querySelector('[data-testid="quickbooks-payments-local"]')?.textContent).toContain('$1,234.50');
+    expect(document.querySelector('[data-testid="quickbooks-payment-read"]')?.textContent).toContain('$2,500.00');
+    expect(text()).not.toMatch(/USD\s*[\d,]/);
+  });
+
+  it('a one-minute interval reads «cada minuto», never «cada 1 minutos»', async () => {
+    // Audit B15: payments.webhook.onHelp (and offHelp) took a bare number.
+    current = { ...ON, intervalMinutes: 1 };
+    await render();
+    expect(text()).toContain('La lectura de cada minuto recoge lo que un aviso no traiga.');
+    expect(text()).not.toContain('cada 1 minutos');
+
+    await act(async () => root.unmount());
+    host.remove();
+    current = { ...OFF, intervalMinutes: 1 };
+    await render();
+    expect(text()).toContain('Sin avisos, los pagos se leen cada minuto');
+    expect(text()).not.toContain('cada 1 minutos');
+  });
+
+  it('speaks English too', async () => {
+    await i18n.changeLanguage('en');
+    current = ON;
+    await render();
+
+    expect(text()).toContain('Payments from QuickBooks');
+    expect(text()).toContain('Refresh payments');
+    expect(text()).toContain('No longer in QuickBooks');
+    expect(text()).toContain('Credit memo');
+  });
+});

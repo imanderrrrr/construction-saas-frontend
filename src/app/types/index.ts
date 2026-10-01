@@ -51,7 +51,8 @@ export const TIME_EVENT_SEQUENCE: TimeEventType[] = [
   'CHECK_IN', 'LUNCH_START', 'LUNCH_END', 'CHECK_OUT',
 ];
 
-// Worker state (returned by GET /api/v1/worker/my-state)
+// Worker state — the server's WorkerStateMachine; the web derives it from the
+// day's punches (services/time deriveWorkerState), not from GET /worker/my-state
 export type WorkerState = 'OFF_DUTY' | 'WORKING' | 'ON_LUNCH' | 'IN_TRANSIT';
 
 /**

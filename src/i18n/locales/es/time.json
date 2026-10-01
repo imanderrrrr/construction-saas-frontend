@@ -123,6 +123,7 @@
   "punch.startTransit": "Iniciar Tránsito",
   "punch.inTransitTo": "En tránsito hacia {{project}}",
   "punch.transitActiveDesc": "El tiempo de traslado terminará cuando registres tu entrada en el proyecto destino.",
+  "punch.transitReviewedDesc": "Tu supervisor ya revisó este traslado, así que ya no se puede cancelar ni disputar. Registra tu entrada cuando llegues.",
   "punch.transitInlineDesc": "Registra tu tiempo de traslado hacia otro proyecto.",
   "punch.selectAndGo": "Seleccionar proyecto",
   "myHours.table.transit": "Traslado",
@@ -245,6 +246,9 @@
 
   "toast.loadProjectsError": "No se pudieron cargar los proyectos",
   "toast.loadRecordsError": "No se pudieron cargar los registros",
+  "toast.startTransitError": "No se pudo iniciar el traslado. Inténtalo de nuevo.",
+  "toast.cancelTransitError": "No se pudo cancelar el traslado. Inténtalo de nuevo.",
+  "toast.disputeTransitError": "No se pudo enviar la disputa. Inténtalo de nuevo.",
 
   "modalCorrect.correct.title": "Agregar nota de corrección",
   "modalCorrect.correct.submitLabel": "Enviar corrección",

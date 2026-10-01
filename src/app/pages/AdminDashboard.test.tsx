@@ -24,6 +24,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('react-router', () => ({
   useNavigate: () => mocks.navigate,
+  // The dashboard reads `?quickbooks=` (the return from Intuit's consent
+  // screen) from the location; nothing here arrives that way.
+  useLocation: () => ({ pathname: '/admin/dashboard', search: '', hash: '', state: null, key: 'default' }),
 }));
 
 vi.mock('react-i18next', () => ({

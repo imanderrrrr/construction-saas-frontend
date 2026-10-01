@@ -11,7 +11,7 @@ vi.mock('./refresh-coordinator', () => ({
 
 import { refreshIfNeeded } from './refresh-coordinator';
 import {
-  api, apiMultipart, ApiError,
+  api, apiMultipart, ApiError, NoResponseError,
   getStoredRole, getStoredUsername,
   getSessionMeta, isAuthenticated,
   clearSessionCookie, getCsrfToken,
@@ -404,5 +404,98 @@ describe('apiMultipart() — 401 auto-refresh', () => {
 
     const [, opts] = fetchMock.mock.calls[0];
     expect(opts.headers['X-XSRF-TOKEN']).toBe('upload-csrf');
+  });
+});
+
+// ── No answer: the panel stops waiting, or the connection drops ──────
+describe('api() — no answer', () => {
+  /** A server that never answers; the request only ends when the panel aborts it. */
+  function hangingFetch(): void {
+    fetchMock.mockImplementationOnce((_url: string, init: RequestInit) => new Promise((_, reject) => {
+      init.signal?.addEventListener('abort', () => reject(new DOMException('signal is aborted without reason', 'AbortError')));
+    }));
+  }
+
+  /** Starts [call] and reports whether it has settled, and with what. */
+  function track(call: Promise<unknown>) {
+    const state: { done: boolean; error?: unknown } = { done: false };
+    call.then(() => { state.done = true; }, (e: unknown) => { state.done = true; state.error = e; });
+    return state;
+  }
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('stops waiting after 15 s by default, as a NoResponseError that says so', async () => {
+    vi.useFakeTimers();
+    hangingFetch();
+
+    const call = track(api('/api/v1/projects'));
+    await vi.advanceTimersByTimeAsync(14_999);
+    expect(call.done).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(call.error).toBeInstanceOf(NoResponseError);
+    expect((call.error as NoResponseError).timedOut).toBe(true);
+    // The browser's own words stay the message, as before.
+    expect((call.error as NoResponseError).message).toBe('signal is aborted without reason');
+  });
+
+  it('a call that asks for a longer wait is not cut at 15 s, only at its own limit', async () => {
+    vi.useFakeTimers();
+    hangingFetch();
+
+    const call = track(api('/api/v1/admin/integrations/quickbooks/sync/send-ready', { method: 'POST', timeoutMs: 90_000 }));
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(call.done).toBe(false);
+    await vi.advanceTimersByTimeAsync(74_999);
+    expect(call.done).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(call.error).toBeInstanceOf(NoResponseError);
+    expect((call.error as NoResponseError).timedOut).toBe(true);
+    // The wait is the panel's business: it never travels to fetch.
+    expect(fetchMock.mock.calls[0][1]).not.toHaveProperty('timeoutMs');
+  });
+
+  it('an answer inside the longer wait arrives as usual', async () => {
+    vi.useFakeTimers();
+    let answer!: (r: Response) => void;
+    fetchMock.mockImplementationOnce(() => new Promise<Response>(resolve => { answer = resolve; }));
+
+    const call = api('/api/v1/admin/integrations/quickbooks/payments/settings', { method: 'PUT', timeoutMs: 90_000 });
+    await vi.advanceTimersByTimeAsync(40_000);
+    answer(jsonResponse(200, { enabled: true }));
+
+    await expect(call).resolves.toEqual({ enabled: true });
+  });
+
+  it('a dropped connection is a NoResponseError too, but not a timeout', async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+
+    const error = await api('/api/v1/projects').catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(NoResponseError);
+    expect((error as NoResponseError).timedOut).toBe(false);
+    expect((error as NoResponseError).message).toBe('Failed to fetch');
+  });
+
+  it('an answer from the server, even an error, is never a NoResponseError', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(502, { code: 'QUICKBOOKS_UNAVAILABLE', message: 'QuickBooks no respondió' }));
+
+    const error = await api('/api/v1/admin/integrations/quickbooks/test', { method: 'POST' }).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).not.toBeInstanceOf(NoResponseError);
+  });
+
+  it('apiMultipart: a dropped connection is a NoResponseError', async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+
+    const error = await apiMultipart('/api/v1/finance/payables/1/attachments', 'POST', new FormData()).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(NoResponseError);
+    expect((error as NoResponseError).timedOut).toBe(false);
   });
 });

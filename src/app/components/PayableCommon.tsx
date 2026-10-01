@@ -36,6 +36,8 @@ export interface VendorBill {
   attachmentCount: number;
   /** Oldest attachment paintable as an image — null when the bill has only PDFs. */
   firstAttachmentId: number | null;
+  /** Sent to the tenant's QuickBooks, whose payments are read from there (phase 4). */
+  paymentsInQuickBooks: boolean;
 }
 
 export function toVendorBill(p: Payable): VendorBill {
@@ -60,6 +62,7 @@ export function toVendorBill(p: Payable): VendorBill {
     updatedAt: p.updatedAt,
     attachmentCount: p.attachmentCount ?? 0,
     firstAttachmentId: p.firstAttachmentId ?? null,
+    paymentsInQuickBooks: p.paymentsInQuickBooks ?? false,
   };
 }
 
@@ -144,8 +147,18 @@ const PRESET_LABEL_KEYS: Record<(typeof PAYMENT_METHOD_PRESETS)[number], string>
  * language; a typed-in custom ("Other") method — or any unknown value — is
  * returned verbatim rather than blanked.
  */
+/**
+ * Methods only QuickBooks writes (phase 4: a credit memo or a vendor credit
+ * applied there). Never offered in the pay dialog, but named in the panel's
+ * language when a payment read from QuickBooks carries one.
+ */
+const QUICKBOOKS_METHOD_KEYS: Record<string, string> = {
+  'Credit memo': 'finance:paymentMethod.creditMemo',
+  'Vendor credit': 'finance:paymentMethod.vendorCredit',
+};
+
 export function paymentMethodLabel(method: string, t: TFunction): string {
-  const key = PRESET_LABEL_KEYS[method as (typeof PAYMENT_METHOD_PRESETS)[number]];
+  const key = PRESET_LABEL_KEYS[method as (typeof PAYMENT_METHOD_PRESETS)[number]] ?? QUICKBOOKS_METHOD_KEYS[method];
   return key ? t(key, method) : method;
 }
 

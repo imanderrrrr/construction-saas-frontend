@@ -1,0 +1,434 @@
+// BuildTrack — the QuickBooks section: what it offers in each state of the
+// link, and that its buttons reach the right endpoints.
+//
+// The backend is faked at the HTTP helper, and the one navigation this screen
+// makes — leaving for Intuit's consent page — is faked at openIntuitConsent,
+// since jsdom cannot follow it.
+
+import { act } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { QuickBooksOutcome, QuickBooksStatus } from '../../services/quickbooks';
+
+vi.mock('../../lib/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../lib/api')>()),
+  api: (path: string, init?: ApiOptions) => fakeApi(path, init),
+}));
+vi.mock('../../services/quickbooks', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../services/quickbooks')>()),
+  openIntuitConsent: vi.fn(),
+}));
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
+
+import { QuickBooksSection } from './QuickBooksSection';
+import { openIntuitConsent, QUICKBOOKS_LONG_TIMEOUT_MS } from '../../services/quickbooks';
+import { ApiError, NoResponseError, type ApiOptions } from '../../lib/api';
+import { toast } from 'sonner';
+import i18n from '../../../i18n';
+
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+const BASE = '/api/v1/admin/integrations/quickbooks';
+
+const NOT_CONNECTED: QuickBooksStatus = {
+  configured: true,
+  environment: 'SANDBOX',
+  state: 'NOT_CONNECTED',
+  companyName: null,
+  realmId: null,
+  connectedAt: null,
+  connectedBy: null,
+  lastRefreshedAt: null,
+  refreshTokenExpiresAt: null,
+  refreshTokenHardExpiresAt: null,
+  lastError: null,
+};
+
+const ACTIVE: QuickBooksStatus = {
+  ...NOT_CONNECTED,
+  state: 'ACTIVE',
+  companyName: 'Constructora Peña S.A.',
+  realmId: '9130000001',
+  connectedAt: '2026-09-25T15:00:00Z',
+  connectedBy: 'admin',
+  lastRefreshedAt: '2026-09-25T15:00:00Z',
+  refreshTokenExpiresAt: '2027-01-03T15:00:00Z',
+  refreshTokenHardExpiresAt: '2031-09-24T15:00:00Z',
+};
+
+/** An unread company: the mapping block renders its "refresh first" state and no vendor list. */
+const COMPANY_UNREAD = {
+  connected: true, realmId: '9130000001', companyName: 'Constructora Peña S.A.', plan: null, offeringSku: null,
+  country: null, homeCurrency: null, projectsEnabled: null, classTracking: null, locationTracking: null,
+  expensesByCustomer: null, jobTracking: null, profileReadAt: null, directoryRefreshedAt: null, directoryCounts: {},
+};
+
+let statusReply: QuickBooksStatus = NOT_CONNECTED;
+let replies: Record<string, unknown> = {};
+const calls: string[] = [];
+/** The wait each call asked for (undefined = the panel's usual one). */
+const waits: Record<string, number | undefined> = {};
+
+async function fakeApi(path: string, init?: ApiOptions): Promise<unknown> {
+  const key = `${(init?.method ?? 'GET').toUpperCase()} ${path}`;
+  calls.push(key);
+  waits[key] = init?.timeoutMs;
+  if (key in replies) {
+    const reply = replies[key];
+    if (reply instanceof Error) throw reply;
+    return reply;
+  }
+  if (key === `GET ${BASE}`) return statusReply;
+  if (key === `GET ${BASE}/mappings`) {
+    return { company: COMPANY_UNREAD, clients: [], projects: [], vendors: [], categories: [], invoiceItem: [] };
+  }
+  throw new Error(`unscripted ${key}`);
+}
+
+let host: HTMLDivElement;
+let root: Root;
+
+async function flush() {
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); });
+}
+
+async function render(outcome: QuickBooksOutcome | null = null) {
+  host = document.createElement('div');
+  document.body.appendChild(host);
+  root = createRoot(host);
+  await act(async () => { root.render(<QuickBooksSection outcome={outcome} />); });
+  await flush();
+}
+
+function text(): string {
+  return document.body.textContent ?? '';
+}
+
+function button(label: string): HTMLButtonElement | undefined {
+  return [...document.querySelectorAll('button')].find(b => b.textContent?.trim() === label) as HTMLButtonElement | undefined;
+}
+
+async function click(label: string) {
+  const b = button(label);
+  expect(b, `button "${label}"`).toBeTruthy();
+  await act(async () => { b!.click(); });
+  await flush();
+}
+
+beforeEach(async () => {
+  await i18n.changeLanguage('es');
+  statusReply = NOT_CONNECTED;
+  replies = {};
+  calls.length = 0;
+  for (const k of Object.keys(waits)) delete waits[k];
+  vi.mocked(openIntuitConsent).mockClear();
+  vi.mocked(toast.info).mockClear();
+});
+
+afterEach(async () => {
+  await act(async () => root.unmount());
+  host.remove();
+  document.body.innerHTML = '';
+});
+
+describe('QuickBooksSection', () => {
+  it('explains a server without Intuit keys instead of offering a button that cannot work', async () => {
+    statusReply = { ...NOT_CONNECTED, configured: false };
+    await render();
+
+    expect(text()).toContain('Falta configurar el servidor');
+    expect(button('Conectar con QuickBooks')).toBeUndefined();
+  });
+
+  it('without the Intuit keys, wears no «Sandbox · pruebas» tag — that is only the server\'s default', async () => {
+    // Audit B14 (seen in OFJR's production): the tag called a live system «pruebas».
+    statusReply = { ...NOT_CONNECTED, configured: false, environment: 'SANDBOX' };
+    await render();
+    expect(text()).not.toContain('Sandbox · pruebas');
+
+    await act(async () => root.unmount());
+    host.remove();
+    statusReply = NOT_CONNECTED;
+    await render();
+    expect(text()).toContain('Sandbox · pruebas');
+  });
+
+  it('sends the browser to the consent URL the server minted', async () => {
+    replies[`POST ${BASE}/connect`] = { authorizationUrl: 'https://appcenter.intuit.com/connect/oauth2?state=abc' };
+    await render();
+
+    expect(text()).toContain('Tu QuickBooks todavía no está conectado');
+    expect(text()).toContain('solo se puede conectar una empresa sandbox');
+    // Before the trip to Intuit, not only after a refusal: one company, one constructora.
+    expect(document.querySelector('[data-testid="quickbooks-one-company"]')?.textContent)
+      .toContain('Una empresa de QuickBooks solo puede estar conectada a una constructora de BuildTrack');
+    await click('Conectar con QuickBooks');
+
+    expect(calls).toContain(`POST ${BASE}/connect`);
+    expect(openIntuitConsent).toHaveBeenCalledWith('https://appcenter.intuit.com/connect/oauth2?state=abc');
+  });
+
+  it('shows why connecting failed and lets the admin try again', async () => {
+    replies[`POST ${BASE}/connect`] = new ApiError(
+      409, 'La integración con QuickBooks todavía no está configurada en el servidor.', undefined, 'QUICKBOOKS_NOT_CONFIGURED',
+    );
+    await render();
+
+    await click('Conectar con QuickBooks');
+
+    expect(openIntuitConsent).not.toHaveBeenCalled();
+    expect(text()).toContain('todavía no está configurada en el servidor');
+    expect(button('Conectar con QuickBooks')?.disabled).toBe(false);
+  });
+
+  it('names the connected company and tests the link on demand', async () => {
+    statusReply = ACTIVE;
+    replies[`POST ${BASE}/test`] = { ...ACTIVE, companyName: 'Renamed Co' };
+    await render();
+
+    expect(text()).toContain('Constructora Peña S.A.');
+    expect(text()).toContain('9130000001');
+    expect(document.querySelector('[data-testid="quickbooks-state"]')?.textContent).toContain('Conectado');
+    await click('Probar conexión');
+
+    expect(calls).toContain(`POST ${BASE}/test`);
+    expect(text()).toContain('Renamed Co');
+  });
+
+  it('asks for a reconnect when Intuit rejected the permission, and hides the test button', async () => {
+    statusReply = { ...ACTIVE, state: 'NEEDS_RECONNECT', lastError: 'REFRESH_REJECTED' };
+    await render();
+
+    expect(text()).toContain('La conexión dejó de funcionar');
+    expect(text()).toContain('Intuit rechazó el permiso');
+    expect(button('Volver a conectar')).toBeTruthy();
+    expect(button('Probar conexión')).toBeUndefined();
+  });
+
+  it('a test that finds the permission gone leaves one explanation, the card\'s, with the reconnect button', async () => {
+    // Seen against the simulated Intuit (2026-09-26): the failed test put
+    // «Hay un problema con la conexión» on top of the card's own «La conexión
+    // dejó de funcionar», two red bands saying one thing.
+    statusReply = ACTIVE;
+    replies[`POST ${BASE}/test`] = new ApiError(409, 'Hay que volver a conectar QuickBooks.', undefined, 'QUICKBOOKS_NEEDS_RECONNECT');
+    await render();
+
+    statusReply = { ...ACTIVE, state: 'NEEDS_RECONNECT', lastError: 'REFRESH_REJECTED' };
+    await click('Probar conexión');
+
+    expect(document.querySelector('[data-testid="quickbooks-action-error"]')).toBeNull();
+    expect(document.querySelectorAll('[role="alert"]')).toHaveLength(1);
+    expect(text()).toContain('La conexión dejó de funcionar');
+    expect(button('Volver a conectar')).toBeTruthy();
+  });
+
+  it('a test on its cooldown is a calm notice with the wait the server said, not a red band (audit B8)', async () => {
+    statusReply = ACTIVE;
+    replies[`POST ${BASE}/test`] = new ApiError(
+      429, 'La conexión se probó hace un momento. Intenta de nuevo en 42 segundos.', undefined, 'QUICKBOOKS_TEST_COOLDOWN', 42,
+    );
+    await render();
+
+    await click('Probar conexión');
+
+    expect(toast.info).toHaveBeenCalledWith('La conexión se probó hace un momento. Puedes volver a probarla en 42 s.');
+    expect(document.querySelector('[data-testid="quickbooks-action-error"]')).toBeNull();
+  });
+
+  it('a test that fails any other way still says so above the card', async () => {
+    statusReply = ACTIVE;
+    replies[`POST ${BASE}/test`] = new ApiError(503, 'QuickBooks no respondió.', undefined, 'QUICKBOOKS_UNAVAILABLE');
+    await render();
+
+    await click('Probar conexión');
+
+    expect(document.querySelector('[data-testid="quickbooks-action-error"]')?.textContent).toContain('QuickBooks no respondió.');
+  });
+
+  it('a lost or changed encryption key reads as a reconnect with its reason, not a raw code', async () => {
+    // Audit B6: the server used to answer 500 under a card saying «Conectado».
+    statusReply = { ...ACTIVE, state: 'NEEDS_RECONNECT', lastError: 'TOKEN_KEY_MISMATCH' };
+    await render();
+
+    expect(text()).toContain('La conexión dejó de funcionar');
+    expect(text()).toContain('cambió o se perdió la clave con la que BuildTrack lo cifra');
+    expect(text()).not.toContain('TOKEN_KEY_MISMATCH');
+    expect(button('Volver a conectar')).toBeTruthy();
+  });
+
+  it('after an environment switch, only offers disconnecting — a reconnect would hit the other company', async () => {
+    statusReply = { ...ACTIVE, state: 'NEEDS_RECONNECT', lastError: 'ENVIRONMENT_CHANGED' };
+    await render();
+
+    expect(text()).toContain('cambió de ambiente');
+    expect(button('Volver a conectar')).toBeUndefined();
+    expect(button('Desconectar')).toBeTruthy();
+  });
+
+  it('disconnects only after confirming, then shows the empty state', async () => {
+    statusReply = ACTIVE;
+    replies[`POST ${BASE}/disconnect`] = NOT_CONNECTED;
+    await render();
+
+    await click('Desconectar');
+    expect(text()).toContain('¿Desconectar?');
+    // Disconnecting stops the payments read too: what stays counted is said up front.
+    expect(text()).toContain('lo pagado de los documentos enviados queda como lo dejó QuickBooks');
+    expect(text()).toContain('los pagos nuevos se registran aquí');
+    expect(calls).not.toContain(`POST ${BASE}/disconnect`);
+
+    await click('Sí, desconectar');
+
+    expect(calls).toContain(`POST ${BASE}/disconnect`);
+    expect(text()).toContain('Tu QuickBooks todavía no está conectado');
+  });
+
+  it('testing and disconnecting wait as long as Intuit may take, not the usual 15 s', async () => {
+    statusReply = ACTIVE;
+    replies[`POST ${BASE}/test`] = ACTIVE;
+    replies[`POST ${BASE}/disconnect`] = NOT_CONNECTED;
+    await render();
+
+    await click('Probar conexión');
+    await click('Desconectar');
+    await click('Sí, desconectar');
+
+    expect(waits[`POST ${BASE}/test`]).toBe(QUICKBOOKS_LONG_TIMEOUT_MS);
+    expect(waits[`POST ${BASE}/disconnect`]).toBe(QUICKBOOKS_LONG_TIMEOUT_MS);
+    expect(waits[`GET ${BASE}`]).toBeUndefined();
+  });
+
+  it('a disconnect that outlives the wait is not a failure: the modal closes and the card is re-read', async () => {
+    statusReply = ACTIVE;
+    replies[`POST ${BASE}/disconnect`] = new NoResponseError(true, new DOMException('signal is aborted without reason', 'AbortError'));
+    await render();
+
+    await click('Desconectar');
+    // Undone here first, then Intuit is told: by now the server shows it gone.
+    statusReply = NOT_CONNECTED;
+    await click('Sí, desconectar');
+
+    expect(toast.info).toHaveBeenCalledWith('QuickBooks sigue trabajando; el estado se actualizará.');
+    expect(text()).not.toContain('¿Desconectar?');
+    expect(text()).not.toContain('aborted');
+    expect(text()).toContain('Tu QuickBooks todavía no está conectado');
+  });
+
+  it('a test that outlives the wait says QuickBooks is still at it, not a raw browser error', async () => {
+    statusReply = ACTIVE;
+    replies[`POST ${BASE}/test`] = new NoResponseError(false, new TypeError('Failed to fetch'));
+    await render();
+
+    await click('Probar conexión');
+
+    expect(toast.info).toHaveBeenCalledWith('QuickBooks sigue trabajando; el estado se actualizará.');
+    expect(text()).not.toContain('Failed to fetch');
+    expect(calls.filter(c => c === `GET ${BASE}`).length).toBe(2);
+  });
+
+  it('greets the return from Intuit with the outcome, and drops it once the admin acts again', async () => {
+    statusReply = ACTIVE;
+    replies[`POST ${BASE}/disconnect`] = NOT_CONNECTED;
+    await render('CONNECTED');
+    expect(text()).toContain('Tu QuickBooks quedó conectado.');
+
+    await click('Desconectar');
+    await click('Sí, desconectar');
+
+    // Found live in OFJR on 2026-09-25: the "connected" banner stayed above
+    // the just-disconnected card.
+    expect(text()).not.toContain('Tu QuickBooks quedó conectado.');
+    expect(text()).toContain('Tu QuickBooks todavía no está conectado');
+  });
+
+  it('under a live link, "Envíos" lists the documents and a missing link opens the right Vincular tab', async () => {
+    statusReply = ACTIVE;
+    replies[`GET ${BASE}/sync?page=0&size=25`] = {
+      settings: {
+        connected: true, environment: 'SANDBOX', realmId: '9130000001', companyName: 'Constructora Peña S.A.',
+        cutoverDate: '2026-09-20', autoSend: false, autoSendChangedBy: null, autoSendChangedAt: null,
+        autoSendIntervalMinutes: 2, lastRunAt: null, lastRunSummary: null, plan: 'PLUS', expensesByCustomer: true,
+        customTxnNumbers: false, allowDiscount: true, usingSalesTax: true, preferencesRead: true,
+      },
+      summary: { ready: 0, blocked: 1, failed: 0, sent: 0, changed: 0, skipped: 0, closed: 0 },
+      rows: [{
+        type: 'INVOICE', docId: 4, documentType: 'INVOICE', number: 'INV-2026-0004', vendorInvoiceNumber: null,
+        party: 'Cliente Demo', projectName: 'Torre Norte', date: '2026-09-25', amountCents: 10_000, state: 'BLOCKED',
+        reasons: ['PROJECT_NOT_LINKED'], linkTabs: ['projects'], errorMessage: null, warning: null, deletedHere: false,
+        qboId: null, qboDocNumber: null, qboUrl: null, sentAt: null, sentBy: null, syncedAt: null, lastAttemptAt: null,
+        nextAttemptAt: null, skippedBy: null, attachmentsTotal: null, attachmentsSent: null,
+      }],
+      page: 0, size: 25, totalElements: 1, totalPages: 1,
+    };
+    await render();
+    const tab = (label: string) => [...document.querySelectorAll('[role=tab]')].find(b => b.textContent?.startsWith(label)) as HTMLElement;
+    expect(tab('Vincular').getAttribute('aria-selected')).toBe('true');
+    expect(document.querySelector('[data-testid="quickbooks-sync"]')).toBeNull();
+
+    await act(async () => { tab('Envíos').click(); });
+    await flush();
+    expect(calls).toContain(`GET ${BASE}/sync?page=0&size=25`);
+    expect(text()).toContain('INV-2026-0004');
+    expect(text()).toContain('La obra no está vinculada con QuickBooks.');
+
+    await click('Vincular obra');
+
+    expect(tab('Vincular').getAttribute('aria-selected')).toBe('true');
+    expect(tab('Obras').getAttribute('aria-selected')).toBe('true');
+    expect(document.querySelector('[data-testid="quickbooks-sync"]')).toBeNull();
+  });
+
+  it('the third tab, "Pagos", reads its own status — nothing from QuickBooks — and its flagged documents open "Envíos"', async () => {
+    statusReply = ACTIVE;
+    replies[`GET ${BASE}/payments`] = {
+      connected: true, enabled: true, changedBy: 'admin', changedAt: '2026-09-25T20:00:00Z', intervalMinutes: 60,
+      readAt: '2026-09-25T20:05:00Z', cursor: '2026-09-25T20:05:00Z', lastError: null, running: false,
+      webhook: { configured: true, url: null, lastEventAt: null, pendingEvents: 0 },
+      localPaymentsDocuments: 1, localPaymentsCents: 5_000, recent: [],
+    };
+    replies[`GET ${BASE}/sync?page=0&size=25`] = {
+      settings: {
+        connected: true, environment: 'SANDBOX', realmId: '9130000001', companyName: 'Constructora Peña S.A.',
+        cutoverDate: '2026-09-20', autoSend: false, autoSendChangedBy: null, autoSendChangedAt: null,
+        autoSendIntervalMinutes: 2, lastRunAt: null, lastRunSummary: null, plan: 'PLUS', expensesByCustomer: true,
+        customTxnNumbers: false, allowDiscount: true, usingSalesTax: true, preferencesRead: true, paymentsFromQbo: true,
+      },
+      summary: { ready: 0, blocked: 0, failed: 0, sent: 0, changed: 0, skipped: 0, closed: 0, localPayments: 1 },
+      rows: [], page: 0, size: 25, totalElements: 0, totalPages: 0,
+    };
+    await render();
+    const tab = (label: string) => [...document.querySelectorAll('[role=tab]')].find(b => b.textContent?.startsWith(label)) as HTMLElement;
+
+    await act(async () => { tab('Pagos').click(); });
+    await flush();
+    expect(tab('Pagos').getAttribute('aria-selected')).toBe('true');
+    expect(text()).toContain('Pagos desde QuickBooks');
+    expect(calls).toContain(`GET ${BASE}/payments`);
+    expect(calls.some(c => c.startsWith('POST'))).toBe(false);
+
+    await click('Ver en Envíos');
+
+    expect(tab('Envíos').getAttribute('aria-selected')).toBe('true');
+    expect(document.querySelector('[data-testid="quickbooks-sync-local-payments"]')).toBeTruthy();
+  });
+
+  it('explains a company held by another constructora in words, not a code', async () => {
+    await render('REALM_IN_USE');
+
+    expect(text()).toContain('No se conectó');
+    expect(text()).toContain('ya está conectada a otra constructora');
+    expect(text()).not.toContain('REALM_IN_USE');
+  });
+
+  it('stays failed, with a retry, when the status cannot be loaded', async () => {
+    replies[`GET ${BASE}`] = new Error('network');
+    await render();
+
+    expect(document.querySelector('[data-testid="quickbooks-load-error"]')).not.toBeNull();
+    expect(button('Conectar con QuickBooks')).toBeUndefined();
+
+    delete replies[`GET ${BASE}`];
+    await click('Reintentar');
+    expect(button('Conectar con QuickBooks')).toBeTruthy();
+  });
+});

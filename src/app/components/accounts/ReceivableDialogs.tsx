@@ -12,7 +12,7 @@ import { ApiError } from '../../lib/api';
 import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 import { businessToday } from '../../helpers/dateTime';
 import {
-  deleteReceivable, recordReceivablePayment, rejectChangeOrder, updateReceivableInfo,
+  deleteReceivable, getReceivable, hasLiveQuickBooksPayment, recordReceivablePayment, rejectChangeOrder, updateReceivableInfo,
   type Receivable,
 } from '../../services/finance';
 
@@ -78,6 +78,15 @@ export function CollectDialog({ doc, onClose, onCollected, clientOverdue }: {
       onCollected(updated);
       onClose();
     } catch (err: unknown) {
+      if (paymentsNowInQuickBooks(err)) {
+        // Sent to QuickBooks (or read from there) since the screen loaded: its
+        // collections are registered there now. The screen shows the document
+        // as it is — «Cobrar» off, with the reason — instead of inviting the
+        // same refused click again (audit B16).
+        const fresh = await getReceivable(doc.id).catch(() => null);
+        if (fresh) onCollected(fresh);
+        onClose();
+      }
       toast.error(t('finance:receivable.collect.failed'), { description: err instanceof Error ? err.message : undefined });
     } finally {
       setBusy(false);
@@ -357,7 +366,12 @@ export function DeleteReceivableDialog({ doc, onClose, onDeleted }: {
       onClose();
     } catch (err: unknown) {
       if (err instanceof ApiError && err.code === 'RECEIVABLE_HAS_PAYMENTS') {
-        toast.error(t('finance:receivable.delete.hasPayments'), { description: err.message });
+        // A collection read from QuickBooks is undone there; the server's
+        // sentence (the description) already says so.
+        toast.error(
+          t(hasLiveQuickBooksPayment(doc) ? 'finance:receivable.delete.hasQuickBooksPayments' : 'finance:receivable.delete.hasPayments'),
+          { description: err.message },
+        );
       } else {
         toast.error(t('finance:receivable.delete.failed'), { description: err instanceof Error ? err.message : undefined });
       }
@@ -380,4 +394,9 @@ export function DeleteReceivableDialog({ doc, onClose, onDeleted }: {
       </DialogContent>
     </Dialog>
   );
+}
+
+/** 409 QUICKBOOKS_PAYMENTS_IN_QBO: this document's payments are registered in QuickBooks now. */
+function paymentsNowInQuickBooks(err: unknown): boolean {
+  return err instanceof ApiError && err.code === 'QUICKBOOKS_PAYMENTS_IN_QBO';
 }

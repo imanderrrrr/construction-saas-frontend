@@ -11,9 +11,9 @@ import { ApiError } from '../../lib/api';
 import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 import { businessToday } from '../../helpers/dateTime';
 import {
-  convertPayableToInvoice, createPayable, deletePayable, markPayableUnpaid, reassignPayableProject,
+  convertPayableToInvoice, createPayable, deletePayable, getPayable, markPayableUnpaid, reassignPayableProject,
   recordPayablePayment, updatePayableAmount, updatePayableDates, updatePayableInfo,
-  updatePayablePayment, uploadPayableAttachment, voidPayablePayment, type Payable,
+  updatePayablePayment, uploadPayableAttachment, voidPayablePayment, hasLiveQuickBooksPayment, type Payable,
 } from '../../services/finance';
 import { ALLOWED_ACCEPT, ALLOWED_TYPES, MAX_BYTES, MAX_COUNT } from '../PayableAttachmentsPanel';
 import { WINDOW, WINDOW_SHEET as SHEET, WindowFoot, WindowHead, WindowSubject } from './ui';
@@ -126,6 +126,15 @@ export function PayDialog({ bill, project, onClose, onPaid }: {
       onPaid(updated);
       onClose();
     } catch (err: unknown) {
+      if (paymentsNowInQuickBooks(err)) {
+        // Sent to QuickBooks (or read from there) since the screen loaded: its
+        // payments are registered there now. The screen shows the bill as it
+        // is — «Pagar» off, with the reason — instead of inviting the same
+        // refused click again (audit B16).
+        const fresh = await getPayable(bill.id).catch(() => null);
+        if (fresh) onPaid(fresh);
+        onClose();
+      }
       toast.error(t('finance:payable.toast.paymentFailed'), { description: err instanceof Error ? err.message : undefined });
     } finally {
       setBusy(false);
@@ -774,7 +783,7 @@ export function ReassignDialog({ bill, projects, onClose, onReassigned }: {
       onClose();
     } catch (err: unknown) {
       const code = err instanceof ApiError ? err.code : undefined;
-      const key = code === 'PAYABLE_HAS_ACTIVE_PAYMENTS' ? 'hasPayments'
+      const key = code === 'PAYABLE_HAS_ACTIVE_PAYMENTS' ? (hasLiveQuickBooksPayment(bill) ? 'hasQuickBooksPayments' : 'hasPayments')
         : code === 'PROJECT_NOT_ACTIVE' ? 'notActive'
         : code === 'PAYABLE_ALREADY_IN_PROJECT' ? 'sameProject' : 'failed';
       toast.error(t(`finance:payable.reassign.${key}`), { description: err instanceof Error ? err.message : undefined });
@@ -790,7 +799,12 @@ export function ReassignDialog({ bill, projects, onClose, onReassigned }: {
         <Head kicker={bill.billNumber} title={t('finance:payable.reassign.title')} />
         <div className={SHEET}>
           <p className="text-[12.5px] leading-[1.5] text-[#2E2A24]">{t('finance:payable.reassign.description', { project: bill.project })}</p>
-          {hasActive && <PaperNote tone="orange">{t('finance:payable.reassign.activePaymentsHint')}</PaperNote>}
+          {/* A payment read from QuickBooks is undone there, so "void it first" would go in a circle. */}
+          {hasActive && (
+            <PaperNote tone="orange">
+              {t(hasLiveQuickBooksPayment(bill) ? 'finance:payable.reassign.quickbooksPaymentsHint' : 'finance:payable.reassign.activePaymentsHint')}
+            </PaperNote>
+          )}
           <div>
             <FieldLabel htmlFor="ap-reassign-target">{t('finance:payable.reassign.targetLabel')}</FieldLabel>
             <MonoSelect id="ap-reassign-target" value={target} onChange={e => setTarget(e.target.value)} className="w-full h-10 normal-case">
@@ -822,6 +836,11 @@ export function UnpayDialog({ bill, onClose, onUnpaid }: {
       onUnpaid(updated);
       onClose();
     } catch (err: unknown) {
+      if (paymentsNowInQuickBooks(err)) {
+        const fresh = await getPayable(bill.id).catch(() => null);
+        if (fresh) onUnpaid(fresh);
+        onClose();
+      }
       toast.error(t('finance:payable.unpay.failed'), { description: err instanceof Error ? err.message : undefined });
     } finally {
       setBusy(false);
@@ -868,7 +887,10 @@ export function DeleteBillDialog({ bill, onClose, onDeleted }: {
       onClose();
     } catch (err: unknown) {
       if (err instanceof ApiError && err.code === 'PAYABLE_HAS_ACTIVE_PAYMENTS') {
-        toast.error(t('finance:payable.delete.hasPayments'), { description: err.message });
+        toast.error(
+          t(hasLiveQuickBooksPayment(bill) ? 'finance:payable.delete.hasQuickBooksPayments' : 'finance:payable.delete.hasPayments'),
+          { description: err.message },
+        );
       } else {
         toast.error(t('finance:payable.delete.failed'), { description: err instanceof Error ? err.message : undefined });
       }
@@ -885,7 +907,11 @@ export function DeleteBillDialog({ bill, onClose, onDeleted }: {
         <Head kicker={bill.billNumber} title={t('finance:payable.delete.title')} tone="red" />
         <div className={SHEET}>
           <PaperNote tone="red">{t('finance:payable.delete.warning')}</PaperNote>
-          {hasActive && <PaperNote tone="orange">{t('finance:payable.delete.activePaymentsHint')}</PaperNote>}
+          {hasActive && (
+            <PaperNote tone="orange">
+              {t(hasLiveQuickBooksPayment(bill) ? 'finance:payable.delete.quickbooksPaymentsHint' : 'finance:payable.delete.activePaymentsHint')}
+            </PaperNote>
+          )}
           {step === 2 && (
             <p className="text-[12.5px] font-semibold leading-[1.5] text-[#B3402A]">{t('finance:payable.delete.confirmFinal')}</p>
           )}
@@ -972,4 +998,9 @@ export function EditPaymentDialog({ subject, onClose, onSaved }: {
 /** Void one payment — kept listed, struck through, with its reason. */
 export async function voidOnePayment(billId: number, paymentId: number): Promise<Payable> {
   return voidPayablePayment(billId, paymentId);
+}
+
+/** 409 QUICKBOOKS_PAYMENTS_IN_QBO: this bill's payments are registered in QuickBooks now. */
+function paymentsNowInQuickBooks(err: unknown): boolean {
+  return err instanceof ApiError && err.code === 'QUICKBOOKS_PAYMENTS_IN_QBO';
 }
