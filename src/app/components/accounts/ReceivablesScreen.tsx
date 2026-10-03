@@ -29,6 +29,7 @@ import {
 } from './ui';
 import { CollectDialog, DeleteReceivableDialog, EditInfoDialog, RejectChangeOrderDialog } from './ReceivableDialogs';
 import { PaymentOriginTag, RegisterInQuickBooksNote } from './PaymentOrigin';
+import { clearSectionIntent, peekSectionIntent } from '../../lib/sectionIntent';
 
 /**
  * Cobrar — the screen of money coming in.
@@ -68,7 +69,16 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
   const [downloading, setDownloading] = useState<number | null>(null);
   const [voiding, setVoiding] = useState<number | null>(null);
 
-  const [view, setView] = useState<ViewKey>('clients');
+  // Another section may have sent us here with a document in mind («Ver cómo»
+  // on the notice Facturas shows after issuing one): read it while
+  // initialising — a peek, so StrictMode's double initializer sees the same
+  // value — and clear it once mounted so a later visit by hand starts clean.
+  // The document opens in the by-document view, where its row does not
+  // depend on which client happens to be open.
+  const [intent] = useState(() => peekSectionIntent('accounts-receivable'));
+  useEffect(() => { clearSectionIntent('accounts-receivable'); }, []);
+
+  const [view, setView] = useState<ViewKey>(intent ? 'docs' : 'clients');
   const [client, setClient] = useState('');
   const [projectId, setProjectId] = useState('');
   const [status, setStatus] = useState('');
@@ -76,7 +86,7 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
   const [search, setSearch] = useState('');
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [openParty, setOpenParty] = useState<string | null>(null);
-  const [openDoc, setOpenDoc] = useState<number | null>(null);
+  const [openDoc, setOpenDoc] = useState<number | null>(intent?.openReceivableId ?? null);
 
   const [collectDoc, setCollectDoc] = useState<Receivable | null>(null);
   const [editDoc, setEditDoc] = useState<Receivable | null>(null);
@@ -219,6 +229,16 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
 
   const loading = rows === null && !loadError;
   const figure = (v: string) => (loading || loadError ? '—' : v);
+
+  // Where the section tour's `signature` stop points (sectionTourSteps.ts).
+  // The block it describes lives inside an open document, so the stop rings
+  // the list while none is on screen and the block itself once one is — one
+  // element carries the anchor at any time. While the rows a deep link asked
+  // for are still loading, neither: the stop waits for the block instead of
+  // ringing a skeleton.
+  const detailOnScreen = openDoc != null
+    && (view === 'docs' ? byId.has(openDoc) : byId.get(openDoc)?.client === openParty);
+  const signatureStopOnRows = !detailOnScreen && !(loading && openDoc != null);
 
   return (
     <div className="space-y-3.5">
@@ -412,7 +432,9 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
         </Mono>
       </FilterBar>
 
-      {/* The list */}
+      {/* The list. The outer wrapper lends the signature stop a zone while no
+          document is open — see `signatureStopOnRows`. */}
+      <div data-tour={signatureStopOnRows ? 'sec.accounts-receivable.signature' : undefined}>
       <div id={bodyId} data-tour="sec.accounts-receivable.rows" className="bg-white border border-[#E7E1D5]">
         {loadError && (
           <div data-testid="accounts-receivable-load-error" className="p-3.5">
@@ -528,6 +550,7 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
             ))}
           </>
         )}
+      </div>
       </div>
 
       <CollectDialog
@@ -916,7 +939,9 @@ function DocumentDetail({ doc, dateLocale, onVoid, voiding }: {
           <p className="text-[12.5px] leading-[1.5] text-[#5A5346] mt-3.5 pt-3 border-t border-[#EDE7DB]">{doc.notes}</p>
         )}
       </div>
-      <div className="p-4">
+      {/* The tour's `signature` stop rings this block while the document is
+          open; the rows lend it a zone otherwise (see the screen above). */}
+      <div className="p-4" data-tour="sec.accounts-receivable.signature">
         <SignatureRequestPanel receivableId={doc.id} />
       </div>
     </div>

@@ -7,9 +7,14 @@
 // used, and that is precisely the question the snapshot + hash exist to answer.
 //
 // Renders the snapshot the server rebuilt — never a live row.
+//
+// Typeset like a document of the panel: a mono kicker, a display title over an
+// ink rule, mono figures with tabular numerals, the total in display type, and
+// the notes on the paper note every screen uses for a remark.
 
 import { useTranslation } from 'react-i18next';
-import { FileSignature } from 'lucide-react';
+import { cn } from '../ui/utils';
+import { Mono, PaperNote } from '../projects/bt';
 import type { SignatureDocument } from '../../services/signatures';
 
 /**
@@ -69,14 +74,20 @@ export function documentKindKey(documentKind: string): string {
   }
 }
 
-export function Row({ label, value }: { label: string; value: string }) {
+/** A label and its value. `numeric` sets the value in mono with tabular figures. */
+export function Row({ label, value, numeric }: { label: string; value: string; numeric?: boolean }) {
   return (
-    <div className="flex justify-between gap-4">
-      <dt className="text-zinc-500">{label}</dt>
-      <dd className="text-right font-medium text-zinc-800">{value}</dd>
+    <div className="flex items-baseline justify-between gap-4">
+      <dt><Mono className="text-[10px] tracking-[0.1em] text-[#8A8175]">{label}</Mono></dt>
+      <dd className={cn('text-right text-[13px] font-semibold text-[#0A0A0A]', numeric && 'font-bt-mono text-[12.5px] tabular-nums')}>
+        {value}
+      </dd>
     </div>
   );
 }
+
+const TH = 'py-2 font-bt-mono text-[10px] font-normal uppercase tracking-[0.12em] text-[#8A8175]';
+const NUM = 'py-2 pl-3 text-right font-bt-mono text-[12.5px] tabular-nums whitespace-nowrap';
 
 export function SignatureDocumentView({ doc }: { doc: SignatureDocument }) {
   const { t, i18n } = useTranslation('signatures');
@@ -84,17 +95,20 @@ export function SignatureDocumentView({ doc }: { doc: SignatureDocument }) {
 
   return (
     <>
-      <header className="border-b border-zinc-200 pb-4">
-        <p className="text-sm text-zinc-500">{doc.companyName}</p>
-        <h1 className="mt-1 flex items-center gap-2 text-xl font-semibold text-zinc-900">
-          <FileSignature className="h-5 w-5 text-orange-500" />
-          {t(documentKindKey(doc.documentKind))}{' '}{doc.documentNumber}
+      <header className="border-b border-[#0A0A0A] pb-4">
+        <div className="flex items-center gap-2.5">
+          <span aria-hidden="true" className="block h-2 w-2 shrink-0 bg-[#F97316]" />
+          <Mono className="text-[10.5px] font-semibold tracking-[0.14em] text-[#5A5346]">{doc.companyName}</Mono>
+        </div>
+        <h1 className="mt-2 font-bt-display text-[32px] font-extrabold uppercase leading-[0.92] tracking-[0.01em] text-[#0A0A0A] sm:text-[40px]">
+          {t(documentKindKey(doc.documentKind))}{' '}
+          <Mono className="block text-[13px] font-semibold normal-case tracking-[0.03em] mt-1.5">{doc.documentNumber}</Mono>
         </h1>
-        <p className="mt-1 text-sm text-zinc-600">{doc.projectName} · {doc.clientName}</p>
+        <p className="mt-2 text-[13px] leading-[1.5] text-[#5A5346]">{doc.projectName} · {doc.clientName}</p>
       </header>
 
-      <section className="mt-6 space-y-4">
-        <dl className="grid grid-cols-2 gap-3 text-sm">
+      <section className="mt-5 space-y-4">
+        <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-x-6">
           <Row label={t('doc.issued')} value={docDate(doc.issuedDate)} />
           {/* A T&M sheet has no due date — it authorises work already done, it
               does not ask to be paid by a date. The snapshot simply omits the
@@ -102,26 +116,26 @@ export function SignatureDocumentView({ doc }: { doc: SignatureDocument }) {
           {doc.dueDate && <Row label={t('doc.due')} value={docDate(doc.dueDate)} />}
         </dl>
 
-        {doc.description && <p className="text-sm text-zinc-700">{doc.description}</p>}
+        {doc.description && <p className="text-[13px] leading-[1.5] text-[#0A0A0A]">{doc.description}</p>}
 
         {doc.lineItems.length > 0 && (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-[13px]">
               <thead>
-                <tr className="border-b border-zinc-200 text-left text-xs uppercase text-zinc-500">
-                  <th className="py-2">{t('doc.item')}</th>
-                  <th className="py-2 text-right">{t('doc.qty')}</th>
-                  <th className="py-2 text-right">{t('doc.unit')}</th>
-                  <th className="py-2 text-right">{t('doc.amount')}</th>
+                <tr className="border-b border-[#0A0A0A] text-left">
+                  <th className={TH}>{t('doc.item')}</th>
+                  <th className={cn(TH, 'pl-3 text-right')}>{t('doc.qty')}</th>
+                  <th className={cn(TH, 'pl-3 text-right')}>{t('doc.unit')}</th>
+                  <th className={cn(TH, 'pl-3 text-right')}>{t('doc.amount')}</th>
                 </tr>
               </thead>
               <tbody>
                 {doc.lineItems.map((li, i) => (
-                  <tr key={i} className="border-b border-zinc-100">
-                    <td className="py-2 pr-2">{li.description}</td>
-                    <td className="py-2 text-right tabular-nums">{quantity(li.quantity)}</td>
-                    <td className="py-2 text-right tabular-nums">{money(li.unitPriceCents, doc.currency)}</td>
-                    <td className="py-2 text-right tabular-nums">{money(li.subtotalCents, doc.currency)}</td>
+                  <tr key={i} className="border-b border-[#F0EBE1]">
+                    <td className="py-2 pr-2 text-[#0A0A0A]">{li.description}</td>
+                    <td className={cn(NUM, 'text-[#5A5346]')}>{quantity(li.quantity)}</td>
+                    <td className={cn(NUM, 'text-[#5A5346]')}>{money(li.unitPriceCents, doc.currency)}</td>
+                    <td className={cn(NUM, 'font-semibold text-[#0A0A0A]')}>{money(li.subtotalCents, doc.currency)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -129,25 +143,27 @@ export function SignatureDocumentView({ doc }: { doc: SignatureDocument }) {
           </div>
         )}
 
-        <dl className="ml-auto max-w-xs space-y-1 text-sm">
-          <Row label={t('doc.subtotal')} value={money(doc.subtotalCents, doc.currency)} />
+        <dl className="ml-auto max-w-xs space-y-1.5">
+          <Row numeric label={t('doc.subtotal')} value={money(doc.subtotalCents, doc.currency)} />
           {doc.discountCents > 0 && (
-            <Row label={t('doc.discount')} value={`-${money(doc.discountCents, doc.currency)}`} />
+            <Row numeric label={t('doc.discount')} value={`-${money(doc.discountCents, doc.currency)}`} />
           )}
           {/* Zero tax on a T&M sheet is emitted so the hashed payload keeps a
               stable shape, but printing "Tax (0.00%) $0.00" on a sheet that has
               no tax is noise on a document meant to be read and signed. */}
           {doc.taxCents !== 0 && (
-            <Row label={`${t('doc.tax')} (${doc.taxRate}%)`} value={money(doc.taxCents, doc.currency)} />
+            <Row numeric label={`${t('doc.tax')} (${doc.taxRate}%)`} value={money(doc.taxCents, doc.currency)} />
           )}
-          <div className="flex justify-between border-t border-zinc-300 pt-1 font-semibold text-zinc-900">
-            <dt>{t('doc.total')}</dt>
-            <dd className="tabular-nums">{money(doc.totalCents, doc.currency)}</dd>
+          <div className="flex items-baseline justify-between gap-4 border-t border-[#0A0A0A] pt-2">
+            <dt><Mono className="text-[10px] font-semibold tracking-[0.12em] text-[#0A0A0A]">{t('doc.total')}</Mono></dt>
+            <dd className="font-bt-display text-[24px] font-extrabold leading-none tabular-nums text-[#0A0A0A]">
+              {money(doc.totalCents, doc.currency)}
+            </dd>
           </div>
         </dl>
 
         {doc.notes && (
-          <p className="rounded-lg bg-zinc-50 p-3 text-sm text-zinc-600">{doc.notes}</p>
+          <PaperNote tone="none" className="text-[12.5px]">{doc.notes}</PaperNote>
         )}
       </section>
     </>

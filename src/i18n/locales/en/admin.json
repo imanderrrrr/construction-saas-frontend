@@ -2285,6 +2285,8 @@
   "sec.accounts-receivable.step.rows.body": "Current, 1–30, 31–60 and 60+. Open a client and each document carries its signature, its PDF and Record payment.",
   "sec.accounts-receivable.step.views.title": "Two ways of reading the same book",
   "sec.accounts-receivable.step.views.body": "By client to know who to call; by document to work invoice by invoice.",
+  "sec.accounts-receivable.step.signature.title": "The client's signature",
+  "sec.accounts-receivable.step.signature.body": "Open an invoice with the arrow: Customer signature is at the end. Whenever it is ready, tap Request signature and send the link: the client signs from their phone. Who signed, and when, shows up right there.",
   "sec.users.step.new-user.title": "Two ways to add your people",
   "sec.users.step.new-user.body": "\"Invite by QR\" generates a code the worker scans with their phone to enrol themselves. \"New user\" is the manual path, where you type in the name, role and hourly rate.",
   "sec.users.step.kpis.title": "Watch the middle number: \"no PIN\"",

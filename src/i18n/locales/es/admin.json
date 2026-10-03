@@ -2285,6 +2285,8 @@
   "sec.accounts-receivable.step.rows.body": "Al día, 1–30, 31–60 y +60. Abre el cliente y cada documento trae su firma, su PDF y Registrar cobro.",
   "sec.accounts-receivable.step.views.title": "Dos formas de mirar lo mismo",
   "sec.accounts-receivable.step.views.body": "Por cliente para saber a quién llamar; por documento para trabajar factura por factura.",
+  "sec.accounts-receivable.step.signature.title": "La firma del cliente",
+  "sec.accounts-receivable.step.signature.body": "Abre una factura con la flechita: al final está «Firma del cliente». Cuando esté lista, en cualquier momento, toca «Pedir firma» y manda el enlace: el cliente firma desde su teléfono. Ahí mismo ves quién firmó y cuándo.",
   "sec.users.step.new-user.title": "Dos formas de dar de alta a tu gente",
   "sec.users.step.new-user.body": "«Invitar por QR» genera un código que el obrero escanea con su móvil y se registra solo. «Nuevo usuario» es el alta manual, donde tú tecleas nombre, rol y tarifa por hora.",
   "sec.users.step.kpis.title": "Ojo al número del medio: «sin PIN»",
