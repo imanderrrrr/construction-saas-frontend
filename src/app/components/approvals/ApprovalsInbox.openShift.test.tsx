@@ -48,7 +48,7 @@ vi.mock('react-i18next', () => ({
 // The drawer and the manual-day modal pull in half the app; neither is under
 // test here.
 vi.mock('./RecordDrawer', () => ({ RecordDrawer: () => null }));
-vi.mock('../phase2/ModalCreateDay', () => ({ ModalCreateDay: () => null }));
+vi.mock('../phase2/ModalCreateDay', () => ({ ModalCreateDay: ({ open, subjectRole }: { open: boolean; subjectRole?: string }) => open ? <div data-testid="manual-day" data-subject-role={subjectRole} /> : null }));
 
 import { ApprovalsInbox } from './ApprovalsInbox';
 
@@ -210,5 +210,14 @@ describe('ApprovalsInbox — bulk approve with an open shift selected', () => {
     const report = mocks.toast.error.mock.calls[0][0] as string;
     expect(report).toContain('admin:apr.bulk.approved:1');
     expect(report).toContain('admin:apr.bulk.failed:1');
+  });
+  it('scopes the finance inbox to supervisor records and hides the role selector', async () => {
+    await act(async () => root.render(<ApprovalsInbox mode="finance" />));
+    expect(mocks.getAllTimeRecords).toHaveBeenCalledWith(expect.objectContaining({ role: 'SUPERVISOR', status: 'PENDING' }));
+    expect(container.querySelector('h2')?.textContent).toBe('finance:section.supervisorHours.title');
+    expect(container.textContent).not.toContain('admin:apr.f.allRoles');
+    expect(container.querySelector('[data-testid="create-day-button"]')).not.toBeNull();
+    await act(async () => (container.querySelector('[data-testid="create-day-button"]') as HTMLButtonElement).click());
+    expect(container.querySelector('[data-testid="manual-day"]')?.getAttribute('data-subject-role')).toBe('SUPERVISOR');
   });
 });

@@ -7,6 +7,7 @@ import { BtModal } from '../bt/windows';
 import { PrimaryButton, SecondaryButton } from '../onboarding/chrome';
 import { FieldHint, FieldLabel, INPUT, Mono, PaperNote } from '../projects/bt';
 import { fmtMoney, InvoiceStatusChip } from './bits';
+import { businessToday } from '../../helpers/dateTime';
 
 /**
  * 09 — record a payment.
@@ -29,12 +30,22 @@ export function RegisterPaymentModal({ open, onOpenChange, invoice, onPaid }: {
 }) {
   const { t } = useTranslation(['subcontractors', 'common']);
   const [reference, setReference] = useState('');
+  const [requestKey, setRequestKey] = useState('');
+  const [amount, setAmount] = useState('');
+  const [date, setDate] = useState(businessToday());
+  const [method, setMethod] = useState('');
+  const [validationError, setValidationError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setReference('');
+    setRequestKey(crypto.randomUUID());
+    setAmount(((invoice?.outstandingCents ?? invoice?.amountCents ?? 0) / 100).toFixed(2));
+    setDate(businessToday());
+    setMethod('');
+    setValidationError(false);
     setSaving(false);
     setError(false);
   }, [open, invoice?.id]);
@@ -42,10 +53,16 @@ export function RegisterPaymentModal({ open, onOpenChange, invoice, onPaid }: {
   if (!invoice) return null;
 
   const submit = async () => {
+    const amountCents = Math.round(Number(amount) * 100);
+    if (!/^\d+(\.\d{1,2})?$/.test(amount) || !Number.isSafeInteger(amountCents) || amountCents <= 0 || amountCents > (invoice.outstandingCents ?? invoice.amountCents) || !date || !method) {
+      setValidationError(true);
+      return;
+    }
+    setValidationError(false);
     setSaving(true);
     setError(false);
     try {
-      const updated = await registerPayment(invoice.id, { paymentReference: reference.trim() || null });
+      const updated = await registerPayment(invoice.id, { amountCents, date, method, requestKey, paymentReference: reference.trim() || null });
       onPaid(updated);
       onOpenChange(false);
     } catch {
@@ -84,9 +101,28 @@ export function RegisterPaymentModal({ open, onOpenChange, invoice, onPaid }: {
           {invoice.subcontractorName ?? ''} · {invoice.jobTitle}
         </div>
         <div className="font-bt-display font-extrabold text-[46px] leading-none tabular-nums text-[#0A0A0A] mt-2">
-          {fmtMoney(invoice.amountCents)}
+          {fmtMoney(invoice.outstandingCents ?? invoice.amountCents)}
         </div>
       </div>
+
+      <div className="mt-4 grid gap-3">
+        <div>
+          <FieldLabel htmlFor={`pay-amount-${invoice.id}`} required>{t('subcontractors:pay.amount')}</FieldLabel>
+          <input id={`pay-amount-${invoice.id}`} type="number" min="0.01" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} className={INPUT} />
+        </div>
+        <div>
+          <FieldLabel htmlFor={`pay-date-${invoice.id}`} required>{t('subcontractors:pay.date')}</FieldLabel>
+          <input id={`pay-date-${invoice.id}`} type="date" value={date} onChange={e => setDate(e.target.value)} className={INPUT} />
+        </div>
+        <div>
+          <FieldLabel htmlFor={`pay-method-${invoice.id}`} required>{t('subcontractors:pay.method')}</FieldLabel>
+          <select id={`pay-method-${invoice.id}`} value={method} onChange={e => setMethod(e.target.value)} className={INPUT}>
+            <option value="">{t('subcontractors:pay.method')}</option>
+            {['Bank transfer', 'Check', 'Cash', 'Other'].map(value => <option key={value} value={value}>{t(`subcontractors:pay.method.${value}`)}</option>)}
+          </select>
+        </div>
+      </div>
+      {validationError && <PaperNote tone="red" className="mt-3">{t('subcontractors:pay.validation')}</PaperNote>}
 
       <div className="mt-[14px]">
         <FieldLabel htmlFor={`pay-ref-${invoice.id}`}>{t('subcontractors:pay.reference')}</FieldLabel>

@@ -56,8 +56,12 @@ async function rankOf(id: number): Promise<number | null> {
   return null;
 }
 
-export function ClientsSection({ onNavigate }: { onNavigate?: (section: 'projects') => void } = {}) {
-  const { t, i18n } = useTranslation(['admin', 'common']);
+export function ClientsSection({ onNavigate, readOnly = false, projectSection = 'projects' }: {
+  onNavigate?: (section: 'projects' | 'budgets') => void;
+  readOnly?: boolean;
+  projectSection?: 'projects' | 'budgets';
+} = {}) {
+  const { t, i18n } = useTranslation(['admin', 'common', 'finance']);
   const lang = i18n.language;
   const [view, setView] = useState<'list' | 'ficha'>('list');
   const [selected, setSelected] = useState<ClientResponse | null>(null);
@@ -140,14 +144,14 @@ export function ClientsSection({ onNavigate }: { onNavigate?: (section: 'project
 
   const openFicha = (client: ClientResponse) => { setSelected(client); setView('ficha'); };
   const backToList = () => { setView('list'); setSelected(null); };
-  const openForm = useCallback((client: ClientResponse | null) => { setFormClient(client); setFormOpen(true); }, []);
-  const openStatus = useCallback((client: ClientResponse) => { setStatusClient(client); setStatusOpen(true); }, []);
+  const openForm = useCallback((client: ClientResponse | null) => { if (!readOnly) { setFormClient(client); setFormOpen(true); } }, [readOnly]);
+  const openStatus = useCallback((client: ClientResponse) => { if (!readOnly) { setStatusClient(client); setStatusOpen(true); } }, [readOnly]);
 
   /** "Ver sus obras" / "Ver todas en Proyectos →": Proyectos opens already narrowed to this client. */
   const goToProjects = useCallback((client: ClientResponse, openProjectId?: number) => {
-    setSectionIntent('projects', { clientId: client.id, clientName: client.name, openProjectId });
-    onNavigate?.('projects');
-  }, [onNavigate]);
+    setSectionIntent(projectSection, { clientId: client.id, clientName: client.name, openProjectId });
+    onNavigate?.(projectSection);
+  }, [onNavigate, projectSection]);
 
   const handleSaved = useCallback(async (client: ClientResponse, mode: ClientFormMode) => {
     if (mode === 'edit') {
@@ -201,6 +205,7 @@ export function ClientsSection({ onNavigate }: { onNavigate?: (section: 'project
       <>
         <ClientFicha
           client={selected}
+          readOnly={readOnly}
           onBack={backToList}
           onEdit={() => openForm(selected)}
           onToggleStatus={() => openStatus(selected)}
@@ -208,8 +213,8 @@ export function ClientsSection({ onNavigate }: { onNavigate?: (section: 'project
           onOpenProject={id => goToProjects(selected, id)}
           onClientChanged={() => refreshSelected(selected.id)}
         />
-        <ClientFormModal open={formOpen} onOpenChange={setFormOpen} client={formClient} onSaved={handleSaved} />
-        <ClientStatusModal open={statusOpen} onOpenChange={setStatusOpen} client={statusClient} onConfirmed={handleStatusChanged} />
+        {!readOnly && <ClientFormModal open={formOpen} onOpenChange={setFormOpen} client={formClient} onSaved={handleSaved} />}
+        {!readOnly && <ClientStatusModal open={statusOpen} onOpenChange={setStatusOpen} client={statusClient} onConfirmed={handleStatusChanged} />}
       </>
     );
   }
@@ -234,11 +239,11 @@ export function ClientsSection({ onNavigate }: { onNavigate?: (section: 'project
         </DropdownMenuLabel>
         {[
           { key: 'view', label: t('admin:clients.menu.view'), onClick: () => openFicha(client) },
-          { key: 'edit', label: t('admin:clients.menu.edit'), onClick: () => openForm(client) },
-          { key: 'projects', label: t('admin:clients.menu.projects'), onClick: () => goToProjects(client) },
-          client.status === 'ACTIVE'
+          ...(!readOnly ? [{ key: 'edit', label: t('admin:clients.menu.edit'), onClick: () => openForm(client) }] : []),
+          ...(onNavigate ? [{ key: 'projects', label: readOnly ? t('finance:clients.viewBudgets') : t('admin:clients.menu.projects'), onClick: () => goToProjects(client) }] : []),
+          ...(!readOnly ? [client.status === 'ACTIVE'
             ? { key: 'off', danger: true, sep: true, label: t('admin:clients.menu.deactivate'), onClick: () => openStatus(client) }
-            : { key: 'on', sep: true, label: t('admin:clients.menu.reactivate'), onClick: () => openStatus(client) },
+            : { key: 'on', sep: true, label: t('admin:clients.menu.reactivate'), onClick: () => openStatus(client) }] : []),
         ].map(it => (
           <DropdownMenuItem
             key={it.key}
@@ -283,11 +288,11 @@ export function ClientsSection({ onNavigate }: { onNavigate?: (section: 'project
           <div className="flex items-center gap-3.5 flex-shrink-0 w-full md:w-auto">
             <div className="text-right hidden md:block">
               <Mono className="block text-[12px] tracking-[0.08em] text-[#0A0A0A]">{t('admin:dash.todayStamp', { date: today })}</Mono>
-              <Mono className="block text-[10px] tracking-[0.1em] text-[#A69C8D] mt-[3px]">{t('admin:clients.stamp')}</Mono>
+              <Mono className="block text-[10px] tracking-[0.1em] text-[#A69C8D] mt-[3px]">{t(readOnly ? 'finance:clients.stamp' : 'admin:clients.stamp')}</Mono>
             </div>
-            <CreateButton onClick={() => openForm(null)} className="w-full md:w-auto py-3.5 md:py-3" data-tour="sec.clients.add-client">
+            {!readOnly && <CreateButton onClick={() => openForm(null)} className="w-full md:w-auto py-3.5 md:py-3" data-tour="sec.clients.add-client">
               <Plus className="w-3.5 h-3.5" strokeWidth={2.4} />{t('admin:clients.create')}
-            </CreateButton>
+            </CreateButton>}
           </div>
         </div>
 
@@ -305,7 +310,7 @@ export function ClientsSection({ onNavigate }: { onNavigate?: (section: 'project
             className={cn(figureButton(statusFilter === 'ACTIVE'), 'border-b sm:border-b-0 sm:border-r border-[#EDE7DB]')}
           >
             <div className="font-bt-display font-extrabold text-[40px] leading-[0.85] text-[#0A0A0A]">{figureValue(summary?.active)}</div>
-            <Mono className="block text-[10.5px] tracking-[0.1em] text-[#5A5346] mt-[5px]">{t('admin:clients.kpi.active')}</Mono>
+            <Mono className="block text-[10.5px] tracking-[0.1em] text-[#5A5346] mt-[5px]">{t(readOnly ? 'finance:clients.active' : 'admin:clients.kpi.active')}</Mono>
           </button>
           <button
             type="button"
@@ -315,7 +320,7 @@ export function ClientsSection({ onNavigate }: { onNavigate?: (section: 'project
             className={figureButton(projectsFilter === 'WITH_ACTIVE')}
           >
             <div className="font-bt-display font-extrabold text-[40px] leading-[0.85] text-[#0A0A0A]">{figureValue(summary?.withActiveProjects)}</div>
-            <Mono className="block text-[10.5px] tracking-[0.1em] text-[#5A5346] mt-[5px]">{t('admin:clients.kpi.withProjects')}</Mono>
+            <Mono className="block text-[10.5px] tracking-[0.1em] text-[#5A5346] mt-[5px]">{t(readOnly ? 'finance:clients.withProjects' : 'admin:clients.kpi.withProjects')}</Mono>
           </button>
         </div>
 
@@ -377,8 +382,8 @@ export function ClientsSection({ onNavigate }: { onNavigate?: (section: 'project
               action={<SecondaryButton onClick={() => setReloadNonce(n => n + 1)} className="bg-[#FAF7F0]">{t('common:buttons.retry')}</SecondaryButton>} />
           )}
           {listState === 'empty' && (
-            <EmptyWord word={t('admin:clients.empty.big')} title={t('admin:clients.empty.title')} hint={t('admin:clients.empty.hint')} className="border-0 py-[76px]"
-              action={<CreateButton onClick={() => openForm(null)}><Plus className="w-3.5 h-3.5" strokeWidth={2.4} />{t('admin:clients.create')}</CreateButton>} />
+            <EmptyWord word={t('admin:clients.empty.big')} title={t('admin:clients.empty.title')} hint={t(readOnly ? 'finance:clients.emptyHint' : 'admin:clients.empty.hint')} className="border-0 py-[76px]"
+              action={!readOnly ? <CreateButton onClick={() => openForm(null)}><Plus className="w-3.5 h-3.5" strokeWidth={2.4} />{t('admin:clients.create')}</CreateButton> : undefined} />
           )}
           {listState === 'noMatch' && (
             <EmptyWord word={t('admin:clients.noMatch.big')} title={t('admin:clients.noMatch.title')} hint={t('admin:clients.noMatch.hint')} className="border-0"
@@ -476,7 +481,7 @@ export function ClientsSection({ onNavigate }: { onNavigate?: (section: 'project
                             {closed > 0 ? t('admin:clients.row.inactiveNote', { count: closed }) : t('admin:clients.row.inactiveNoteNone')}
                           </PaperNote>
                           <div className="flex justify-end mt-2.5">
-                            <TertiaryButton onClick={e => { e.stopPropagation(); openStatus(client); }} className="text-[10px]">{t('admin:clients.menu.reactivate')}</TertiaryButton>
+                            {!readOnly && <TertiaryButton onClick={e => { e.stopPropagation(); openStatus(client); }} className="text-[10px]">{t('admin:clients.menu.reactivate')}</TertiaryButton>}
                           </div>
                         </>
                       ) : (
@@ -536,8 +541,8 @@ export function ClientsSection({ onNavigate }: { onNavigate?: (section: 'project
         )}
       </div>
 
-      <ClientFormModal open={formOpen} onOpenChange={setFormOpen} client={formClient} onSaved={handleSaved} />
-      <ClientStatusModal open={statusOpen} onOpenChange={setStatusOpen} client={statusClient} onConfirmed={handleStatusChanged} />
+      {!readOnly && <ClientFormModal open={formOpen} onOpenChange={setFormOpen} client={formClient} onSaved={handleSaved} />}
+      {!readOnly && <ClientStatusModal open={statusOpen} onOpenChange={setStatusOpen} client={statusClient} onConfirmed={handleStatusChanged} />}
     </>
   );
 }

@@ -143,6 +143,9 @@ export interface SubcontractorInvoiceDTO {
   reviewerName: string | null;
   reviewerComment: string | null;
   reviewedAt: string | null;
+  payableId?: number | null;
+  paidAmountCents?: number;
+  outstandingCents?: number;
   paidAt: string | null;
   paymentReference: string | null;
   createdAt: string;
@@ -152,9 +155,14 @@ export interface SubcontractorInvoiceDTO {
 export interface ReviewInvoicePayload {
   action: 'APPROVE' | 'OBSERVE';
   comment?: string | null;
+  dueDate?: string;
 }
 
 export interface RegisterPaymentPayload {
+  requestKey?: string;
+  amountCents?: number;
+  date?: string;
+  method?: string;
   paymentReference?: string | null;
 }
 
@@ -176,28 +184,15 @@ export const ADMIN_JOB_TRANSITIONS: Record<JobStatus, JobStatus[]> = {
   CLOSED:      ['ASSIGNED', 'IN_PROGRESS', 'IN_REVIEW', 'OBSERVED', 'APPROVED'],
 };
 
-/**
- * The five invoice states the panel shows, in flow order.
- *
- * PENDING_PAYMENT is deliberately absent. Nothing in the backend writes it —
- * `reviewInvoice` only ever produces APPROVED or OBSERVED — so the state was
- * unreachable, while the panel hung "Registrar pago" off it alone: an approved
- * invoice could not be paid from the panel at all, and the "Revisar" it
- * offered instead came back 409. APPROVED is the state that waits for money,
- * and `APPROVED → PAID` is a transition the server already accepts.
- */
-export const INVOICE_STATUS_FLOW: InvoiceStatus[] = ['SUBMITTED', 'IN_REVIEW', 'OBSERVED', 'APPROVED', 'PAID'];
+/** Approval creates the payable; partial payments leave a pending balance. */
+export const INVOICE_STATUS_FLOW: InvoiceStatus[] = ['SUBMITTED', 'IN_REVIEW', 'OBSERVED', 'APPROVED', 'PENDING_PAYMENT', 'PAID'];
 
 /** An invoice waiting on a decision from the admin. */
 export function isReviewable(status: InvoiceStatus): boolean {
   return status === 'SUBMITTED' || status === 'IN_REVIEW';
 }
 
-/**
- * An invoice waiting on money. PENDING_PAYMENT is accepted here even though
- * nothing writes it: were a row ever to land there, `PENDING_PAYMENT → PAID`
- * is legal on the server and the panel should not be the reason it is stuck.
- */
+/** Both approved invoices and partial settlements can receive payments. */
 export function isPayable(status: InvoiceStatus): boolean {
   return status === 'APPROVED' || status === 'PENDING_PAYMENT';
 }

@@ -25,8 +25,13 @@ type Ev = TimeRecordResponse['events'][number];
 const isIn = (e: Ev) => e.type === 'CHECK_IN';
 const isOut = (e: Ev) => e.type === 'CHECK_OUT';
 
+/** Payroll and corrections use the captured punch time; server time is receipt/audit time. */
+export function eventTime(e: Ev): string {
+  return e.capturedAtClient || e.capturedAtServer;
+}
+
 function timeOf(e: Ev): number {
-  return new Date(e.capturedAtServer || e.capturedAtClient).getTime();
+  return new Date(eventTime(e)).getTime();
 }
 
 /** Worked hours for the day: check-out minus check-in, minus the lunch gap. */
@@ -58,7 +63,7 @@ export function sequenceOf(r: TimeRecordResponse, lang: string): string {
   if (evs.length === 0) return '—';
   const parts: string[] = [];
   for (const e of evs) {
-    const t = hhmm(e.capturedAtServer || e.capturedAtClient, lang);
+    const t = hhmm(eventTime(e), lang);
     if (isIn(e)) parts.push(t);
     else if (e.type === 'LUNCH_START') parts.push(`→ ${t}`);
     else if (e.type === 'LUNCH_END') parts.push(`· ${t}`);

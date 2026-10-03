@@ -11,7 +11,7 @@ import {
   Shield, LogOut, User, Menu, X,
   Clock, CalendarClock, ClipboardList, Receipt, FileBarChart,
   Wallet, Wrench, Banknote, HardHat,
-  ArrowDownToLine, ArrowUpFromLine, UserRound, FileText, Briefcase,
+  ArrowDownToLine, ArrowUpFromLine, UserRound, Briefcase,
   CreditCard, FileSignature, HelpCircle, Star, PenLine,
 } from 'lucide-react';
 import { OnboardingTour } from '../components/onboarding/OnboardingTour';
@@ -147,11 +147,6 @@ const AccountsPayable = lazyWithRetry(() =>
   import('../components/AccountsPayable').then(m => ({ default: m.AccountsPayable }))
 );
 
-// Lazy-loaded invoice manager
-const InvoiceManager = lazyWithRetry(() =>
-  import('../components/InvoiceManager').then(m => ({ default: m.InvoiceManager }))
-);
-
 // Lazy-loaded office expenses section
 const OfficeExpensesSection = lazyWithRetry(() =>
   import('../components/office-expenses/OfficeExpensesSection').then(m => ({ default: m.OfficeExpensesSection }))
@@ -206,7 +201,7 @@ type NavItem = {
 export function migrateFavorites(keys: string[]): string[] {
   const out: string[] = [];
   for (const key of keys) {
-    const migrated = key === 'budget-report' ? 'budgets' : key;
+    const migrated = key === 'budget-report' ? 'budgets' : key === 'invoices' ? 'accounts-receivable' : key;
     if (!out.includes(migrated)) out.push(migrated);
   }
   return out;
@@ -237,7 +232,6 @@ const NAV_PROJECTS: NavItem[] = [
 ];
 
 const NAV_FINANCE: NavItem[] = [
-  { key: 'invoices',             labelKey: 'admin:nav.invoices',            icon: FileText        },
   { key: 'invoice-branding',     labelKey: 'admin:nav.invoiceBranding',     icon: FileSignature   },
   { key: 'budgets',              labelKey: 'admin:nav.budgets',             icon: Wallet          },
   { key: 'expenses',             labelKey: 'admin:nav.allExpenses',         icon: Receipt         },
@@ -337,7 +331,7 @@ export function AdminDashboard() {
   };
 
   const handleNavigate = (section: string) => {
-    setActiveSection(section as ActiveSection);
+    setActiveSection((section === 'invoices' ? 'accounts-receivable' : section) as ActiveSection);
     setSidebarOpen(false);
   };
 
@@ -664,11 +658,6 @@ export function AdminDashboard() {
               <LaborPayrollReport onNavigate={handleNavigate} />
             </Suspense></SectionErrorBoundary>
           )}
-          {activeSection === 'invoices' && (
-            <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
-              <InvoiceManager onNavigate={handleNavigate} />
-            </Suspense></SectionErrorBoundary>
-          )}
           {activeSection === 'invoice-branding' && (
             <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
               <InvoiceBrandingSettings />
@@ -676,7 +665,7 @@ export function AdminDashboard() {
           )}
           {activeSection === 'accounts-receivable' && (
             <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
-              <AccountsReceivable />
+              <AccountsReceivable onNavigate={handleNavigate} />
             </Suspense></SectionErrorBoundary>
           )}
           {activeSection === 'accounts-payable' && (

@@ -78,8 +78,8 @@ export function StatusBadge({ status }: { status: VendorBill['status'] }) {
     overdue: 'bg-red-50 text-red-700 border-red-200',
   };
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${map[status]}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${status === 'paid' ? 'bg-emerald-500' : status === 'partial' ? 'bg-blue-500' : status === 'pending' ? 'bg-amber-500' : 'bg-red-500'}`} />
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-none text-[10px] font-semibold border ${map[status]}`}>
+      <span className={`w-1.5 h-1.5 rounded-none ${status === 'paid' ? 'bg-emerald-500' : status === 'partial' ? 'bg-blue-500' : status === 'pending' ? 'bg-amber-500' : 'bg-red-500'}`} />
       {t('status.' + status)}
     </span>
   );
@@ -88,7 +88,7 @@ export function StatusBadge({ status }: { status: VendorBill['status'] }) {
 export function CategoryBadge({ category }: { category: BillCategory }) {
   const { t } = useTranslation('finance');
   return (
-    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#FAFAFA] text-[#0A0A0A] border border-[#D4D4D8]">
+    <span className="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-semibold bg-[#FAF7F0] text-[#0A0A0A] border border-[#E7E1D5]">
       {t(CATEGORY_KEY_MAP[category])}
     </span>
   );
@@ -165,8 +165,8 @@ export function PaymentMethodField({
   return (
     <>
       <Select value={method} onValueChange={onMethodChange}>
-        <SelectTrigger className="h-9 text-sm border-[#D4D4D8]"><SelectValue /></SelectTrigger>
-        <SelectContent>
+        <SelectTrigger className="rounded-none bg-[#FAF7F0] font-bt-mono text-[11px] h-9 text-sm border-[#E7E1D5]"><SelectValue /></SelectTrigger>
+        <SelectContent className="rounded-none border-[#DBD0BB]">
           {presets.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
           <SelectItem value={OTHER_METHOD}>{t('paymentMethod.other')}</SelectItem>
         </SelectContent>
@@ -179,7 +179,7 @@ export function PaymentMethodField({
           maxLength={FIELD_LIMITS.SHORT_NAME}
           placeholder={t('paymentMethod.otherPlaceholder')}
           aria-label={t('paymentMethod.otherPlaceholder')}
-          className="mt-2 h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400"
+          className="mt-2 h-9 w-full rounded-none border border-[#E7E1D5] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[#F97316]"
         />
       )}
     </>

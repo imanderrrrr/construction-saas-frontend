@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ChevronDown, Search } from 'lucide-react';
@@ -6,6 +6,7 @@ import { cn } from '../ui/utils';
 import { ApiError } from '../../lib/api';
 import { drainPages } from '../../lib/paging';
 import { pushTourScope } from '../../lib/tourScope';
+import { clearSectionIntent, peekSectionIntent } from '../../lib/sectionIntent';
 import { getBranding } from '../../services/branding';
 import {
   listFinanceProjects, listProjects, type ProjectResponse,
@@ -83,6 +84,8 @@ export function BudgetsSection({ readOnly = false, onNavigate }: {
 } = {}) {
   const { t, i18n } = useTranslation(['admin', 'common']);
   const lang = i18n.language;
+  const [initialIntent] = useState(() => peekSectionIntent('budgets'));
+  useEffect(() => { clearSectionIntent('budgets'); }, []);
 
   const [rows, setRows] = useState<BudgetRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,7 +94,7 @@ export function BudgetsSection({ readOnly = false, onNavigate }: {
   const [tenant, setTenant] = useState<string | null>(null);
 
   const [view, setView] = useState<View>('works');
-  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const [filters, setFilters] = useState<Filters>(() => ({ ...EMPTY_FILTERS, clientId: initialIntent?.clientId ?? 'all' }));
   // One sort per view. Switching does not carry it across; coming back finds
   // the one that was left behind.
   const [worksSort, setWorksSort] = useState<WorksSort>('execution');
@@ -99,6 +102,7 @@ export function BudgetsSection({ readOnly = false, onNavigate }: {
 
   const [screen, setScreen] = useState<Screen>({ kind: 'list' });
   const [detail, setDetail] = useState<BudgetRow | null>(null);
+  const requestedProject = useRef(initialIntent?.openProjectId ?? null);
   const [adjust, setAdjust] = useState<BudgetRow | null>(null);
   const [closing, setClosing] = useState<BudgetRow | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -129,7 +133,12 @@ export function BudgetsSection({ readOnly = false, onNavigate }: {
         setProgress({ loaded, total });
         return res;
       });
-      setRows(all.filter(isBudgeted).map(toRow));
+      const nextRows = all.filter(isBudgeted).map(toRow);
+      setRows(nextRows);
+      if (requestedProject.current != null) {
+        setDetail(nextRows.find(row => row.id === requestedProject.current && row.clientId === initialIntent?.clientId) ?? null);
+        requestedProject.current = null;
+      }
     } catch (err) {
       // A banner that stays, never a toast: a toast fades and leaves an empty
       // table that reads as "you have no jobsites". The figures fall to an em
@@ -143,7 +152,7 @@ export function BudgetsSection({ readOnly = false, onNavigate }: {
     } finally {
       setLoading(false);
     }
-  }, [readOnly]);
+  }, [readOnly, initialIntent]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -159,11 +168,12 @@ export function BudgetsSection({ readOnly = false, onNavigate }: {
    */
   const clients = useMemo(() => {
     const seen = new Map<number, string>();
+    if (initialIntent) seen.set(initialIntent.clientId, initialIntent.clientName);
     rows.forEach(row => {
       if (row.clientId != null && !seen.has(row.clientId)) seen.set(row.clientId, row.clientName ?? String(row.clientId));
     });
     return [...seen].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
-  }, [rows]);
+  }, [rows, initialIntent]);
 
   // The report view claims the guided tour while it is on screen, under its
   // own key. Two keys, one per role: SECTION_TOUR_STEPS is keyed copy — one
@@ -458,7 +468,7 @@ export function BudgetsSection({ readOnly = false, onNavigate }: {
             code={`${failure.code} · ${readOnly ? '/api/v1/finance/projects' : '/api/v1/admin/projects'}`}
             onRetry={refresh}
             secondary={
-              onNavigate
+              onNavigate && !readOnly
                 ? <SecondaryButton onClick={() => onNavigate('projects')} className="bg-white">{t('admin:budgets.goProjects')}</SecondaryButton>
                 : undefined
             }

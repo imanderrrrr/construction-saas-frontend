@@ -1,19 +1,20 @@
-﻿import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Wallet, DollarSign, Clock, AlertTriangle,
+  Wallet, AlertTriangle,
   ChevronDown, ChevronRight, Filter, Plus, Upload, FileText, CircleX,
   RotateCcw, Receipt, Trash2, ArrowRightLeft, Eye,
 } from 'lucide-react';
 import { Button } from './ui/button';
-import { StatCard } from './StatCard';
+import { AccountingFigure, AccountingHeader } from './finance/AccountingChrome';
+import { EmptyWord } from './projects/bt';
+import { TableSkeleton } from './budgets/ui';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from './ui/dialog';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from './ui/select';
-import { EmptyState } from './EmptyState';
 import { toast } from 'sonner';
 import {
   listAllPayables, createPayable, recordPayablePayment, listPayableVendors,
@@ -48,6 +49,7 @@ export function AccountsPayable() {
   const canManage = ['ADMIN', 'FINANCE'].includes(AuthService.getCanonicalRole() ?? '');
   const [bills, setBills] = useState<VendorBill[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   // AP Block 6 — clicking a row opens the full detail modal; the bill shown is
   // derived from [bills] by id so every action keeps the detail fresh.
   const [detailId, setDetailId] = useState<number | null>(null);
@@ -61,8 +63,8 @@ export function AccountsPayable() {
     // Every bill, not just the first page: this screen filters, totals and
     // paginates client-side, so a partial fetch would understate every KPI.
     listAllPayables()
-      .then(rows => setBills(rows.map(toVendorBill)))
-      .catch(err => toast.error(t('payable.toast.loadFailed'), { description: err?.message }))
+      .then(rows => { setBills(rows.map(toVendorBill)); setLoadError(false); })
+      .catch(err => { setLoadError(true); toast.error(t('payable.toast.loadFailed'), { description: err?.message }); })
       .finally(() => setLoading(false));
   }, [t]);
 
@@ -155,7 +157,7 @@ export function AccountsPayable() {
 
   // Computed KPIs
   const kpis = useMemo(() => {
-    const nonPaid = bills.filter(b => b.status !== 'paid');
+    const nonPaid = bills.filter(b => b.amount > b.paidAmount);
     const totalPayable = nonPaid.reduce((s, b) => s + (b.amount - b.paidAmount), 0);
     const cm = currentMonth();
     // Voided payments stay listed for audit but no longer count as paid
@@ -163,9 +165,10 @@ export function AccountsPayable() {
     const paidThisMonth = bills.reduce((s, b) => {
       return s + b.payments.filter(p => !p.voided && p.date.startsWith(cm)).reduce((ps, p) => ps + p.amount, 0);
     }, 0);
-    const pending = bills.filter(b => b.status === 'pending');
+    const today = businessToday();
+    const pending = nonPaid.filter(b => b.dueDate >= today);
     const pendingTotal = pending.reduce((s, b) => s + (b.amount - b.paidAmount), 0);
-    const overdue = bills.filter(b => b.status === 'overdue');
+    const overdue = nonPaid.filter(b => b.dueDate < today);
     const overdueTotal = overdue.reduce((s, b) => s + (b.amount - b.paidAmount), 0);
     return { totalPayable, paidThisMonth, pendingTotal, pendingCount: pending.length, overdueTotal, overdueCount: overdue.length };
   }, [bills]);
@@ -184,7 +187,7 @@ export function AccountsPayable() {
   const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
   const totalOutstanding = filtered.reduce((s, b) => s + (b.amount - b.paidAmount), 0);
 
-  const overdueBills = bills.filter(b => b.status === 'overdue');
+  const overdueBills = bills.filter(b => b.amount > b.paidAmount && b.dueDate < businessToday());
   const overdueTotal = overdueBills.reduce((s, b) => s + (b.amount - b.paidAmount), 0);
 
   // Vendor summary
@@ -640,55 +643,57 @@ export function AccountsPayable() {
   }
 
   return (
-    <div className="space-y-6 max-w-6xl">
+    <div className="space-y-4 max-w-[1400px] mx-auto min-w-0">
 
       {/* Top bar */}
-      <div className="flex items-center justify-end" data-tour="sec.accounts-payable.new-bill">
-        <Button onClick={openCreateDialog} className="bg-purple-600 hover:bg-purple-700 text-white gap-1.5">
+      <AccountingHeader kicker={t('accounting.payables.kicker')} title={t('nav.accountsPayable')} description={t('accounting.payables.description')} action={
+        <div data-tour="sec.accounts-payable.new-bill">
+        <Button onClick={openCreateDialog} className="rounded-none font-bt-mono uppercase tracking-[0.06em] text-[10px] bg-[#0A0A0A] hover:bg-[#C2410C] text-white gap-1.5">
           <Plus className="w-4 h-4" /> {t('payable.newBill')}
         </Button>
-      </div>
+        </div>
+      } />
 
       {/* KPI cards — computed from state */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" data-tour="sec.accounts-payable.kpis">
-        <StatCard icon={Wallet}         title={t('payable.kpi.totalPayable')}   value={fmtAmount(kpis.totalPayable)}    subtitle={t('payable.kpi.allInvoices')}                                              iconBgColor="bg-purple-50"  iconColor="text-purple-600" />
-        <StatCard icon={DollarSign}     title={t('payable.kpi.paidThisMonth')}  value={fmtAmount(kpis.paidThisMonth)}   subtitle={paidMonthLabel}                                                  iconBgColor="bg-emerald-50" iconColor="text-emerald-600" />
-        <StatCard icon={Clock}          title={t('payable.kpi.pendingPayment')} value={fmtAmount(kpis.pendingTotal)}    subtitle={`${kpis.pendingCount} invoice${kpis.pendingCount !== 1 ? 's' : ''}`} iconBgColor="bg-amber-50" iconColor="text-amber-600" />
-        <StatCard icon={AlertTriangle}  title={t('payable.kpi.overdue')}        value={fmtAmount(kpis.overdueTotal)}    subtitle={`${kpis.overdueCount} invoice${kpis.overdueCount !== 1 ? 's' : ''}`} iconBgColor="bg-red-50"   iconColor="text-red-600" />
+      <div className="grid grid-cols-2 xl:grid-cols-4 bg-white border border-[#E7E1D5]" data-tour="sec.accounts-payable.kpis">
+        <AccountingFigure title={t('payable.kpi.totalPayable')} value={fmtAmount(kpis.totalPayable)} subtitle={t('payable.kpi.allInvoices')} isLoading={loading} isError={loadError} />
+        <AccountingFigure title={t('payable.kpi.paidThisMonth')} value={fmtAmount(kpis.paidThisMonth)} subtitle={paidMonthLabel} tone="green" isLoading={loading} isError={loadError} />
+        <AccountingFigure title={t('payable.kpi.pendingPayment')} value={fmtAmount(kpis.pendingTotal)} subtitle={t('payable.invoiceCount', { count: kpis.pendingCount })} tone="orange" isLoading={loading} isError={loadError} />
+        <AccountingFigure title={t('payable.kpi.overdue')} value={fmtAmount(kpis.overdueTotal)} subtitle={t('payable.invoiceCount', { count: kpis.overdueCount })} tone="red" isLoading={loading} isError={loadError} />
       </div>
 
       {/* Filter bar */}
-      <div className="bg-white rounded-xl border border-[#D4D4D8] p-5" data-tour="sec.accounts-payable.filters">
+      <div className="bg-white rounded-none border border-[#E7E1D5] p-5" data-tour="sec.accounts-payable.filters">
         <div className="flex items-center gap-2 mb-4">
-          <Filter className="w-4 h-4 text-[#71717A]" />
+          <Filter className="w-4 h-4 text-[#8A8175]" />
           <span className="text-sm font-semibold text-[#0A0A0A]">{t('buttons.filters', { ns: 'common' })}</span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div>
-            <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.filters.vendor')}</label>
+            <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('payable.filters.vendor')}</label>
             <Select value={filterVendor} onValueChange={v => { setFilterVendor(v); setCurrentPage(1); }}>
-              <SelectTrigger className="h-9 text-sm border-[#D4D4D8]"><SelectValue /></SelectTrigger>
-              <SelectContent>
+              <SelectTrigger className="rounded-none bg-[#FAF7F0] font-bt-mono text-[11px] h-9 text-sm border-[#E7E1D5]"><SelectValue /></SelectTrigger>
+              <SelectContent className="rounded-none border-[#DBD0BB]">
                 <SelectItem value="all">{t('payable.filters.allVendors')}</SelectItem>
                 {uniqueVendors.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div>
-            <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('labels.project', { ns: 'common' })}</label>
+            <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('labels.project', { ns: 'common' })}</label>
             <Select value={filterProject} onValueChange={v => { setFilterProject(v); setCurrentPage(1); }}>
-              <SelectTrigger className="h-9 text-sm border-[#D4D4D8]"><SelectValue /></SelectTrigger>
-              <SelectContent>
+              <SelectTrigger className="rounded-none bg-[#FAF7F0] font-bt-mono text-[11px] h-9 text-sm border-[#E7E1D5]"><SelectValue /></SelectTrigger>
+              <SelectContent className="rounded-none border-[#DBD0BB]">
                 <SelectItem value="all">{t('labels.allProjects', { ns: 'common' })}</SelectItem>
                 {projects.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div>
-            <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('labels.status', { ns: 'common' })}</label>
+            <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('labels.status', { ns: 'common' })}</label>
             <Select value={filterStatus} onValueChange={v => { setFilterStatus(v); setCurrentPage(1); }}>
-              <SelectTrigger className="h-9 text-sm border-[#D4D4D8]"><SelectValue /></SelectTrigger>
-              <SelectContent>
+              <SelectTrigger className="rounded-none bg-[#FAF7F0] font-bt-mono text-[11px] h-9 text-sm border-[#E7E1D5]"><SelectValue /></SelectTrigger>
+              <SelectContent className="rounded-none border-[#DBD0BB]">
                 <SelectItem value="all">{t('labels.allStatuses', { ns: 'common' })}</SelectItem>
                 <SelectItem value="paid">{t('status.paid', { ns: 'common' })}</SelectItem>
                 <SelectItem value="pending">{t('status.pending', { ns: 'common' })}</SelectItem>
@@ -698,10 +703,10 @@ export function AccountsPayable() {
             </Select>
           </div>
           <div>
-            <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('labels.category', { ns: 'common' })}</label>
+            <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('labels.category', { ns: 'common' })}</label>
             <Select value={filterCategory} onValueChange={v => { setFilterCategory(v); setCurrentPage(1); }}>
-              <SelectTrigger className="h-9 text-sm border-[#D4D4D8]"><SelectValue /></SelectTrigger>
-              <SelectContent>
+              <SelectTrigger className="rounded-none bg-[#FAF7F0] font-bt-mono text-[11px] h-9 text-sm border-[#E7E1D5]"><SelectValue /></SelectTrigger>
+              <SelectContent className="rounded-none border-[#DBD0BB]">
                 <SelectItem value="all">{t('labels.allCategories', { ns: 'common' })}</SelectItem>
                 {Object.entries(CATEGORY_KEY_MAP).map(([k, key]) => <SelectItem key={k} value={k}>{t(key)}</SelectItem>)}
               </SelectContent>
@@ -709,8 +714,8 @@ export function AccountsPayable() {
           </div>
         </div>
         {hasFilters && (
-          <div className="mt-3 pt-3 border-t border-[#FAFAFA]">
-            <button onClick={clearFilters} className="text-xs font-medium text-purple-600 hover:text-purple-800 transition-colors">
+          <div className="mt-3 pt-3 border-t border-[#FAF7F0]">
+            <button onClick={clearFilters} className="text-xs font-medium text-[#C2410C] hover:text-purple-800 transition-colors">
               {t('buttons.clearFilters', { ns: 'common' })}
             </button>
           </div>
@@ -718,32 +723,32 @@ export function AccountsPayable() {
       </div>
 
       {/* Vendor summary (collapsible) */}
-      <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden">
+      <div className="bg-white rounded-none border border-[#E7E1D5] overflow-hidden">
         <button onClick={() => setShowVendorSummary(!showVendorSummary)}
-          className="w-full flex items-center justify-between px-6 py-4 hover:bg-[#FAFAFA]/50 transition-colors">
+          className="w-full flex items-center justify-between px-6 py-4 hover:bg-[#FAF7F0]/50 transition-colors">
           <div className="flex items-center gap-2">
-            {showVendorSummary ? <ChevronDown className="w-4 h-4 text-[#71717A]" /> : <ChevronRight className="w-4 h-4 text-[#71717A]" />}
+            {showVendorSummary ? <ChevronDown className="w-4 h-4 text-[#8A8175]" /> : <ChevronRight className="w-4 h-4 text-[#8A8175]" />}
             <span className="text-sm font-semibold text-[#0A0A0A]">{t('payable.vendorSummary')}</span>
-            <span className="text-xs text-[#71717A]">· {t('payable.vendorCount', { count: vendorSummary.length })}</span>
+            <span className="text-xs text-[#8A8175]">· {t('payable.vendorCount', { count: vendorSummary.length })}</span>
           </div>
         </button>
         {showVendorSummary && (
-          <div className="border-t border-[#D4D4D8] p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="border-t border-[#E7E1D5] p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {vendorSummary.map(vs => {
               const pct = vs.total > 0 ? Math.round((vs.paid / vs.total) * 100) : 0;
               const outstanding = vs.total - vs.paid;
               return (
-                <div key={vs.vendor} className="border border-[#D4D4D8] rounded-lg p-4">
+                <div key={vs.vendor} className="border border-[#E7E1D5] rounded-none p-4">
                   <p className="text-sm font-semibold text-[#0A0A0A] mb-1">{vs.vendor}</p>
-                  <p className="text-xs text-[#71717A] mb-3">{t('payable.billCount', { count: vs.count })}</p>
+                  <p className="text-xs text-[#8A8175] mb-3">{t('payable.billCount', { count: vs.count })}</p>
                   <div className="flex items-center justify-between text-xs mb-1.5">
-                    <span className="text-[#71717A]">{t('payable.table.paid')}: {fmtAmount(vs.paid)}</span>
-                    <span className="text-[#71717A]">{t('payable.outstanding')}: <span className="font-semibold text-[#0A0A0A]">{fmtAmount(outstanding)}</span></span>
+                    <span className="text-[#8A8175]">{t('payable.table.paid')}: {fmtAmount(vs.paid)}</span>
+                    <span className="text-[#8A8175]">{t('payable.outstanding')}: <span className="font-semibold text-[#0A0A0A]">{fmtAmount(outstanding)}</span></span>
                   </div>
-                  <div className="w-full h-2 bg-[#FAFAFA] rounded-full overflow-hidden">
-                    <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                  <div className="w-full h-2 bg-[#FAF7F0] rounded-none overflow-hidden">
+                    <div className="h-full bg-emerald-500 rounded-none transition-all" style={{ width: `${pct}%` }} />
                   </div>
-                  <p className="text-[10px] text-[#71717A] mt-1">{t('payable.pctPaidOf', { pct, total: fmtAmount(vs.total) })}</p>
+                  <p className="text-[10px] text-[#8A8175] mt-1">{t('payable.pctPaidOf', { pct, total: fmtAmount(vs.total) })}</p>
                 </div>
               );
             })}
@@ -752,24 +757,24 @@ export function AccountsPayable() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden" data-tour="sec.accounts-payable.table">
-        <div className="flex items-center gap-2 px-6 py-4 border-b border-[#D4D4D8]">
-          <Wallet className="w-4 h-4 text-[#71717A]" />
+      <div className="bg-white rounded-none border border-[#E7E1D5] overflow-hidden" data-tour="sec.accounts-payable.table">
+        <div className="flex items-center gap-2 px-6 py-4 border-b border-[#E7E1D5]">
+          <Wallet className="w-4 h-4 text-[#8A8175]" />
           <span className="text-sm font-semibold text-[#0A0A0A]">{t('payable.title')}</span>
-          <span className="ml-auto text-xs text-[#71717A]">{t('payable.billCount', { count: filtered.length })}</span>
+          <span className="ml-auto text-xs text-[#8A8175]">{t('payable.billCount', { count: filtered.length })}</span>
         </div>
 
-        {filtered.length === 0 ? (
-          <div className="py-8">
-            <EmptyState icon={Wallet} title={t('payable.noBills')} description={t('payable.noBillsHint')} />
-          </div>
+        {loading ? <TableSkeleton cols="repeat(6, minmax(0, 1fr))" /> : loadError ? (
+          <div role="alert"><EmptyWord word={t('accounting.error')} title={t('payable.toast.loadFailed')} tone="red" className="border-0" action={<Button className="rounded-none font-bt-mono uppercase tracking-[0.06em] text-[10px]" variant="outline" onClick={fetchBills}>{t('common:buttons.retry')}</Button>} /></div>
+        ) : filtered.length === 0 ? (
+          <EmptyWord word={t('accounting.empty')} title={t('payable.noBills')} hint={t('payable.noBillsHint')} className="border-0" />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1100px]">
               <thead>
-                <tr className="bg-[#FAFAFA]">
+                <tr className="bg-[#FAF7F0]">
                   {[t('payable.table.billNo'), t('payable.table.vendor'), t('payable.table.category'), t('payable.table.project'), t('payable.table.received'), t('payable.table.dueDate'), t('payable.table.amount'), t('payable.table.paid'), t('payable.table.balance'), t('payable.table.status'), t('payable.table.actions')].map(h => (
-                    <th key={h} className="text-left text-[11px] font-semibold text-[#71717A] uppercase tracking-wider px-3 py-2.5">{h}</th>
+                    <th key={h} className="text-left font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wider px-3 py-2.5">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -780,12 +785,12 @@ export function AccountsPayable() {
                   return (
                     <tr key={bill.id}
                       onClick={() => openDetail(bill)}
-                      className="border-b border-[#D4D4D8]/50 transition-colors cursor-pointer hover:bg-[#FAFAFA]/60">
-                      <td className="py-3 px-3 font-mono text-sm text-[#0A0A0A]">
+                      className="border-b border-[#E7E1D5]/50 transition-colors cursor-pointer hover:bg-[#FAF7F0]/60">
+                      <td className="py-3 px-3 font-bt-mono text-sm text-[#0A0A0A]">
                         <div className="flex flex-col">
                           <span>{bill.billNumber}</span>
                           {bill.documentType === 'INVOICE' && bill.invoiceNumber && (
-                            <span className="mt-0.5 inline-flex w-fit items-center gap-1 rounded-full border border-purple-200 bg-purple-50 px-1.5 py-0.5 font-sans text-[9px] font-semibold text-purple-700">
+                            <span className="mt-0.5 inline-flex w-fit items-center gap-1 rounded-none border border-[#F6CFA6] bg-[#FBEDE0] px-1.5 py-0.5 font-sans text-[9px] font-semibold text-[#C2410C]">
                               <Receipt className="h-2.5 w-2.5" /> {bill.invoiceNumber}
                             </span>
                           )}
@@ -793,25 +798,25 @@ export function AccountsPayable() {
                       </td>
                       <td className="py-3 px-3 text-sm text-[#0A0A0A]">{bill.vendor}</td>
                       <td className="py-3 px-3"><CategoryBadge category={bill.category} /></td>
-                      <td className="py-3 px-3 text-sm text-[#71717A]">{bill.project}</td>
+                      <td className="py-3 px-3 text-sm text-[#8A8175]">{bill.project}</td>
                       <td className="py-3 px-3 text-sm text-[#0A0A0A] whitespace-nowrap">{fmtDate(bill.receivedDate, dateLoc)}</td>
                       <td className={`py-3 px-3 text-sm whitespace-nowrap ${isOverdue ? 'text-red-600 font-medium' : 'text-[#0A0A0A]'}`}>{fmtDate(bill.dueDate, dateLoc)}</td>
-                      <td className="py-3 px-3 font-mono font-semibold text-sm text-[#0A0A0A]">{fmtAmount(bill.amount)}</td>
-                      <td className={`py-3 px-3 font-mono text-sm ${bill.paidAmount >= bill.amount ? 'text-emerald-600 font-semibold' : 'text-[#0A0A0A]'}`}>{fmtAmount(bill.paidAmount)}</td>
-                      <td className={`py-3 px-3 font-mono text-sm font-semibold ${balance === 0 ? 'text-[#D4D4D8]' : isOverdue ? 'text-red-600' : 'text-amber-600'}`}>{fmtAmount(balance)}</td>
+                      <td className="py-3 px-3 font-bt-mono font-semibold text-sm text-[#0A0A0A]">{fmtAmount(bill.amount)}</td>
+                      <td className={`py-3 px-3 font-bt-mono text-sm ${bill.paidAmount >= bill.amount ? 'text-emerald-600 font-semibold' : 'text-[#0A0A0A]'}`}>{fmtAmount(bill.paidAmount)}</td>
+                      <td className={`py-3 px-3 font-bt-mono text-sm font-semibold ${balance === 0 ? 'text-[#E7E1D5]' : isOverdue ? 'text-red-600' : 'text-amber-600'}`}>{fmtAmount(balance)}</td>
                       <td className="py-3 px-3"><StatusBadge status={bill.status} /></td>
                       <td className="py-3 px-3">
                         {/* Actions live in the detail modal now; the row keeps the
                             everyday quick action + an explicit "view detail" button. */}
                         <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-                          <Button variant="outline" size="sm" disabled={bill.status === 'paid'}
+                          <Button  variant="outline" size="sm" disabled={bill.status === 'paid'}
                             onClick={() => openPayDialog(bill)}
-                            className="h-7 text-[11px] border-purple-300 text-purple-600 hover:bg-purple-50 hover:text-purple-700 disabled:opacity-40">
+                            className="rounded-none font-bt-mono uppercase tracking-[0.06em] text-[10px] h-7 text-[11px] border-[#F97316] text-[#C2410C] hover:bg-[#FBEDE0] hover:text-[#C2410C] disabled:opacity-40">
                             {t('payable.recordPayment')}
                           </Button>
                           <button title={t('payable.detail.action')} aria-label={t('payable.detail.action')}
                             onClick={() => openDetail(bill)}
-                            className="h-7 w-7 inline-flex items-center justify-center rounded-md border border-[#D4D4D8] text-[#71717A] hover:text-[#0A0A0A] hover:border-purple-300 transition-colors">
+                            className="h-7 w-7 inline-flex items-center justify-center rounded-none border border-[#E7E1D5] text-[#8A8175] hover:text-[#0A0A0A] hover:border-[#F97316] transition-colors">
                             <Eye className="w-3.5 h-3.5" />
                           </button>
                         </div>
@@ -826,29 +831,29 @@ export function AccountsPayable() {
 
         {/* Footer */}
         {filtered.length > 0 && (
-          <div className="px-6 py-3 border-t border-[#D4D4D8]/50 bg-[#FAFAFA]/50 flex items-center justify-between flex-wrap gap-2">
-            <p className="text-[11px] text-[#71717A]">{t('payable.showingOf', { shown: paginated.length, total: filtered.length })}</p>
+          <div className="px-6 py-3 border-t border-[#E7E1D5]/50 bg-[#FAF7F0]/50 flex items-center justify-between flex-wrap gap-2">
+            <p className="text-[11px] text-[#8A8175]">{t('payable.showingOf', { shown: paginated.length, total: filtered.length })}</p>
             <p className="text-[11px] font-medium text-[#0A0A0A]">
-              {t('payable.totalOutstanding')}: <span className="font-mono font-semibold">{fmtAmount(totalOutstanding)}</span>
+              {t('payable.totalOutstanding')}: <span className="font-bt-mono font-semibold">{fmtAmount(totalOutstanding)}</span>
             </p>
           </div>
         )}
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-2 px-6 py-3 border-t border-[#D4D4D8]/50">
-            <Button variant="outline" size="sm" disabled={currentPage <= 1}
-              onClick={() => setCurrentPage(p => p - 1)} className="h-8 text-xs border-[#D4D4D8]">{t('buttons.previous', { ns: 'common' })}</Button>
-            <span className="text-xs text-[#71717A]">{t('payable.pageOf', { current: currentPage, total: totalPages })}</span>
-            <Button variant="outline" size="sm" disabled={currentPage >= totalPages}
-              onClick={() => setCurrentPage(p => p + 1)} className="h-8 text-xs border-[#D4D4D8]">{t('buttons.nextSimple', { ns: 'common' })}</Button>
+          <div className="flex items-center justify-center gap-2 px-6 py-3 border-t border-[#E7E1D5]/50">
+            <Button  variant="outline" size="sm" disabled={currentPage <= 1}
+              onClick={() => setCurrentPage(p => p - 1)} className="rounded-none font-bt-mono uppercase tracking-[0.06em] text-[10px] h-8 text-xs border-[#E7E1D5]">{t('buttons.previous', { ns: 'common' })}</Button>
+            <span className="text-xs text-[#8A8175]">{t('payable.pageOf', { current: currentPage, total: totalPages })}</span>
+            <Button  variant="outline" size="sm" disabled={currentPage >= totalPages}
+              onClick={() => setCurrentPage(p => p + 1)} className="rounded-none font-bt-mono uppercase tracking-[0.06em] text-[10px] h-8 text-xs border-[#E7E1D5]">{t('buttons.nextSimple', { ns: 'common' })}</Button>
           </div>
         )}
       </div>
 
       {/* Overdue alerts */}
       {overdueBills.length > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-5">
+        <div className="bg-red-50 border border-red-200 rounded-none p-5">
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle className="w-4 h-4 text-red-600" />
             <span className="text-sm font-semibold text-red-700">
@@ -857,14 +862,14 @@ export function AccountsPayable() {
           </div>
           <div className="space-y-2">
             {overdueBills.map(b => (
-              <div key={b.id} className="flex items-center justify-between text-sm bg-white/60 rounded-lg px-4 py-2">
+              <div key={b.id} className="flex items-center justify-between text-sm bg-white/60 rounded-none px-4 py-2">
                 <div className="flex items-center gap-3">
-                  <span className="font-mono text-[#0A0A0A]">{b.billNumber}</span>
-                  <span className="text-[#71717A]">{b.vendor}</span>
+                  <span className="font-bt-mono text-[#0A0A0A]">{b.billNumber}</span>
+                  <span className="text-[#8A8175]">{b.vendor}</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-red-600 font-medium">{t('labels.daysOverdue', { ns: 'common', count: daysOverdue(b.dueDate) })}</span>
-                  <span className="font-mono font-semibold text-red-700">{fmtAmount(b.amount - b.paidAmount)}</span>
+                  <span className="font-bt-mono font-semibold text-red-700">{fmtAmount(b.amount - b.paidAmount)}</span>
                 </div>
               </div>
             ))}
@@ -892,9 +897,9 @@ export function AccountsPayable() {
 
       {/* Record Payment Dialog */}
       <Dialog open={!!payBill} onOpenChange={open => { if (!open) setPayBill(null); }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="rounded-none border-[#DBD0BB] bg-[#FAF7F0] sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{t('payable.dialog.recordPayment')} — {payBill?.billNumber}</DialogTitle>
+            <DialogTitle className="font-bt-display uppercase tracking-wide text-2xl">{t('payable.dialog.recordPayment')} — {payBill?.billNumber}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             {payBill && (() => {
@@ -908,7 +913,7 @@ export function AccountsPayable() {
                 <div
                   // Amber, not red: going over is allowed now, so this states a
                   // consequence rather than reporting an error.
-                  className={`rounded-md p-3 text-sm ${
+                  className={`rounded-none p-3 text-sm ${
                     wouldExceed
                       ? 'bg-amber-50 border border-amber-200 text-amber-900'
                       : 'bg-blue-50 border border-blue-200 text-blue-800'
@@ -929,21 +934,21 @@ export function AccountsPayable() {
               );
             })()}
             <div>
-              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">
+              <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">
                 {t('payable.dialog.amount', { max: payBill ? fmtAmount(payBill.amount - payBill.paidAmount) : '$0.00' })}
               </label>
               <input type="number" step="0.01" min="0.01"
                 max={payBill ? payBill.amount - payBill.paidAmount : 0}
                 value={payAmount} onChange={e => setPayAmount(e.target.value)}
-                className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                className="h-9 w-full rounded-none border border-[#E7E1D5] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[#F97316]" />
             </div>
             <div>
-              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.paymentDate')}</label>
+              <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('payable.dialog.paymentDate')}</label>
               <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)}
-                className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                className="h-9 w-full rounded-none border border-[#E7E1D5] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[#F97316]" />
             </div>
             <div>
-              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.method')}</label>
+              <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('payable.dialog.method')}</label>
               <PaymentMethodField
                 method={payMethod}
                 otherText={payMethodOther}
@@ -952,37 +957,37 @@ export function AccountsPayable() {
               />
             </div>
             <div>
-              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.reference')}</label>
+              <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('payable.dialog.reference')}</label>
               <input type="text" value={payRef} onChange={e => setPayRef(e.target.value)} placeholder={t('payable.dialog.referencePlaceholder')} maxLength={FIELD_LIMITS.REFERENCE}
-                className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                className="h-9 w-full rounded-none border border-[#E7E1D5] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[#F97316]" />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setPayBill(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
-            <Button onClick={submitPayment} className="bg-purple-600 hover:bg-purple-700 text-white">{t('payable.recordPayment')}</Button>
+            <Button className="rounded-none font-bt-mono uppercase tracking-[0.06em] text-[10px]" variant="ghost" onClick={() => setPayBill(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
+            <Button onClick={submitPayment} className="rounded-none font-bt-mono uppercase tracking-[0.06em] text-[10px] bg-[#0A0A0A] hover:bg-[#C2410C] text-white">{t('payable.recordPayment')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* AP Block 3 — Edit Payment (method + date) Dialog */}
       <Dialog open={!!editPayment} onOpenChange={open => { if (!open) setEditPayment(null); }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="rounded-none border-[#DBD0BB] bg-[#FAF7F0] sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{t('payable.editPayment.title')} — {editPayment?.bill.billNumber}</DialogTitle>
+            <DialogTitle className="font-bt-display uppercase tracking-wide text-2xl">{t('payable.editPayment.title')} — {editPayment?.bill.billNumber}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             {editPayment && (
-              <div className="rounded-md border border-[#D4D4D8] bg-[#FAFAFA]/60 px-3 py-2 text-xs text-[#71717A]">
-                {t('payable.table.amount')}: <span className="font-mono font-semibold text-[#0A0A0A]">{fmtAmount(editPayment.payment.amount)}</span>
+              <div className="rounded-none border border-[#E7E1D5] bg-[#FAF7F0]/60 px-3 py-2 text-xs text-[#8A8175]">
+                {t('payable.table.amount')}: <span className="font-bt-mono font-semibold text-[#0A0A0A]">{fmtAmount(editPayment.payment.amount)}</span>
               </div>
             )}
             <div>
-              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.paymentDate')}</label>
+              <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('payable.dialog.paymentDate')}</label>
               <input type="date" value={epDate} onChange={e => setEpDate(e.target.value)}
-                className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                className="h-9 w-full rounded-none border border-[#E7E1D5] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[#F97316]" />
             </div>
             <div>
-              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.method')}</label>
+              <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('payable.dialog.method')}</label>
               <PaymentMethodField
                 method={epMethod}
                 otherText={epMethodOther}
@@ -992,101 +997,101 @@ export function AccountsPayable() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setEditPayment(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
-            <Button onClick={submitEditPayment} disabled={submitting} className="bg-purple-600 hover:bg-purple-700 text-white">{t('buttons.save', { ns: 'common' })}</Button>
+            <Button className="rounded-none font-bt-mono uppercase tracking-[0.06em] text-[10px]" variant="ghost" onClick={() => setEditPayment(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
+            <Button onClick={submitEditPayment} disabled={submitting} className="rounded-none font-bt-mono uppercase tracking-[0.06em] text-[10px] bg-[#0A0A0A] hover:bg-[#C2410C] text-white">{t('buttons.save', { ns: 'common' })}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Create Bill Dialog */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="rounded-none border-[#DBD0BB] bg-[#FAF7F0] sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{t('payable.dialog.registerBill')}</DialogTitle>
+            <DialogTitle className="font-bt-display uppercase tracking-wide text-2xl">{t('payable.dialog.registerBill')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto pr-1">
             <div>
-              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.billNo')}</label>
+              <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('payable.dialog.billNo')}</label>
               <input type="text" value={newBillNumber} onChange={e => setNewBillNumber(e.target.value)} maxLength={FIELD_LIMITS.IDENTIFIER}
-                className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] font-mono focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                className="h-9 w-full rounded-none border border-[#E7E1D5] px-3 text-sm text-[#0A0A0A] font-bt-mono focus:outline-none focus:ring-2 focus:ring-[#F97316]" />
             </div>
             <div>
-              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.vendor')}</label>
+              <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('payable.dialog.vendor')}</label>
               <Select value={newVendor} onValueChange={setNewVendor}>
-                <SelectTrigger className="h-9 text-sm border-[#D4D4D8]"><SelectValue placeholder={t('payable.dialog.vendorPlaceholder')} /></SelectTrigger>
-                <SelectContent>
+                <SelectTrigger className="rounded-none bg-[#FAF7F0] font-bt-mono text-[11px] h-9 text-sm border-[#E7E1D5]"><SelectValue placeholder={t('payable.dialog.vendorPlaceholder')} /></SelectTrigger>
+                <SelectContent className="rounded-none border-[#DBD0BB]">
                   {uniqueVendors.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
                   <SelectItem value="Other">{t('payable.dialog.vendorOther')}</SelectItem>
                 </SelectContent>
               </Select>
               {newVendor === 'Other' && (
                 <input type="text" value={newVendorOther} onChange={e => setNewVendorOther(e.target.value)} maxLength={FIELD_LIMITS.SHORT_NAME}
-                  placeholder={t('payable.dialog.vendorPlaceholder')} className="mt-2 h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                  placeholder={t('payable.dialog.vendorPlaceholder')} className="mt-2 h-9 w-full rounded-none border border-[#E7E1D5] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[#F97316]" />
               )}
             </div>
             <div>
-              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.category')}</label>
+              <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('payable.dialog.category')}</label>
               <Select value={newCategory} onValueChange={setNewCategory}>
-                <SelectTrigger className="h-9 text-sm border-[#D4D4D8]"><SelectValue placeholder={t('payable.dialog.categoryPlaceholder')} /></SelectTrigger>
-                <SelectContent>
+                <SelectTrigger className="rounded-none bg-[#FAF7F0] font-bt-mono text-[11px] h-9 text-sm border-[#E7E1D5]"><SelectValue placeholder={t('payable.dialog.categoryPlaceholder')} /></SelectTrigger>
+                <SelectContent className="rounded-none border-[#DBD0BB]">
                   {Object.entries(CATEGORY_KEY_MAP).map(([k, key]) => <SelectItem key={k} value={k}>{t(key)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.project')}</label>
+              <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('payable.dialog.project')}</label>
               <Select value={newProject} onValueChange={setNewProject}>
-                <SelectTrigger className="h-9 text-sm border-[#D4D4D8]"><SelectValue placeholder={t('payable.dialog.projectPlaceholder')} /></SelectTrigger>
-                <SelectContent>
+                <SelectTrigger className="rounded-none bg-[#FAF7F0] font-bt-mono text-[11px] h-9 text-sm border-[#E7E1D5]"><SelectValue placeholder={t('payable.dialog.projectPlaceholder')} /></SelectTrigger>
+                <SelectContent className="rounded-none border-[#DBD0BB]">
                   {projects.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.description')}</label>
+              <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('payable.dialog.description')}</label>
               <textarea value={newDesc} onChange={e => setNewDesc(e.target.value)} rows={2} maxLength={FIELD_LIMITS.NOTE} placeholder={t('payable.dialog.descriptionPlaceholder')}
-                className="w-full rounded-md border border-[#D4D4D8] px-3 py-2 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none" />
+                className="w-full rounded-none border border-[#E7E1D5] px-3 py-2 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[#F97316] resize-none" />
             </div>
             <div>
-              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.amount2')}</label>
+              <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('payable.dialog.amount2')}</label>
               <input type="number" step="0.01" min="0.01" value={newAmount} onChange={e => setNewAmount(e.target.value)}
-                className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                className="h-9 w-full rounded-none border border-[#E7E1D5] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[#F97316]" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.receivedDate')}</label>
+                <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('payable.dialog.receivedDate')}</label>
                 <input type={newReceivedDate ? 'date' : 'text'} value={newReceivedDate} placeholder={t('payable.dialog.selectDate')}
                   onFocus={e => { e.target.type = 'date'; }} onBlur={e => { if (!newReceivedDate) e.target.type = 'text'; }}
                   onChange={e => setNewReceivedDate(e.target.value)}
-                  className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] placeholder:text-[#71717A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                  className="h-9 w-full rounded-none border border-[#E7E1D5] px-3 text-sm text-[#0A0A0A] placeholder:text-[#8A8175] focus:outline-none focus:ring-2 focus:ring-[#F97316]" />
               </div>
               <div>
-                <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.dueDate')}</label>
+                <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('payable.dialog.dueDate')}</label>
                 <input type={newDueDate ? 'date' : 'text'} value={newDueDate} placeholder={t('payable.dialog.selectDate')}
                   onFocus={e => { e.target.type = 'date'; }} onBlur={e => { if (!newDueDate) e.target.type = 'text'; }}
                   onChange={e => setNewDueDate(e.target.value)}
-                  className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] placeholder:text-[#71717A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                  className="h-9 w-full rounded-none border border-[#E7E1D5] px-3 text-sm text-[#0A0A0A] placeholder:text-[#8A8175] focus:outline-none focus:ring-2 focus:ring-[#F97316]" />
               </div>
             </div>
             <div>
-              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.notes')}</label>
+              <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('payable.dialog.notes')}</label>
               <textarea value={newCreateNotes} onChange={e => setNewCreateNotes(e.target.value)} rows={2} maxLength={FIELD_LIMITS.EXTENDED_NOTE} placeholder={t('payable.dialog.notesPlaceholder')}
-                className="w-full rounded-md border border-[#D4D4D8] px-3 py-2 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none" />
+                className="w-full rounded-none border border-[#E7E1D5] px-3 py-2 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[#F97316] resize-none" />
             </div>
             {/* Document upload (optional) */}
             <div>
-              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.documents')}</label>
+              <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('payable.dialog.documents')}</label>
               <label
-                className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-[#D4D4D8] bg-[#FAFAFA]/50 py-5 cursor-pointer hover:border-purple-400 hover:bg-purple-50/30 transition-colors"
+                className="flex flex-col items-center justify-center gap-2 rounded-none border-2 border-dashed border-[#E7E1D5] bg-[#FAF7F0]/50 py-5 cursor-pointer hover:border-purple-400 hover:bg-[#FBEDE0]/30 transition-colors"
                 onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
                 onDrop={e => {
                   e.preventDefault(); e.stopPropagation();
                   addCreateFiles(Array.from(e.dataTransfer.files));
                 }}
               >
-                <Upload className="w-5 h-5 text-[#71717A]" />
-                <span className="text-xs text-[#71717A]">{t('payable.dialog.dropFiles')}</span>
-                <span className="text-[10px] text-[#D4D4D8]">{t('payable.dialog.fileFormats')}</span>
+                <Upload className="w-5 h-5 text-[#8A8175]" />
+                <span className="text-xs text-[#8A8175]">{t('payable.dialog.dropFiles')}</span>
+                <span className="text-[10px] text-[#E7E1D5]">{t('payable.dialog.fileFormats')}</span>
                 <input type="file" multiple className="hidden" accept={ALLOWED_ACCEPT}
                   onChange={e => {
                     addCreateFiles(Array.from(e.target.files ?? []));
@@ -1096,14 +1101,14 @@ export function AccountsPayable() {
               {newFiles.length > 0 && (
                 <div className="mt-2 space-y-1.5">
                   {newFiles.map((f, i) => (
-                    <div key={`${f.name}-${i}`} className="flex items-center gap-2 bg-white rounded-lg border border-[#D4D4D8] px-3 py-2">
+                    <div key={`${f.name}-${i}`} className="flex items-center gap-2 bg-white rounded-none border border-[#E7E1D5] px-3 py-2">
                       <FileText className="w-4 h-4 text-purple-500 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium text-[#0A0A0A] truncate">{f.name}</p>
-                        <p className="text-[10px] text-[#71717A]">{(f.size / 1024).toFixed(1)} KB</p>
+                        <p className="text-[10px] text-[#8A8175]">{(f.size / 1024).toFixed(1)} KB</p>
                       </div>
                       <button onClick={() => setNewFiles(prev => prev.filter((_, idx) => idx !== i))}
-                        className="text-[#71717A] hover:text-red-500 transition-colors flex-shrink-0">
+                        className="text-[#8A8175] hover:text-red-500 transition-colors flex-shrink-0">
                         <CircleX className="w-4 h-4" />
                       </button>
                     </div>
@@ -1113,73 +1118,73 @@ export function AccountsPayable() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setShowCreate(false)}>{t('buttons.cancel', { ns: 'common' })}</Button>
-            <Button onClick={submitCreate} disabled={submitting} className="bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-50">{t('payable.dialog.submit')}</Button>
+            <Button className="rounded-none font-bt-mono uppercase tracking-[0.06em] text-[10px]" variant="ghost" onClick={() => setShowCreate(false)}>{t('buttons.cancel', { ns: 'common' })}</Button>
+            <Button onClick={submitCreate} disabled={submitting} className="rounded-none font-bt-mono uppercase tracking-[0.06em] text-[10px] bg-[#0A0A0A] hover:bg-[#C2410C] text-white disabled:opacity-50">{t('payable.dialog.submit')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Edit Amount Dialog */}
       <Dialog open={!!editBill} onOpenChange={open => { if (!open) setEditBill(null); }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="rounded-none border-[#DBD0BB] bg-[#FAF7F0] sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{t('payable.edit.title')} — {editBill?.billNumber}</DialogTitle>
+            <DialogTitle className="font-bt-display uppercase tracking-wide text-2xl">{t('payable.edit.title')} — {editBill?.billNumber}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             {editBill && editBill.paidAmount > 0 && (
-              <div className="rounded-md p-3 text-sm bg-amber-50 border border-amber-200 text-amber-800">
+              <div className="rounded-none p-3 text-sm bg-amber-50 border border-amber-200 text-amber-800">
                 {t('payable.edit.paidHint', { paid: fmtAmount(editBill.paidAmount) })}
               </div>
             )}
             <div>
-              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.edit.newAmount')}</label>
+              <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('payable.edit.newAmount')}</label>
               <input type="number" step="0.01" min="0.01" value={editAmount} onChange={e => setEditAmount(e.target.value)}
-                className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                className="h-9 w-full rounded-none border border-[#E7E1D5] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[#F97316]" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.receivedDate')}</label>
+                <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('payable.dialog.receivedDate')}</label>
                 <input type="date" value={editReceivedDate} onChange={e => setEditReceivedDate(e.target.value)}
-                  className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                  className="h-9 w-full rounded-none border border-[#E7E1D5] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[#F97316]" />
               </div>
               <div>
-                <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.dialog.dueDate')}</label>
+                <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('payable.dialog.dueDate')}</label>
                 <input type="date" value={editDueDate} onChange={e => setEditDueDate(e.target.value)}
-                  className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                  className="h-9 w-full rounded-none border border-[#E7E1D5] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[#F97316]" />
               </div>
             </div>
             <div>
-              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.edit.reason')}</label>
+              <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('payable.edit.reason')}</label>
               <textarea value={editReason} onChange={e => setEditReason(e.target.value)} rows={2} maxLength={FIELD_LIMITS.NOTE} placeholder={t('payable.edit.reasonPlaceholder')}
-                className="w-full rounded-md border border-[#D4D4D8] px-3 py-2 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none" />
+                className="w-full rounded-none border border-[#E7E1D5] px-3 py-2 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[#F97316] resize-none" />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setEditBill(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
-            <Button onClick={submitEdit} disabled={submitting} className="bg-purple-600 hover:bg-purple-700 text-white">{t('buttons.save', { ns: 'common' })}</Button>
+            <Button className="rounded-none font-bt-mono uppercase tracking-[0.06em] text-[10px]" variant="ghost" onClick={() => setEditBill(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
+            <Button onClick={submitEdit} disabled={submitting} className="rounded-none font-bt-mono uppercase tracking-[0.06em] text-[10px] bg-[#0A0A0A] hover:bg-[#C2410C] text-white">{t('buttons.save', { ns: 'common' })}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Mark Unpaid Dialog */}
       <Dialog open={!!unpayBill} onOpenChange={open => { if (!open) setUnpayBill(null); }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="rounded-none border-[#DBD0BB] bg-[#FAF7F0] sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{t('payable.unpay.title')} — {unpayBill?.billNumber}</DialogTitle>
+            <DialogTitle className="font-bt-display uppercase tracking-wide text-2xl">{t('payable.unpay.title')} — {unpayBill?.billNumber}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="rounded-md p-3 text-sm bg-amber-50 border border-amber-200 text-amber-800">
+            <div className="rounded-none p-3 text-sm bg-amber-50 border border-amber-200 text-amber-800">
               {t('payable.unpay.warning')}
             </div>
             <div>
-              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.unpay.reason')}</label>
+              <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('payable.unpay.reason')}</label>
               <textarea value={unpayReason} onChange={e => setUnpayReason(e.target.value)} rows={2} maxLength={FIELD_LIMITS.NOTE} placeholder={t('payable.unpay.reasonPlaceholder')}
-                className="w-full rounded-md border border-[#D4D4D8] px-3 py-2 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none" />
+                className="w-full rounded-none border border-[#E7E1D5] px-3 py-2 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[#F97316] resize-none" />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setUnpayBill(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
-            <Button onClick={submitUnpay} disabled={submitting} className="bg-amber-600 hover:bg-amber-700 text-white gap-1.5">
+            <Button className="rounded-none font-bt-mono uppercase tracking-[0.06em] text-[10px]" variant="ghost" onClick={() => setUnpayBill(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
+            <Button onClick={submitUnpay} disabled={submitting} className="rounded-none font-bt-mono uppercase tracking-[0.06em] text-[10px] bg-amber-600 hover:bg-amber-700 text-white gap-1.5">
               <RotateCcw className="w-4 h-4" /> {t('payable.unpay.confirm')}
             </Button>
           </DialogFooter>
@@ -1188,24 +1193,24 @@ export function AccountsPayable() {
 
       {/* Convert to Invoice Dialog (Block 2) */}
       <Dialog open={!!convertBill} onOpenChange={open => { if (!open) setConvertBill(null); }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="rounded-none border-[#DBD0BB] bg-[#FAF7F0] sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{t('payable.convert.title')} — {convertBill?.billNumber}</DialogTitle>
+            <DialogTitle className="font-bt-display uppercase tracking-wide text-2xl">{t('payable.convert.title')} — {convertBill?.billNumber}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="rounded-md p-3 text-sm bg-blue-50 border border-blue-200 text-blue-800">
+            <div className="rounded-none p-3 text-sm bg-blue-50 border border-blue-200 text-blue-800">
               {t('payable.convert.hint')}
             </div>
             <div>
-              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.convert.number')}</label>
+              <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('payable.convert.number')}</label>
               <input type="text" value={convertNumber} onChange={e => setConvertNumber(e.target.value)} maxLength={FIELD_LIMITS.DOCUMENT_NUMBER}
                 placeholder={t('payable.convert.numberPlaceholder')}
-                className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] font-mono focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                className="h-9 w-full rounded-none border border-[#E7E1D5] px-3 text-sm text-[#0A0A0A] font-bt-mono focus:outline-none focus:ring-2 focus:ring-[#F97316]" />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setConvertBill(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
-            <Button onClick={submitConvert} disabled={submitting} className="bg-purple-600 hover:bg-purple-700 text-white gap-1.5">
+            <Button className="rounded-none font-bt-mono uppercase tracking-[0.06em] text-[10px]" variant="ghost" onClick={() => setConvertBill(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
+            <Button onClick={submitConvert} disabled={submitting} className="rounded-none font-bt-mono uppercase tracking-[0.06em] text-[10px] bg-[#0A0A0A] hover:bg-[#C2410C] text-white gap-1.5">
               <Receipt className="w-4 h-4" /> {t('payable.convert.confirm')}
             </Button>
           </DialogFooter>
@@ -1214,23 +1219,23 @@ export function AccountsPayable() {
 
       {/* Edit-info Dialog (Block 5) — vendor / category / description / notes / invoice # */}
       <Dialog open={!!infoBill} onOpenChange={open => { if (!open) setInfoBill(null); }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="rounded-none border-[#DBD0BB] bg-[#FAF7F0] sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{t('payable.info.title')} — {infoBill?.billNumber}</DialogTitle>
+            <DialogTitle className="font-bt-display uppercase tracking-wide text-2xl">{t('payable.info.title')} — {infoBill?.billNumber}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div>
-              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.info.vendor')}</label>
+              <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('payable.info.vendor')}</label>
               <input type="text" value={infoVendor} onChange={e => setInfoVendor(e.target.value)} maxLength={200}
-                className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                className="h-9 w-full rounded-none border border-[#E7E1D5] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[#F97316]" />
             </div>
             <div>
-              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.info.category')}</label>
+              <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('payable.info.category')}</label>
               <Select value={infoCategory} onValueChange={setInfoCategory}>
-                <SelectTrigger className="h-9 text-sm border-[#D4D4D8]">
+                <SelectTrigger className="rounded-none bg-[#FAF7F0] font-bt-mono text-[11px] h-9 text-sm border-[#E7E1D5]">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="rounded-none border-[#DBD0BB]">
                   {(Object.keys(CATEGORY_KEY_MAP) as BillCategory[]).map(c => (
                     <SelectItem key={c} value={c}>{t(CATEGORY_KEY_MAP[c])}</SelectItem>
                   ))}
@@ -1238,30 +1243,30 @@ export function AccountsPayable() {
               </Select>
             </div>
             <div>
-              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.info.description')}</label>
+              <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('payable.info.description')}</label>
               <input type="text" value={infoDescription} onChange={e => setInfoDescription(e.target.value)} maxLength={500}
-                className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                className="h-9 w-full rounded-none border border-[#E7E1D5] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[#F97316]" />
             </div>
             <div>
-              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.info.notes')}</label>
+              <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('payable.info.notes')}</label>
               <textarea value={infoNotes} onChange={e => setInfoNotes(e.target.value)} maxLength={1000} rows={2}
-                className="w-full rounded-md border border-[#D4D4D8] px-3 py-2 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                className="w-full rounded-none border border-[#E7E1D5] px-3 py-2 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[#F97316]" />
             </div>
             {infoBill?.documentType === 'INVOICE' ? (
               <div>
-                <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.info.invoiceNumber')}</label>
+                <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('payable.info.invoiceNumber')}</label>
                 <input type="text" value={infoInvoiceNumber} onChange={e => setInfoInvoiceNumber(e.target.value)} maxLength={100}
-                  className="h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] font-mono focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                  className="h-9 w-full rounded-none border border-[#E7E1D5] px-3 text-sm text-[#0A0A0A] font-bt-mono focus:outline-none focus:ring-2 focus:ring-[#F97316]" />
               </div>
             ) : (
-              <div className="rounded-md p-2.5 text-xs bg-[#FAFAFA] border border-[#D4D4D8] text-[#71717A]">
+              <div className="rounded-none p-2.5 text-xs bg-[#FAF7F0] border border-[#E7E1D5] text-[#8A8175]">
                 {t('payable.info.invoiceNumberBillHint')}
               </div>
             )}
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setInfoBill(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
-            <Button onClick={submitInfo} disabled={submitting} className="bg-purple-600 hover:bg-purple-700 text-white gap-1.5">
+            <Button className="rounded-none font-bt-mono uppercase tracking-[0.06em] text-[10px]" variant="ghost" onClick={() => setInfoBill(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
+            <Button onClick={submitInfo} disabled={submitting} className="rounded-none font-bt-mono uppercase tracking-[0.06em] text-[10px] bg-[#0A0A0A] hover:bg-[#C2410C] text-white gap-1.5">
               <FileText className="w-4 h-4" /> {t('payable.info.confirm')}
             </Button>
           </DialogFooter>
@@ -1270,26 +1275,26 @@ export function AccountsPayable() {
 
       {/* Reassign-project Dialog (Block 4) */}
       <Dialog open={!!reassignBill} onOpenChange={open => { if (!open) setReassignBill(null); }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="rounded-none border-[#DBD0BB] bg-[#FAF7F0] sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{t('payable.reassign.title')} — {reassignBill?.billNumber}</DialogTitle>
+            <DialogTitle className="font-bt-display uppercase tracking-wide text-2xl">{t('payable.reassign.title')} — {reassignBill?.billNumber}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            <p className="text-sm text-[#71717A]">
+            <p className="text-sm text-[#8A8175]">
               {t('payable.reassign.description', { project: reassignBill?.project })}
             </p>
             {reassignBill && reassignBill.payments.some(p => !p.voided) && (
-              <div className="rounded-md p-3 text-sm bg-amber-50 border border-amber-200 text-amber-800">
+              <div className="rounded-none p-3 text-sm bg-amber-50 border border-amber-200 text-amber-800">
                 {t('payable.reassign.activePaymentsHint')}
               </div>
             )}
             <div>
-              <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide mb-1 block">{t('payable.reassign.targetLabel')}</label>
+              <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('payable.reassign.targetLabel')}</label>
               <Select value={reassignTarget} onValueChange={setReassignTarget}>
-                <SelectTrigger className="h-9 text-sm border-[#D4D4D8]">
+                <SelectTrigger className="rounded-none bg-[#FAF7F0] font-bt-mono text-[11px] h-9 text-sm border-[#E7E1D5]">
                   <SelectValue placeholder={t('payable.reassign.targetPlaceholder')} />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="rounded-none border-[#DBD0BB]">
                   {projects.filter(p => p.id !== reassignBill?.projectId).map(p => (
                     <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
                   ))}
@@ -1298,8 +1303,8 @@ export function AccountsPayable() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setReassignBill(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
-            <Button onClick={submitReassign} disabled={submitting || !reassignTarget} className="bg-purple-600 hover:bg-purple-700 text-white gap-1.5">
+            <Button className="rounded-none font-bt-mono uppercase tracking-[0.06em] text-[10px]" variant="ghost" onClick={() => setReassignBill(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
+            <Button onClick={submitReassign} disabled={submitting || !reassignTarget} className="rounded-none font-bt-mono uppercase tracking-[0.06em] text-[10px] bg-[#0A0A0A] hover:bg-[#C2410C] text-white gap-1.5">
               <ArrowRightLeft className="w-4 h-4" /> {t('payable.reassign.confirm')}
             </Button>
           </DialogFooter>
@@ -1308,33 +1313,33 @@ export function AccountsPayable() {
 
       {/* Delete Dialog — two-step confirmation (Block 2) */}
       <Dialog open={!!deleteBill} onOpenChange={open => { if (!open) setDeleteBill(null); }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="rounded-none border-[#DBD0BB] bg-[#FAF7F0] sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{t('payable.delete.title')} — {deleteBill?.billNumber}</DialogTitle>
+            <DialogTitle className="font-bt-display uppercase tracking-wide text-2xl">{t('payable.delete.title')} — {deleteBill?.billNumber}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            <div className="rounded-md p-3 text-sm bg-red-50 border border-red-200 text-red-800">
+            <div className="rounded-none p-3 text-sm bg-red-50 border border-red-200 text-red-800">
               {t('payable.delete.warning')}
             </div>
             {deleteBill && deleteBill.payments.some(p => !p.voided) && (
-              <div className="rounded-md p-3 text-sm bg-amber-50 border border-amber-200 text-amber-800">
+              <div className="rounded-none p-3 text-sm bg-amber-50 border border-amber-200 text-amber-800">
                 {t('payable.delete.activePaymentsHint')}
               </div>
             )}
             {deleteStep === 2 && (
-              <div className="rounded-md p-3 text-sm bg-red-100 border border-red-300 text-red-900 font-medium">
+              <div className="rounded-none p-3 text-sm bg-red-100 border border-red-300 text-red-900 font-medium">
                 {t('payable.delete.confirmFinal')}
               </div>
             )}
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setDeleteBill(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
+            <Button className="rounded-none font-bt-mono uppercase tracking-[0.06em] text-[10px]" variant="ghost" onClick={() => setDeleteBill(null)}>{t('buttons.cancel', { ns: 'common' })}</Button>
             {deleteStep === 1 ? (
-              <Button onClick={() => setDeleteStep(2)} className="bg-red-600 hover:bg-red-700 text-white gap-1.5">
+              <Button  onClick={() => setDeleteStep(2)} className="rounded-none font-bt-mono uppercase tracking-[0.06em] text-[10px] bg-red-600 hover:bg-red-700 text-white gap-1.5">
                 <Trash2 className="w-4 h-4" /> {t('payable.delete.continue')}
               </Button>
             ) : (
-              <Button onClick={submitDelete} disabled={submitting} className="bg-red-600 hover:bg-red-700 text-white gap-1.5">
+              <Button onClick={submitDelete} disabled={submitting} className="rounded-none font-bt-mono uppercase tracking-[0.06em] text-[10px] bg-red-600 hover:bg-red-700 text-white gap-1.5">
                 <Trash2 className="w-4 h-4" /> {t('payable.delete.confirm')}
               </Button>
             )}

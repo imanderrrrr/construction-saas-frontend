@@ -47,6 +47,7 @@ import i18n from '../../../i18n';
 import { ApiError } from '../../lib/api';
 import type { ProjectResponse } from '../../services/projects';
 import { resetTourScope } from '../../lib/tourScope';
+import { peekSectionIntent, resetSectionIntents, setSectionIntent } from '../../lib/sectionIntent';
 import { BudgetsSection } from './BudgetsSection';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -124,6 +125,7 @@ describe('BudgetsSection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetTourScope();
+    resetSectionIntents();
     svc.listProjects.mockResolvedValue(page(PROJECTS));
     svc.listFinanceProjects.mockResolvedValue(page(PROJECTS));
     svc.updateProject.mockResolvedValue(PROJECTS[0]);
@@ -377,4 +379,15 @@ describe('BudgetsSection', () => {
       expect(save.disabled).toBe(true);
     });
   });
+  it('opens finance budgets filtered to the client and consumes the hand-off once', async () => {
+    setSectionIntent('budgets', { clientId: 2, clientName: 'Inmobiliaria Andes' });
+    await mount({ readOnly: true });
+    expect(selectFor('cliente').value).toBe('2');
+    expect(text()).toContain('Ampliación Zona 4');
+    expect(text()).not.toContain('Residencial Sur');
+    expect(peekSectionIntent('budgets')).toBeNull();
+    expect(svc.listFinanceProjects).toHaveBeenCalled();
+    expect(svc.listProjects).not.toHaveBeenCalled();
+  });
+
 });

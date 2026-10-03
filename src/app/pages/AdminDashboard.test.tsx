@@ -110,7 +110,7 @@ vi.mock('../components/ui/dropdown-menu', () => ({
   DropdownMenuSeparator: () => <hr />,
 }));
 
-import { AdminDashboard } from './AdminDashboard';
+import { AdminDashboard, migrateFavorites } from './AdminDashboard';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -152,6 +152,13 @@ describe('AdminDashboard – billing entry points', () => {
       btn => btn.getAttribute('data-testid') !== 'dropdown-item',
     );
     expect(sidebarBilling).toHaveLength(1);
+  });
+
+  it('keeps one collections entry and migrates invoice favorites without duplicates', async () => {
+    await renderDashboard(root);
+    expect(buttonsWithText(container, 'admin:nav.invoices')).toHaveLength(0);
+    expect(buttonsWithText(container, 'admin:nav.accountsReceivable')).toHaveLength(1);
+    expect(migrateFavorites(['invoices', 'accounts-receivable', 'budget-report', 'budgets'])).toEqual(['accounts-receivable', 'budgets']);
   });
 
   it('opens the billing section in-shell (does not leave the panel) when clicked', async () => {

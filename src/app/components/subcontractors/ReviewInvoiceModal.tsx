@@ -1,3 +1,4 @@
+import { businessToday } from '../../helpers/dateTime';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Download } from 'lucide-react';
@@ -39,6 +40,7 @@ export function ReviewInvoiceModal({ open, onOpenChange, invoice, agreedAmountCe
   const lang = i18n.language;
   const [decision, setDecision] = useState<'APPROVE' | 'OBSERVE' | null>(null);
   const [comment, setComment] = useState('');
+  const [dueDate, setDueDate] = useState(businessToday());
   const [saving, setSaving] = useState(false);
   const [commentError, setCommentError] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +49,7 @@ export function ReviewInvoiceModal({ open, onOpenChange, invoice, agreedAmountCe
     if (!open) return;
     setDecision(null);
     setComment('');
+    setDueDate(businessToday());
     setSaving(false);
     setCommentError(false);
     setError(null);
@@ -60,13 +63,13 @@ export function ReviewInvoiceModal({ open, onOpenChange, invoice, agreedAmountCe
   const isImage = invoice.fileContentType?.startsWith('image/') ?? false;
 
   const submit = async () => {
-    if (!decision) return;
+    if (!decision || (decision === 'APPROVE' && !dueDate)) return;
     // The server requires it; saying so before the round trip is the point.
     if (decision === 'OBSERVE' && !comment.trim()) { setCommentError(true); return; }
     setSaving(true);
     setError(null);
     try {
-      const updated = await reviewInvoice(invoice.id, { action: decision, comment: comment.trim() || null });
+      const updated = await reviewInvoice(invoice.id, { action: decision, comment: comment.trim() || null, dueDate: decision === 'APPROVE' ? dueDate : undefined });
       onReviewed(updated);
       onOpenChange(false);
     } catch {
@@ -216,6 +219,12 @@ export function ReviewInvoiceModal({ open, onOpenChange, invoice, agreedAmountCe
                 ))}
               </div>
               <FieldHint>{t('subcontractors:rev.decisionHint')}</FieldHint>
+
+              {decision === 'APPROVE' && <div className="mt-4">
+                <FieldLabel htmlFor={`rev-due-${invoice.id}`} required>{t('subcontractors:rev.dueDate')}</FieldLabel>
+                <input id={`rev-due-${invoice.id}`} type="date" value={dueDate} min={businessToday()} onChange={e => setDueDate(e.target.value)} className={INPUT} />
+                <FieldHint>{t('subcontractors:rev.payableHint')}</FieldHint>
+              </div>}
 
               {decision === 'OBSERVE' && (
                 <div className="mt-4">

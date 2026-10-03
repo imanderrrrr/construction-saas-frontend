@@ -220,6 +220,23 @@ export const routes = [
     ),
   },
 
+  ...([
+    ['/finance/clients', 'clients'],
+    ['/finance/receivables', 'accounts-receivable'],
+    ['/finance/payables', 'accounts-payable'],
+    ['/finance/invoices', 'accounts-receivable'],
+    ['/finance/labor-cost', 'labor-cost'],
+    ['/finance/payroll', 'labor-payroll'],
+    ['/finance/supervisor-hours', 'supervisor-hours'],
+  ] as const).map(([path, initialSection]) => ({
+    path,
+    element: (
+      <GuardedPage allowedRoles={['FINANCE']}>
+        <FinanceDashboard initialSection={initialSection} />
+      </GuardedPage>
+    ),
+  })),
+
   // WAREHOUSE
   {
     path: '/warehouse/dashboard',

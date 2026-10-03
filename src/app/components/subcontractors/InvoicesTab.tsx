@@ -156,8 +156,7 @@ export function InvoicesTab({ summary, summaryState, refData, onReview, onPay, f
             <option value="">{t('subcontractors:inv.filter.subcontractor')}</option>
             {refData.subcontractors.map(s => <option key={s.id} value={s.id}>{s.fullName ?? s.username}</option>)}
           </MonoSelect>
-          {/* Five states, not six: nothing writes PENDING_PAYMENT, so it is not
-              offered as a filter that could only ever come back empty. */}
+          {/* Partial payments are a filterable state of the linked payable. */}
           <MonoSelect
             value={statusFilter}
             onChange={e => { setStatusFilter(e.target.value as '' | InvoiceStatus); setPage(0); }}
@@ -284,9 +283,7 @@ export function InvoicesTab({ summary, summaryState, refData, onReview, onPay, f
 /**
  * What this row asks of you: review it, pay it, or nothing.
  *
- * "Registrar pago" hangs off Aprobada. It used to hang off PENDING_PAYMENT — a
- * state nothing in the system writes — so an approved invoice could not be paid
- * from the panel at all, and the "Revisar" it offered instead came back 409.
+ * Approved and partially paid invoices can receive payments.
  */
 function InvoiceAction({ invoice, lead, onReview, onPay, lang }: {
   invoice: SubcontractorInvoiceDTO;

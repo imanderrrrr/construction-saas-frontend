@@ -41,10 +41,6 @@ export function JobStatusChip({ status, onDark = false, className }: { status: J
  * which the system expects you to move money.
  *
  * An unknown status renders its raw wire value rather than a translation key.
- * PENDING_PAYMENT is the case that matters — nothing writes it, so the panel
- * dropped it from its interface and its copy went with it; if a row ever did
- * arrive in that state the reader should see PENDING_PAYMENT, not
- * `invoiceStatus.PENDING_PAYMENT`.
  */
 export function InvoiceStatusChip({ status, className }: { status: InvoiceStatus; className?: string }) {
   const { t, i18n } = useTranslation(['subcontractors']);

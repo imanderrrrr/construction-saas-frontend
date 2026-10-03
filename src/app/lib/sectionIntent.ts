@@ -21,6 +21,8 @@
 export interface SectionIntents {
   /** Proyectos: open the list already narrowed to this client — and, if asked, straight into one of its fichas. */
   projects: { clientId: number; clientName: string; openProjectId?: number };
+  /** Finance: view this client's budgets, optionally opening one jobsite. */
+  budgets: { clientId: number; clientName: string; openProjectId?: number };
 }
 
 type Key = keyof SectionIntents;

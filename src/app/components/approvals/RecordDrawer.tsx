@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, Check, Loader2, X } from 'lucide-react';
+import { AlertTriangle, Check, Loader2, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   approveEvent, approveRecord, correctEvent, correctRecord, editEventTime,
   getTimeRecord, rejectRecord, resolveTransitDispute, type TimeRecordResponse,
+  addManualMarks,
 } from '../../services/time';
+import { ModalAddMark } from '../phase2/ModalAddMark';
+import { TIME_EVENT_SEQUENCE } from '../../types';
 import { fmtDateTime } from '../../helpers/dateTime';
 import {
-  Mono, alertsFor, dayHours, distanceState, hhmm, initials, statusPillClass,
+  Mono, alertsFor, dayHours, distanceState, eventTime, hhmm, initials, statusPillClass,
 } from './shared';
 
 /**
@@ -17,12 +20,13 @@ import {
  * question an admin actually asks is "does this day make sense?", not "what
  * rows are in the table".
  */
-export function RecordDrawer({ recordId, onClose, onChanged }: {
+export function RecordDrawer({ recordId, onClose, onChanged, mode = 'admin' }: {
   recordId: number;
   onClose: () => void;
   onChanged: () => void;
+  mode?: 'admin' | 'finance' | 'supervisor';
 }) {
-  const { t, i18n } = useTranslation(['admin', 'common']);
+  const { t, i18n } = useTranslation(['admin', 'common', 'time']);
   const lang = i18n.language;
 
   const [record, setRecord] = useState<TimeRecordResponse | null>(null);
@@ -32,6 +36,7 @@ export function RecordDrawer({ recordId, onClose, onChanged }: {
   const [editingEvent, setEditingEvent] = useState<number | null>(null);
   const [timeValue, setTimeValue] = useState('');
   const [disputeMinutes, setDisputeMinutes] = useState('');
+  const [addMarksOpen, setAddMarksOpen] = useState(false);
 
   const load = useCallback(() => {
     getTimeRecord(recordId).then(setRecord).catch(() => setRecord(null));
@@ -40,10 +45,10 @@ export function RecordDrawer({ recordId, onClose, onChanged }: {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !addMarksOpen) onClose(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, addMarksOpen]);
 
   async function run(key: string, fn: () => Promise<unknown>, close = false) {
     setBusy(key);
@@ -71,10 +76,10 @@ export function RecordDrawer({ recordId, onClose, onChanged }: {
 
   const alerts = alertsFor(record);
   const events = [...record.events].sort((a, b) =>
-    new Date(a.capturedAtServer || a.capturedAtClient).getTime() -
-    new Date(b.capturedAtServer || b.capturedAtClient).getTime());
+    new Date(eventTime(a)).getTime() - new Date(eventTime(b)).getTime());
   const disputeEvent = record.events.find(e => e.disputeStatus);
   const pending = record.approvalStatus === 'PENDING';
+  const missingTypes = TIME_EVENT_SEQUENCE.filter(type => type !== 'IN_TRANSIT' && !record.events.some(event => event.type === type));
 
   return (
     <div className="fixed inset-0 z-[80]">
@@ -128,6 +133,9 @@ export function RecordDrawer({ recordId, onClose, onChanged }: {
           <div className="flex items-center gap-2.5 mt-6 mb-3">
             <span className="w-4 h-px bg-[#F97316] block" />
             <Mono className="text-[10px] tracking-[0.12em] text-[#8A8175]">{t('admin:apr.d.timeline')}</Mono>
+            {mode !== 'supervisor' && missingTypes.length > 0 && <button onClick={() => setAddMarksOpen(true)} className="ml-auto flex items-center gap-1 border border-[#DBD0BB] bg-[#FAF7F0] px-2 py-1.5 font-bt-mono uppercase text-[9px] text-[#C2410C] hover:border-[#F97316]">
+              <Plus className="w-3 h-3" />{t('time:manualMarks.addTitle')}
+            </button>}
           </div>
           <div className="relative">
             {events.map((e, i) => {
@@ -151,7 +159,7 @@ export function RecordDrawer({ recordId, onClose, onChanged }: {
                         {t(`admin:apr.ev.${e.type}`, { defaultValue: e.type })}
                       </Mono>
                       <span className="font-bt-display font-bold text-xl leading-none text-[#0A0A0A]">
-                        {hhmm(e.capturedAtServer || e.capturedAtClient, lang)}
+                        {hhmm(eventTime(e), lang)}
                       </span>
                     </div>
                     <div className="mt-2 flex flex-wrap gap-2">
@@ -182,7 +190,7 @@ export function RecordDrawer({ recordId, onClose, onChanged }: {
                           className="border border-[#DBD0BB] bg-[#FAF7F0] px-2.5 py-1.5 font-bt-mono text-[9.5px] uppercase tracking-[0.05em] font-semibold text-[#0A0A0A] hover:border-[#2E6B34] hover:text-[#2E6B34] disabled:opacity-50">
                           {t('admin:apr.approve')}
                         </button>
-                        <button onClick={() => { setEditingEvent(e.id); setTimeValue(hhmm(e.capturedAtServer || e.capturedAtClient, lang)); }}
+                        <button onClick={() => { setEditingEvent(e.id); setTimeValue(hhmm(eventTime(e), lang)); }}
                           className="border border-[#DBD0BB] bg-[#FAF7F0] px-2.5 py-1.5 font-bt-mono text-[9.5px] uppercase tracking-[0.05em] font-semibold text-[#0A0A0A] hover:border-[#F97316] hover:text-[#C2410C]">
                           {t('admin:apr.d.fixTime')}
                         </button>
@@ -202,8 +210,8 @@ export function RecordDrawer({ recordId, onClose, onChanged }: {
                           className="w-[92px] border border-[#CDBFA6] bg-white px-2.5 py-1.5 font-bt-mono text-sm tracking-[0.08em] text-center text-[#0A0A0A] outline-none focus:border-[#F97316]" />
                         <button onClick={() => {
                           const [h, m] = timeValue.split(':').map(Number);
-                          if (Number.isNaN(h) || Number.isNaN(m)) return;
-                          const d = new Date(e.capturedAtServer || e.capturedAtClient);
+                          if (!/^\d{2}:\d{2}$/.test(timeValue) || h > 23 || m > 59) return;
+                          const d = new Date(eventTime(e));
                           d.setHours(h, m, 0, 0);
                           const reason = window.prompt(t('admin:apr.d.fixReason')) || t('admin:apr.d.fixDefaultReason');
                           run(`ev-time-${e.id}`, () => editEventTime(record.id, e.id, d.toISOString(), reason));
@@ -342,6 +350,18 @@ export function RecordDrawer({ recordId, onClose, onChanged }: {
           )}
         </div>
       </aside>
+      {mode !== 'supervisor' && addMarksOpen && <ModalAddMark
+        open={addMarksOpen}
+        recordId={record.id}
+        workerId={record.workerId}
+        workerName={record.workerName ?? record.workerUsername}
+        projectName={record.projectName}
+        date={record.workDate}
+        workDate={record.workDate}
+        missingTypes={missingTypes}
+        onClose={() => setAddMarksOpen(false)}
+        onSubmit={async marks => { await addManualMarks(record.id, marks); setAddMarksOpen(false); onChanged(); }}
+      />}
     </div>
   );
 }

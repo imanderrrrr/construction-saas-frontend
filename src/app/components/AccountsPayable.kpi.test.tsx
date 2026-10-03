@@ -62,7 +62,7 @@ vi.mock('../helpers/dateTime', () => ({
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }));
 
 // Heavy / portal-backed UI — stub so the test renders the component's own
-// markup under jsdom. StatCard stays REAL: the subtitle under test renders
+// markup under jsdom. AccountingFigure stays REAL: the subtitle under test renders
 // through it.
 vi.mock('./PayableDetailModal', () => ({ PayableDetailModal: () => null }));
 vi.mock('./EmptyState', () => ({ EmptyState: () => null }));
@@ -183,4 +183,35 @@ describe('AccountsPayable — "Paid this month" KPI card', () => {
     expect(text).not.toContain('$105,000.00');  // would include the June payment
     expect(text).not.toContain('$55,000.00');   // would include the voided July payment
   });
+  it('includes outstanding partial payments in the pending KPI', async () => {
+    await renderPayables(root);
+    const title = Array.from(container.querySelectorAll('p')).find(p => p.textContent === 'payable.kpi.pendingPayment');
+    expect(title?.parentElement?.textContent).toContain('$165,000.00');
+  });
+
+  it('classifies overdue partial balances by due date, excluding settled invoices', async () => {
+    mocks.listAllPayables.mockResolvedValue([
+      mkPayable({ id: 1, billNumber: 'BILL-001', amount: 8000, paidAmount: 3000, status: 'partial', dueDate: '2026-07-10', payments: [] }),
+      mkPayable({ id: 2, billNumber: 'BILL-002', amount: 2000, paidAmount: 2000, status: 'paid', dueDate: '2026-07-01', payments: [] }),
+    ]);
+    await renderPayables(root);
+    const overdue = Array.from(container.querySelectorAll('p')).find(p => p.textContent === 'payable.kpi.overdue');
+    const pending = Array.from(container.querySelectorAll('p')).find(p => p.textContent === 'payable.kpi.pendingPayment');
+    expect(overdue?.parentElement?.textContent).toContain('$5,000.00');
+    expect(pending?.parentElement?.textContent).toContain('$0.00');
+  });
+
+  it('shows a failed load as unavailable and retries instead of reporting no bills', async () => {
+    mocks.listAllPayables.mockRejectedValueOnce(new Error('unavailable'));
+    await renderPayables(root);
+    expect(container.querySelector('[role="alert"]')).not.toBeNull();
+    const figures = container.querySelector('[data-tour="sec.accounts-payable.kpis"]');
+    expect(figures?.textContent).toContain('—');
+    expect(figures?.textContent).not.toContain('$0.00');
+    expect(container.textContent).not.toContain('payable.noBills');
+    await act(async () => (container.querySelector('[role="alert"] button') as HTMLButtonElement).click());
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+    expect(figures?.textContent).toContain('$165,000.00');
+  });
+
 });
