@@ -3007,6 +3007,7 @@
   "cost.rowCalc": "{{hours}} h × ${{rate}} por hora",
   "cost.rowRateless": "{{hours}} h aprobadas · falta la tarifa por hora",
   "cost.setRate": "Configurar tarifa",
+  "cost.rateByAdmin": "Tarifa pendiente de Administración",
   "cost.shareOfTotal": "{{pct}}% del total",
   "cost.emptyBig": "Sin costo",
   "cost.emptyTitle": "Todavía no hay horas aprobadas en este período",

@@ -3007,6 +3007,7 @@
   "cost.rowCalc": "{{hours}} h × ${{rate}} per hour",
   "cost.rowRateless": "{{hours}} h approved · hourly rate missing",
   "cost.setRate": "Set hourly rate",
+  "cost.rateByAdmin": "Rate pending from Administration",
   "cost.shareOfTotal": "{{pct}}% of the total",
   "cost.emptyBig": "No cost",
   "cost.emptyTitle": "No approved hours in this period yet",
