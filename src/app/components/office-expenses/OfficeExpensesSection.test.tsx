@@ -44,6 +44,7 @@ vi.mock('../../services/officeExpenses', () => ({
 }));
 
 import { OfficeExpensesSection } from './OfficeExpensesSection';
+import { monthName } from './bits';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -150,7 +151,11 @@ describe('Gastos de oficina', () => {
     const first = getOfficeExpenseSummary.mock.calls[0][0];
     expect(first.from.slice(-2)).toBe('01');
 
-    const back = [...container.querySelectorAll('button')].find(b => b.textContent?.includes('agosto'));
+    // The month before the one on screen — written as «agosto» in September,
+    // which stopped being true on the first of October.
+    const [y, m] = first.from.split('-').map(Number);
+    const prevName = monthName(`${m === 1 ? y - 1 : y}-${String(m === 1 ? 12 : m - 1).padStart(2, '0')}`, 'es');
+    const back = [...container.querySelectorAll('button')].find(b => b.textContent?.toLowerCase().includes(prevName.toLowerCase()));
     expect(back, 'el botón del mes anterior no se pintó').toBeDefined();
     await act(async () => { back!.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
     await flush();
