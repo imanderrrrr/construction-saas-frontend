@@ -3,10 +3,11 @@ import { useMarkDashboardReady } from '../lib/dashboardReady';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { AuthService } from '../services/auth';
+import { setSectionIntent } from '../lib/sectionIntent';
 import {
   LayoutDashboard, CheckCircle, FileBarChart, DollarSign, Clock,
   Wallet, ArrowDownToLine, ArrowUpFromLine, BarChart3,
-  TrendingUp, TrendingDown, AlertTriangle, Receipt, Banknote, HardHat, Loader2, FileText,
+  TrendingUp, TrendingDown, AlertTriangle, Receipt, Banknote, HardHat, Loader2,
   FileSignature, HelpCircle,
 } from 'lucide-react';
 import { AppShell, type AppShellNavItem } from '../components/AppShell';
@@ -38,9 +39,6 @@ const AccountsPayable = lazy(() =>
 const TmOffice = lazy(() =>
   import('../components/tm/TmOfficeSection').then(m => ({ default: m.TmOfficeSection }))
 );
-const InvoiceManager = lazy(() =>
-  import('../components/InvoiceManager').then(m => ({ default: m.InvoiceManager }))
-);
 const ProjectFinancials = lazy(() =>
   import('../components/ProjectFinancials').then(m => ({ default: m.ProjectFinancials }))
 );
@@ -66,7 +64,6 @@ const SupervisorApprovals = lazy(() =>
 
 type ActiveSection =
   | 'dashboard'
-  | 'invoices'
   | 'approved-expenses'
   | 'expense-report'
   | 'accounts-receivable'
@@ -96,7 +93,6 @@ const ONBOARDING_KEY: Partial<Record<ActiveSection, string>> = {
 const SECTION_META_KEYS: Record<ActiveSection, { titleKey: string; subtitleKey: string }> = {
   'dashboard':            { titleKey: 'finance:section.dashboard.title',            subtitleKey: 'finance:section.dashboard.subtitle'            },
   'tm-office':            { titleKey: 'tm:section.office.title',                    subtitleKey: 'tm:section.office.subtitle'                    },
-  'invoices':             { titleKey: 'finance:section.invoices.title',             subtitleKey: 'finance:section.invoices.subtitle'             },
   'accounts-receivable':  { titleKey: 'finance:section.accountsReceivable.title',   subtitleKey: 'finance:section.accountsReceivable.subtitle'   },
   'accounts-payable':     { titleKey: 'finance:section.accountsPayable.title',      subtitleKey: 'finance:section.accountsPayable.subtitle'      },
   'approved-expenses':    { titleKey: 'finance:section.approvedExpenses.title',     subtitleKey: 'finance:section.approvedExpenses.subtitle'     },
@@ -254,7 +250,6 @@ function DashboardView({ username, onNavigate }: { username: string; onNavigate:
       {/* Quick access cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {[
-          { key: 'invoices',             icon: FileText,        label: t('dash.card.invoices'),            desc: t('dash.card.invoicesDesc')            },
           { key: 'accounts-receivable', icon: ArrowDownToLine, label: t('dash.card.accountsReceivable'), desc: t('dash.card.accountsReceivableDesc') },
           { key: 'accounts-payable',    icon: ArrowUpFromLine, label: t('dash.card.accountsPayable'),    desc: t('dash.card.accountsPayableDesc')    },
           { key: 'approved-expenses',   icon: CheckCircle,     label: t('dash.card.approvedExpenses'),   desc: t('dash.card.approvedExpensesDesc')   },
@@ -295,11 +290,19 @@ export function FinanceDashboard({ initialSection }: { initialSection?: ActiveSe
   const [activeSection, setActiveSection] = useState<ActiveSection>(initialSection ?? 'dashboard');
 
   const handleLogout   = () => { document.cookie = 'ofjr_session=; Path=/; Max-Age=0'; navigate('/'); AuthService.logout(); };
-  const handleNavigate = (section: string) => setActiveSection(section as ActiveSection);
+  const handleNavigate = (section: string) => {
+    // Facturas joined Cobros (2026-10): a screen that still asks for it means
+    // "issue a document", so Cobros opens with the issue window up.
+    if (section === 'invoices') {
+      setSectionIntent('accounts-receivable', { openIssue: true });
+      setActiveSection('accounts-receivable');
+      return;
+    }
+    setActiveSection(section as ActiveSection);
+  };
 
   const navItems: AppShellNavItem[] = useMemo(() => [
     { key: 'dashboard',            label: t('finance:nav.dashboard'),            icon: LayoutDashboard },
-    { key: 'invoices',              label: t('finance:nav.invoices'),              icon: FileText,        group: 'accounting' },
     { key: 'accounts-receivable',  label: t('finance:nav.accountsReceivable'),   icon: ArrowDownToLine, group: 'accounting' },
     { key: 'accounts-payable',     label: t('finance:nav.accountsPayable'),      icon: ArrowUpFromLine, group: 'accounting' },
     { key: 'tm-office',            label: t('tm:nav.office'),                     icon: FileSignature,   group: 'accounting' },
@@ -358,11 +361,6 @@ export function FinanceDashboard({ initialSection }: { initialSection?: ActiveSe
         {activeSection === 'tm-office' && (
           <Suspense fallback={<LoadingSkeleton />}>
             <TmOffice />
-          </Suspense>
-        )}
-        {activeSection === 'invoices' && (
-          <Suspense fallback={<LoadingSkeleton />}>
-            <InvoiceManager />
           </Suspense>
         )}
         {activeSection === 'accounts-receivable' && (

@@ -61,14 +61,10 @@ export const SECTION_TOUR_STEPS: Record<string, string[]> = {
   'schedules-semana': ['rows', 'nav', 'undated'],
   'tool-inventory': ['header', 'counts', 'filters', 'table'],
   'tool-report': ['state', 'missing', 'filters', 'export'],
-  // Facturas. The section key stays `invoices` (renaming it would reset every
-  // account's "seen it" flag). The four old stops all pointed inside the
-  // create form, which is now a window: with the section opening on the list,
-  // `visibleSteps()` would have dropped every one of them and announced
-  // "1 de 1". These four are containers the list renders in every state.
-  invoices: ['summary', 'filters', 'list', 'new'],
-  // The window claims the tour while it is on screen (lib/tourScope), with a
-  // hyphen like the other scoped keys.
+  // Facturas joined Cobros (2026-10): its list tour went with it, and «Emitir
+  // documento» is a stop of the Cobros tour. The issue window still claims its
+  // own tour while it is on screen (lib/tourScope), wherever it is opened
+  // from, with a hyphen like the other scoped keys.
   'invoices-emitir': ['type', 'number', 'client-project', 'line-items', 'totals'],
   'invoice-branding': ['logo', 'fields', 'save'],
   budgets: ['header', 'kpis'],
@@ -101,7 +97,7 @@ export const SECTION_TOUR_STEPS: Record<string, string[]> = {
   // with a document open it sits on the block itself, so «Ver cómo» on the
   // invoice-created notice — which opens the document first — rings the
   // real thing. One element carries the anchor at any time.
-  'accounts-receivable': ['header', 'overdue', 'rows', 'views', 'signature'],
+  'accounts-receivable': ['header', 'new', 'overdue', 'rows', 'views', 'signature'],
   'accounts-payable': ['header', 'week', 'lanes', 'new-bill'],
   audit: ['kpis', 'filters', 'list'],
   // Tiempo y material. `tm-field` doubles as the supervisor panel's tour (its

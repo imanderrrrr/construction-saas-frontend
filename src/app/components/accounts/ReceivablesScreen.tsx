@@ -1,26 +1,29 @@
-import { useCallback, useEffect, useId, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, ChevronRight, Pencil, RefreshCw, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, FileSignature, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { cn } from '../ui/utils';
-import { FOCUS_RING, SecondaryButton } from '../onboarding/chrome';
-import { Bone, EmptyWord, Mono, MonoSelect, stampDay } from '../projects/bt';
+import { CloseButton, FOCUS_RING, SecondaryButton } from '../onboarding/chrome';
+import { Bone, CreateButton, EmptyWord, Mono, MonoSelect, PaperNote, stampDay } from '../projects/bt';
 import { Amount, LoadFailure } from '../budgets/ui';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { fmtMoney } from '../invoices/bits';
 import { paymentMethodLabel } from '../PayableCommon';
 import { SignatureRequestPanel } from '../signatures/SignatureRequestPanel';
 import { AuthService } from '../../services/auth';
+import { loadInvoiceIssuer } from '../../services/invoiceBranding';
+import { loadSignatureForPdf } from '../../services/signatures';
+import type { InvoicePdfData } from '../../helpers/exportInvoicePdf';
 import { listProjects } from '../../services/projects';
 import { businessToday, currentMonth, currentMonthLabel, fmtDate } from '../../helpers/dateTime';
 import {
-  approveChangeOrder, downloadReceivableDocument, hasLiveQuickBooksPayment, listAllPayables, listAllReceivables,
-  paymentCounts, voidReceivablePayment, type Receivable,
+  approveChangeOrder, downloadReceivableDocument, getReceivableSummary, hasLiveQuickBooksPayment, listAllPayables,
+  listAllReceivables, paymentCounts, voidReceivablePayment, type Receivable, type ReceivableSummary,
 } from '../../services/finance';
 import {
   agingByParty, agingTotals, balanceOf, cashBridge, daysLate, isBillable, isSettled, matches,
-  payableToOwed, receivableFigures, receivablePayments, receivableToOwed, sumBalances,
+  payableToOwed, receivableFigures, receivableFiguresFromSummary, receivablePayments, receivableToOwed, sumBalances,
   type AgingRow, type Owed,
 } from './accounting';
 import {
@@ -30,25 +33,57 @@ import {
 import { CollectDialog, DeleteReceivableDialog, EditInfoDialog, RejectChangeOrderDialog } from './ReceivableDialogs';
 import { PaymentOriginTag, RegisterInQuickBooksNote } from './PaymentOrigin';
 import { clearSectionIntent, peekSectionIntent } from '../../lib/sectionIntent';
+import { requestTourStop } from '../../lib/tourRequest';
 
 /**
- * Cobrar — the screen of money coming in.
+ * Cobros — the screen of money coming in, from the document to the payment.
  *
  * It answers one question, and its shape follows from it: *who owes me, how
  * much, and since when*. So it groups by client with an aging table, opens on
- * what is overdue, and the only verb on it is "cobrar". Its sibling Pagar
- * answers a different question and is built differently on purpose — the two
- * were indistinguishable before precisely because they shared a layout.
+ * what is overdue, and its verbs are the two of that road: issue and collect.
+ * Its sibling Pagar answers a different question and is built differently on
+ * purpose — the two were indistinguishable before because they shared a layout.
  *
- * What this screen deliberately does NOT do: issue invoices. That lives in
- * Facturas, with the tax, discount and document-type fields this screen never
- * had; the header links there instead of duplicating a worse copy of it.
+ * Issuing used to live in a separate section, Facturas (owner decision,
+ * 2026-10: one screen). It is the same window, with the tax, discount and
+ * document-type fields: opened from the header, and the document it creates
+ * opens right here, with the note that says where its signature is asked for
+ * — the block inside the document. The PDF with the client's signature,
+ * which only Facturas offered, is in each document's menu.
  */
 
 type ViewKey = 'clients' | 'docs';
 type RangeKey = 'all' | 'month' | 'quarter' | 'year';
 
 const DOC_GRID = 'grid grid-cols-[1.05fr_1.5fr_1.05fr_.95fr_1fr_1.5fr] gap-3 items-center';
+const FLASH_MS = 2200;
+
+// The issue window and the PDF generator (jsPDF) are heavy and only needed on
+// a click: loaded then, so collecting stays as light as it was.
+const InvoiceWindow = lazy(() => import('../invoices/InvoiceWindow').then(m => ({ default: m.InvoiceWindow })));
+
+/** What the signed PDF (the browser's generator) needs from a document. */
+function toPdfData(r: Receivable): InvoicePdfData {
+  return {
+    documentType: r.documentType,
+    invoiceNumber: r.invoiceNumber,
+    client: r.client,
+    project: r.project,
+    description: r.description,
+    issuedDate: r.issuedDate,
+    dueDate: r.dueDate,
+    lineItems: r.lineItems.map(li => ({
+      description: li.description, quantity: li.quantity,
+      unitPrice: li.unitPrice, subtotal: li.subtotal,
+    })),
+    subtotal: r.subtotal,
+    discount: r.discount,
+    taxRate: r.taxRate,
+    tax: r.tax,
+    amount: r.amount,
+    notes: r.notes,
+  };
+}
 
 export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: string) => void } = {}) {
   const { t, i18n } = useTranslation(['finance', 'common']);
@@ -67,19 +102,28 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
   const [reloadNonce, setReloadNonce] = useState(0);
   const [approving, setApproving] = useState<number | null>(null);
   const [downloading, setDownloading] = useState<number | null>(null);
+  const [downloadingSigned, setDownloadingSigned] = useState<number | null>(null);
   const [voiding, setVoiding] = useState<number | null>(null);
+  const [summary, setSummary] = useState<ReceivableSummary | null>(null);
 
-  // Another section may have sent us here with a document in mind («Ver cómo»
-  // on the notice Facturas shows after issuing one): read it while
+  // Another section may have sent us here with a document in mind, or to issue
+  // one (a jobsite's budget, an old «Facturas» favorite): read it while
   // initialising — a peek, so StrictMode's double initializer sees the same
   // value — and clear it once mounted so a later visit by hand starts clean.
-  // The document opens in the by-document view, where its row does not
-  // depend on which client happens to be open.
+  // A document opens in the by-document view, where its row does not depend
+  // on which client happens to be open.
   const [intent] = useState(() => peekSectionIntent('accounts-receivable'));
   useEffect(() => { clearSectionIntent('accounts-receivable'); }, []);
 
-  const [view, setView] = useState<ViewKey>(intent ? 'docs' : 'clients');
+  /** The issue window is open (it takes the screen, as it did in Facturas). */
+  const [issuing, setIssuing] = useState(() => !!intent?.openIssue);
+  /** The document just issued, while its note under the header is up. */
+  const [justCreated, setJustCreated] = useState<Receivable | null>(null);
+  const [flashId, setFlashId] = useState<number | null>(null);
+
+  const [view, setView] = useState<ViewKey>(intent?.openReceivableId != null ? 'docs' : 'clients');
   const [client, setClient] = useState('');
+  const [docType, setDocType] = useState('');
   const [projectId, setProjectId] = useState('');
   const [status, setStatus] = useState('');
   const [range, setRange] = useState<RangeKey>('all');
@@ -105,6 +149,22 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
 
   useEffect(() => { load(); }, [load, reloadNonce]);
 
+  // The header's figures as the server counted them over the whole company;
+  // when the call fails (or an older server lacks a field) the figures come
+  // from the rows, which is what this screen shipped with.
+  useEffect(() => {
+    Promise.resolve()
+      .then(() => getReceivableSummary())
+      .then(setSummary)
+      .catch(() => setSummary(null));
+  }, [reloadNonce]);
+
+  useEffect(() => {
+    if (flashId == null) return;
+    const timer = window.setTimeout(() => setFlashId(null), FLASH_MS);
+    return () => window.clearTimeout(timer);
+  }, [flashId]);
+
   useEffect(() => {
     listProjects({ page: 0, size: 200 })
       .then(r => setProjects(r.content.map(p => ({ id: p.id, name: p.name }))))
@@ -121,9 +181,13 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
 
   const billable = useMemo(() => (rows ?? []).filter(isBillable), [rows]);
   const owed = useMemo(() => billable.map(receivableToOwed), [billable]);
-  const figures = useMemo(
+  const fromRows = useMemo(
     () => receivableFigures(owed, receivablePayments(billable), today, month),
     [owed, billable, today, month],
+  );
+  const figures = useMemo(
+    () => (summary ? receivableFiguresFromSummary(summary, fromRows) : fromRows),
+    [summary, fromRows],
   );
   const bridge = useMemo(
     () => (outflow ? cashBridge(owed, outflow, today) : null),
@@ -144,13 +208,14 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
 
   const filtered = useMemo(() => billable.filter(r => {
     if (client && r.client !== client) return false;
+    if (docType && r.documentType !== docType) return false;
     if (projectId && String(r.projectId) !== projectId) return false;
     if (status && r.status.toLowerCase() !== status) return false;
     if (rangeFrom && r.issuedDate < rangeFrom) return false;
     if (overdueOnly && !(daysLate(r.dueDate, today) > 0 && !isSettled(receivableToOwed(r)))) return false;
     if (!matches([r.invoiceNumber, r.client, r.project, r.description], search)) return false;
     return true;
-  }), [billable, client, projectId, status, rangeFrom, overdueOnly, search, today]);
+  }), [billable, client, docType, projectId, status, rangeFrom, overdueOnly, search, today]);
 
   const filteredOwed = useMemo(() => filtered.map(receivableToOwed), [filtered]);
   const aging = useMemo(() => agingByParty(filteredOwed, today), [filteredOwed, today]);
@@ -167,14 +232,14 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
   );
 
   const clients = useMemo(() => [...new Set(billable.map(r => r.client))].sort(), [billable]);
-  const hasFilters = !!(client || projectId || status || search || overdueOnly || range !== 'all');
+  const hasFilters = !!(client || docType || projectId || status || search || overdueOnly || range !== 'all');
   const projectSubtotal = useMemo(
     () => (projectId ? sumBalances(filteredOwed.filter(d => !isSettled(d))) : null),
     [projectId, filteredOwed],
   );
 
   function clearFilters() {
-    setClient(''); setProjectId(''); setStatus(''); setRange('all'); setSearch(''); setOverdueOnly(false);
+    setClient(''); setDocType(''); setProjectId(''); setStatus(''); setRange('all'); setSearch(''); setOverdueOnly(false);
   }
 
   /* ── Actions ────────────────────────────────────────────────────────── */
@@ -193,6 +258,59 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
       setDownloading(null);
     }
   }
+
+  /** The PDF with the client's signature on it, when there is one — Facturas' «Descargar de nuevo». */
+  async function downloadSigned(doc: Receivable) {
+    setDownloadingSigned(doc.id);
+    try {
+      const [{ downloadInvoicePdf }, issuer, signature] = await Promise.all([
+        import('../../helpers/exportInvoicePdf'),
+        loadInvoiceIssuer(),
+        loadSignatureForPdf(doc.id).catch(() => undefined),
+      ]);
+      downloadInvoicePdf(toPdfData(doc), issuer, signature, lang);
+    } catch (err: unknown) {
+      toast.error(t('finance:accounts.pdfFailed'), { description: err instanceof Error ? err.message : undefined });
+    } finally {
+      setDownloadingSigned(null);
+    }
+  }
+
+  /** The window hands the focus back to the button that opened it. */
+  const focusIssue = useCallback(() => {
+    window.setTimeout(() => document.querySelector<HTMLElement>('[data-tour="sec.accounts-receivable.new"]')?.focus(), 0);
+  }, []);
+
+  /**
+   * A document was issued. No success card and no toast: the list reloads, the
+   * new document opens and lights up, and the PDF has already downloaded with
+   * its number. What the row cannot say is said once, in the note under the
+   * header: the client's signature is asked for from the document itself.
+   * A change order waiting for approval is not receivable yet: it shows in the
+   * pending block, not among the rows.
+   */
+  const handleCreated = (created: Receivable) => {
+    setIssuing(false);
+    clearFilters();
+    setReloadNonce(n => n + 1);
+    setJustCreated(created);
+    setFlashId(created.id);
+    if (created.status !== 'pending_approval') {
+      setView('docs');
+      setOpenDoc(created.id);
+    }
+    focusIssue();
+  };
+
+  /** «Ver cómo»: the tour, at its signature stop, over the document just issued. */
+  const seeHowToSign = () => {
+    if (!justCreated) return;
+    if (justCreated.status !== 'pending_approval') {
+      setView('docs');
+      setOpenDoc(justCreated.id);
+    }
+    requestTourStop('accounts-receivable', 'signature');
+  };
 
   async function approve(doc: Receivable) {
     setApproving(doc.id);
@@ -240,6 +358,18 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
     && (view === 'docs' ? byId.has(openDoc) : byId.get(openDoc)?.client === openParty);
   const signatureStopOnRows = !detailOnScreen && !(loading && openDoc != null);
 
+  if (issuing) {
+    return (
+      <Suspense fallback={<div aria-hidden="true" className="h-64 bg-white border border-[#E7E1D5] animate-pulse" />}>
+        <InvoiceWindow
+          onClose={() => { setIssuing(false); focusIssue(); }}
+          onCreated={handleCreated}
+          onOpenBranding={isAdmin && onNavigate ? () => onNavigate('invoice-branding') : undefined}
+        />
+      </Suspense>
+    );
+  }
+
   return (
     <div className="space-y-3.5">
       <DirectionHeader
@@ -253,19 +383,44 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
             <Mono className="text-[11px] tracking-[0.1em] text-[#0A0A0A]">
               {t('finance:accounts.todayStamp', { date: stampDay(today, lang) })}
             </Mono>
-            {onNavigate && (
-              <button
-                type="button"
-                onClick={() => onNavigate('invoices')}
-                className={cn('inline-flex items-center gap-2 border border-[#DBD0BB] bg-white px-3 py-2.5 font-bt-mono text-[10.5px] font-semibold uppercase tracking-[0.1em] text-[#0A0A0A] transition-colors hover:border-[#F97316] hover:text-[#C2410C]', FOCUS_RING)}
-              >
-                {t('finance:receivable.issue')} <span className="text-[#C2410C]">→ {t('finance:receivable.issueTarget')}</span>
-              </button>
-            )}
-            <Mono className="text-[10px] tracking-[0.09em] text-[#A69C8D]">{t('finance:receivable.issueHint')}</Mono>
+            <CreateButton
+              data-tour="sec.accounts-receivable.new"
+              data-testid="issue-document"
+              onClick={() => setIssuing(true)}
+              className="w-full md:w-auto py-3.5 md:py-3"
+            >
+              <Plus className="w-3.5 h-3.5" strokeWidth={2.4} />{t('finance:receivable.issueDocument')}
+            </CreateButton>
           </>
         }
       />
+
+      {/* Issued: where the signature is asked for. */}
+      {justCreated && (
+        <div role="status" data-testid="invoice-created-notice">
+          <PaperNote className="flex items-start gap-4 flex-wrap px-4 py-3.5">
+            <div className="flex-1 min-w-[240px]">
+              <Mono className="block text-[9.5px] font-semibold tracking-[0.13em] text-[#C2410C]">
+                {t(justCreated.documentType === 'CHANGE_ORDER_REQUEST'
+                  ? 'finance:invoice.created.changeOrder'
+                  : 'finance:invoice.created.invoice', { number: justCreated.invoiceNumber })}
+              </Mono>
+              <p className="text-[13px] leading-[1.55] mt-1.5">
+                {t(justCreated.documentType === 'CHANGE_ORDER_REQUEST'
+                  ? 'finance:invoice.created.signatureHintChangeOrder'
+                  : 'finance:invoice.created.signatureHint')}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <SecondaryButton onClick={seeHowToSign} className="bg-white text-[10.5px] px-3 py-2.5 gap-1.5">
+                <FileSignature className="w-3.5 h-3.5" strokeWidth={2.2} />
+                {t('finance:invoice.created.seeHow')}
+              </SecondaryButton>
+              <CloseButton onClick={() => setJustCreated(null)} aria-label={t('common:buttons.close')} />
+            </div>
+          </PaperNote>
+        </div>
+      )}
 
       {/* The three figures, and the line that reconciles them out loud. */}
       <div>
@@ -299,6 +454,9 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
           {projectSubtotal != null
             ? <>{projects.find(p => String(p.id) === projectId)?.name} <b className="text-[#0A0A0A]">{fmtMoney(projectSubtotal)}</b> · {t('finance:receivable.context.ofTotal', { total: fmtMoney(figures.total) })}</>
             : <>{t('finance:receivable.context.total')} <b className="text-[#0A0A0A]">{figure(fmtMoney(figures.total))}</b></>}
+          {summary && !loadError && (
+            <> · {t('finance:receivable.context.issuedMonth', { count: summary.issuedThisMonthCount })} <b className="text-[#0A0A0A]">{fmtMoney(summary.issuedThisMonth)}</b></>
+          )}
         </ContextLine>
         {bridge && !loadError && (
           <div className="flex items-center gap-2 flex-wrap bg-white border border-[#E7E1D5] border-t-0 px-5 py-1.5">
@@ -393,6 +551,11 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
             { key: 'docs', label: t('finance:receivable.view.byDocument') },
           ]}
         />
+        <MonoSelect value={docType} onChange={e => setDocType(e.target.value)} aria-label={t('finance:receivable.filter.type')} className="text-[10px] py-2">
+          <option value="">{t('finance:receivable.filter.allTypes')}</option>
+          <option value="INVOICE">{t('finance:receivable.doc.invoice')}</option>
+          <option value="CHANGE_ORDER_REQUEST">{t('finance:receivable.doc.changeOrder')}</option>
+        </MonoSelect>
         <MonoSelect value={client} onChange={e => setClient(e.target.value)} aria-label={t('finance:receivable.filter.client')} className="text-[10px] py-2">
           <option value="">{t('finance:receivable.filter.allClients')}</option>
           {clients.map(c => <option key={c} value={c}>{c}</option>)}
@@ -475,9 +638,11 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
                 word={t('finance:receivable.empty.word')}
                 title={t('finance:receivable.empty.title')}
                 hint={t('finance:receivable.empty.hint')}
-                action={onNavigate
-                  ? <SecondaryButton onClick={() => onNavigate('invoices')} className="bg-[#FAF7F0]">{t('finance:receivable.issue')} →</SecondaryButton>
-                  : undefined}
+                action={
+                  <CreateButton onClick={() => setIssuing(true)}>
+                    <Plus className="w-3.5 h-3.5" strokeWidth={2.4} />{t('finance:receivable.issueDocument')}
+                  </CreateButton>
+                }
               />
         )}
 
@@ -505,9 +670,12 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
                 onEdit={setEditDoc}
                 onDelete={setDeleteDoc}
                 onDownload={download}
+                onDownloadSigned={d => void downloadSigned(d)}
                 onVoid={(d, paymentId) => void voidCollection(d, paymentId)}
                 downloading={downloading}
+                downloadingSigned={downloadingSigned}
                 voiding={voiding}
+                flashId={flashId}
                 today={today}
                 dateLocale={dateLocale}
               />
@@ -541,9 +709,12 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
                 onEdit={setEditDoc}
                 onDelete={setDeleteDoc}
                 onDownload={download}
+                onDownloadSigned={d => void downloadSigned(d)}
                 onVoid={(d, paymentId) => void voidCollection(d, paymentId)}
                 downloading={downloading}
+                downloadingSigned={downloadingSigned}
                 voiding={voiding}
+                flash={doc.id === flashId}
                 today={today}
                 dateLocale={dateLocale}
               />
@@ -568,7 +739,7 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
 
 /* ── One client, and the documents under it ────────────────────────────── */
 
-function ClientRow({ row, open, onToggle, byId, openDoc, onToggleDoc, onCollect, onEdit, onDelete, onDownload, onVoid, downloading, voiding, today, dateLocale }: {
+function ClientRow({ row, open, onToggle, byId, openDoc, onToggleDoc, onCollect, onEdit, onDelete, onDownload, onDownloadSigned, onVoid, downloading, downloadingSigned, voiding, flashId, today, dateLocale }: {
   row: AgingRow;
   open: boolean;
   onToggle: () => void;
@@ -579,9 +750,12 @@ function ClientRow({ row, open, onToggle, byId, openDoc, onToggleDoc, onCollect,
   onEdit: (d: Receivable) => void;
   onDelete: (d: Receivable) => void;
   onDownload: (d: Receivable) => void;
+  onDownloadSigned: (d: Receivable) => void;
   onVoid: (d: Receivable, paymentId: number) => void;
   downloading: number | null;
+  downloadingSigned: number | null;
   voiding: number | null;
+  flashId: number | null;
   today: string;
   dateLocale: string;
 }) {
@@ -621,9 +795,12 @@ function ClientRow({ row, open, onToggle, byId, openDoc, onToggleDoc, onCollect,
               onEdit={onEdit}
               onDelete={onDelete}
               onDownload={onDownload}
+              onDownloadSigned={onDownloadSigned}
               onVoid={onVoid}
               downloading={downloading}
+              downloadingSigned={downloadingSigned}
               voiding={voiding}
+              flash={doc.id === flashId}
               today={today}
               dateLocale={dateLocale}
               inset
@@ -637,7 +814,7 @@ function ClientRow({ row, open, onToggle, byId, openDoc, onToggleDoc, onCollect,
 
 /* ── One document ──────────────────────────────────────────────────────── */
 
-function DocumentRow({ doc, open, onToggle, onCollect, onEdit, onDelete, onDownload, onVoid, downloading, voiding, today, dateLocale, showClient, inset }: {
+function DocumentRow({ doc, open, onToggle, onCollect, onEdit, onDelete, onDownload, onDownloadSigned, onVoid, downloading, downloadingSigned, voiding, flash, today, dateLocale, showClient, inset }: {
   doc: Receivable;
   open: boolean;
   onToggle: () => void;
@@ -645,9 +822,13 @@ function DocumentRow({ doc, open, onToggle, onCollect, onEdit, onDelete, onDownl
   onEdit: (d: Receivable) => void;
   onDelete: (d: Receivable) => void;
   onDownload: (d: Receivable) => void;
+  onDownloadSigned: (d: Receivable) => void;
   onVoid: (d: Receivable, paymentId: number) => void;
   downloading: number | null;
+  downloadingSigned: number | null;
   voiding: number | null;
+  /** Just issued: lit for a moment. */
+  flash?: boolean;
   today: string;
   dateLocale: string;
   showClient?: boolean;
@@ -727,6 +908,12 @@ function DocumentRow({ doc, open, onToggle, onCollect, onEdit, onDelete, onDownl
         <DropdownMenuItem className={MENU_ITEM} onClick={() => onEdit(doc)}>
           <Pencil className="w-3 h-3 mr-2" />{t('finance:receivable.action.editInfo')}
         </DropdownMenuItem>
+        <DropdownMenuItem className={MENU_ITEM} onClick={() => onDownloadSigned(doc)}>
+          {downloadingSigned === doc.id
+            ? <RefreshCw className="w-3 h-3 mr-2 animate-spin" />
+            : <FileSignature className="w-3 h-3 mr-2" />}
+          {t('finance:receivable.action.downloadSigned')}
+        </DropdownMenuItem>
         <DropdownMenuItem
           className={cn(MENU_ITEM_DANGER, 'border-t border-t-[#EDE7DB]')}
           disabled={hasPayments}
@@ -745,6 +932,7 @@ function DocumentRow({ doc, open, onToggle, onCollect, onEdit, onDelete, onDownl
       <div
         className={cn(
           DOC_GRID, 'hidden sm:grid py-1.5 border-b border-[#F0EBE1] last:border-b-0 transition-colors',
+          flash && 'bt-row-flash',
           inset ? 'bg-transparent' : 'px-5 border-l-2',
           !inset && (late > 0 && !settled ? 'border-l-[#B3402A]' : 'border-l-transparent hover:border-l-[#F97316]'),
           !inset && 'hover:bg-[#FBF8F2]',
@@ -775,6 +963,7 @@ function DocumentRow({ doc, open, onToggle, onCollect, onEdit, onDelete, onDownl
 
       {/* Phone */}
       <div className={cn('sm:hidden py-2.5 border-b border-[#F0EBE1] last:border-b-0',
+        flash && 'bt-row-flash',
         !inset && 'px-3.5',
         inset && late > 0 && !settled && 'bg-white border-l-2 border-l-[#B3402A] pl-2.5 -ml-2.5')}>
         <button type="button" onClick={onToggle} aria-expanded={open}

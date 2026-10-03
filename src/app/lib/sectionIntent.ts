@@ -21,8 +21,12 @@
 export interface SectionIntents {
   /** Proyectos: open the list already narrowed to this client — and, if asked, straight into one of its fichas. */
   projects: { clientId: number; clientName: string; openProjectId?: number };
-  /** Cuentas por Cobrar: open straight onto one document — «Ver cómo» on the notice Facturas shows after issuing it. */
-  'accounts-receivable': { openReceivableId: number };
+  /**
+   * Cobros: open straight onto one document, or with the issue window open
+   * (a jobsite's budget asking to bill it, a link or favorite that pointed at
+   * the old Facturas section).
+   */
+  'accounts-receivable': { openReceivableId?: number; openIssue?: boolean };
 }
 
 type Key = keyof SectionIntents;

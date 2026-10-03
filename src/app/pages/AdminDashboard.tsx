@@ -11,7 +11,7 @@ import {
   Shield, LogOut, User, Menu, X,
   Clock, CalendarClock, ClipboardList, Receipt, FileBarChart,
   Wallet, Wrench, Banknote, HardHat,
-  ArrowDownToLine, ArrowUpFromLine, UserRound, FileText, Briefcase,
+  ArrowDownToLine, ArrowUpFromLine, UserRound, Briefcase,
   CreditCard, FileSignature, HelpCircle, Star, PenLine, PlugZap,
 } from 'lucide-react';
 import { OnboardingTour } from '../components/onboarding/OnboardingTour';
@@ -30,6 +30,7 @@ import { ClientsSection } from '../components/clients/ClientsSection';
 import { Toaster } from '../components/ui/sonner';
 import { TimezoneSwitcher } from '../components/TimezoneSwitcher';
 import { parseQuickBooksOutcome, type QuickBooksOutcome } from '../services/quickbooks';
+import { setSectionIntent } from '../lib/sectionIntent';
 
 // Error boundary for lazy-loaded sections — prevents white screen on chunk load failure
 class SectionErrorBoundary extends Component<
@@ -148,11 +149,6 @@ const AccountsPayable = lazyWithRetry(() =>
   import('../components/AccountsPayable').then(m => ({ default: m.AccountsPayable }))
 );
 
-// Lazy-loaded invoice manager
-const InvoiceManager = lazyWithRetry(() =>
-  import('../components/InvoiceManager').then(m => ({ default: m.InvoiceManager }))
-);
-
 // Lazy-loaded office expenses section
 const OfficeExpensesSection = lazyWithRetry(() =>
   import('../components/office-expenses/OfficeExpensesSection').then(m => ({ default: m.OfficeExpensesSection }))
@@ -181,7 +177,7 @@ type ActiveSection =
   | 'budgets'
   | 'tool-inventory' | 'tool-report'
   | 'labor-cost' | 'labor-payroll'
-  | 'invoices' | 'invoice-branding'
+  | 'invoice-branding'
   | 'accounts-receivable' | 'accounts-payable'
   | 'office-expenses'
   | 'tm-field' | 'tm-office'
@@ -210,10 +206,17 @@ type NavItem = {
  * had `budgets` pinned would otherwise end up with the key twice and two
  * identical entries in the FAVORITES group.
  */
+/** Sections that were folded into another: an old favorite follows its screen. */
+const MERGED_SECTIONS: Record<string, string> = {
+  'budget-report': 'budgets',
+  // Facturas joined Cobros (2026-10): one screen issues and collects.
+  invoices: 'accounts-receivable',
+};
+
 export function migrateFavorites(keys: string[]): string[] {
   const out: string[] = [];
   for (const key of keys) {
-    const migrated = key === 'budget-report' ? 'budgets' : key;
+    const migrated = MERGED_SECTIONS[key] ?? key;
     if (!out.includes(migrated)) out.push(migrated);
   }
   return out;
@@ -244,7 +247,6 @@ const NAV_PROJECTS: NavItem[] = [
 ];
 
 const NAV_FINANCE: NavItem[] = [
-  { key: 'invoices',             labelKey: 'admin:nav.invoices',            icon: FileText        },
   { key: 'invoice-branding',     labelKey: 'admin:nav.invoiceBranding',     icon: FileSignature   },
   { key: 'budgets',              labelKey: 'admin:nav.budgets',             icon: Wallet          },
   { key: 'expenses',             labelKey: 'admin:nav.allExpenses',         icon: Receipt         },
@@ -281,7 +283,6 @@ const SECTION_META: Record<ActiveSection, { titleKey: string; subtitleKey: strin
   'tool-report':     { titleKey: 'admin:section.toolReport.title',      subtitleKey: 'admin:section.toolReport.subtitle'      },
   'labor-cost':           { titleKey: 'admin:section.laborCost.title',           subtitleKey: 'admin:section.laborCost.subtitle'           },
   'labor-payroll':        { titleKey: 'admin:section.laborPayroll.title',        subtitleKey: 'admin:section.laborPayroll.subtitle'        },
-  'invoices':             { titleKey: 'admin:section.invoices.title',             subtitleKey: 'admin:section.invoices.subtitle'             },
   'invoice-branding':     { titleKey: 'admin:section.invoiceBranding.title',      subtitleKey: 'admin:section.invoiceBranding.subtitle'      },
   'accounts-receivable':  { titleKey: 'admin:section.accountsReceivable.title',  subtitleKey: 'admin:section.accountsReceivable.subtitle'  },
   'accounts-payable':     { titleKey: 'admin:section.accountsPayable.title',     subtitleKey: 'admin:section.accountsPayable.subtitle'     },
@@ -361,6 +362,12 @@ export function AdminDashboard() {
 
   const handleNavigate = (section: string) => {
     setQbOutcome(null);
+    // A screen that still asks for Facturas (a jobsite's budget "facturar")
+    // means "issue a document": Cobros opens with the issue window up.
+    if (section === 'invoices') {
+      setSectionIntent('accounts-receivable', { openIssue: true });
+      section = 'accounts-receivable';
+    }
     setActiveSection(section as ActiveSection);
     setSidebarOpen(false);
   };
@@ -686,11 +693,6 @@ export function AdminDashboard() {
           {activeSection === 'labor-payroll' && (
             <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
               <LaborPayrollReport onNavigate={handleNavigate} />
-            </Suspense></SectionErrorBoundary>
-          )}
-          {activeSection === 'invoices' && (
-            <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
-              <InvoiceManager onNavigate={handleNavigate} />
             </Suspense></SectionErrorBoundary>
           )}
           {activeSection === 'invoice-branding' && (
