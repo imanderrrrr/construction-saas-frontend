@@ -51,9 +51,14 @@ vi.mock('react-i18next', () => ({
 }));
 
 // The drawer and the manual-day modal pull in half the app; neither is under
-// test here.
-vi.mock('./RecordDrawer', () => ({ RecordDrawer: () => null }));
-vi.mock('../phase2/ModalCreateDay', () => ({ ModalCreateDay: () => null }));
+// test here. They only say what they were opened with.
+vi.mock('./RecordDrawer', () => ({
+  RecordDrawer: ({ mode }: { mode?: string }) => <div data-testid="record-drawer" data-mode={mode} />,
+}));
+vi.mock('../phase2/ModalCreateDay', () => ({
+  ModalCreateDay: ({ open, subjectRole }: { open: boolean; subjectRole?: string }) =>
+    open ? <div data-testid="manual-day" data-subject-role={subjectRole} /> : null,
+}));
 
 import { ApprovalsInbox } from './ApprovalsInbox';
 
@@ -357,5 +362,71 @@ describe('ApprovalsInbox — bulk approve with an open shift (or a transit on th
       expect(mocks.toast.error).toHaveBeenCalledWith(TRANSIT_SENTENCE);
       expect(mocks.toast.warning).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('ApprovalsInbox — the finance panel and the business day', () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.getAllTimeRecords.mockResolvedValue([closedShift]);
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    act(() => { root = createRoot(container); });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  const createDay = () => container.querySelector<HTMLButtonElement>('[data-testid="create-day-button"]');
+
+  // Finance approves the supervisors' hours; the workers' stay with the admins.
+  it('scopes the finance inbox to supervisors, under its own title and without the role selector', async () => {
+    await act(async () => { root.render(<ApprovalsInbox mode="finance" />); });
+    expect(mocks.getAllTimeRecords).toHaveBeenCalledWith(expect.objectContaining({ role: 'SUPERVISOR', status: 'PENDING' }));
+    expect(container.querySelector('h2')?.textContent?.trim()).toBe('finance:section.supervisorHours.title');
+    expect(container.textContent).toContain('admin:apr.kicker.finance');
+    expect(container.textContent).not.toContain('admin:apr.f.allRoles');
+
+    // The day it creates by hand is a supervisor's.
+    await act(async () => { createDay()!.click(); });
+    expect(container.querySelector('[data-testid="manual-day"]')?.getAttribute('data-subject-role')).toBe('SUPERVISOR');
+
+    // And the drawer knows which panel opened it.
+    const row = [...container.querySelectorAll('div')].reverse().find(d => d.className.includes('cursor-pointer') && d.textContent?.includes('maria'));
+    await act(async () => { row!.click(); });
+    expect(container.querySelector('[data-testid="record-drawer"]')?.getAttribute('data-mode')).toBe('finance');
+  });
+
+  it('the admin keeps the role selector and creates days for anyone', async () => {
+    await act(async () => { root.render(<ApprovalsInbox mode="admin" />); });
+    expect(mocks.getAllTimeRecords).toHaveBeenCalledWith(expect.objectContaining({ role: undefined }));
+    expect(container.textContent).toContain('admin:apr.f.allRoles');
+    expect(container.textContent).toContain('admin:apr.kicker');
+    expect(container.textContent).not.toContain('admin:apr.kicker.finance');
+    await act(async () => { createDay()!.click(); });
+    expect(container.querySelector('[data-testid="manual-day"]')?.hasAttribute('data-subject-role')).toBe(false);
+  });
+
+  // Sunday 4 October 2026, 22:00 in Panama — already Monday the 5th in UTC.
+  // "Today" and "this week" are the jobsite's: the 4th, and the week of
+  // Monday 28 September.
+  it('reads today and this week in the business timezone, not in UTC', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-05T03:00:00Z'));
+    await act(async () => { root.render(<ApprovalsInbox mode="admin" />); });
+    expect(mocks.getAllTimeRecords).toHaveBeenLastCalledWith(expect.objectContaining({ dateFrom: '2026-09-28', dateTo: '2026-10-04' }));
+
+    const range = [...container.querySelectorAll('select')].find(sel => [...sel.options].some(o => o.value === 'today'))!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')!.set!.call(range, 'today');
+      range.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    expect(mocks.getAllTimeRecords).toHaveBeenLastCalledWith(expect.objectContaining({ dateFrom: '2026-10-04', dateTo: '2026-10-04' }));
   });
 });

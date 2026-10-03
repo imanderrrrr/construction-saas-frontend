@@ -6,6 +6,7 @@ import {
   approveRecord, getAllTimeRecords, type TimeRecordResponse,
 } from '../../services/time';
 import { ApiError } from '../../lib/api';
+import { businessToday } from '../../helpers/dateTime';
 import { RecordDrawer } from './RecordDrawer';
 import { ModalCreateDay } from '../phase2/ModalCreateDay';
 import {
@@ -20,15 +21,21 @@ import {
  * approvable in bulk (or with one keystroke), and the screen only slows them
  * down where something is off — outside the geofence, late, no clock-out, a
  * manual mark, an open dispute.
+ *
+ * `mode="finance"`: the queue finance owns — supervisors' days only (workers
+ * stay with the admins), under its own title.
  */
 
+// "Today" and "this week" are the jobsite's, in the business timezone. They
+// were read off the UTC clock: in Panama (UTC-5), from 19:00 on "today" was
+// already tomorrow and "this week" started on a Tuesday.
+const today = businessToday;
 function mondayOfWeek(): string {
-  const d = new Date();
-  const day = (d.getDay() + 6) % 7; // Monday = 0
-  d.setDate(d.getDate() - day);
-  return d.toISOString().slice(0, 10);
+  const [y, m, d] = today().split('-').map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  date.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7)); // Monday = 0
+  return date.toISOString().slice(0, 10);
 }
-const today = () => new Date().toISOString().slice(0, 10);
 
 interface Filters {
   q: string;
@@ -40,7 +47,7 @@ interface Filters {
 const EMPTY: Filters = { q: '', range: 'week', status: 'PENDING', role: '' };
 
 export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'supervisor' | 'finance' } = {}) {
-  const { t, i18n } = useTranslation(['admin', 'common']);
+  const { t, i18n } = useTranslation(['admin', 'common', 'finance']);
   const lang = i18n.language;
 
   const [filters, setFilters] = useState<Filters>(EMPTY);
@@ -63,7 +70,8 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
       // The range (today / this week) is what bounds the sweep.
       const rows = await getAllTimeRecords({
         status: filters.status || undefined,
-        role: filters.role || undefined,
+        // Finance reviews supervisors only; it has no role selector to change that.
+        role: mode === 'finance' ? 'SUPERVISOR' : filters.role || undefined,
         dateFrom: filters.range === 'today' ? today() : mondayOfWeek(),
         dateTo: today(),
       });
@@ -73,7 +81,7 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
     } finally {
       setLoading(false);
     }
-  }, [filters.status, filters.role, filters.range]);
+  }, [filters.status, filters.role, filters.range, mode]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -221,9 +229,11 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
       {/* Header */}
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div className="min-w-0">
-          <Mono className="text-[11px] tracking-[0.15em] text-[#71717A]">{t('admin:apr.kicker')}</Mono>
+          <Mono className="text-[11px] tracking-[0.15em] text-[#8A8175]">
+            {mode === 'finance' ? t('admin:apr.kicker.finance') : t('admin:apr.kicker')}
+          </Mono>
           <h2 className="font-bt-display font-bold uppercase text-4xl md:text-5xl leading-none text-[#0A0A0A] mt-1">
-            {t('admin:apr.title')}
+            {mode === 'finance' ? t('finance:section.supervisorHours.title') : t('admin:apr.title')}
           </h2>
           <Mono className="block text-[12.5px] tracking-[0.06em] normal-case text-[#5A5346] mt-2">
             {t('admin:apr.summary', { count: pendingCount })}
@@ -339,7 +349,7 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
           </div>
         ) : error ? (
           <div className="py-16 text-center">
-            <p className="text-sm text-[#71717A]">{t('admin:apr.error')}</p>
+            <p className="text-sm text-[#8A8175]">{t('admin:apr.error')}</p>
             <button onClick={load} className="mt-3 font-bt-mono text-[10px] uppercase tracking-[0.1em] border border-[#DBD0BB] px-3 py-1.5 hover:border-[#F97316]">
               {t('common:buttons.retry')}
             </button>
@@ -472,8 +482,10 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
       {openId !== null && (
         <RecordDrawer
           recordId={openId}
+          mode={mode}
           onClose={() => setOpenId(null)}
           onChanged={() => { setOpenId(null); load(); }}
+          onUpdated={load}
         />
       )}
 
@@ -482,6 +494,7 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
           open={createDayOpen}
           onClose={() => setCreateDayOpen(false)}
           onCreated={load}
+          subjectRole={mode === 'finance' ? 'SUPERVISOR' : undefined}
         />
       )}
     </div>
