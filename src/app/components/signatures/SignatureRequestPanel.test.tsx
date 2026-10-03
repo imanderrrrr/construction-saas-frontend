@@ -94,7 +94,7 @@ describe('SignatureRequestPanel — document-changed warning', () => {
     expect(warning).not.toBeNull();
     expect(warning!.textContent).toContain('cambió después de mandar el enlace');
     // The warning has to say what to DO about it, not just that something is off.
-    expect(warning!.textContent).toContain('pida la firma otra vez');
+    expect(warning!.textContent).toContain('pide la firma otra vez');
   });
 
   it('warns without disabling anything — reporting is not invalidating', async () => {

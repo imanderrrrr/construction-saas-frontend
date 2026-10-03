@@ -118,7 +118,7 @@
   "punch.cancelTransit": "Cancelar Tránsito",
   "punch.transitCancelled": "Tránsito cancelado",
   "punch.transitPromptTitle": "¿Te diriges a otro proyecto?",
-  "punch.transitPromptDesc": "Márcalo acá para registrar tu tiempo de traslado.",
+  "punch.transitPromptDesc": "Márcalo aquí para registrar tu tiempo de traslado.",
   "punch.noThanks": "No, gracias",
   "punch.startTransit": "Iniciar Tránsito",
   "punch.inTransitTo": "En tránsito hacia {{project}}",

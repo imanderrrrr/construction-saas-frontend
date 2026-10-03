@@ -37,8 +37,8 @@
 
   "incidents.title": "Historial de incidentes",
   "incidents.subtitle": "Lo contamos todo, también lo que salió mal. Así trabajamos la beta.",
-  "incidents.empty": "Todavía no hay incidentes publicados. Empezamos a llevar este historial desde hoy: cuando algo salga mal, lo vas a ver acá — con su fecha, cuánto duró y qué hicimos.",
-  "incidents.report": "¿ALGO NO FUNCIONA Y AQUÍ SE VE VERDE? AVISANOS:",
+  "incidents.empty": "Todavía no hay incidentes publicados. Empezamos a llevar este historial desde hoy: cuando algo salga mal, lo vas a ver aquí — con su fecha, cuánto duró y qué hicimos.",
+  "incidents.report": "¿ALGO NO FUNCIONA Y AQUÍ SE VE VERDE? AVÍSANOS:",
 
   "footer.copy": "© 2026 BUILDTRACK · UN PRODUCTO DE ARCHLOGIC",
   "footer.coord": "14.6349° N · 90.5069° O"
