@@ -33,7 +33,7 @@ const COPIED_MS = 1500;
 
 const OBRAS_GRID = 'grid grid-cols-1 md:grid-cols-[2.2fr_1.2fr_.9fr_1fr] gap-x-3 gap-y-1 items-center';
 
-export function ClientFicha({ client, onBack, onEdit, onToggleStatus, onOpenProjects, onOpenProject, onClientChanged, initialTab = 'resumen' }: {
+export function ClientFicha({ client, onBack, onEdit, onToggleStatus, onOpenProjects, onOpenProject, onClientChanged, initialTab = 'resumen', readOnly = false }: {
   client: ClientResponse;
   onBack: () => void;
   onEdit: () => void;
@@ -45,6 +45,12 @@ export function ClientFicha({ client, onBack, onEdit, onToggleStatus, onOpenProj
   /** A jobsite was created from here — the counts moved, re-read the client. */
   onClientChanged: () => void;
   initialTab?: ClientFichaTab;
+  /**
+   * Finance: the same record to look up, without "Editar", "Desactivar" or
+   * "Crear obra"; the jobsites lead to Presupuestos ("Ver presupuestos de
+   * sus obras") instead of Proyectos.
+   */
+  readOnly?: boolean;
 }) {
   const { t, i18n } = useTranslation(['admin', 'common']);
   const lang = i18n.language;
@@ -106,9 +112,9 @@ export function ClientFicha({ client, onBack, onEdit, onToggleStatus, onOpenProj
         {copied ? <Check className="w-3.5 h-3.5" strokeWidth={2.2} /> : <Copy className="w-3.5 h-3.5" strokeWidth={2} />}
         {copied ? t('admin:clients.ficha.copied') : t('admin:clients.ficha.copyBilling')}
       </SecondaryButton>
-      <PrimaryButton onClick={() => setCreateOpen(true)} className="px-[15px] py-[10px] text-[10px] gap-1.5">
+      {!readOnly && <PrimaryButton onClick={() => setCreateOpen(true)} className="px-[15px] py-[10px] text-[10px] gap-1.5">
         <Plus className="w-3.5 h-3.5" strokeWidth={2.4} />{t('admin:clients.ficha.createProject')}
-      </PrimaryButton>
+      </PrimaryButton>}
     </div>
   );
 
@@ -166,7 +172,7 @@ export function ClientFicha({ client, onBack, onEdit, onToggleStatus, onOpenProj
       )}
       {projectsState === 'data' && projects.length === 0 && (
         <EmptyWord word={t('admin:clients.ficha.obras.empty.big')} title={t('admin:clients.ficha.obras.empty.title')} className="border-0 py-9"
-          action={<CreateButton onClick={() => setCreateOpen(true)}><Plus className="w-3.5 h-3.5" strokeWidth={2.4} />{t('admin:clients.ficha.obras.create')}</CreateButton>} />
+          action={!readOnly ? <CreateButton onClick={() => setCreateOpen(true)}><Plus className="w-3.5 h-3.5" strokeWidth={2.4} />{t('admin:clients.ficha.obras.create')}</CreateButton> : undefined} />
       )}
       {projectsState === 'data' && projects.length > 0 && (
         <div data-testid="client-projects">
@@ -195,7 +201,7 @@ export function ClientFicha({ client, onBack, onEdit, onToggleStatus, onOpenProj
               {t('admin:clients.ficha.obras.range', { start: 1, end: projects.length, total: projectsTotal ?? projects.length })}
             </Mono>
             <TertiaryButton onClick={onOpenProjects} className="inline-flex items-center gap-1.5">
-              {t('admin:clients.ficha.obras.viewAll')}<ArrowRight className="w-3 h-3" strokeWidth={2.2} />
+              {readOnly ? t('admin:clients.menu.budgets') : t('admin:clients.ficha.obras.viewAll')}<ArrowRight className="w-3 h-3" strokeWidth={2.2} />
             </TertiaryButton>
           </div>
         </div>
@@ -235,12 +241,12 @@ export function ClientFicha({ client, onBack, onEdit, onToggleStatus, onOpenProj
                 </Mono>
               </div>
             </div>
-            <div className="grid grid-cols-2 md:flex md:flex-wrap md:items-center gap-2 md:justify-end flex-shrink-0">
+            {!readOnly && <div className="grid grid-cols-2 md:flex md:flex-wrap md:items-center gap-2 md:justify-end flex-shrink-0">
               <DarkButton onClick={onToggleStatus} className="w-full md:w-auto">
                 {client.status === 'ACTIVE' ? t('admin:clients.menu.deactivate') : t('admin:clients.menu.reactivate')}
               </DarkButton>
               <PrimaryButton onClick={onEdit} className="w-full md:w-auto px-[15px] py-[10px] text-[10px]">{t('admin:clients.ficha.edit')}</PrimaryButton>
-            </div>
+            </div>}
           </div>
         </InkBar>
       </div>
@@ -250,7 +256,7 @@ export function ClientFicha({ client, onBack, onEdit, onToggleStatus, onOpenProj
       </div>
       <div className="mt-px">{content}</div>
 
-      {createOpen && (
+      {!readOnly && createOpen && (
         <ProjectWindow
           initialClient={{ id: client.id, name: client.name }}
           onClose={() => setCreateOpen(false)}

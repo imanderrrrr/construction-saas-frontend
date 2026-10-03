@@ -30,8 +30,8 @@ vi.mock('../ui/dropdown-menu', () => ({
 }));
 // The ficha and the two windows have their own suites; here they are landmarks that talk back.
 vi.mock('./ClientFicha', () => ({
-  ClientFicha: (p: { client: { name: string }; onBack: () => void }) => (
-    <div data-testid="client-ficha">{p.client.name}<button onClick={p.onBack}>stub-back</button></div>
+  ClientFicha: (p: { client: { name: string }; onBack: () => void; readOnly?: boolean }) => (
+    <div data-testid="client-ficha" data-read-only={String(!!p.readOnly)}>{p.client.name}<button onClick={p.onBack}>stub-back</button></div>
   ),
 }));
 vi.mock('./ClientFormModal', () => ({
@@ -208,5 +208,53 @@ describe('ClientsSection', () => {
     expect(row(10)?.className).toContain('bt-row-flash');
     expect(row(10)?.textContent).toContain('Nuevo');
     expect(svc.getClientsSummary).toHaveBeenCalledTimes(2);
+  });
+  // Finance: the same list to look clients up. The backend only opens the
+  // reads to it, so nothing that writes is offered — and since its panel has
+  // no Proyectos, the jobsites hand-off lands on Presupuestos.
+  it('finance consults clients and reaches their budgets, without any client write action', async () => {
+    act(() => root.render(<ClientsSection readOnly onNavigate={onNavigate} />));
+    await flush();
+    const buttons = Array.from(container.querySelectorAll('button')).map(button => button.textContent);
+    expect(buttons.some(label => label?.includes('Crear cliente'))).toBe(false);
+    expect(buttons.some(label => label?.includes('Editar'))).toBe(false);
+    expect(buttons.some(label => label?.includes('Desactivar') || label?.includes('Reactivar'))).toBe(false);
+    expect(buttons.some(label => label === 'Ver sus obras')).toBe(false);
+    expect(container.textContent).toContain('Consulta · facturación');
+    const figures = container.querySelector('[data-testid="clients-figures"]')!.textContent;
+    expect(figures).toContain('Clientes activos');
+    expect(figures).not.toContain('aparecen al crear obras');
+    expect(figures).not.toContain('no los desactives');
+
+    click(Array.from(row(7)!.querySelectorAll('button')).find(button => button.textContent === 'Ver presupuestos de sus obras'));
+    expect(peekSectionIntent('budgets')).toEqual({ clientId: 7, clientName: 'Inmobiliaria Andes', openProjectId: undefined });
+    expect(onNavigate).toHaveBeenCalledWith('budgets');
+    expect(peekSectionIntent('projects')).toBeNull();
+  });
+
+  it('finance opens the ficha read-only', async () => {
+    act(() => root.render(<ClientsSection readOnly onNavigate={onNavigate} />));
+    await flush();
+    click(row(8));
+    expect(container.querySelector('[data-testid="client-ficha"]')?.getAttribute('data-read-only')).toBe('true');
+    expect(container.querySelector('[data-testid="client-form-stub"]')).toBeNull();
+  });
+
+  it('the jobsites target can still be set by hand', async () => {
+    act(() => root.render(<ClientsSection projectSection="budgets" onNavigate={onNavigate} />));
+    await flush();
+    click(Array.from(row(7)!.querySelectorAll('button')).find(button => button.textContent === 'Ver presupuestos de sus obras'));
+    expect(onNavigate).toHaveBeenCalledWith('budgets');
+    // Still the admin list: the write actions stay.
+    expect(Array.from(row(7)!.querySelectorAll('button')).some(button => button.textContent === 'Editar')).toBe(true);
+  });
+
+  it('finance empty state does not invite the user to create a client', async () => {
+    svc.listClients.mockResolvedValue(page([], 0));
+    act(() => root.render(<ClientsSection readOnly />));
+    await flush();
+    expect(container.textContent).toContain('Los clientes registrados por Administración aparecerán aquí.');
+    expect(container.textContent).not.toContain('Crea el primero');
+    expect(Array.from(container.querySelectorAll('button')).some(button => button.textContent?.includes('Crear cliente'))).toBe(false);
   });
 });

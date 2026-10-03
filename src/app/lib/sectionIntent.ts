@@ -21,6 +21,8 @@
 export interface SectionIntents {
   /** Proyectos: open the list already narrowed to this client — and, if asked, straight into one of its fichas. */
   projects: { clientId: number; clientName: string; openProjectId?: number };
+  /** Presupuestos: the same hand-off for the panel without Proyectos (finance) — narrowed to this client, and, if asked, with that jobsite's detail open. */
+  budgets: { clientId: number; clientName: string; openProjectId?: number };
   /** Cuentas por Cobrar: open straight onto one document — «Ver cómo» on the notice Facturas shows after issuing it. */
   'accounts-receivable': { openReceivableId: number };
 }
