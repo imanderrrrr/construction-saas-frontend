@@ -1,8 +1,10 @@
 // The invoice queue, and the bug it exists to close.
 //
-// "Registrar pago" used to hang off PENDING_PAYMENT — a status nothing in the
-// backend writes. So an approved invoice could not be paid from the panel at
-// all: the row offered "Revisar" instead, and the server answered 409.
+// "Registrar pago" used to hang off PENDING_PAYMENT alone — a status nothing
+// in the backend wrote then. So an approved invoice could not be paid from the
+// panel at all: the row offered "Revisar" instead, and the server answered 409.
+// Since approving creates the invoice's bill (2026-10), PENDING_PAYMENT is
+// real: a partially paid invoice, which can still be paid.
 
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -106,11 +108,24 @@ describe('InvoicesTab', () => {
     expect(primary).toHaveLength(1);
   });
 
-  it('never offers "Pago pendiente" as a filter — nothing writes it', async () => {
+  it('offers "Pagada en parte" as a filter, now that partial payments write it', async () => {
     await render([invoice({ id: 1 })]);
     const options = Array.from(container.querySelectorAll('option')).map(o => o.value);
-    expect(options).not.toContain('PENDING_PAYMENT');
-    expect(options.filter(v => ['SUBMITTED', 'IN_REVIEW', 'OBSERVED', 'APPROVED', 'PAID'].includes(v))).toHaveLength(5);
+    expect(options.filter(v => ['SUBMITTED', 'IN_REVIEW', 'OBSERVED', 'APPROVED', 'PENDING_PAYMENT', 'PAID'].includes(v))).toHaveLength(6);
+  });
+
+  it('says what is still owed on a partially paid invoice, and keeps it payable', async () => {
+    await render([invoice({ id: 7, status: 'PENDING_PAYMENT', amountCents: 840_000, paidAmountCents: 340_000, outstandingCents: 500_000 })]);
+    const row = container.querySelector('[data-testid="invoice-row-7"]')!;
+    expect(row.textContent).toContain('Pagada en parte · falta $5,000.00');
+    expect(buttonByText(row, 'Registrar pago')).toBeTruthy();
+  });
+
+  it('points to QuickBooks instead of offering a payment the server would refuse', async () => {
+    await render([invoice({ id: 8, status: 'APPROVED', paymentsInQuickBooks: true })]);
+    const row = container.querySelector('[data-testid="invoice-row-8"]')!;
+    expect(row.textContent).toContain('Se paga en QuickBooks');
+    expect(buttonByText(row, 'Registrar pago')).toBeUndefined();
   });
 
   it('writes an em dash when the figures never arrive, and never counts the page', async () => {

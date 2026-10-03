@@ -49,6 +49,23 @@ export function nDaysAgo(n: number): string {
   });
 }
 
+/**
+ * The business-timezone calendar day of an instant (e.g. a `createdAt` from
+ * the API), as YYYY-MM-DD — the day the office would write on the paper.
+ */
+export function businessDateOf(instant: string): string {
+  const d = new Date(instant);
+  if (Number.isNaN(d.getTime())) return instant.slice(0, 10);
+  return formatInTz(d, 'en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' });
+}
+
+/** YYYY-MM-DD `days` calendar days after `dateStr` (also YYYY-MM-DD). */
+export function addCalendarDays(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d + days));
+  return t.toISOString().slice(0, 10);
+}
+
 /** Filename-safe stamp: YYYY-MM-DD in business timezone. */
 export function todayStamp(): string {
   return businessToday();

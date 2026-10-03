@@ -156,8 +156,8 @@ export function InvoicesTab({ summary, summaryState, refData, onReview, onPay, f
             <option value="">{t('subcontractors:inv.filter.subcontractor')}</option>
             {refData.subcontractors.map(s => <option key={s.id} value={s.id}>{s.fullName ?? s.username}</option>)}
           </MonoSelect>
-          {/* Five states, not six: nothing writes PENDING_PAYMENT, so it is not
-              offered as a filter that could only ever come back empty. */}
+          {/* Six states: PENDING_PAYMENT is a partially paid invoice since its
+              payments go through the bill approving it created. */}
           <MonoSelect
             value={statusFilter}
             onChange={e => { setStatusFilter(e.target.value as '' | InvoiceStatus); setPage(0); }}
@@ -260,6 +260,11 @@ export function InvoicesTab({ summary, summaryState, refData, onReview, onPay, f
                   <Mono className="block text-[10px] tracking-[0.04em] text-[#5A5346] mt-1 truncate">
                     {(inv.subcontractorName ?? '').toUpperCase()}{inv.projectName ? ` · ${inv.projectName.toUpperCase()}` : ''}
                   </Mono>
+                  {inv.status === 'PENDING_PAYMENT' && (
+                    <Mono className="block text-[9.5px] tracking-[0.06em] text-[#C2410C] mt-1">
+                      {t('subcontractors:inv.row.partial', { owed: fmtMoney(owedCents(inv)) })}
+                    </Mono>
+                  )}
                   <div className="flex items-center justify-between gap-3 mt-3">
                     <span className="font-bt-display font-extrabold text-[22px] leading-none tabular-nums text-[#0A0A0A]">{fmtMoney(inv.amountCents)}</span>
                     <InvoiceAction invoice={inv} lead={inv.id === leadId} onReview={() => onReview(inv)} onPay={() => onPay(inv)} lang={lang} />
@@ -284,9 +289,10 @@ export function InvoicesTab({ summary, summaryState, refData, onReview, onPay, f
 /**
  * What this row asks of you: review it, pay it, or nothing.
  *
- * "Registrar pago" hangs off Aprobada. It used to hang off PENDING_PAYMENT — a
- * state nothing in the system writes — so an approved invoice could not be paid
- * from the panel at all, and the "Revisar" it offered instead came back 409.
+ * "Registrar pago" hangs off Aprobada and Pagada en parte. When the invoice's
+ * bill lives in the company's QuickBooks — whose payments are read from there —
+ * the button gives way to that fact: the payment is registered in QuickBooks
+ * and the row moves on its own once it is read.
  */
 function InvoiceAction({ invoice, lead, onReview, onPay, lang }: {
   invoice: SubcontractorInvoiceDTO;
@@ -300,6 +306,13 @@ function InvoiceAction({ invoice, lead, onReview, onPay, lang }: {
     return lead
       ? <PrimaryButton onClick={onReview} className="w-full px-3 py-[9px] text-[10px]">{t('subcontractors:inv.action.review')}</PrimaryButton>
       : <SecondaryButton onClick={onReview} className="w-full px-3 py-[9px] text-[10px] bg-[#FAF7F0]">{t('subcontractors:inv.action.review')}</SecondaryButton>;
+  }
+  if (isPayable(invoice.status) && invoice.paymentsInQuickBooks) {
+    return (
+      <span title={t('subcontractors:inv.row.inQuickBooksHint')} className="block text-right lg:text-left">
+        <CellEmpty>{t('subcontractors:inv.row.inQuickBooks')}</CellEmpty>
+      </span>
+    );
   }
   if (isPayable(invoice.status)) {
     return <SecondaryButton onClick={onPay} className="w-full px-3 py-[9px] text-[10px] bg-[#FAF7F0]">{t('subcontractors:inv.action.pay')}</SecondaryButton>;
@@ -346,6 +359,11 @@ function InvoiceRow({ invoice, lang, lead, flash, onReview, onPay }: {
         {invoice.status === 'APPROVED' && (
           <Mono className="block text-[9.5px] tracking-[0.06em] text-[#5A5346] mt-[3px] truncate">{t('subcontractors:inv.row.readyToPay')}</Mono>
         )}
+        {invoice.status === 'PENDING_PAYMENT' && (
+          <Mono className="block text-[9.5px] tracking-[0.06em] text-[#C2410C] mt-[3px] truncate">
+            {t('subcontractors:inv.row.partial', { owed: fmtMoney(owedCents(invoice)) })}
+          </Mono>
+        )}
       </div>
       {invoice.projectName
         ? <span className="text-[12.5px] text-[#5A5346] truncate">{invoice.projectName}</span>
@@ -357,4 +375,9 @@ function InvoiceRow({ invoice, lang, lead, flash, onReview, onPay }: {
       <InvoiceAction invoice={invoice} lead={lead} onReview={onReview} onPay={onPay} lang={lang} />
     </div>
   );
+}
+
+/** What is still owed on an invoice: the server's figure, or amount − paid on an older server. */
+function owedCents(invoice: SubcontractorInvoiceDTO): number {
+  return invoice.outstandingCents ?? invoice.amountCents - (invoice.paidAmountCents ?? 0);
 }

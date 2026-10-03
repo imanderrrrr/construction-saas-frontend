@@ -3,7 +3,7 @@ import { ArrowRightLeft, Ban, FileText, Pencil, Receipt, RotateCcw, Trash2 } fro
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
 import { cn } from '../ui/utils';
 import { FOCUS_RING } from '../onboarding/chrome';
-import { Mono } from '../projects/bt';
+import { Mono, PaperNote } from '../projects/bt';
 import { Amount } from '../budgets/ui';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import { CategoryBadge, paymentMethodLabel, type VendorBill, type VendorPayment } from '../PayableCommon';
@@ -52,6 +52,11 @@ export function PayableDetailPanel({ bill, project, canManage, today, dateLocale
   // Phase 4: sent to the tenant's QuickBooks, whose payments are read from
   // there — they are registered, changed and undone in QuickBooks, not here.
   const inQuickBooks = bill.paymentsInQuickBooks;
+  // The bill an approved subcontractor invoice created: its amount, supplier,
+  // number, project and category are the invoice's, and it is not deleted on
+  // its own (the server answers 409 PAYABLE_LINKED_SUBCONTRACTOR). Paying it,
+  // voiding a payment, its dates and its text stay here.
+  const linked = bill.subcontractorInvoiceId != null;
   const remaining = project?.remainingBudgetCents == null ? null : round2(project.remainingBudgetCents / 100);
   const after = remaining == null ? null : round2(remaining - balance);
 
@@ -85,6 +90,14 @@ export function PayableDetailPanel({ bill, project, canManage, today, dateLocale
         />
 
         <div className="max-h-[66vh] overflow-y-auto">
+          {linked && (
+            <div className="px-4 pt-3.5" data-testid="payable-linked-subcontractor">
+              <PaperNote tone="orange">
+                <div className="font-semibold">{t('finance:payable.linked.title')}</div>
+                <div className="mt-1">{t('finance:payable.linked.body')}</div>
+              </PaperNote>
+            </div>
+          )}
           {/* The three figures of this bill */}
           <div className="grid grid-cols-3 border-b border-[#E7E1D5]">
             <div className="px-4 py-3 border-r border-[#EDE7DB]">
@@ -230,27 +243,31 @@ export function PayableDetailPanel({ bill, project, canManage, today, dateLocale
               <DropdownMenuContent align="end" className={MENU_CONTENT}>
                 <DropdownMenuLabel className={MENU_LABEL}>{bill.billNumber} · {fmtMoney(bill.amount)}</DropdownMenuLabel>
                 <DropdownMenuItem className={MENU_ITEM} onClick={() => onEditAmounts(bill)}>
-                  <Pencil className="w-3 h-3 mr-2" />{t('finance:payable.edit.action')}
+                  <Pencil className="w-3 h-3 mr-2" />{t(linked ? 'finance:payable.linked.datesAction' : 'finance:payable.edit.action')}
                 </DropdownMenuItem>
                 <DropdownMenuItem className={MENU_ITEM} onClick={() => onEditInfo(bill)}>
                   <FileText className="w-3 h-3 mr-2" />{t('finance:payable.info.action')}
                 </DropdownMenuItem>
-                {bill.documentType === 'BILL' && (
+                {bill.documentType === 'BILL' && !linked && (
                   <DropdownMenuItem className={MENU_ITEM} onClick={() => onConvert(bill)}>
                     <Receipt className="w-3 h-3 mr-2" />{t('finance:payable.convert.action')}
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem className={MENU_ITEM} onClick={() => onReassign(bill)}>
-                  <ArrowRightLeft className="w-3 h-3 mr-2" />{t('finance:payable.reassign.action')}
-                </DropdownMenuItem>
+                {!linked && (
+                  <DropdownMenuItem className={MENU_ITEM} onClick={() => onReassign(bill)}>
+                    <ArrowRightLeft className="w-3 h-3 mr-2" />{t('finance:payable.reassign.action')}
+                  </DropdownMenuItem>
+                )}
                 {hasActivePayments && !inQuickBooks && (
                   <DropdownMenuItem className={cn(MENU_ITEM, 'text-[#C2410C] border-t border-t-[#EDE7DB]')} onClick={() => onUnpay(bill)}>
                     <RotateCcw className="w-3 h-3 mr-2" />{t('finance:payable.unpay.action')}
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem className={cn(MENU_ITEM_DANGER, 'border-t border-t-[#EDE7DB]')} onClick={() => onDelete(bill)}>
-                  <Trash2 className="w-3 h-3 mr-2" />{t('finance:payable.delete.action')}
-                </DropdownMenuItem>
+                {!linked && (
+                  <DropdownMenuItem className={cn(MENU_ITEM_DANGER, 'border-t border-t-[#EDE7DB]')} onClick={() => onDelete(bill)}>
+                    <Trash2 className="w-3 h-3 mr-2" />{t('finance:payable.delete.action')}
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           )}
