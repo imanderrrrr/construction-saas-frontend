@@ -250,6 +250,36 @@ export function SignatureRequestPanel({ receivableId, defaultRecipientEmail }: P
               date: state.signedAt ? fmtDate(state.signedAt) : '—',
             })}
           </p>
+
+          {/* The invoice moved AFTER the signature landed. Nothing here
+              invalidates it — it is evidence of the version it was put on —
+              but the office must not read it as covering the current one,
+              and the PDF prints a notice instead of the stroke. The fix is a
+              fresh request; the backend keeps this signed one as history. */}
+          {state.documentChangedSinceSigned && (
+            <>
+              <p
+                role="status"
+                className="flex items-start gap-1.5 rounded bg-amber-50 px-2.5 py-2 text-xs text-amber-800"
+              >
+                <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" />
+                <span>
+                  {t('panel.signedDocumentChanged')}{' '}
+                  <span className="text-amber-700">{t('panel.signedDocumentChangedHint')}</span>
+                </span>
+              </p>
+              {!composing && (
+                <button
+                  type="button"
+                  onClick={() => setComposing(true)}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-[#D4D4D8] px-2.5 py-1 text-xs font-medium text-[#0A0A0A] hover:bg-white"
+                >
+                  <FileSignature className="h-3.5 w-3.5" />
+                  {t('panel.requestAgain')}
+                </button>
+              )}
+            </>
+          )}
           {state.hasSignatureImage && (
             showImage ? (
               <AuthImage

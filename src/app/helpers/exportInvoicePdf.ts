@@ -144,6 +144,7 @@ function pdfLabels(lang: string) {
     pendingApproval: s('pendingApproval'),
     signedOn: (when: string) => s('signedOn', { when }),
     fingerprint: (hash: string) => s('fingerprint', { hash }),
+    signedEarlierVersion: (hash: string, when: string) => s('signedEarlierVersion', { hash, when }),
     issuedWith: s('issuedWith'),
     units: (n: number) => s('units', { count: n }),
   };
@@ -183,6 +184,13 @@ export interface InvoiceSignaturePdf {
   signerTitle: string;
   signedAt: string;
   documentHash: string;
+  /**
+   * The invoice was edited after this signature landed. The PDF is drawn
+   * from the CURRENT row, so the stroke is withheld and a notice says which
+   * version was signed instead — a real signature under numbers nobody
+   * signed is worse than a blank line.
+   */
+  documentChangedSinceSigned?: boolean;
 }
 
 export function generateInvoicePdf(
@@ -453,12 +461,17 @@ export function generateInvoicePdf(
   // copy carries the same evidence as the record behind it.
   y = Math.max(y, doc.internal.pageSize.getHeight() - (signature ? 52 : 40));
 
+  // Signed, but the invoice moved afterwards: the stroke stays off the page.
+  // Printing it here would put a real signature under numbers nobody signed;
+  // the line stays blank and a notice says exactly what the record says.
+  const signedEarlierVersion = signature?.documentChangedSinceSigned === true;
+
   doc.setFontSize(8.5);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(...BLACK);
   doc.text(isCO ? L.approval : L.signature, margin, y);
 
-  if (signature) {
+  if (signature && !signedEarlierVersion) {
     try {
       // 75mm × 18mm over the rule, matching the line's span below.
       doc.addImage(signature.imageDataUrl, 'PNG', margin + 35, y - 16, 75, 18, undefined, 'FAST');
@@ -473,7 +486,15 @@ export function generateInvoicePdf(
   doc.setLineWidth(0.3);
   doc.line(margin + 35, y, margin + 110, y);
 
-  if (signature) {
+  if (signature && signedEarlierVersion) {
+    y += 4;
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...GRAY_TEXT);
+    const when = new Date(signature.signedAt).toLocaleString(isEs(lang) ? 'es-GT' : 'en-US');
+    const notice = doc.splitTextToSize(L.signedEarlierVersion(signature.documentHash, when), contentW - 35);
+    doc.text(notice, margin + 35, y);
+  } else if (signature) {
     y += 4;
     doc.setFontSize(8);
     doc.setTextColor(...BLACK);

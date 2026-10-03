@@ -30,6 +30,16 @@ const DATA: InvoicePdfData = {
 const PNG_1PX =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 
+/**
+ * Everything jsPDF printed, as one string. Each wrapped line lands in its own
+ * `(…) Tj` operator, so a sentence can be cut anywhere by the wrap; joining
+ * the lines back lets the assertions read the sentence, not the layout.
+ */
+async function printedText(blob: Blob): Promise<string> {
+  const raw = await blob.text();
+  return (raw.match(/\((.*?)\) Tj/g) ?? []).map((m) => m.slice(1, -4)).join(' ');
+}
+
 const SIGNATURE: InvoiceSignaturePdf = {
   imageDataUrl: PNG_1PX,
   signerName: 'Carlos Méndez',
@@ -54,6 +64,37 @@ describe('invoice PDF signature block', () => {
     // The signed PDF carries an extra image stream plus three lines of typed
     // attribution, so it cannot be the same size as the unsigned one.
     expect(signed.size).toBeGreaterThan(unsigned.size);
+  });
+
+  it('withholds the stroke and prints a notice when the document changed after signing', async () => {
+    // The PDF is drawn from the CURRENT invoice. Once that invoice moved after
+    // the signature landed, printing the stroke would put a real signature
+    // under numbers nobody signed. The paper has to say what the record says.
+    const changed: InvoiceSignaturePdf = { ...SIGNATURE, documentChangedSinceSigned: true };
+    const signed = generateInvoicePdf(DATA, undefined, SIGNATURE, 'en').blob;
+    const withheld = generateInvoicePdf(DATA, undefined, changed, 'en').blob;
+
+    expect(withheld.type).toBe('application/pdf');
+    // No image stream any more: the withheld PDF is smaller than the signed one.
+    expect(withheld.size).toBeLessThan(signed.size);
+
+    const text = await printedText(withheld);
+    expect(text).toContain('Signed on an earlier version of this document');
+    expect(text).toContain('This version has not been signed');
+    expect(text).toContain(SIGNATURE.documentHash);
+    // And the typed attribution of a valid signature is gone with the stroke.
+    expect(text).not.toContain('Carlos M');
+    expect(await printedText(signed)).toContain('Carlos M');
+  });
+
+  it('prints the notice in Spanish when the panel is in Spanish', async () => {
+    // Accented letters leave the standard font as single WinAnsi bytes, so
+    // the assertions stick to the ASCII stretches of the sentence.
+    const changed: InvoiceSignaturePdf = { ...SIGNATURE, documentChangedSinceSigned: true };
+    const text = await printedText(generateInvoicePdf(DATA, undefined, changed, 'es').blob);
+    expect(text).toContain('Firmado sobre una versi');
+    expect(text).toContain('n anterior de este documento');
+    expect(text).toContain('n no est');
   });
 
   it('still renders a PDF when the stored image is corrupt', () => {
