@@ -104,6 +104,31 @@ describe('routes – formerly ComingSoon, now real modules', () => {
     expect(dash!.textContent).toContain('budgets');
   });
 
+  it.each([
+    ['/finance/clients', 'clients'],
+    ['/finance/receivables', 'accounts-receivable'],
+    ['/finance/invoices', 'accounts-receivable'],
+    ['/finance/payables', 'accounts-payable'],
+    ['/finance/labor-cost', 'labor-cost'],
+    ['/finance/payroll', 'labor-payroll'],
+    ['/finance/supervisor-hours', 'supervisor-hours'],
+  ])('%s opens the finance module on %s for FINANCE', async (path, section) => {
+    auth.ref.role = 'FINANCE';
+    await renderPath(root, path);
+
+    const dash = container.querySelector('[data-testid="finance-dash"]');
+    expect(dash).toBeTruthy();
+    expect(dash!.textContent).toBe(`finance:${section}`);
+  });
+
+  it('blocks a non-FINANCE role from /finance/payroll and redirects to its dashboard', async () => {
+    auth.ref.role = 'WORKER';
+    await renderPath(root, '/finance/payroll');
+
+    expect(container.querySelector('[data-testid="finance-dash"]')).toBeNull();
+    expect(container.querySelector('[data-testid="worker-dash"]')).toBeTruthy();
+  });
+
   it('/warehouse/inventory opens the warehouse module on the tool-inventory section for WAREHOUSE', async () => {
     auth.ref.role = 'WAREHOUSE';
     await renderPath(root, '/warehouse/inventory');

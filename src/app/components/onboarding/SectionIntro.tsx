@@ -50,6 +50,8 @@ export const INTRO_SECTIONS = new Set([
   'budgets-reporte', 'budgets-reporte-finanzas',
   'expenses', 'expense-report', 'office-expenses',
   'accounts-receivable', 'accounts-payable', 'audit',
+  // The FINANCE home.
+  'finance-dashboard',
   // The two halves of T&M — the banner is their mobile/fallback voice; the
   // desktop tour lives in SECTION_TOUR_STEPS under the same keys.
   'tm-field', 'tm-office',

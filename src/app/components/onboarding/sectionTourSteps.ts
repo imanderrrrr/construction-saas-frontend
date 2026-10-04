@@ -113,6 +113,9 @@ export const SECTION_TOUR_STEPS: Record<string, string[]> = {
   // real thing. One element carries the anchor at any time.
   'accounts-receivable': ['header', 'new', 'overdue', 'rows', 'views', 'signature'],
   'accounts-payable': ['header', 'week', 'lanes', 'new-bill'],
+  // The FINANCE home (components/finance/FinanceOverview). Its own key: the
+  // admin's `dashboard` is a different screen.
+  'finance-dashboard': ['figures', 'payments', 'expenses', 'shortcuts'],
   audit: ['kpis', 'filters', 'list'],
   // Tiempo y material. `tm-field` doubles as the supervisor panel's tour (its
   // nav key is `tm`, but it mounts the same screen the admin calls `tm-field`)
