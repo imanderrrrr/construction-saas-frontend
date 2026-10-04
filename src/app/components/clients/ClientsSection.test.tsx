@@ -47,10 +47,16 @@ vi.mock('./ClientStatusModal', () => ({
 
 import i18n from '../../../i18n';
 import { peekSectionIntent, resetSectionIntents } from '../../lib/sectionIntent';
+import { resetTourScope, useTourScope } from '../../lib/tourScope';
 import { ClientsSection } from './ClientsSection';
 import { ANDES, MAJADAS, SAN_RAFAEL, buttonByText, click, flush, page, type } from './testing';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+function ScopeProbe() {
+  const scope = useTourScope();
+  return <span data-testid="scope">{scope?.key ?? 'none'}</span>;
+}
 
 const THREE = [ANDES, SAN_RAFAEL, MAJADAS];
 const SUMMARY = { total: 48, active: 41, withActiveProjects: 17 };
@@ -71,6 +77,7 @@ describe('ClientsSection', () => {
     svc.getClientsSummary.mockReset().mockResolvedValue(SUMMARY);
     svc.getClient.mockReset();
     resetSectionIntents();
+    resetTourScope();
   });
 
   afterEach(async () => {
@@ -256,5 +263,26 @@ describe('ClientsSection', () => {
     expect(container.textContent).toContain('Los clientes registrados por Administración aparecerán aquí.');
     expect(container.textContent).not.toContain('Crea el primero');
     expect(Array.from(container.querySelectorAll('button')).some(button => button.textContent?.includes('Crear cliente'))).toBe(false);
+  });
+
+  // The finance panel tours the list under its own key: the admin's copy is
+  // about creating clients. Its stops are blocks that exist in every state.
+  it('finance tours the list under clients-finanzas, every stop on screen', async () => {
+    svc.listClients.mockReturnValue(new Promise(() => {}));
+    act(() => root.render(<><ClientsSection readOnly onNavigate={onNavigate} /><ScopeProbe /></>));
+    await flush();
+    expect(container.querySelector('[data-testid="scope"]')?.textContent).toBe('clients-finanzas');
+    for (const stop of ['figures', 'search', 'list']) {
+      expect(container.querySelector(`[data-tour="sec.clients-finanzas.${stop}"]`), stop).not.toBeNull();
+    }
+    expect(container.querySelector('[data-tour^="sec.clients."]')).toBeNull();
+  });
+
+  it('the admin list claims nothing and keeps its own stops', async () => {
+    act(() => root.render(<><ClientsSection onNavigate={onNavigate} /><ScopeProbe /></>));
+    await flush();
+    expect(container.querySelector('[data-testid="scope"]')?.textContent).toBe('none');
+    expect(container.querySelector('[data-tour="sec.clients.search"]')).not.toBeNull();
+    expect(container.querySelector('[data-tour*="finanzas"]')).toBeNull();
   });
 });

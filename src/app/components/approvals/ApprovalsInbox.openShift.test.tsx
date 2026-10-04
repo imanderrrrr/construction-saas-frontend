@@ -61,6 +61,7 @@ vi.mock('../phase2/ModalCreateDay', () => ({
 }));
 
 import { ApprovalsInbox } from './ApprovalsInbox';
+import { resetTourScope, useTourScope } from '../../lib/tourScope';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -365,12 +366,18 @@ describe('ApprovalsInbox — bulk approve with an open shift (or a transit on th
   });
 });
 
+function ScopeProbe() {
+  const scope = useTourScope();
+  return <span data-testid="scope">{scope?.key ?? 'none'}</span>;
+}
+
 describe('ApprovalsInbox — the finance panel and the business day', () => {
   let container: HTMLDivElement;
   let root: Root;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    resetTourScope();
     mocks.getAllTimeRecords.mockResolvedValue([closedShift]);
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -403,6 +410,18 @@ describe('ApprovalsInbox — the finance panel and the business day', () => {
     expect(container.querySelector('[data-testid="record-drawer"]')?.getAttribute('data-mode')).toBe('finance');
   });
 
+  // Its own guided tour, with every stop in a block that exists even before
+  // the queue loads; the admin's tour keeps its keys.
+  it('tours the finance queue under supervisor-hours-finanzas', async () => {
+    mocks.getAllTimeRecords.mockReturnValue(new Promise(() => {}));
+    await act(async () => { root.render(<><ApprovalsInbox mode="finance" /><ScopeProbe /></>); });
+    expect(container.querySelector('[data-testid="scope"]')?.textContent).toBe('supervisor-hours-finanzas');
+    for (const stop of ['kpis', 'filters', 'queue', 'create-day']) {
+      expect(container.querySelector(`[data-tour="sec.supervisor-hours-finanzas.${stop}"]`), stop).not.toBeNull();
+    }
+    expect(container.querySelector('[data-tour^="sec.time-approvals."]')).toBeNull();
+  });
+
   it('the admin keeps the role selector and creates days for anyone', async () => {
     await act(async () => { root.render(<ApprovalsInbox mode="admin" />); });
     expect(mocks.getAllTimeRecords).toHaveBeenCalledWith(expect.objectContaining({ role: undefined }));
@@ -411,6 +430,8 @@ describe('ApprovalsInbox — the finance panel and the business day', () => {
     expect(container.textContent).not.toContain('admin:apr.kicker.finance');
     await act(async () => { createDay()!.click(); });
     expect(container.querySelector('[data-testid="manual-day"]')?.hasAttribute('data-subject-role')).toBe(false);
+    expect(container.querySelector('[data-tour="sec.time-approvals.queue"]')).not.toBeNull();
+    expect(container.querySelector('[data-tour*="finanzas"]')).toBeNull();
   });
 
   // Sunday 4 October 2026, 22:00 in Panama — already Monday the 5th in UTC.

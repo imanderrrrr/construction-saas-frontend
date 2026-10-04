@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowRight, ChevronLeft, ChevronRight, Mail, MoreVertical, Phone, Plus, RefreshCw, Search } from 'lucide-react';
 import {
@@ -7,6 +7,7 @@ import {
 import { cn } from '../ui/utils';
 import { businessToday } from '../../helpers/dateTime';
 import { setSectionIntent } from '../../lib/sectionIntent';
+import { useTourScopeWhileMounted } from '../../lib/tourScope';
 import { ApiError } from '../../lib/api';
 import {
   getClient, getClientsSummary, listClients,
@@ -39,11 +40,31 @@ import { ClientStatusModal } from './ClientStatusModal';
 
 const PAGE_SIZES = [20, 50, 100] as const;
 const ROW_GRID = 'grid grid-cols-[2.2fr_1.1fr_1fr_1.5fr_.9fr_.8fr_40px] gap-4 items-center';
+const SEARCH_BOX = 'relative flex-1 min-w-[200px] md:max-w-[320px]';
 /** 01B: the new row's paper background and orange edge fade out in 2 s (tailwind.css `.bt-row-flash`). */
 const FLASH_MS = 2200;
 /** The largest page the backend serves — what `rankOf` walks to find where a new client landed. */
 const LOCATE_PAGE = 100;
 const LOCATE_MAX_PAGES = 20;
+
+/**
+ * A block of the list that is also a stop of the finance tour
+ * (`clients-finanzas`, claimed while the list is read-only). Written out
+ * literally: the registry guardian (onboarding/sectionTourSteps.test.ts) greps
+ * for the attribute and cannot follow a template. The admin list renders the
+ * same block without it — its tour stops are elsewhere.
+ */
+function ListBlock({ readOnly, stop, className, testId, children }: {
+  readOnly: boolean;
+  stop: 'figures' | 'list';
+  className: string;
+  testId: string;
+  children: ReactNode;
+}) {
+  if (readOnly && stop === 'figures') return <div className={className} data-testid={testId} data-tour="sec.clients-finanzas.figures">{children}</div>;
+  if (readOnly) return <div className={className} data-testid={testId} data-tour="sec.clients-finanzas.list">{children}</div>;
+  return <div className={className} data-testid={testId}>{children}</div>;
+}
 
 /** Where `id` sits in the unfiltered list (sorted by name on the server); null if it cannot be found. */
 async function rankOf(id: number): Promise<number | null> {
@@ -71,6 +92,9 @@ export function ClientsSection({ onNavigate, readOnly = false, projectSection = 
 } = {}) {
   const { t, i18n } = useTranslation(['admin', 'common']);
   const lang = i18n.language;
+  // Finance tours the list under its own key: the admin's copy talks about
+  // creating clients (lib/tourScope; the ficha claims its own on top).
+  useTourScopeWhileMounted(readOnly ? 'clients-finanzas' : null, t('admin:clients.title'));
   const [view, setView] = useState<'list' | 'ficha'>('list');
   const [selected, setSelected] = useState<ClientResponse | null>(null);
 
@@ -273,6 +297,20 @@ export function ClientsSection({ onNavigate, readOnly = false, projectSection = 
     </DropdownMenu>
   );
 
+  const searchField = (
+    <>
+      <Search className="w-3.5 h-3.5 text-[#A69C8D] absolute left-[11px] top-1/2 -translate-y-1/2" />
+      <input
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        placeholder={t('admin:clients.searchPlaceholder')}
+        maxLength={FIELD_LIMITS.SEARCH}
+        aria-label={t('admin:clients.searchPlaceholder')}
+        className={cn('w-full border border-[#DBD0BB] bg-[#FAF7F0] py-[9px] pl-8 pr-3 text-[13px] text-[#0A0A0A] outline-none focus:border-[#F97316]', FOCUS_RING)}
+      />
+    </>
+  );
+
   const figureValue = (n: number | undefined) => (summary ? n : summaryFailed ? <span className="text-[#CDBFA6]">—</span> : <Bone className="w-10 h-8" />);
   const figureButton = (pressed: boolean) => cn(
     'text-left px-[22px] py-4 transition-colors disabled:cursor-default',
@@ -309,7 +347,7 @@ export function ClientsSection({ onNavigate, readOnly = false, projectSection = 
         </div>
 
         {/* ── The three numbers ──────────────────────────────────────── */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 bg-white border border-[#E7E1D5]" data-testid="clients-figures">
+        <ListBlock readOnly={readOnly} stop="figures" className="grid grid-cols-1 sm:grid-cols-3 bg-white border border-[#E7E1D5]" testId="clients-figures">
           <div className="px-[22px] py-4 border-b sm:border-b-0 sm:border-r border-[#EDE7DB]">
             <div className="font-bt-display font-extrabold text-[40px] leading-[0.85] text-[#0A0A0A]">{figureValue(summary?.total)}</div>
             <Mono className="block text-[10.5px] tracking-[0.1em] text-[#5A5346] mt-[5px]">{t('admin:clients.kpi.total')}</Mono>
@@ -334,22 +372,14 @@ export function ClientsSection({ onNavigate, readOnly = false, projectSection = 
             <div className="font-bt-display font-extrabold text-[40px] leading-[0.85] text-[#0A0A0A]">{figureValue(summary?.withActiveProjects)}</div>
             <Mono className="block text-[10.5px] tracking-[0.1em] text-[#5A5346] mt-[5px]">{t(readOnly ? 'admin:clients.kpi.withProjects.finance' : 'admin:clients.kpi.withProjects')}</Mono>
           </button>
-        </div>
+        </ListBlock>
 
         {/* ── Filters ────────────────────────────────────────────────── */}
         <div className="bg-white border border-[#E7E1D5] p-3.5 md:px-4">
           <div className="flex flex-wrap items-center gap-2.5">
-            <div className="relative flex-1 min-w-[200px] md:max-w-[320px]" data-tour="sec.clients.search">
-              <Search className="w-3.5 h-3.5 text-[#A69C8D] absolute left-[11px] top-1/2 -translate-y-1/2" />
-              <input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder={t('admin:clients.searchPlaceholder')}
-                maxLength={FIELD_LIMITS.SEARCH}
-                aria-label={t('admin:clients.searchPlaceholder')}
-                className={cn('w-full border border-[#DBD0BB] bg-[#FAF7F0] py-[9px] pl-8 pr-3 text-[13px] text-[#0A0A0A] outline-none focus:border-[#F97316]', FOCUS_RING)}
-              />
-            </div>
+            {readOnly
+              ? <div className={SEARCH_BOX} data-tour="sec.clients-finanzas.search">{searchField}</div>
+              : <div className={SEARCH_BOX} data-tour="sec.clients.search">{searchField}</div>}
             <MonoSelect value={statusFilter} onChange={e => { setStatusFilter(e.target.value as '' | ClientStatus); setCurrentPage(0); }} className="hidden md:block" aria-label={t('admin:clients.filter.status')}>
               <option value="">{t('admin:clients.filter.status')}</option>
               <option value="ACTIVE">{t('common:status.active')}</option>
@@ -388,7 +418,7 @@ export function ClientsSection({ onNavigate, readOnly = false, projectSection = 
         </div>
 
         {/* ── Table / cards ──────────────────────────────────────────── */}
-        <div className="bg-white border border-[#E7E1D5]" data-testid="clients-list">
+        <ListBlock readOnly={readOnly} stop="list" className="bg-white border border-[#E7E1D5]" testId="clients-list">
           {listState === 'error' && (
             <EmptyWord tone="red" word={t('admin:clients.error.big')} title={t('admin:clients.error.title')} hint={t('admin:clients.error.hint')} className="border-0"
               action={<SecondaryButton onClick={() => setReloadNonce(n => n + 1)} className="bg-[#FAF7F0]">{t('common:buttons.retry')}</SecondaryButton>} />
@@ -526,7 +556,7 @@ export function ClientsSection({ onNavigate, readOnly = false, projectSection = 
               </div>
             </>
           )}
-        </div>
+        </ListBlock>
 
         {/* ── Pagination ─────────────────────────────────────────────── */}
         {listState === 'data' && (

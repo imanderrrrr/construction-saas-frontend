@@ -160,6 +160,12 @@ describe('ClientFicha', () => {
   it('finance sees the billing details and the jobsites, without editing or creating anything', async () => {
     act(() => root.render(<><ClientFicha client={ANDES} {...handlers} readOnly /><ScopeProbe /></>));
     await flush();
+    // Its own tour: the admin's tells you to edit and to create jobsites.
+    expect(container.querySelector('[data-testid="scope"]')?.textContent).toBe('clients-ficha-finanzas');
+    for (const stop of ['bar', 'tabs', 'shortcuts']) {
+      expect(container.querySelector(`[data-tour="sec.clients-ficha-finanzas.${stop}"]`), stop).not.toBeNull();
+    }
+    expect(container.querySelector('[data-tour^="sec.clients-ficha."]')).toBeNull();
     const buttons = Array.from(container.querySelectorAll('button')).map(button => button.textContent);
     expect(buttons.some(label => label?.includes('Desactivar') || label?.includes('Editar') || label?.includes('Crear obra'))).toBe(false);
     expect(container.textContent).toContain(ANDES.rfc);

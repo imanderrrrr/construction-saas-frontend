@@ -23,10 +23,17 @@ vi.mock('../../services/projects', () => ({
 }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }));
 
+import { resetTourScope, useTourScope } from '../../lib/tourScope';
 import { LaborCostScreen } from './LaborCostScreen';
 import { LaborPayrollScreen } from './LaborPayrollScreen';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+/** Which tour the screen claimed (lib/tourScope). */
+function ScopeProbe() {
+  const scope = useTourScope();
+  return <span data-testid="scope">{scope?.key ?? 'none'}</span>;
+}
 
 // 5 h approved and paid, 3 h approved and unpaid, 4 h still pending.
 const ana: WorkerHoursSummary = {
@@ -53,6 +60,7 @@ describe('the labor screens on the finance panel', () => {
   let root: Root;
   beforeEach(() => {
     vi.clearAllMocks();
+    resetTourScope();
     mocks.report.mockResolvedValue(report);
     mocks.confirm.mockResolvedValue({ budgetWarnings: [] });
     mocks.exportPayments.mockResolvedValue(undefined);
@@ -63,6 +71,8 @@ describe('the labor screens on the finance panel', () => {
   afterEach(async () => { await act(async () => root.unmount()); host.remove(); });
 
   const button = (key: string) => Array.from(host.querySelectorAll('button')).find(b => b.textContent?.includes(key));
+  const anchor = (name: string) => host.querySelector(`[data-tour="${name}"]`);
+  const scope = () => host.querySelector('[data-testid="scope"]')?.textContent;
   const click = async (el: Element | null | undefined) => {
     expect(el).toBeTruthy();
     await act(async () => { (el as HTMLElement).click(); });
@@ -72,7 +82,7 @@ describe('the labor screens on the finance panel', () => {
     it('costs every approved hour, paid or not, and reports a missing rate instead of offering Usuarios', async () => {
       await act(async () => root.render(<LaborCostScreen mode="finance" onNavigate={mocks.navigate} />));
       // 8 approved hours × $10: the paid ones count, the pending ones do not.
-      expect(host.querySelector('[data-tour="sec.labor-cost.kpis"]')?.textContent).toContain('80.00');
+      expect(anchor('sec.labor-cost-finanzas.kpis')?.textContent).toContain('80.00');
       expect(host.textContent).not.toContain('120.00');
       expect(host.textContent).toContain('admin:cost.rateByAdmin');
       expect(button('admin:cost.setRate')).toBeUndefined();
@@ -106,7 +116,7 @@ describe('the labor screens on the finance panel', () => {
     it('owes the unpaid approved hours and reports a missing rate instead of offering Usuarios', async () => {
       await act(async () => root.render(<LaborPayrollScreen mode="finance" onNavigate={mocks.navigate} />));
       // 3 unpaid approved hours × $10.
-      expect(host.querySelector('[data-tour="sec.labor-payroll.kpis"]')?.textContent).toContain('30.00');
+      expect(anchor('sec.labor-payroll-finanzas.kpis')?.textContent).toContain('30.00');
       expect(host.textContent).toContain('admin:cost.rateByAdmin');
       expect(button('admin:cost.setRate')).toBeUndefined();
     });
@@ -154,6 +164,32 @@ describe('the labor screens on the finance panel', () => {
       expect(host.textContent).not.toContain('admin:pay.allPaidBig');
       expect(host.textContent).not.toContain('admin:pay.groupPaid');
       expect(host.textContent).not.toContain('Ana Demo');
+    });
+  });
+
+  // Every new screen is discoverable: on the finance panel each one claims a
+  // tour of its own, with every stop on screen; the admin keeps the original.
+  describe('the guided tours', () => {
+    it('Costo claims labor-cost-finanzas on the finance panel', async () => {
+      await act(async () => root.render(<><LaborCostScreen mode="finance" onNavigate={mocks.navigate} /><ScopeProbe /></>));
+      expect(scope()).toBe('labor-cost-finanzas');
+      for (const stop of ['kpis', 'filters', 'list']) expect(anchor(`sec.labor-cost-finanzas.${stop}`)).not.toBeNull();
+      expect(host.querySelector('[data-tour^="sec.labor-cost."]')).toBeNull();
+    });
+
+    it('Nómina claims labor-payroll-finanzas, with a stop on the two exports', async () => {
+      await act(async () => root.render(<><LaborPayrollScreen mode="finance" onNavigate={mocks.navigate} /><ScopeProbe /></>));
+      expect(scope()).toBe('labor-payroll-finanzas');
+      for (const stop of ['kpis', 'filters', 'list']) expect(anchor(`sec.labor-payroll-finanzas.${stop}`)).not.toBeNull();
+      expect(anchor('sec.labor-payroll-finanzas.export')?.textContent).toContain('admin:pay.exportPayments');
+      expect(host.querySelector('[data-tour^="sec.labor-payroll."]')).toBeNull();
+    });
+
+    it('the admin panel keeps its own tours and claims nothing', async () => {
+      await act(async () => root.render(<><LaborPayrollScreen onNavigate={mocks.navigate} /><ScopeProbe /></>));
+      expect(scope()).toBe('none');
+      for (const stop of ['kpis', 'filters', 'list']) expect(anchor(`sec.labor-payroll.${stop}`)).not.toBeNull();
+      expect(host.querySelector('[data-tour*="finanzas"]')).toBeNull();
     });
   });
 });

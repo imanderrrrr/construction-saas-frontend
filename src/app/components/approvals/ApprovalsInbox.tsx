@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, CalendarPlus, Check, ChevronRight, Loader2, Search } from 'lucide-react';
 import { toast } from 'sonner';
@@ -7,6 +7,7 @@ import {
 } from '../../services/time';
 import { ApiError } from '../../lib/api';
 import { businessToday } from '../../helpers/dateTime';
+import { useTourScopeWhileMounted } from '../../lib/tourScope';
 import { RecordDrawer } from './RecordDrawer';
 import { ModalCreateDay } from '../phase2/ModalCreateDay';
 import {
@@ -37,6 +38,25 @@ function mondayOfWeek(): string {
   return date.toISOString().slice(0, 10);
 }
 
+/**
+ * A block of the inbox that is also a tour stop, one set per panel: finance
+ * tours its supervisors' queue under `supervisor-hours-finanzas`. Written out
+ * literally: the registry guardian (onboarding/sectionTourSteps.test.ts) greps
+ * for the attribute and cannot follow a template.
+ */
+function InboxStop({ finance, stop, className, children }: {
+  finance: boolean; stop: 'kpis' | 'filters' | 'queue'; className: string; children: ReactNode;
+}) {
+  if (finance) {
+    if (stop === 'kpis') return <div className={className} data-tour="sec.supervisor-hours-finanzas.kpis">{children}</div>;
+    if (stop === 'filters') return <div className={className} data-tour="sec.supervisor-hours-finanzas.filters">{children}</div>;
+    return <div className={className} data-tour="sec.supervisor-hours-finanzas.queue">{children}</div>;
+  }
+  if (stop === 'kpis') return <div className={className} data-tour="sec.time-approvals.kpis">{children}</div>;
+  if (stop === 'filters') return <div className={className} data-tour="sec.time-approvals.filters">{children}</div>;
+  return <div className={className} data-tour="sec.time-approvals.queue">{children}</div>;
+}
+
 interface Filters {
   q: string;
   range: 'week' | 'today';
@@ -49,6 +69,10 @@ const EMPTY: Filters = { q: '', range: 'week', status: 'PENDING', role: '' };
 export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'supervisor' | 'finance' } = {}) {
   const { t, i18n } = useTranslation(['admin', 'common', 'finance']);
   const lang = i18n.language;
+  const finance = mode === 'finance';
+  // Finance tours its queue under its own key (lib/tourScope): the admin's
+  // copy is about the workers' days, which finance does not see.
+  useTourScopeWhileMounted(finance ? 'supervisor-hours-finanzas' : null, t('finance:section.supervisorHours.title'));
 
   const [filters, setFilters] = useState<Filters>(EMPTY);
   const [records, setRecords] = useState<TimeRecordResponse[]>([]);
@@ -71,7 +95,7 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
       const rows = await getAllTimeRecords({
         status: filters.status || undefined,
         // Finance reviews supervisors only; it has no role selector to change that.
-        role: mode === 'finance' ? 'SUPERVISOR' : filters.role || undefined,
+        role: finance ? 'SUPERVISOR' : filters.role || undefined,
         dateFrom: filters.range === 'today' ? today() : mondayOfWeek(),
         dateTo: today(),
       });
@@ -81,7 +105,7 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
     } finally {
       setLoading(false);
     }
-  }, [filters.status, filters.role, filters.range, mode]);
+  }, [filters.status, filters.role, filters.range, finance]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -218,6 +242,16 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
   // for the backend to say.
   const selectedTransit = flat.filter(r => selected.has(r.id) && mayBeTransitInProgress(r)).length;
 
+  const createDayButton = (
+    <button
+      onClick={() => setCreateDayOpen(true)}
+      data-testid="create-day-button"
+      className="inline-flex items-center gap-2 border border-[#DBD0BB] bg-white px-3 py-1.5 font-bt-mono text-[10px] uppercase tracking-[0.06em] font-semibold text-[#0A0A0A] hover:border-[#F97316] hover:text-[#C2410C]"
+    >
+      <CalendarPlus className="w-3 h-3" />{t('admin:approvals.createDay')}
+    </button>
+  );
+
   function setF<K extends keyof Filters>(k: K, v: Filters[K]) {
     setFilters(f => ({ ...f, [k]: v }));
     setSelected(new Set());
@@ -230,10 +264,10 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div className="min-w-0">
           <Mono className="text-[11px] tracking-[0.15em] text-[#8A8175]">
-            {mode === 'finance' ? t('admin:apr.kicker.finance') : t('admin:apr.kicker')}
+            {finance ? t('admin:apr.kicker.finance') : t('admin:apr.kicker')}
           </Mono>
           <h2 className="font-bt-display font-bold uppercase text-4xl md:text-5xl leading-none text-[#0A0A0A] mt-1">
-            {mode === 'finance' ? t('finance:section.supervisorHours.title') : t('admin:apr.title')}
+            {finance ? t('finance:section.supervisorHours.title') : t('admin:apr.title')}
           </h2>
           <Mono className="block text-[12.5px] tracking-[0.06em] normal-case text-[#5A5346] mt-2">
             {t('admin:apr.summary', { count: pendingCount })}
@@ -245,20 +279,15 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
           {/* Manual day creation — a crew that could not punch (dead phone, no
               signal) still has to get paid, so ADMIN/FINANCE enter the day by
               hand. Supervisors review; they do not author records. */}
-          {mode !== 'supervisor' && (
-            <button
-              onClick={() => setCreateDayOpen(true)}
-              data-testid="create-day-button"
-              className="inline-flex items-center gap-2 border border-[#DBD0BB] bg-white px-3 py-1.5 font-bt-mono text-[10px] uppercase tracking-[0.06em] font-semibold text-[#0A0A0A] hover:border-[#F97316] hover:text-[#C2410C]"
-            >
-              <CalendarPlus className="w-3 h-3" />{t('admin:approvals.createDay')}
-            </button>
-          )}
+          {finance ? (
+            // A stop of the finance tour (the admin's tour has none here).
+            <div data-tour="sec.supervisor-hours-finanzas.create-day">{createDayButton}</div>
+          ) : mode !== 'supervisor' && createDayButton}
         </div>
       </div>
 
       {/* Indicators */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 bg-white border border-[#E4E4E7]" data-tour="sec.time-approvals.kpis">
+      <InboxStop finance={finance} stop="kpis" className="grid grid-cols-1 sm:grid-cols-3 bg-white border border-[#E7E1D5]">
         <div className="p-4 md:px-5 sm:border-r border-[#EDE7DB]">
           <div className="font-bt-display font-bold text-3xl md:text-4xl leading-none text-[#0A0A0A]">{pendingCount}</div>
           <Mono className="block text-[10.5px] text-[#5A5346] mt-1.5">{t('admin:apr.ind.pending')}</Mono>
@@ -279,10 +308,10 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
           </div>
           <Mono className="block text-[10.5px] text-[#5A5346] mt-1.5">{t('admin:apr.ind.hours')}</Mono>
         </div>
-      </div>
+      </InboxStop>
 
       {/* Filters */}
-      <div className="bg-white border border-[#E4E4E7] p-3.5" data-tour="sec.time-approvals.filters">
+      <InboxStop finance={finance} stop="filters" className="bg-white border border-[#E7E1D5] p-3.5">
         <div className="flex flex-wrap items-center gap-2.5">
           <div className="relative flex-1 min-w-[190px] max-w-[280px]">
             <Search className="w-3.5 h-3.5 text-[#A69C8D] absolute left-3 top-1/2 -translate-y-1/2" />
@@ -312,7 +341,7 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
             </select>
           )}
         </div>
-      </div>
+      </InboxStop>
 
       {/* Select-clean + shortcuts */}
       {!loading && clean.length > 0 && (
@@ -333,7 +362,7 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
       )}
 
       {/* Queue */}
-      <div className="bg-white border border-[#E4E4E7] min-h-[340px]" data-tour="sec.time-approvals.queue">
+      <InboxStop finance={finance} stop="queue" className="bg-white border border-[#E7E1D5] min-h-[340px]">
         {loading ? (
           <div className="py-1.5">
             {[0, 1, 2, 3, 4].map(i => (
@@ -434,7 +463,7 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
             </div>
           ))
         )}
-      </div>
+      </InboxStop>
 
       {/* Floating bulk bar */}
       {selected.size > 0 && (
@@ -494,7 +523,7 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
           open={createDayOpen}
           onClose={() => setCreateDayOpen(false)}
           onCreated={load}
-          subjectRole={mode === 'finance' ? 'SUPERVISOR' : undefined}
+          subjectRole={finance ? 'SUPERVISOR' : undefined}
         />
       )}
     </div>

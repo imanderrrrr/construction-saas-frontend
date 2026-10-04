@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, ArrowRight, Check, CreditCard, Download, FileSpreadsheet, Loader2, X } from 'lucide-react';
 import { toast } from 'sonner';
@@ -9,11 +9,32 @@ import {
 import type { BudgetWarning } from '../../types';
 import { exportPayrollPayments } from '../../services/payroll';
 import { listProjects } from '../../services/projects';
+import { useTourScopeWhileMounted } from '../../lib/tourScope';
 import {
   GRID_INK, LaborFilters, LaborHeader, LaborSkeleton, Mono, amountOwed, fmtRange,
   budgetBlockers, initials, mainProject, money, monthRange, paidAmount, unpaidHours, weekRange,
   type LaborMode,
 } from './shared';
+
+/**
+ * A block of the screen that is also a tour stop, one set per panel: finance
+ * tours it under `labor-payroll-finanzas`, with one more stop on the two
+ * exports. Written out literally: the registry guardian
+ * (onboarding/sectionTourSteps.test.ts) greps for the attribute and cannot
+ * follow a template.
+ */
+function PayStop({ finance, stop, className, children }: {
+  finance: boolean; stop: 'kpis' | 'list' | 'export'; className: string; children: ReactNode;
+}) {
+  if (finance) {
+    if (stop === 'kpis') return <div className={className} data-tour="sec.labor-payroll-finanzas.kpis">{children}</div>;
+    if (stop === 'list') return <div className={className} data-tour="sec.labor-payroll-finanzas.list">{children}</div>;
+    return <div className={className} data-tour="sec.labor-payroll-finanzas.export">{children}</div>;
+  }
+  if (stop === 'kpis') return <div className={className} data-tour="sec.labor-payroll.kpis">{children}</div>;
+  if (stop === 'list') return <div className={className} data-tour="sec.labor-payroll.list">{children}</div>;
+  return <div className={className}>{children}</div>;
+}
 
 /**
  * Nómina — "¿a quién le debo pagar, cuánto, y ya le pagué?".
@@ -29,6 +50,10 @@ import {
 export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate: (section: string) => void; mode?: LaborMode }) {
   const { t, i18n } = useTranslation(['admin', 'common']);
   const lang = i18n.language;
+  const finance = mode === 'finance';
+  // Finance tours this screen under its own key (lib/tourScope): its copy
+  // speaks of confirming payments, not of setting rates in Usuarios.
+  useTourScopeWhileMounted(finance ? 'labor-payroll-finanzas' : null, t('admin:pay.title'));
 
   const [range, setRange] = useState<'week' | 'month'>('week');
   const [q, setQ] = useState('');
@@ -119,6 +144,18 @@ export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate:
   ].filter(Boolean) as { key: string; label: string; clear: () => void }[];
 
   const allPaid = !loading && !error && workers.length > 0 && workers.every(isPaid) && !q && !status;
+  const filterProps = {
+    q, onQ: setQ, range, onRange: setRange, project, onProject: setProject, projects, chips,
+    onClear: () => { setQ(''); setProject(''); setStatus(''); setRange('week'); },
+    extra: (
+      <select value={status} onChange={e => setStatus(e.target.value as typeof status)}
+        className="appearance-none border border-[#DBD0BB] bg-[#FAF7F0] px-3 py-2 font-bt-mono text-[11px] uppercase tracking-[0.06em] text-[#0A0A0A] cursor-pointer">
+        <option value="">{t('admin:pay.f.all')}</option>
+        <option value="unpaid">{t('admin:pay.f.unpaid')}</option>
+        <option value="paid">{t('admin:pay.f.paid')}</option>
+      </select>
+    ),
+  };
 
   return (
     <div className="relative p-4 md:p-6 max-w-[1400px] mx-auto space-y-4">
@@ -129,7 +166,7 @@ export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate:
           amount: money(totalOwed), count: unpaid.length, range: fmtRange(from, to, lang),
         })}
         right={
-          <div className="flex items-center gap-2">
+          <PayStop finance={finance} stop="export" className="flex items-center gap-2">
             <button onClick={() => exportCsv(visible, from, to, isPaid)}
               className="inline-flex items-center gap-2 border border-[#DBD0BB] bg-[#FAF7F0] px-4 py-3 font-bt-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-[#0A0A0A] hover:border-[#F97316] hover:text-[#C2410C]">
               <Download className="w-3.5 h-3.5" />{t('admin:lab.export')}
@@ -146,12 +183,12 @@ export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate:
                 : <FileSpreadsheet className="w-3.5 h-3.5" />}
               {t('admin:pay.exportPayments')}
             </button>
-          </div>
+          </PayStop>
         }
       />
 
       {/* Indicators */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 bg-white border border-[#E4E4E7]" data-tour="sec.labor-payroll.kpis">
+      <PayStop finance={finance} stop="kpis" className="grid grid-cols-1 sm:grid-cols-3 bg-white border border-[#E7E1D5]">
         <div className="p-4 md:px-5 sm:border-r border-[#EDE7DB]">
           <div className="flex items-baseline">
             <span className="font-bt-display font-bold text-2xl text-[#8A8175] self-start mt-1">$</span>
@@ -173,25 +210,14 @@ export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate:
           </div>
           <Mono className="block text-[10.5px] text-[#5A5346] mt-1.5">{t('admin:pay.ind.paid')}</Mono>
         </div>
-      </div>
+      </PayStop>
 
-      <LaborFilters
-        tourAnchor="sec.labor-payroll.filters"
-        q={q} onQ={setQ} range={range} onRange={setRange}
-        project={project} onProject={setProject} projects={projects}
-        chips={chips} onClear={() => { setQ(''); setProject(''); setStatus(''); setRange('week'); }}
-        extra={
-          <select value={status} onChange={e => setStatus(e.target.value as typeof status)}
-            className="appearance-none border border-[#DBD0BB] bg-[#FAF7F0] px-3 py-2 font-bt-mono text-[11px] uppercase tracking-[0.06em] text-[#0A0A0A] cursor-pointer">
-            <option value="">{t('admin:pay.f.all')}</option>
-            <option value="unpaid">{t('admin:pay.f.unpaid')}</option>
-            <option value="paid">{t('admin:pay.f.paid')}</option>
-          </select>
-        }
-      />
+      {finance
+        ? <LaborFilters tourAnchor="sec.labor-payroll-finanzas.filters" {...filterProps} />
+        : <LaborFilters tourAnchor="sec.labor-payroll.filters" {...filterProps} />}
 
       {/* List */}
-      <div className="bg-white border border-[#E4E4E7] min-h-[320px]" data-tour="sec.labor-payroll.list">
+      <PayStop finance={finance} stop="list" className="bg-white border border-[#E7E1D5] min-h-[320px]">
         {loading ? <LaborSkeleton /> : error ? (
           <div className="py-16 text-center">
             <p className="text-sm text-[#8A8175]">{t('admin:lab.error')}</p>
@@ -223,7 +249,7 @@ export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate:
             {unpaidSorted.length > 0 && (
               <Group title={t('admin:pay.groupUnpaid')} dot="#F97316" bg="#FBF8F2" color="#0A0A0A" count={unpaidSorted.length}>
                 {unpaidSorted.map(w => (
-                  <PayRow key={w.workerId} w={w} paid={false} onPay={() => setPaying(w)} onNavigate={onNavigate} canManageRates={mode === 'admin'}
+                  <PayRow key={w.workerId} w={w} paid={false} onPay={() => setPaying(w)} onNavigate={onNavigate} canManageRates={!finance}
                     lang={lang} blockers={budgetBlockers(w, remainingByProject)} />
                 ))}
               </Group>
@@ -231,13 +257,13 @@ export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate:
             {paid.length > 0 && (
               <Group title={t('admin:pay.groupPaid')} dot="#7A9A7E" bg="#F3F5F1" color="#2E6B34" count={paid.length}>
                 {paid.map(w => (
-                  <PayRow key={w.workerId} w={w} paid onPay={() => {}} onNavigate={onNavigate} canManageRates={mode === 'admin'} lang={lang} blockers={[]} />
+                  <PayRow key={w.workerId} w={w} paid onPay={() => {}} onNavigate={onNavigate} canManageRates={!finance} lang={lang} blockers={[]} />
                 ))}
               </Group>
             )}
           </>
         )}
-      </div>
+      </PayStop>
 
       {paying && (
         <ConfirmPaymentDialog
