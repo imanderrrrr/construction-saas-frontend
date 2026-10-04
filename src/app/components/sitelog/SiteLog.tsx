@@ -1,3 +1,5 @@
+import { useScreenState, useProjectFilter, useWorkspace } from '../../workspace/WorkspaceState';
+import { useUnsavedChanges } from '../../workspace/UnsavedChanges';
 // OFJR Construction — Bitácora de obra (site log) module
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -76,9 +78,13 @@ const inputCls =
 export function SiteLog({ projects, canEdit }: SiteLogProps) {
   const { t } = useTranslation(['siteLog', 'common']);
 
-  const [projectId, setProjectId] = useState<number | null>(projects[0]?.id ?? null);
-  const [date, setDate] = useState<string>(() => businessToday());
-  const [view, setView] = useState<'day' | 'history'>('day');
+  const workspace = useWorkspace();
+  const [sharedProject, setSharedProject] = useProjectFilter<number | null>(null, true);
+  const [localProject, setLocalProject] = useState<number | null>(projects[0]?.id ?? null);
+  const projectId = workspace ? sharedProject ?? projects[0]?.id ?? null : localProject;
+  const setProjectId = workspace ? setSharedProject : setLocalProject;
+  const [date, setDate] = useScreenState<string>('fecha', businessToday);
+  const [view, setView] = useScreenState<'day' | 'history'>('vista', 'day', 'replace', ['day', 'history']);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -86,6 +92,8 @@ export function SiteLog({ projects, canEdit }: SiteLogProps) {
   const [suggestion, setSuggestion] = useState<SiteLogSuggestion | null>(null);
   const [draft, setDraft] = useState<Draft>(emptyDraft());
   const [dirty, setDirty] = useState(false);
+  useUnsavedChanges(dirty);
+  const canChangeRecord = () => !dirty || window.confirm(t('common:workspace.discardPrompt'));
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -354,19 +362,27 @@ export function SiteLog({ projects, canEdit }: SiteLogProps) {
 
   // ──────────────────────────── history ────────────────────────────
 
-  const openHistory = useCallback(async () => {
-    if (projectId == null) return;
-    setView('history');
+  const openHistory = () => setView('history');
+
+  useEffect(() => {
+    if (view !== 'history' || projectId == null) return;
+    let cancelled = false;
     setHistoryLoading(true);
-    try {
-      const page = await getSiteLogHistory(projectId, 0, 30);
-      setHistory(page.content);
-    } catch (err) {
-      toast.error(t('siteLog:error.loadFailed'), { description: err instanceof ApiError ? err.message : undefined });
-    } finally {
-      setHistoryLoading(false);
-    }
-  }, [projectId, t]);
+    void (async () => {
+      try {
+        const page = await getSiteLogHistory(projectId, 0, 30);
+        if (!cancelled) setHistory(page.content);
+      } catch (err) {
+        if (!cancelled) {
+          setHistory([]);
+          toast.error(t('siteLog:error.loadFailed'), { description: err instanceof ApiError ? err.message : undefined });
+        }
+      } finally {
+        if (!cancelled) setHistoryLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [view, projectId, t]);
 
   // ──────────────────────────── derived ────────────────────────────
 
@@ -383,9 +399,9 @@ export function SiteLog({ projects, canEdit }: SiteLogProps) {
         t={t}
         projects={projects}
         projectId={projectId}
-        onProjectChange={(id) => { setProjectId(id); setView('day'); }}
+        onProjectChange={(id) => { if (canChangeRecord()) { setProjectId(id); setView('day'); } }}
         date={date}
-        onDateChange={(d) => { setDate(d); setView('day'); }}
+        onDateChange={(d) => { if (canChangeRecord()) { setDate(d); setView('day'); } }}
         residentName={log?.authorName ?? null}
         status={log?.status ?? null}
         dirty={dirty}
@@ -403,7 +419,7 @@ export function SiteLog({ projects, canEdit }: SiteLogProps) {
           loading={historyLoading}
           items={history}
           onBack={() => setView('day')}
-          onOpen={(d) => { setDate(d); setView('day'); }}
+          onOpen={(d) => { if (canChangeRecord()) { setDate(d); setView('day'); } }}
         />
       ) : projectId == null ? (
         <SelectProjectState t={t} />

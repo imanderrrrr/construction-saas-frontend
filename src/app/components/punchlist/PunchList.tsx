@@ -1,3 +1,4 @@
+import { useScreenState, useProjectFilter, useWorkspace } from '../../workspace/WorkspaceState';
 // BuildTrack — Internal punch-list view (fase 2 del portal de cliente).
 // Shared by the admin project ficha (Pendientes tab) and the supervisor
 // section: list with status filters, assignment, "marcar listo" with evidence
@@ -84,8 +85,12 @@ const CLIENT_CLOSE_WINDOW_MS = 7 * 86_400_000;
 export function PunchList({ projects }: { projects: PunchProject[] }) {
   const { t, i18n } = useTranslation(['punchList']);
 
-  const [projectId, setProjectId] = useState<number | null>(projects[0]?.id ?? null);
-  const [statusFilter, setStatusFilter] = useState<PunchItemStatus | 'ALL'>('ALL');
+  const workspace = useWorkspace();
+  const [sharedProject, setSharedProject] = useProjectFilter<number | null>(null, true);
+  const [localProject, setLocalProject] = useState<number | null>(projects[0]?.id ?? null);
+  const projectId = projects.length === 1 ? projects[0].id : workspace ? sharedProject : localProject;
+  const setProjectId = workspace ? setSharedProject : setLocalProject;
+  const [statusFilter, setStatusFilter] = useScreenState<PunchItemStatus | 'ALL'>('estado', 'ALL');
   const [items, setItems] = useState<PunchItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
@@ -97,7 +102,7 @@ export function PunchList({ projects }: { projects: PunchProject[] }) {
   const project = projects.find((p) => p.id === projectId) ?? null;
 
   useEffect(() => {
-    if (projectId == null && projects.length > 0) setProjectId(projects[0].id);
+    if (!workspace && projectId == null && projects.length > 0) setProjectId(projects[0].id);
   }, [projects, projectId]);
 
   const load = useCallback(async () => {
@@ -237,6 +242,7 @@ export function PunchList({ projects }: { projects: PunchProject[] }) {
               onChange={(e) => setProjectId(Number(e.target.value))}
               className="h-[38px] py-0"
             >
+              {projectId == null && <option value="">{t('common:workspace.chooseWorksite')}</option>}
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}

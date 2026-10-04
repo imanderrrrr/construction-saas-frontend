@@ -1,3 +1,4 @@
+import { useScreenState, useProjectFilter, useWorkspace } from '../workspace/WorkspaceState';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -151,6 +152,7 @@ export function AccountsReceivable({ onNavigate }: { onNavigate?: (section: stri
   // FINANCE still sees the queue and can download the PDF or delete (reject).
   const isAdmin = AuthService.getCanonicalRole() === 'ADMIN';
   const { t, i18n } = useTranslation(['finance', 'common']);
+  const workspace = useWorkspace();
   const dateLocale = i18n.language === 'es' ? 'es' : 'en-US';
   // Current accounting month for the "Collected this month" KPI, formatted locale-aware (e.g. "Jun 2026" / "jun 2026")
   const collectedMonthLabel = currentMonthLabel(dateLocale);
@@ -158,8 +160,8 @@ export function AccountsReceivable({ onNavigate }: { onNavigate?: (section: stri
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
-  const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [expandedId, setExpandedId] = useScreenState<number | null>('registro', null, 'push');
+  const [currentPage, setCurrentPage] = useScreenState('pagina', 1);
   const projects = useMemo(() => Array.from(new Map(invoices.map(i => [i.projectId, { id: i.projectId, name: i.project }])).values()), [invoices]);
   const [summary, setSummary] = useState<ReceivableSummary | null>(null);
   const [summaryError, setSummaryError] = useState(false);
@@ -222,10 +224,10 @@ export function AccountsReceivable({ onNavigate }: { onNavigate?: (section: stri
   }
 
   // Filters
-  const [filterProject, setFilterProject] = useState('all');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [filterFrom, setFilterFrom] = useState('');
-  const [filterTo, setFilterTo] = useState('');
+  const [filterProject, setFilterProject] = useProjectFilter<string>('all');
+  const [filterStatus, setFilterStatus] = useScreenState('estado', 'all');
+  const [filterFrom, setFilterFrom] = useScreenState('desde', '');
+  const [filterTo, setFilterTo] = useScreenState('hasta', '');
 
   // Payment dialog
   const [payInvoice, setPayInvoice] = useState<Invoice | null>(null);
@@ -342,7 +344,7 @@ export function AccountsReceivable({ onNavigate }: { onNavigate?: (section: stri
 
   const filtered = useMemo(() => {
     return invoices.filter(inv => {
-      if (filterProject !== 'all' && inv.project !== filterProject) return false;
+      if (filterProject !== 'all' && String(inv.projectId) !== filterProject) return false;
       if (filterStatus !== 'all' && inv.status !== filterStatus) return false;
       if (filterFrom && inv.issuedDate < filterFrom) return false;
       if (filterTo && inv.issuedDate > filterTo) return false;
@@ -483,6 +485,7 @@ export function AccountsReceivable({ onNavigate }: { onNavigate?: (section: stri
         <button type="button" onClick={() => void fetchSummary()} className="ml-2 underline">{t('common:buttons.retry')}</button>
       </div>}
       {/* Totals cover the tenant, independent of list filters and pagination. */}
+      <p className="text-sm text-[#8A8175]">{t('common:workspace.companySummary')}</p>
       <div className="grid grid-cols-2 xl:grid-cols-4 bg-white border border-[#E7E1D5]" data-tour="sec.accounts-receivable.kpis">
         <AccountingFigure title={t('finance:receivable.kpi.totalReceivable')} value={kpis ? fmtAmount(kpis.totalReceivable) : '—'} subtitle={t('finance:receivable.kpi.allInvoices')} />
         <AccountingFigure title={t('finance:receivable.kpi.collectedThisMonth')} value={kpis ? fmtAmount(kpis.collectedThisMonth) : '—'} subtitle={collectedMonthLabel} tone="green" />
@@ -497,16 +500,16 @@ export function AccountsReceivable({ onNavigate }: { onNavigate?: (section: stri
           <span className="text-sm font-semibold text-[#0A0A0A]">{t('common:buttons.filters')}</span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <div>
+          {!workspace && <div>
             <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('common:labels.project')}</label>
             <Select value={filterProject} onValueChange={v => { setFilterProject(v); setCurrentPage(1); }}>
               <SelectTrigger className="rounded-none bg-[#FAF7F0] font-bt-mono text-[11px] h-9 text-sm border-[#E7E1D5]"><SelectValue /></SelectTrigger>
               <SelectContent className="rounded-none border-[#DBD0BB]">
                 <SelectItem value="all">{t('common:labels.allProjects')}</SelectItem>
-                {projects.map(p => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}
+                {projects.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
               </SelectContent>
             </Select>
-          </div>
+          </div>}
           <div>
             <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('common:labels.status')}</label>
             <Select value={filterStatus} onValueChange={v => { setFilterStatus(v); setCurrentPage(1); }}>
@@ -894,7 +897,7 @@ export function AccountsReceivable({ onNavigate }: { onNavigate?: (section: stri
           fetchPendingApprovals();
           void fetchSummary();
         }}
-        onOpenBranding={isAdmin && onNavigate ? () => { setShowCreate(false); onNavigate('invoice-branding'); } : undefined}
+        onOpenBranding={isAdmin && onNavigate ? () => { if (workspace) workspace.navigateSection('invoice-branding'); else { setShowCreate(false); onNavigate('invoice-branding'); } } : undefined}
       />}
     </div>
 

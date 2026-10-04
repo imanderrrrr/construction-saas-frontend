@@ -107,6 +107,14 @@ vi.mock('../components/tm/TmOfficeSection', () => ({
   TmOfficeSection: () => <div data-testid="tm-office-section" />,
 }));
 
+vi.mock('../components/ui/dialog', () => ({
+  Dialog: ({ open, children }: { open: boolean; children: React.ReactNode }) => open ? <div>{children}</div> : null,
+  DialogContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DialogHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  DialogTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
+  DialogDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
+}));
+
 import { AdminDashboard } from './AdminDashboard';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -161,6 +169,8 @@ describe('AdminDashboard T&M navigation (regression: lazy without Suspense)', ()
       );
     });
     expect(container.querySelector('[data-testid="crash"]')).toBeNull();
+
+    await act(async () => { navButton('workspace.findSection').click(); });
 
     // Real click on the menu item — a discrete (synchronous-priority) update,
     // the input that triggered #426.

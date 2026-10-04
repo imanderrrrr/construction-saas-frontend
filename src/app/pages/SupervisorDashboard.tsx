@@ -1,3 +1,4 @@
+import { useSectionNavigation } from '../workspace/WorkspaceState';
 // SupervisorDashboard.tsx — Supervisor panel (budget access removed per policy)
 
 import { useState, useMemo, lazy, Suspense, useEffect, useCallback } from 'react';
@@ -111,7 +112,7 @@ function SectionSpinner() {
 
 // ——— Main component ——————————————————————————————————————————————————
 
-export function SupervisorDashboard() {
+export function SupervisorDashboard({ initialSection = 'dashboard' }: { initialSection?: Section } = {}) {
   // The welcome overlay fades once this page is on screen (lib/dashboardReady).
   useMarkDashboardReady();
   const navigate = useNavigate();
@@ -119,44 +120,43 @@ export function SupervisorDashboard() {
   // lives there — SectionTour reads that namespace itself.
   const { t } = useTranslation(['supervisor', 'common', 'siteLog', 'punchList', 'rfi', 'tm', 'admin']);
   const username = AuthService.getUsername() ?? 'supervisor1';
-  const [active, setActive] = useState<Section>('dashboard');
+  const [active, setActive] = useSectionNavigation<Section>('SUPERVISOR', initialSection);
   /** Bumped by the topbar "?" — replays the tour of the section on screen. */
   const [introReplay, setIntroReplay] = useState(0);
   // Bitácora de obra is gated behind the `bitacora` plan feature — hide its nav
   // entry (and section) entirely when the tenant's plan does not include it.
-  const { enabled: siteLogEnabled } = useSiteLogFeature();
+  const { enabled: siteLogEnabled, loading: siteLogLoading } = useSiteLogFeature();
 
   const handleLogout = () => { document.cookie = 'ofjr_session=; Path=/; Max-Age=0'; navigate('/'); AuthService.logout(); };
 
   const navItems: AppShellNavItem[] = useMemo(() => {
     const items: AppShellNavItem[] = [
-      { key: 'dashboard',       label: t('supervisor:nav.dashboard'),       icon: LayoutDashboard, group: 'general'  },
-      { key: 'projects',        label: t('supervisor:nav.projects'),        icon: FolderKanban,    group: 'general'  },
-      { key: 'task-board',      label: t('supervisor:nav.taskBoard'),       icon: CalendarClock,   group: 'general'  },
+      { key: 'dashboard',       label: t('common:workspace.home'),       icon: LayoutDashboard  },
+      { key: 'projects',        label: t('supervisor:nav.projects'),        icon: FolderKanban,    group: 'works'  },
+      { key: 'task-board',      label: t('supervisor:nav.taskBoard'),       icon: CalendarClock,   group: 'works'  },
     ];
     if (siteLogEnabled) {
-      items.push({ key: 'site-log', label: t('siteLog:nav.bitacora'), icon: NotebookPen, group: 'general' });
+      items.push({ key: 'site-log', label: t('siteLog:nav.bitacora'), icon: NotebookPen, group: 'works' });
       // Punch list rides the same plan feature as the client portal (D8).
-      items.push({ key: 'punch-list', label: t('punchList:internal.title'), icon: ClipboardList, group: 'general' });
+      items.push({ key: 'punch-list', label: t('punchList:internal.title'), icon: ClipboardList, group: 'works' });
       // RFIs live on the same portal → same plan feature.
-      items.push({ key: 'rfi', label: t('rfi:internal.title'), icon: HelpCircle, group: 'general' });
+      items.push({ key: 'rfi', label: t('rfi:internal.title'), icon: HelpCircle, group: 'works' });
     }
     items.push(
-      { key: 'tm',              label: t('tm:nav.tm'),                      icon: FileSignature,   group: 'general'  },
-      { key: 'my-time',         label: t('supervisor:nav.myTime'),          icon: Clock,           group: 'time'     },
-      { key: 'time-approvals',  label: t('supervisor:nav.timeApprovals'),   icon: ClipboardCheck,  group: 'time'     },
-      { key: 'expense-reviews', label: t('supervisor:nav.expenseReviews'),  icon: ReceiptText,     group: 'expenses' },
-      { key: 'team-tools',      label: t('supervisor:nav.teamTools'),       icon: Wrench,          group: 'tools'    },
+      { key: 'tm',              label: t('tm:nav.tm'),                      icon: FileSignature,   group: 'works'  },
+      { key: 'my-time',         label: t('supervisor:nav.myTime'),          icon: Clock,           group: 'journey'     },
+      { key: 'time-approvals',  label: t('supervisor:nav.timeApprovals'),   icon: ClipboardCheck,  group: 'team'     },
+      { key: 'expense-reviews', label: t('supervisor:nav.expenseReviews'),  icon: ReceiptText,     group: 'team' },
+      { key: 'team-tools',      label: t('supervisor:nav.teamTools'),       icon: Wrench,          group: 'team'    },
     );
     return items;
   }, [t, siteLogEnabled]);
 
-  const navGroups = useMemo(() => [
-    { key: 'general',  label: t('supervisor:group.general')  },
-    { key: 'time',     label: t('supervisor:group.time')     },
-    { key: 'expenses', label: t('supervisor:group.expenses') },
-    { key: 'tools',    label: t('supervisor:group.tools')    },
-  ], [t]);
+  const navGroups = [
+    { key: 'works', label: t('common:workspace.myWorks'), icon: FolderKanban },
+    { key: 'team', label: t('common:workspace.myTeam'), icon: ClipboardCheck },
+    { key: 'journey', label: t('common:workspace.myDay'), icon: Clock },
+  ];
 
   const metaKeys = SECTION_META_KEYS[active];
   const onboardingKey = ONBOARDING_KEY[active];
@@ -189,9 +189,14 @@ export function SupervisorDashboard() {
         }
       >
         {onboardingKey && (
-          <SectionTour section={onboardingKey} username={username} replayNonce={introReplay} sectionLabel={t(metaKeys.titleKey)} />
+          <SectionTour autoStart={false} section={onboardingKey} username={username} replayNonce={introReplay} sectionLabel={t(metaKeys.titleKey)} />
         )}
         <Suspense fallback={<SectionSpinner />}>
+          {['site-log', 'punch-list', 'rfi'].includes(active) && !siteLogEnabled && (siteLogLoading ? <SectionSpinner /> : <div className="border border-[#DBD0BB] bg-white p-6 space-y-3">
+            <h3 className="text-lg font-semibold">{t('common:workspace.unavailableTitle')}</h3>
+            <p className="text-sm text-[#5A5346]">{t('common:workspace.unavailableBody')}</p>
+            <button type="button" className="px-3 py-2 border border-[#DBD0BB] text-sm" onClick={() => setActive('projects')}>{t('common:workspace.backToWorksites')}</button>
+          </div>)}
           {active === 'dashboard'       && <SupervisorDashboardContent username={username} onNavigate={s => setActive(s as Section)} />}
           {active === 'projects'        && <SupervisorProjects />}
           {active === 'task-board'      && <SupervisorTaskBoard />}

@@ -1,3 +1,4 @@
+import { useScreenState } from '../../workspace/WorkspaceState';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../ui/utils';
@@ -38,7 +39,7 @@ export type SubTab = 'directory' | 'jobs' | 'invoices';
 export function SubcontractorsSection({ onNavigate }: { onNavigate?: (section: string) => void } = {}) {
   const { t, i18n } = useTranslation(['subcontractors', 'common']);
   const lang = i18n.language;
-  const [tab, setTab] = useState<SubTab>('directory');
+  const [tab, setTab] = useScreenState<SubTab>('pestana', 'directory', 'replace', ['directory', 'jobs', 'invoices']);
   const [job, setJob] = useState<SubcontractorJobDTO | null>(null);
   const [jobsFilters, setJobsFilters] = useState<JobsFilters | undefined>();
   const refData = useRefData();

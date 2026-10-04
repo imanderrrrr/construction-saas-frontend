@@ -77,11 +77,13 @@ function canSpotlight(): boolean {
 }
 
 export function SectionTour({
+  autoStart = true,
   section: navSection,
   username,
   replayNonce,
   sectionLabel: navLabel,
 }: {
+  autoStart?: boolean;
   section: string;
   username: string | null;
   /** Increment (with the section current) to replay on demand (topbar "?"). */
@@ -144,7 +146,7 @@ export function SectionTour({
     setSteps(null);
     setFellBack(false);
     setIntroNonce(0);
-    if (!SECTION_TOUR_STEPS[section]) return;
+    if (!autoStart || !SECTION_TOUR_STEPS[section]) return;
     if (hasSeen(username, section)) return;
 
     let tries = 0;
@@ -156,7 +158,7 @@ export function SectionTour({
       }
     }, ANCHOR_POLL_MS);
     return () => clearInterval(timer);
-  }, [section, username, start]);
+  }, [autoStart, section, username, start]);
 
   // Topbar "?" replay for the section on screen.
   useEffect(() => {

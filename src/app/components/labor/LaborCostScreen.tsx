@@ -1,3 +1,4 @@
+import { useScreenState, useProjectFilter } from '../../workspace/WorkspaceState';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, ArrowRight, ChevronRight, X } from 'lucide-react';
@@ -22,9 +23,9 @@ export function LaborCostScreen({ onNavigate, mode = 'admin' }: { onNavigate: (s
   const { t, i18n } = useTranslation(['admin', 'common']);
   const lang = i18n.language;
 
-  const [range, setRange] = useState<'week' | 'month'>('week');
-  const [q, setQ] = useState('');
-  const [project, setProject] = useState('');
+  const [range, setRange] = useScreenState<'week' | 'month'>('periodo', 'week', 'replace', ['week', 'month']);
+  const [q, setQ] = useScreenState('q', '');
+  const [project, setProject] = useProjectFilter<string>('');
   const [data, setData] = useState<AdminHoursReportResponse | null>(null);
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
   const [loading, setLoading] = useState(true);

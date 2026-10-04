@@ -1,3 +1,4 @@
+import { useScreenState, useProjectFilter } from '../../workspace/WorkspaceState';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, ArrowRight, Check, CreditCard, Download, FileSpreadsheet, Loader2, X } from 'lucide-react';
@@ -25,9 +26,9 @@ export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate:
   const { t, i18n } = useTranslation(['admin', 'common']);
   const lang = i18n.language;
 
-  const [range, setRange] = useState<'week' | 'month'>('week');
-  const [q, setQ] = useState('');
-  const [project, setProject] = useState('');
+  const [range, setRange] = useScreenState<'week' | 'month'>('periodo', 'week', 'replace', ['week', 'month']);
+  const [q, setQ] = useScreenState('q', '');
+  const [project, setProject] = useProjectFilter<string>('');
   const [status, setStatus] = useState<'' | 'unpaid' | 'paid'>('');
   const [data, setData] = useState<AdminHoursReportResponse | null>(null);
   const [projects, setProjects] = useState<{ id: number; name: string; remainingCents: number | null }[]>([]);

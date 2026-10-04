@@ -1,3 +1,4 @@
+import { useScreenState } from '../workspace/WorkspaceState';
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -323,15 +324,15 @@ type ViewMode = 'week' | 'month';
 export function MyHours() {
   const { t } = useTranslation('time');
   // Filter state
-  const [viewMode, setViewMode]       = useState<ViewMode>('week');
-  const [dateFrom, setDateFrom]       = useState(getMondayOfWeek);
-  const [dateTo, setDateTo]           = useState(getToday);
-  const [appliedFrom, setAppliedFrom] = useState(getMondayOfWeek);
-  const [appliedTo, setAppliedTo]     = useState(getToday);
+  const [viewMode, setViewMode]       = useScreenState<ViewMode>('vista', 'week', 'replace', ['week', 'month']);
+  const [dateFrom, setDateFrom]       = useScreenState('desde', getMondayOfWeek);
+  const [dateTo, setDateTo]           = useScreenState('hasta', getToday);
+  const [appliedFrom, setAppliedFrom] = useScreenState('f-desde', getMondayOfWeek);
+  const [appliedTo, setAppliedTo]     = useScreenState('f-hasta', getToday);
 
   // UI state
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
-  const [currentPage, setCurrentPage]     = useState(1);
+  const [currentPage, setCurrentPage]     = useScreenState('pagina', 1);
 
   // Data state
   const [records, setRecords]               = useState<TimeEntry[]>([]);

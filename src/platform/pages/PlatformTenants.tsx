@@ -1,3 +1,4 @@
+import { useScreenState } from '../../app/workspace/WorkspaceState';
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { CircleCheck, Plus } from 'lucide-react';
@@ -22,7 +23,7 @@ import {
 const PAGE_SIZE = 50;
 
 export function PlatformTenants() {
-  const [page, setPage] = useState(0);
+  const [page, setPage] = useScreenState('pagina', 0);
   const [data, setData] = useState<Page<TenantSummary> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -1,3 +1,4 @@
+import { useScreenState } from '../workspace/WorkspaceState';
 // ConsumableDispatch.tsx — Dispatch consumable supplies to projects
 
 import { useState, useEffect, useCallback } from 'react';
@@ -71,7 +72,7 @@ export function ConsumableDispatch() {
   const [projects, setProjects] = useState<ProjectResponse[]>([]);
   const [workers, setWorkers] = useState<UserDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useScreenState('pagina', 1);
   const [modalOpen, setModalOpen] = useState(false);
 
   const loadData = useCallback(() => {

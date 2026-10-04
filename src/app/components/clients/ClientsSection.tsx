@@ -1,3 +1,4 @@
+import { useScreenState, useWorkspace } from '../../workspace/WorkspaceState';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowRight, ChevronLeft, ChevronRight, Mail, MoreVertical, Phone, Plus, RefreshCw, Search } from 'lucide-react';
@@ -65,6 +66,10 @@ export function ClientsSection({ onNavigate, readOnly = false, projectSection = 
   const lang = i18n.language;
   const [view, setView] = useState<'list' | 'ficha'>('list');
   const [selected, setSelected] = useState<ClientResponse | null>(null);
+  const workspace = useWorkspace();
+  const hasWorkspace = workspace !== null;
+  const [recordId, setRecordId] = useScreenState<number | null>('registro', null, 'push');
+  const [recordError, setRecordError] = useState(false);
 
   const [clients, setClients] = useState<ClientResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,12 +77,12 @@ export function ClientsSection({ onNavigate, readOnly = false, projectSection = 
   const [reloadNonce, setReloadNonce] = useState(0);
 
   // Filters
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'' | ClientStatus>('');
-  const [projectsFilter, setProjectsFilter] = useState<'' | ClientProjectsFilter>('');
-  const [pageSize, setPageSize] = useState<number>(20);
-  const [currentPage, setCurrentPage] = useState(0); // 0-based for backend
+  const [search, setSearch] = useScreenState('q', '');
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
+  const [statusFilter, setStatusFilter] = useScreenState<'' | ClientStatus>('estado', '');
+  const [projectsFilter, setProjectsFilter] = useScreenState<'' | ClientProjectsFilter>('obras', '');
+  const [pageSize, setPageSize] = useScreenState<number>('tamano', 20);
+  const [currentPage, setCurrentPage] = useScreenState('pagina', 0); // 0-based for backend
   const [totalElements, setTotalElements] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -142,16 +147,30 @@ export function ClientsSection({ onNavigate, readOnly = false, projectSection = 
     setSelected(prev => (prev?.id === client.id ? client : prev));
   }, []);
 
-  const openFicha = (client: ClientResponse) => { setSelected(client); setView('ficha'); };
-  const backToList = () => { setView('list'); setSelected(null); };
+  useEffect(() => {
+    if (!workspace) return;
+    if (recordId == null) { setView('list'); return; }
+    let cancelled = false;
+    setRecordError(false);
+    getClient(recordId).then(client => {
+      if (!cancelled) { setSelected(client); setView('ficha'); }
+    }).catch(() => { if (!cancelled) { setSelected(null); setRecordError(true); } });
+    return () => { cancelled = true; };
+  }, [recordId, hasWorkspace]); // eslint-disable-line react-hooks/exhaustive-deps -- record identity, not filter changes
+  const openFicha = (client: ClientResponse) => { setSelected(client); setView('ficha'); setRecordId(client.id); };
+  const backToList = () => { setView('list'); setSelected(null); setRecordId(null); };
   const openForm = useCallback((client: ClientResponse | null) => { if (!readOnly) { setFormClient(client); setFormOpen(true); } }, [readOnly]);
   const openStatus = useCallback((client: ClientResponse) => { if (!readOnly) { setStatusClient(client); setStatusOpen(true); } }, [readOnly]);
 
   /** "Ver sus obras" / "Ver todas en Proyectos →": Proyectos opens already narrowed to this client. */
   const goToProjects = useCallback((client: ClientResponse, openProjectId?: number) => {
+    if (workspace) {
+      workspace.navigateSection(projectSection, { cliente: client.id, obra: openProjectId ?? null, registro: openProjectId ?? null, pagina: null, filtros: null });
+      return;
+    }
     setSectionIntent(projectSection, { clientId: client.id, clientName: client.name, openProjectId });
     onNavigate?.(projectSection);
-  }, [onNavigate, projectSection]);
+  }, [onNavigate, projectSection, workspace]);
 
   const handleSaved = useCallback(async (client: ClientResponse, mode: ClientFormMode) => {
     if (mode === 'edit') {
@@ -200,6 +219,12 @@ export function ClientsSection({ onNavigate, readOnly = false, projectSection = 
   const endItem = Math.min((currentPage + 1) * pageSize, totalElements);
   const today = useMemo(() => stampDay(businessToday(), lang), [lang]);
 
+  if (workspace && recordId != null && (recordError || selected?.id !== recordId)) {
+    return <div className="space-y-4" role={recordError ? 'alert' : 'status'}>
+      <p>{t(recordError ? 'common:workspace.recordUnavailable' : 'common:workspace.loadingRecord')}</p>
+      <button type="button" className="underline" onClick={backToList}>{t('common:workspace.backToList')}</button>
+    </div>;
+  }
   if (view === 'ficha' && selected) {
     return (
       <>

@@ -1,3 +1,4 @@
+import { useScreenState, useProjectFilter, useWorkspace } from '../../workspace/WorkspaceState';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, RefreshCw, Search } from 'lucide-react';
@@ -55,7 +56,7 @@ export function TasksSection({ supervisor = false }: { supervisor?: boolean } = 
   const lang = i18n.language;
   const today = useMemo(() => new Date(), []);
 
-  const [view, setView] = useState<View>('list');
+  const [view, setView] = useScreenState<View>('vista', 'list', 'replace', ['list', 'week']);
   const [wide, setWide] = useState(() => typeof window === 'undefined' || window.innerWidth >= WEEK_MIN_WIDTH);
   useEffect(() => {
     const onResize = () => setWide(window.innerWidth >= WEEK_MIN_WIDTH);
@@ -77,12 +78,12 @@ export function TasksSection({ supervisor = false }: { supervisor?: boolean } = 
   const [users, setUsers] = useState<UserDTO[]>([]);
 
   // Filters
-  const [projectId, setProjectId] = useState<number | ''>('');
-  const [assigneeId, setAssigneeId] = useState<number | '' | 'none'>('');
-  const [status, setStatus] = useState<'' | TaskStatus>('');
-  const [showClosed, setShowClosed] = useState(false);
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [projectId, setProjectId] = useProjectFilter<number | ''>('', true);
+  const [assigneeId, setAssigneeId] = useScreenState<number | '' | 'none'>('responsable', '');
+  const [status, setStatus] = useScreenState<'' | TaskStatus>('estado', '');
+  const [showClosed, setShowClosed] = useScreenState('cerradas', false);
+  const [search, setSearch] = useScreenState('q', '');
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
 
   // Interaction
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -119,6 +120,11 @@ export function TasksSection({ supervisor = false }: { supervisor?: boolean } = 
   const [formOpen, setFormOpen] = useState(false);
   const [formTask, setFormTask] = useState<TaskResponse | null>(null);
   const [openTask, setOpenTask] = useState<TaskResponse | null>(null);
+  const workspace = useWorkspace();
+  const hasWorkspace = workspace !== null;
+  const [openId, setOpenId] = useScreenState<number | null>('registro', null, 'push');
+  const [recordError, setRecordError] = useState(false);
+  const closeWindow = () => { setOpenTask(null); setOpenId(null); };
   const [completeTask, setCompleteTask] = useState<TaskResponse | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<TaskResponse | null>(null);
 
@@ -127,6 +133,17 @@ export function TasksSection({ supervisor = false }: { supervisor?: boolean } = 
     canEdit: !supervisor,
     canDelete: !supervisor,
   };
+
+  useEffect(() => {
+    if (!hasWorkspace) return;
+    if (openId == null) { setOpenTask(null); return; }
+    let cancelled = false;
+    setRecordError(false);
+    (supervisor ? getSupervisorTask(openId) : getTask(openId)).then(task => {
+      if (!cancelled) setOpenTask(task);
+    }).catch(() => { if (!cancelled) { setOpenTask(null); setRecordError(true); } });
+    return () => { cancelled = true; };
+  }, [openId, hasWorkspace, supervisor]);
 
   const searchTimer = useRef<ReturnType<typeof setTimeout>>();
   useEffect(() => {
@@ -265,9 +282,10 @@ export function TasksSection({ supervisor = false }: { supervisor?: boolean } = 
 
   const openWindow = useCallback((task: TaskResponse) => {
     setOpenTask(task);
+    setOpenId(task.id);
     // The list rows are cheap; the window shows counts, so re-read the task.
-    refreshRow(task.id);
-  }, [refreshRow]);
+    if (!hasWorkspace) refreshRow(task.id);
+  }, [refreshRow, setOpenId, hasWorkspace]);
 
   /** J / K / → / A / Enter / N / — the bar at the foot of the list is their documentation. */
   useEffect(() => {
@@ -316,6 +334,9 @@ export function TasksSection({ supervisor = false }: { supervisor?: boolean } = 
   return (
     <>
       <div className="space-y-3.5">
+        {recordError && openId != null && <div role="alert" className="border border-[#DBD0BB] bg-white p-4 text-sm">
+          {t('common:workspace.recordUnavailable')} <button type="button" className="underline ml-3" onClick={closeWindow}>{t('common:workspace.backToList')}</button>
+        </div>}
         {/* ── Header ──────────────────────────────────────────────────── */}
         <div className="flex items-end justify-between gap-5 flex-wrap" data-tour="sec.schedules.header">
           <div>
@@ -380,7 +401,8 @@ export function TasksSection({ supervisor = false }: { supervisor?: boolean } = 
               <Mono className="text-[9.5px] tracking-[0.08em] text-[#A69C8D]">{t('tasks:filter.supervisorNote')}</Mono>
             ) : (
               <>
-                {/* Chips on desktop, a select below it: the same order and the same counts. */}
+                {!hasWorkspace && <>
+                {/* Standalone fallback; workspaces use the shared header picker. */}
                 <div className="hidden xl:flex items-center gap-[7px] flex-wrap">
                   <ProjectChip
                     active={projectId === ''}
@@ -405,6 +427,7 @@ export function TasksSection({ supervisor = false }: { supervisor?: boolean } = 
                   <option value="">{t('tasks:filter.projects')}</option>
                   {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </MonoSelect>
+                </>}
                 <MonoSelect
                   value={assigneeId}
                   onChange={e => setAssigneeId(e.target.value === 'none' ? 'none' : e.target.value ? Number(e.target.value) : '')}
@@ -538,13 +561,13 @@ export function TasksSection({ supervisor = false }: { supervisor?: boolean } = 
       )}
       <TaskWindow
         open={openTask != null}
-        onOpenChange={open => { if (!open) setOpenTask(null); }}
+        onOpenChange={open => { if (!open) closeWindow(); }}
         task={openTask}
         lang={lang}
         supervisor={supervisor}
-        onAdvance={() => { if (openTask) { setOpenTask(null); advance(openTask); } }}
-        onEdit={() => { if (openTask) { setFormTask(openTask); setOpenTask(null); setFormOpen(true); } }}
-        onDelete={() => { if (openTask) { setDeleteTarget(openTask); setOpenTask(null); } }}
+        onAdvance={() => { if (openTask) { closeWindow(); advance(openTask); } }}
+        onEdit={() => { if (openTask) { setFormTask(openTask); closeWindow(); setFormOpen(true); } }}
+        onDelete={() => { if (openTask) { setDeleteTarget(openTask); closeWindow(); } }}
         onChanged={() => { if (openTask) refreshRow(openTask.id); }}
       />
       <ConfirmCompleteModal

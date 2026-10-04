@@ -1,3 +1,4 @@
+import { useScreenState } from '../../workspace/WorkspaceState';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { RefreshCw, Search } from 'lucide-react';
@@ -44,12 +45,12 @@ export function InvoicesTab({ summary, summaryState, refData, onReview, onPay, f
   const [error, setError] = useState<string | null>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
 
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [search, setSearch] = useScreenState('q-facturas', '');
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
   const [subFilter, setSubFilter] = useState<number | ''>('');
-  const [statusFilter, setStatusFilter] = useState<'' | InvoiceStatus>('');
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(20);
+  const [statusFilter, setStatusFilter] = useScreenState<'' | InvoiceStatus>('estado-facturas', '');
+  const [page, setPage] = useScreenState('pagina-facturas', 0);
+  const [pageSize, setPageSize] = useScreenState('tamano-facturas', 20);
   const [totalElements, setTotalElements] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 

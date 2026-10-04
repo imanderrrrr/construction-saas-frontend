@@ -1,3 +1,4 @@
+import { useScreenState } from '../../workspace/WorkspaceState';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, ArrowRight, MoreHorizontal, UserPlus } from 'lucide-react';
@@ -47,7 +48,7 @@ const PLAN_TABS: FichaTab[] = ['pendientes', 'consultas', 'portal'];
 const MENU_ITEM = 'rounded-none font-bt-mono text-[10px] font-semibold uppercase tracking-[0.1em] px-3.5 py-2.5 cursor-pointer focus:bg-[#F3EEE4]';
 
 export function ProjectFicha({
-  project, allUsers, usersLoading, onBack, onAssign, onToggleStatus, onCloseProject, onDelete, onEdit, onPlans, initialTab = 'resumen',
+  project, allUsers, usersLoading, onBack, onAssign, onToggleStatus, onCloseProject, onDelete, onEdit, onPlans, onNavigate, initialTab = 'resumen',
 }: {
   project: Project;
   allUsers: UserForAssign[];
@@ -60,11 +61,12 @@ export function ProjectFicha({
   onEdit: () => void;
   /** "Ver planes →" on the padlocked tabs; absent = no link. */
   onPlans?: () => void;
+  onNavigate?: (section: string) => void;
   initialTab?: FichaTab;
 }) {
   const { t, i18n } = useTranslation(['admin', 'common']);
   const lang = i18n.language;
-  const [tab, setTab] = useState<FichaTab>(initialTab);
+  const [tab, setTab] = useScreenState<FichaTab>('pestana', initialTab, 'replace', ['resumen', 'dinero', 'equipo', 'pendientes', 'consultas', 'portal']);
 
   const closed = isProjectClosed(project);
   const incomplete = !closed && isIncomplete(project);
@@ -313,6 +315,13 @@ export function ProjectFicha({
           <span className="text-[#0A0A0A] group-hover:text-[#C2410C] truncate">{project.name}</span>
         </button>
       </nav>
+      {onNavigate && <div className="flex flex-wrap items-center gap-2 mb-4" aria-label={t('common:workspace.projectActions')}>
+        {['schedules', 'budgets', 'expenses', 'accounts-receivable', 'tm-field'].map(section => (
+          <button key={section} type="button" onClick={() => onNavigate(section)} className={cn('px-3 py-2 text-sm border border-[#DBD0BB] hover:bg-[#FAF7F0] text-[#5A5346]', FOCUS_RING)}>
+            {t(section === 'tm-field' ? 'tm:nav.field' : `admin:nav.${section === 'accounts-receivable' ? 'accountsReceivable' : section}`)}
+          </button>
+        ))}
+      </div>}
 
       {/* Ink bar */}
       <div data-tour="sec.projects-ficha-resumen.bar">

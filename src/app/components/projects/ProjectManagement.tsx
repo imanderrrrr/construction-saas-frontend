@@ -1,3 +1,4 @@
+import { useScreenState, useWorkspace } from '../../workspace/WorkspaceState';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, ChevronLeft, ChevronRight, MoreVertical, Plus, RefreshCw, Search } from 'lucide-react';
@@ -67,6 +68,11 @@ export function ProjectManagement({ onNavigate }: { onNavigate?: (section: 'bill
   const [projects, setProjects] = useState<Project[]>([]);
   const [view, setView] = useState<ProjectView>('list');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const workspace = useWorkspace();
+  const hasWorkspace = workspace !== null;
+  const [recordId, setRecordId] = useScreenState<number | null>('registro', null, 'push');
+  const [recordError, setRecordError] = useState(false);
+  const [recordRetry, setRecordRetry] = useState(0);
 
   // Loading & error
   const [loading, setLoading] = useState(true);
@@ -80,12 +86,12 @@ export function ProjectManagement({ onNavigate }: { onNavigate?: (section: 'bill
   useEffect(() => { clearSectionIntent('projects'); }, []);
 
   // Filters
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'' | ProjectStatus>('');
-  const [clientFilter, setClientFilter] = useState<number | ''>(intent?.clientId ?? '');
-  const [recordFilter, setRecordFilter] = useState<RecordFilter>('');
-  const [pageSize, setPageSize] = useState<number>(20);
-  const [currentPage, setCurrentPage] = useState(0); // 0-based for backend
+  const [search, setSearch] = useScreenState('q', '');
+  const [statusFilter, setStatusFilter] = useScreenState<'' | ProjectStatus>('estado', '');
+  const [clientFilter, setClientFilter] = useScreenState<number | ''>('cliente', intent?.clientId ?? '');
+  const [recordFilter, setRecordFilter] = useScreenState<RecordFilter>('ficha', '');
+  const [pageSize, setPageSize] = useScreenState<number>('tamano', 20);
+  const [currentPage, setCurrentPage] = useScreenState('pagina', 0); // 0-based for backend
   const [totalElements, setTotalElements] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -109,16 +115,17 @@ export function ProjectManagement({ onNavigate }: { onNavigate?: (section: 'bill
 
   // Debounce search
   const searchTimerRef = useRef<ReturnType<typeof setTimeout>>();
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
 
   useEffect(() => {
+    if (search === debouncedSearch) return;
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     searchTimerRef.current = setTimeout(() => {
       setDebouncedSearch(search);
       setCurrentPage(0);
     }, 350);
     return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
-  }, [search]);
+  }, [search, debouncedSearch]);
 
   const fetchProjects = useCallback(async () => {
     setLoading(true);
@@ -151,14 +158,15 @@ export function ProjectManagement({ onNavigate }: { onNavigate?: (section: 'bill
 
   // The client ficha can also point at one jobsite: open its ficha straight away.
   useEffect(() => {
-    const id = intent?.openProjectId;
-    if (id == null) return;
+    const id = workspace ? recordId : intent?.openProjectId;
+    if (id == null) { setView('list'); return; }
     let cancelled = false;
+    setRecordError(false);
     apiGetProject(id)
       .then(p => { if (!cancelled) { setSelectedProject(toProject(p)); setView('details'); } })
-      .catch(() => { /* the filtered list is still the right place to land */ });
+      .catch(() => { if (!cancelled) { setSelectedProject(null); setRecordError(true); } });
     return () => { cancelled = true; };
-  }, [intent]);
+  }, [recordId, intent, hasWorkspace, recordRetry]); // eslint-disable-line react-hooks/exhaustive-deps -- only record identity triggers a read
 
   /** The counts change whenever a project does; cheap enough to refetch with the list. */
   const fetchSummary = useCallback(() => {
@@ -188,8 +196,8 @@ export function ProjectManagement({ onNavigate }: { onNavigate?: (section: 'bill
     return () => { cancelled = true; };
   }, []);
 
-  const handleViewDetails = (p: Project) => { setSelectedProject(p); setView('details'); };
-  const handleBackToList = () => { setView('list'); setSelectedProject(null); };
+  const handleViewDetails = (p: Project) => { setSelectedProject(p); setView('details'); setRecordId(p.id); workspace?.write('obra', p.id, 'replace'); };
+  const handleBackToList = () => { setView('list'); setSelectedProject(null); setRecordId(null); };
 
   const handleProjectSaved = useCallback((resp: ProjectResponse) => {
     const updated = toProject(resp);
@@ -217,10 +225,10 @@ export function ProjectManagement({ onNavigate }: { onNavigate?: (section: 'bill
   const openDeleteProject = useCallback((p: Project) => { setSelectedProject(p); setDeleteProjectOpen(true); }, []);
 
   const handleProjectDeleted = useCallback((projectId: number) => {
-    if (selectedProject?.id === projectId) { setSelectedProject(null); setView('list'); }
+    if (selectedProject?.id === projectId) { setSelectedProject(null); setView('list'); setRecordId(null); }
     fetchProjects();
     fetchSummary();
-  }, [selectedProject, fetchProjects, fetchSummary]);
+  }, [selectedProject, fetchProjects, fetchSummary, setRecordId]);
 
   const hasFilters = !!(search || statusFilter || clientFilter !== '' || recordFilter);
   const clearFilters = () => { setSearch(''); setStatusFilter(''); setClientFilter(''); setRecordFilter(''); setCurrentPage(0); };
@@ -234,6 +242,13 @@ export function ProjectManagement({ onNavigate }: { onNavigate?: (section: 'bill
   const today = useMemo(() => stampDay(businessToday(), lang), [lang]);
 
   // Details view
+  if (workspace && recordId != null && (recordError || selectedProject?.id !== recordId)) {
+    return <div className="space-y-4" role={recordError ? 'alert' : 'status'}>
+      <p>{t(recordError ? 'common:workspace.recordUnavailable' : 'common:workspace.loadingRecord')}</p>
+      <button type="button" className="underline" onClick={handleBackToList}>{t('common:workspace.backToList')}</button>
+      {recordError && <button type="button" className="ml-4 underline" onClick={() => setRecordRetry(v => v + 1)}>{t('common:buttons.retry')}</button>}
+    </div>;
+  }
   if (view === 'details' && selectedProject) {
     return (
       <>
@@ -248,6 +263,7 @@ export function ProjectManagement({ onNavigate }: { onNavigate?: (section: 'bill
           onDelete={() => setDeleteProjectOpen(true)}
           onEdit={() => setEditOpen(true)}
           onPlans={onNavigate ? () => onNavigate('billing') : undefined}
+          onNavigate={section => workspace?.navigateSection(section, { obra: selectedProject.id, registro: null, pagina: null })}
         />
         {editOpen && (
           <ProjectWindow onClose={() => setEditOpen(false)} onSaved={handleProjectSaved} editProject={selectedProject} />

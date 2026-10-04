@@ -1,3 +1,4 @@
+import { useScreenState, useProjectFilter, useWorkspace } from '../workspace/WorkspaceState';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -43,6 +44,7 @@ const ITEMS_PER_PAGE = 10;
 
 export function AccountsPayable() {
   const { t, i18n } = useTranslation('finance');
+  const workspace = useWorkspace();
   const dateLoc = i18n.language === 'es' ? 'es' : 'en-US';
   // Current accounting month for the "Paid this month" KPI, locale-aware (e.g. "Jul 2026" / "jul 2026").
   const paidMonthLabel = currentMonthLabel(dateLoc);
@@ -52,9 +54,9 @@ export function AccountsPayable() {
   const [loadError, setLoadError] = useState(false);
   // AP Block 6 — clicking a row opens the full detail modal; the bill shown is
   // derived from [bills] by id so every action keeps the detail fresh.
-  const [detailId, setDetailId] = useState<number | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [showVendorSummary, setShowVendorSummary] = useState(false);
+  const [detailId, setDetailId] = useScreenState<number | null>('registro', null, 'push');
+  const [currentPage, setCurrentPage] = useScreenState('pagina', 1);
+  const [showVendorSummary, setShowVendorSummary] = useScreenState('proveedores', false);
   const [vendors, setVendors] = useState<string[]>([]);
   const [projects, setProjects] = useState<{ id: number; name: string; remainingBudgetCents: number | null }[]>([]);
 
@@ -81,10 +83,10 @@ export function AccountsPayable() {
   }, [fetchBills]);
 
   // Filters
-  const [filterVendor, setFilterVendor] = useState('all');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [filterCategory, setFilterCategory] = useState('all');
-  const [filterProject, setFilterProject] = useState('all'); // AP Block 4 — project id as string
+  const [filterVendor, setFilterVendor] = useScreenState('proveedor', 'all');
+  const [filterStatus, setFilterStatus] = useScreenState('estado', 'all');
+  const [filterCategory, setFilterCategory] = useScreenState('categoria', 'all');
+  const [filterProject, setFilterProject] = useProjectFilter<string>('all'); // AP Block 4 — project id as string
 
   // Submitting state
   const [submitting, setSubmitting] = useState(false);
@@ -655,6 +657,7 @@ export function AccountsPayable() {
       } />
 
       {/* KPI cards — computed from state */}
+      <p className="text-sm text-[#8A8175]">{t('common:workspace.companySummary')}</p>
       <div className="grid grid-cols-2 xl:grid-cols-4 bg-white border border-[#E7E1D5]" data-tour="sec.accounts-payable.kpis">
         <AccountingFigure title={t('payable.kpi.totalPayable')} value={fmtAmount(kpis.totalPayable)} subtitle={t('payable.kpi.allInvoices')} isLoading={loading} isError={loadError} />
         <AccountingFigure title={t('payable.kpi.paidThisMonth')} value={fmtAmount(kpis.paidThisMonth)} subtitle={paidMonthLabel} tone="green" isLoading={loading} isError={loadError} />
@@ -679,7 +682,7 @@ export function AccountsPayable() {
               </SelectContent>
             </Select>
           </div>
-          <div>
+          {!workspace && <div>
             <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('labels.project', { ns: 'common' })}</label>
             <Select value={filterProject} onValueChange={v => { setFilterProject(v); setCurrentPage(1); }}>
               <SelectTrigger className="rounded-none bg-[#FAF7F0] font-bt-mono text-[11px] h-9 text-sm border-[#E7E1D5]"><SelectValue /></SelectTrigger>
@@ -688,7 +691,7 @@ export function AccountsPayable() {
                 {projects.map(p => <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>)}
               </SelectContent>
             </Select>
-          </div>
+          </div>}
           <div>
             <label className="font-bt-mono text-[10px] font-semibold text-[#8A8175] uppercase tracking-wide mb-1 block">{t('labels.status', { ns: 'common' })}</label>
             <Select value={filterStatus} onValueChange={v => { setFilterStatus(v); setCurrentPage(1); }}>

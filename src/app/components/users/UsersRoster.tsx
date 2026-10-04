@@ -1,3 +1,4 @@
+import { useScreenState } from '../../workspace/WorkspaceState';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, ChevronLeft, ChevronRight, Plus, QrCode, Search } from 'lucide-react';
@@ -38,10 +39,10 @@ export function UsersRoster() {
   const lang = i18n.language;
   const me = AuthService.getUsername();
 
-  const [filters, setFilters] = useState<Filters>(EMPTY);
-  const [debouncedQ, setDebouncedQ] = useState('');
-  const [page, setPage] = useState(0);
-  const [size, setSize] = useState<number>(20);
+  const [filters, setFilters] = useScreenState<Filters>('filtros', EMPTY);
+  const [debouncedQ, setDebouncedQ] = useState(filters.q);
+  const [page, setPage] = useScreenState('pagina', 0);
+  const [size, setSize] = useScreenState<number>('tamano', 20);
   const [rows, setRows] = useState<UserDTO[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -54,9 +55,10 @@ export function UsersRoster() {
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
+    if (filters.q === debouncedQ) return;
     const id = setTimeout(() => { setDebouncedQ(filters.q); setPage(0); }, 300);
     return () => clearTimeout(id);
-  }, [filters.q]);
+  }, [filters.q, debouncedQ]);
 
   const load = useCallback(async () => {
     setLoading(true); setError(false);

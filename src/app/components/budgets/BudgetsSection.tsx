@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useScreenState, useProjectFilter, useWorkspace } from '../../workspace/WorkspaceState';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { ChevronDown, Search } from 'lucide-react';
@@ -84,6 +85,9 @@ export function BudgetsSection({ readOnly = false, onNavigate }: {
 } = {}) {
   const { t, i18n } = useTranslation(['admin', 'common']);
   const lang = i18n.language;
+  const workspace = useWorkspace();
+  const [projectId] = useProjectFilter<number | null>(null, true);
+  const [clientId] = useScreenState<number | 'all'>('cliente', 'all');
   const [initialIntent] = useState(() => peekSectionIntent('budgets'));
   useEffect(() => { clearSectionIntent('budgets'); }, []);
 
@@ -93,16 +97,20 @@ export function BudgetsSection({ readOnly = false, onNavigate }: {
   const [progress, setProgress] = useState<{ loaded: number; total: number } | null>(null);
   const [tenant, setTenant] = useState<string | null>(null);
 
-  const [view, setView] = useState<View>('works');
-  const [filters, setFilters] = useState<Filters>(() => ({ ...EMPTY_FILTERS, clientId: initialIntent?.clientId ?? 'all' }));
+  const [view, setView] = useScreenState<View>('vista', 'works', 'replace', ['works', 'report']);
+  const [filters, setFilters] = useScreenState<Filters>('filtros', () => ({ ...EMPTY_FILTERS, clientId: initialIntent?.clientId ?? 'all' }));
   // One sort per view. Switching does not carry it across; coming back finds
   // the one that was left behind.
-  const [worksSort, setWorksSort] = useState<WorksSort>('execution');
-  const [reportSort, setReportSort] = useState<ReportSort>('outstanding');
+  const [worksSort, setWorksSort] = useScreenState<WorksSort>('orden-obras', 'execution', 'replace', ['execution', 'margin', 'contract', 'name']);
+  const [reportSort, setReportSort] = useScreenState<ReportSort>('orden-informe', 'outstanding', 'replace', ['outstanding', 'consumed', 'contract', 'name']);
 
-  const [screen, setScreen] = useState<Screen>({ kind: 'list' });
-  const [detail, setDetail] = useState<BudgetRow | null>(null);
-  const requestedProject = useRef(initialIntent?.openProjectId ?? null);
+  const [historyId, setHistoryId] = useScreenState<number | null>('historial', null, 'push');
+  const [detailId, setDetailId] = useScreenState<number | null>('registro', initialIntent?.openProjectId ?? null, 'push');
+  const historyRow = rows.find(row => row.id === historyId);
+  const screen: Screen = historyRow ? { kind: 'history', row: historyRow } : { kind: 'list' };
+  const setScreen = (next: Screen) => setHistoryId(next.kind === 'history' ? next.row.id : null);
+  const detail = rows.find(row => row.id === detailId) ?? null;
+  const setDetail = (row: BudgetRow | null) => setDetailId(row?.id ?? null);
   const [adjust, setAdjust] = useState<BudgetRow | null>(null);
   const [closing, setClosing] = useState<BudgetRow | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -135,10 +143,6 @@ export function BudgetsSection({ readOnly = false, onNavigate }: {
       });
       const nextRows = all.filter(isBudgeted).map(toRow);
       setRows(nextRows);
-      if (requestedProject.current != null) {
-        setDetail(nextRows.find(row => row.id === requestedProject.current && row.clientId === initialIntent?.clientId) ?? null);
-        requestedProject.current = null;
-      }
     } catch (err) {
       // A banner that stays, never a toast: a toast fades and leaves an empty
       // table that reads as "you have no jobsites". The figures fall to an em
@@ -152,7 +156,7 @@ export function BudgetsSection({ readOnly = false, onNavigate }: {
     } finally {
       setLoading(false);
     }
-  }, [readOnly, initialIntent]);
+  }, [readOnly]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -191,7 +195,7 @@ export function BudgetsSection({ readOnly = false, onNavigate }: {
     if (view === 'report' && !loading && failure == null) loadSplit(consumedByProject);
   }, [view, loading, failure, loadSplit, consumedByProject]);
 
-  const filtered = useMemo(() => applyFilters(rows, filters), [rows, filters]);
+  const filtered = useMemo(() => applyFilters(projectId == null ? rows : rows.filter(row => row.id === projectId), workspace && clientId !== 'all' ? { ...filters, clientId } : filters), [rows, filters, projectId, clientId, workspace]);
   const worksRows = useMemo(() => sortWorks(filtered, worksSort), [filtered, worksSort]);
   const reportRows = useMemo(() => sortReport(filtered, reportSort), [filtered, reportSort]);
   const works = useMemo(() => worksTotals(filtered), [filtered]);
@@ -203,6 +207,9 @@ export function BudgetsSection({ readOnly = false, onNavigate }: {
   const openDetail = (row: BudgetRow) => setDetail(row);
   const refresh = () => { void load(); };
 
+  if (!loading && !failure && (detailId != null && !detail || historyId != null && !historyRow)) {
+    return <div role="alert" className="space-y-4"><p>{t('common:workspace.recordUnavailable')}</p><button type="button" className="underline" onClick={() => { setDetailId(null); setHistoryId(null); }}>{t('common:workspace.backToList')}</button></div>;
+  }
   if (screen.kind === 'history') {
     return <HistoryView row={screen.row} readOnly={readOnly} onBack={() => setScreen({ kind: 'list' })} />;
   }

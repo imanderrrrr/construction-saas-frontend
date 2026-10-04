@@ -1,26 +1,14 @@
-﻿import { useState, useEffect, useRef, lazy, Suspense, Component, type ComponentType, type ReactNode } from 'react';
+import { useState, lazy, Suspense, Component, type ComponentType, type ReactNode } from 'react';
 import { useMarkDashboardReady } from '../lib/dashboardReady';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { AuthService } from '../services/auth';
-import { Button } from '../components/ui/button';
-import { LanguageSwitcher } from '../components/LanguageSwitcher';
-import { AccountDrawer } from '../components/account/AccountDrawer';
-import {
-  Building2, LayoutDashboard, Users, FolderOpen,
-  Shield, LogOut, User, Menu, X,
-  Clock, CalendarClock, ClipboardList, Receipt, FileBarChart,
-  Wallet, Wrench, Banknote, HardHat,
-  ArrowDownToLine, ArrowUpFromLine, UserRound, Briefcase,
-  CreditCard, FileSignature, HelpCircle, Star, PenLine,
-} from 'lucide-react';
+
+import { Building2, LayoutDashboard, Users, FolderOpen, Shield, Clock, CalendarClock, ClipboardList, Receipt, FileBarChart, Wallet, Wrench, Banknote, HardHat, ArrowDownToLine, ArrowUpFromLine, UserRound, Briefcase, CreditCard, FileSignature, HelpCircle, PenLine } from 'lucide-react';
 import { OnboardingTour } from '../components/onboarding/OnboardingTour';
 import { SectionTour } from '../components/onboarding/SectionTour';
 import { BillingSection } from '../components/BillingSection';
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
-} from '../components/ui/dropdown-menu';
+
 import { DashboardContent } from '../components/DashboardContent';
 import { UsersRoster } from '../components/users/UsersRoster';
 import { ProjectManagement } from '../components/ProjectManagement';
@@ -28,7 +16,8 @@ import { AuditLog } from '../components/AuditLog';
 import { ApprovalsInbox } from '../components/approvals/ApprovalsInbox';
 import { ClientsSection } from '../components/clients/ClientsSection';
 import { Toaster } from '../components/ui/sonner';
-import { TimezoneSwitcher } from '../components/TimezoneSwitcher';
+import { AppShell } from '../components/AppShell';
+import { useSectionNavigation } from '../workspace/WorkspaceState';
 
 // Error boundary for lazy-loaded sections — prevents white screen on chunk load failure
 class SectionErrorBoundary extends Component<
@@ -245,14 +234,6 @@ const NAV_FINANCE: NavItem[] = [
 /** Flat list used for lookups (section meta, rendering content, etc.) */
 const NAV_ITEMS: NavItem[] = [...NAV_GENERAL, ...NAV_PERSONNEL, ...NAV_PROJECTS, ...NAV_FINANCE];
 
-// Industrial chassis — keep in sync with components/AppShell.tsx and
-// pages/WarehouseDashboard.tsx (same markup, maintained by hand).
-const GRID_INK: React.CSSProperties = {
-  backgroundImage:
-    'linear-gradient(rgba(245,241,232,0.055) 1px, transparent 1px), linear-gradient(90deg, rgba(245,241,232,0.055) 1px, transparent 1px)',
-  backgroundSize: '24px 24px',
-};
-
 const SECTION_META: Record<ActiveSection, { titleKey: string; subtitleKey: string }> = {
   'dashboard':       { titleKey: 'admin:section.dashboard.title',       subtitleKey: 'admin:section.dashboard.subtitle'       },
   'users':           { titleKey: 'admin:section.users.title',           subtitleKey: 'admin:section.users.subtitle'           },
@@ -280,326 +261,44 @@ const SECTION_META: Record<ActiveSection, { titleKey: string; subtitleKey: strin
   'tm-office':            { titleKey: 'tm:section.office.title',                   subtitleKey: 'tm:section.office.subtitle'                  },
 };
 
-export function AdminDashboard() {
-  // The welcome overlay fades once this page is on screen (lib/dashboardReady).
+export function AdminDashboard({ initialSection = 'dashboard' }: { initialSection?: ActiveSection } = {}) {
   useMarkDashboardReady();
   const navigate = useNavigate();
   const { t } = useTranslation(['admin', 'common', 'tm']);
-  const username = AuthService.getUsername();
-  const [activeSection, setActiveSection] = useState<ActiveSection>('dashboard');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [accountOpen, setAccountOpen] = useState(false);
+  const username = AuthService.getUsername() ?? 'admin';
+  const [activeSection, handleNavigate] = useSectionNavigation('ADMIN', initialSection);
   const [tourReplay, setTourReplay] = useState(0);
   const [introReplay, setIntroReplay] = useState(0);
-
-  // Pinned nav sections, per user, first-pinned first. They render in a
-  // FAVORITES group on top of the menu and stay in their original group too.
-  const favStorageKey = `bt.navfavs.${username ?? 'anon'}`;
-  const [favorites, setFavorites] = useState<string[]>(() => {
-    try {
-      const raw = JSON.parse(localStorage.getItem(favStorageKey) ?? '[]');
-      if (!Array.isArray(raw)) return [];
-      return migrateFavorites(raw.filter((k): k is string => typeof k === 'string'));
-    } catch { return []; }
+  const handleLogout = () => { document.cookie = 'ofjr_session=; Path=/; Max-Age=0'; navigate('/'); void AuthService.logout(); };
+  const areaFor: Record<string, string> = {
+    projects: 'works', clients: 'works', subcontractors: 'works', schedules: 'works', 'tm-field': 'works',
+    users: 'team', 'time-approvals': 'team',
+    'accounts-receivable': 'finance', 'accounts-payable': 'finance', expenses: 'finance', 'office-expenses': 'finance', budgets: 'finance', 'labor-payroll': 'finance', 'tm-office': 'finance',
+    'tool-inventory': 'inventory', hours: 'reports', 'labor-cost': 'reports', 'expense-report': 'reports', 'tool-report': 'reports',
+    'invoice-branding': 'settings', billing: 'settings', audit: 'settings',
+  };
+  const order = ['dashboard', 'projects', 'clients', 'subcontractors', 'schedules', 'tm-field', 'users', 'time-approvals',
+    'accounts-receivable', 'accounts-payable', 'expenses', 'office-expenses', 'budgets', 'labor-payroll', 'tm-office',
+    'tool-inventory', 'hours', 'labor-cost', 'expense-report', 'tool-report', 'invoice-branding', 'billing', 'audit'];
+  const navItems = order.flatMap(key => {
+    const item = NAV_ITEMS.find(i => i.key === key);
+    return item ? [{ key, label: key === 'dashboard' ? t('common:workspace.home') : t(item.labelKey), icon: item.icon, group: areaFor[key],
+      parent: key === 'office-expenses' ? 'expenses' : key === 'tm-office' ? 'accounts-receivable' : undefined }] : [];
   });
-  const toggleFavorite = (key: string) => {
-    setFavorites(prev => {
-      const next = prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key];
-      try { localStorage.setItem(favStorageKey, JSON.stringify(next)); } catch { /* private mode */ }
-      return next;
-    });
-  };
-  const favoriteItems = favorites
-    .map(key => NAV_ITEMS.find(i => i.key === key))
-    .filter((i): i is NavItem => Boolean(i));
-  const navScrollPos = useRef(0);
-
-  // Lock body scroll when mobile sidebar is open
-  useEffect(() => {
-    if (sidebarOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => { document.body.style.overflow = ''; };
-  }, [sidebarOpen]);
-
-  const handleLogout = () => {
-    document.cookie = 'ofjr_session=; Path=/; Max-Age=0';
-    navigate('/');
-    AuthService.logout(); // fire-and-forget server revocation
-  };
-
-  const handleNavigate = (section: string) => {
-    setActiveSection((section === 'invoices' ? 'accounts-receivable' : section) as ActiveSection);
-    setSidebarOpen(false);
-  };
-
+  const navGroups = [
+    { key: 'works', label: t('common:workspace.works'), icon: FolderOpen },
+    { key: 'team', label: t('common:workspace.team'), icon: Users },
+    { key: 'finance', label: t('common:workspace.finance'), icon: Wallet },
+    { key: 'inventory', label: t('common:workspace.inventory'), icon: Wrench },
+    { key: 'reports', label: t('common:workspace.reports'), icon: FileBarChart },
+    { key: 'settings', label: t('common:workspace.settings'), icon: Shield, footer: true },
+  ];
   const meta = SECTION_META[activeSection];
-
-  // Sidebar nav item
-  function NavItem({ item }: { item: typeof NAV_ITEMS[number] }) {
-    // Route-link items (item.to set) are never "active" within the dashboard —
-    // clicking them leaves AdminDashboard for a different route.
-    const isActive = !item.to && activeSection === item.key;
-    const handleClick = () => {
-      if (item.to) {
-        setSidebarOpen(false);
-        navigate(item.to);
-      } else {
-        handleNavigate(item.key);
-      }
-    };
-    return (
-      <button
-        onClick={handleClick}
-        data-tour={item.key}
-        className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-colors group font-bt-mono text-[10.5px] font-medium uppercase tracking-[0.07em] ${
-          isActive
-            ? 'bg-[#0A0A0A] text-[#F5F1E8]'
-            : 'text-[#5A5346] hover:bg-[#F3EEE4] hover:text-[#0A0A0A]'
-        }`}
-      >
-        <item.icon className="flex-shrink-0" style={{ width: 15, height: 15 }} />
-        <span className={`flex-1 ${isActive ? 'font-semibold' : ''}`}>
-          {t(item.labelKey)}
-        </span>
-        {item.badgeKey && (
-          <span className="font-bt-mono text-[8.5px] font-bold uppercase tracking-[0.05em] px-1.5 py-0.5 bg-[#F97316] text-[#0A0A0A]">
-            {t(item.badgeKey)}
-          </span>
-        )}
-        {/* Favorite pin: hover-revealed; filled + always visible when pinned.
-            A span (not a nested button) — the row itself is already a button. */}
-        <span
-          role="button"
-          aria-label={t(favorites.includes(item.key) ? 'admin:nav.unpinFavorite' : 'admin:nav.pinFavorite')}
-          title={t(favorites.includes(item.key) ? 'admin:nav.unpinFavorite' : 'admin:nav.pinFavorite')}
-          onClick={(e) => { e.stopPropagation(); toggleFavorite(item.key); }}
-          className={`flex-shrink-0 transition-opacity ${
-            favorites.includes(item.key)
-              ? 'opacity-100 text-[#F97316]'
-              : 'opacity-0 group-hover:opacity-100 text-[#A69C8D] hover:text-[#F97316]'
-          }`}
-        >
-          <Star className="w-3.5 h-3.5" fill={favorites.includes(item.key) ? 'currentColor' : 'none'} />
-        </span>
-        {isActive && (
-          <span className="w-1.5 h-1.5 bg-[#F97316] flex-shrink-0" />
-        )}
-      </button>
-    );
-  }
-
-  // Sidebar content
-  function SidebarContent() {
-    return (
-      <>
-        {/* Brand plate */}
-        <div className="px-4 py-4 bg-[#0A0A0A] flex-shrink-0" style={GRID_INK}>
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-[#F97316] flex items-center justify-center flex-shrink-0">
-              <Building2 className="w-5 h-5 text-[#0A0A0A]" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="font-bt-display font-bold uppercase text-[16px] leading-none text-[#F5F1E8] truncate">{t('common:brand')}</h1>
-              <p className="font-bt-mono text-[8.5px] uppercase tracking-[0.16em] text-[#B4A992] mt-1 truncate">{t('admin:panelLabel')}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Navigation */}
-        <nav
-          data-tour="favorites"
-          className="flex-1 p-3 space-y-0.5 overflow-y-auto min-h-0"
-          ref={(el) => { if (el) el.scrollTop = navScrollPos.current; }}
-          onScroll={(e) => { navScrollPos.current = e.currentTarget.scrollTop; }}
-        >
-          {/* Favorites — pinned on top, in pin order. Hidden while empty. */}
-          {favoriteItems.length > 0 && (
-            <>
-              <p className="font-bt-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-[#A69C8D] px-3 py-2">
-                {t('admin:group.favorites')}
-              </p>
-              {favoriteItems.map(item => (
-                <NavItem key={`fav-${item.key}`} item={item} />
-              ))}
-              <div className="my-3 border-t border-[#EDE7DB]" />
-            </>
-          )}
-
-          {/* General */}
-          <p className="font-bt-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-[#A69C8D] px-3 py-2">
-            {t('admin:group.general')}
-          </p>
-          {NAV_GENERAL.map(item => (
-            <NavItem key={item.key} item={item} />
-          ))}
-
-          {/* Personnel */}
-          <div className="my-3 border-t border-[#EDE7DB]" />
-          <p className="font-bt-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-[#A69C8D] px-3 py-2">
-            {t('admin:group.personnel')}
-          </p>
-          {NAV_PERSONNEL.map(item => (
-            <NavItem key={item.key} item={item} />
-          ))}
-
-          {/* Projects */}
-          <div className="my-3 border-t border-[#EDE7DB]" />
-          <p className="font-bt-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-[#A69C8D] px-3 py-2">
-            {t('admin:group.projects')}
-          </p>
-          {NAV_PROJECTS.map(item => (
-            <NavItem key={item.key} item={item} />
-          ))}
-
-          {/* Finance */}
-          <div className="my-3 border-t border-[#EDE7DB]" />
-          <p className="font-bt-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-[#A69C8D] px-3 py-2">
-            {t('admin:group.finance')}
-          </p>
-          {NAV_FINANCE.map(item => (
-            <NavItem key={item.key} item={item} />
-          ))}
-        </nav>
-
-        {/* User footer */}
-        <div className="p-3 border-t border-[#DBD0BB] flex-shrink-0">
-          <div className="flex items-center gap-2.5 p-2">
-            <div className="w-9 h-9 bg-[#0A0A0A] flex items-center justify-center font-bt-mono text-[11px] font-semibold text-[#F97316] flex-shrink-0">
-              {(username ?? 'A').slice(0, 2).toUpperCase()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-bt-mono text-[11px] font-semibold text-[#0A0A0A] truncate">{username}</p>
-              <p className="font-bt-mono text-[8.5px] uppercase tracking-[0.14em] text-[#8A8175] mt-0.5 truncate">{t('common:roles.ADMIN')}</p>
-            </div>
-            <button onClick={handleLogout}
-              className="p-1.5 text-[#8A8175] hover:text-[#C2410C] hover:bg-[#F3EEE4] transition-colors flex-shrink-0"
-              title={t('common:signOut')}>
-              <LogOut className="w-3.5 h-3.5" />
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={() => setAccountOpen(true)}
-            className="w-full flex items-center gap-2 px-2 py-1.5 font-bt-mono text-[9.5px] font-semibold uppercase tracking-[0.12em] text-[#5A5346] hover:text-[#C2410C] hover:bg-[#F3EEE4] transition-colors"
-          >
-            <UserRound className="w-3.5 h-3.5" />{t('common:account')}
-          </button>
-          <div className="px-2 mt-2">
-            <TimezoneSwitcher />
-          </div>
-          <p className="font-bt-mono text-[8px] uppercase tracking-[0.1em] text-[#B4A992] px-2 mt-1.5">{t('admin:sidebar.version')}</p>
-        </div>
-      </>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-[#FAFAFA] flex">
-
-      {/* Desktop sidebar */}
-      <aside className="hidden md:flex w-60 bg-[#FAF7F0] border-r border-[#DBD0BB] flex-col flex-shrink-0 sticky top-0 h-screen overflow-hidden">
-        <SidebarContent />
-      </aside>
-
-      {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-40 md:hidden" style={{ touchAction: 'none', overscrollBehavior: 'contain' }}>
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-[#0A0A0A]/50 backdrop-blur-sm"
-            onClick={() => setSidebarOpen(false)}
-          />
-          {/* Drawer */}
-          <aside className="absolute left-0 top-0 bottom-0 w-72 bg-[#FAF7F0] flex flex-col shadow-2xl">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[#DBD0BB]">
-              <span className="font-bt-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-[#0A0A0A]">{t('admin:sidebar.menu')}</span>
-              <button onClick={() => setSidebarOpen(false)}
-                className="w-8 h-8 flex items-center justify-center text-[#8A8175] hover:bg-[#F3EEE4] hover:text-[#0A0A0A]">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="flex-1 flex flex-col overflow-hidden">
-              <SidebarContent />
-            </div>
-          </aside>
-        </div>
-      )}
-
-      {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0">
-
-        {/* Topbar — identity + context + actions; the content below carries
-            its own display title, so the masthead only whispers where you are. */}
-        <header className="h-14 bg-[#FAF7F0] border-b border-[#0A0A0A] flex items-center justify-between px-4 md:px-6 flex-shrink-0 sticky top-0 z-30">
-          <div className="flex items-center gap-3 min-w-0">
-            {/* Mobile hamburger */}
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="md:hidden w-9 h-9 flex items-center justify-center border border-[#0A0A0A] text-[#0A0A0A] hover:bg-[#F3EEE4] flex-shrink-0"
-            >
-              <Menu className="w-4 h-4" />
-            </button>
-            <h2 className="min-w-0 truncate font-bt-mono text-[10.5px] font-semibold uppercase tracking-[0.14em] text-[#0A0A0A]">
-              <span className="text-[#8A8175] hidden sm:inline">{t('admin:panelLabel')} · </span>{t(meta.titleKey)}
-            </h2>
-          </div>
-
-          <div className="flex items-center gap-2">
-          <button
-            data-tour="help"
-            onClick={() =>
-              activeSection === 'dashboard'
-                ? setTourReplay(n => n + 1)
-                : setIntroReplay(n => n + 1)
-            }
-            title={t('admin:tour.helpButton')}
-            className="w-9 h-9 flex items-center justify-center text-[#8A8175] hover:text-[#C2410C] hover:bg-[#F3EEE4] transition-colors"
-          >
-            <HelpCircle className="w-4 h-4" />
-          </button>
-          <LanguageSwitcher variant="shell" />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-2 h-9 px-2 rounded-none hover:bg-[#F3EEE4]">
-                <div className="w-7 h-7 bg-[#0A0A0A] flex items-center justify-center flex-shrink-0">
-                  <span className="font-bt-mono text-[10px] font-semibold text-[#F97316]">
-                    {(username ?? 'A').slice(0, 2).toUpperCase()}
-                  </span>
-                </div>
-                <div className="text-left hidden sm:block">
-                  <div className="font-bt-mono text-[10.5px] font-semibold text-[#0A0A0A]">{username}</div>
-                  <div className="font-bt-mono text-[8.5px] uppercase tracking-[0.1em] text-[#8A8175]">{t('admin:topbar.administrator')}</div>
-                </div>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 rounded-none border-[#DBD0BB]">
-              <DropdownMenuLabel className="font-bt-mono text-[10px] uppercase tracking-[0.08em] text-[#8A8175]">{t('admin:topbar.signedInAs', { username })}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setAccountOpen(true)} className="gap-2 text-sm cursor-pointer">
-                <User className="w-4 h-4" />{t('common:account')}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => handleNavigate('billing')}
-                className="gap-2 text-sm cursor-pointer"
-              >
-                <CreditCard className="w-4 h-4" />{t('admin:nav.billing')}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout} className="gap-2 text-sm text-[#C2410C] focus:text-[#C2410C] cursor-pointer">
-                <LogOut className="w-4 h-4" />{t('common:signOut')}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          </div>
-        </header>
-        <AccountDrawer open={accountOpen} onOpenChange={setAccountOpen} onSignOut={handleLogout} />
-
-        {/* Content area */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">
-          <SectionTour section={activeSection} username={username} replayNonce={introReplay} sectionLabel={t(meta.titleKey)} />
+  return <>
+    <AppShell role="ADMIN" username={username} panelLabel={t('admin:panelLabel')} navItems={navItems} navGroups={navGroups}
+      activeSection={activeSection} onNavigate={handleNavigate} onLogout={handleLogout} pageTitle={t(meta.titleKey)}
+      topbarExtra={<button data-tour="help" type="button" onClick={() => activeSection === 'dashboard' ? setTourReplay(n => n + 1) : setIntroReplay(n => n + 1)} title={t('admin:tour.helpButton')} className="p-2 text-[#5A5346] focus-visible:outline-2 focus-visible:outline-[#F97316]"><HelpCircle className="size-4" /></button>}>
+      <SectionTour autoStart={false} section={activeSection} username={username} replayNonce={introReplay} sectionLabel={t(meta.titleKey)} />
           {activeSection === 'dashboard'    && <DashboardContent onNavigate={handleNavigate} />}
           {activeSection === 'billing'      && <BillingSection />}
           {activeSection === 'tm-field'     && (
@@ -690,11 +389,8 @@ export function AdminDashboard() {
           {activeSection === 'clients'      && <ClientsSection onNavigate={handleNavigate} />}
           {activeSection === 'audit'        && <AuditLog />}
           {activeSection === 'time-approvals'&& <ApprovalsInbox />}
-        </main>
-      </div>
-
-      <Toaster position="top-right" richColors />
-      <OnboardingTour username={username} replayNonce={tourReplay} onNavigate={handleNavigate} />
-    </div>
-  );
+    </AppShell>
+    <Toaster position="top-right" richColors />
+    <OnboardingTour username={username} replayNonce={tourReplay} onNavigate={handleNavigate} />
+  </>;
 }

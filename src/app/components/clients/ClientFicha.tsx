@@ -1,3 +1,4 @@
+import { useScreenState } from '../../workspace/WorkspaceState';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, ArrowRight, Check, Copy, Lock, Plus } from 'lucide-react';
@@ -49,7 +50,7 @@ export function ClientFicha({ client, onBack, onEdit, onToggleStatus, onOpenProj
 }) {
   const { t, i18n } = useTranslation(['admin', 'common', 'finance']);
   const lang = i18n.language;
-  const [tab, setTab] = useState<ClientFichaTab>(initialTab);
+  const [tab, setTab] = useScreenState<ClientFichaTab>('pestana', initialTab, 'replace', ['resumen', 'obras', 'facturas']);
   const [projects, setProjects] = useState<ProjectResponse[]>([]);
   const [projectsTotal, setProjectsTotal] = useState<number | null>(null);
   const [projectsState, setProjectsState] = useState<'loading' | 'error' | 'data'>('loading');

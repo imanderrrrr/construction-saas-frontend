@@ -1,4 +1,6 @@
-import { useState, useMemo, lazy, Suspense } from 'react';
+import { useSectionNavigation } from '../workspace/WorkspaceState';
+import { resolveSection } from '../workspace/paths';
+import { useState, lazy, Suspense } from 'react';
 import { useMarkDashboardReady } from '../lib/dashboardReady';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
@@ -120,48 +122,35 @@ function FinancePanel({ initialSection }: { initialSection?: ActiveSection }) {
   const [introReplay, setIntroReplay] = useState(0);
   // `initialSection` lets a deep-link route (e.g. /finance/expenses) open the
   // dashboard straight on a section while keeping the full shell + sidebar.
-  const [activeSection, setActiveSection] = useState<ActiveSection>(initialSection === 'invoices' ? 'accounts-receivable' : initialSection === 'project-financials' ? 'budgets' : initialSection ?? 'dashboard');
+  const [activeSection, navigateSection] = useSectionNavigation<ActiveSection>('FINANCE', initialSection === 'invoices' ? 'accounts-receivable' : initialSection === 'project-financials' ? 'budgets' : initialSection ?? 'dashboard');
 
   const handleLogout   = () => { document.cookie = 'ofjr_session=; Path=/; Max-Age=0'; navigate('/'); AuthService.logout(); };
   const handleNavigate = (section: string) => {
-    const resolved = section === 'invoices' ? 'accounts-receivable' : ['projects', 'project-financials', 'budget-report'].includes(section) ? 'budgets' : section;
+    const resolved = resolveSection('FINANCE', section);
     if (!(resolved in SECTION_META_KEYS)) return;
-    const paths: Record<string, string> = {
-      dashboard: '/finance/dashboard', clients: '/finance/clients',
-      'accounts-receivable': '/finance/receivables', 'accounts-payable': '/finance/payables',
-      budgets: '/finance/budgets', 'approved-expenses': '/finance/expenses',
-      'labor-cost': '/finance/labor-cost', 'labor-payroll': '/finance/payroll',
-      'supervisor-hours': '/finance/supervisor-hours',
-    };
-    if (paths[resolved]) {
-      const currentRouteSection = initialSection === 'invoices' ? 'accounts-receivable' : initialSection === 'project-financials' ? 'budgets' : initialSection ?? 'dashboard';
-      if (resolved === currentRouteSection) setActiveSection(resolved as ActiveSection);
-      navigate(paths[resolved]);
-    } else {
-      setActiveSection(resolved as ActiveSection);
-    }
+    navigateSection(resolved);
   };
 
-  const navItems: AppShellNavItem[] = useMemo(() => [
-    { key: 'dashboard',            label: t('finance:nav.dashboard'),            icon: LayoutDashboard },
-    { key: 'clients',             label: t('finance:nav.clients'),              icon: UserRound,       group: 'accounting' },
-    { key: 'accounts-receivable',  label: t('finance:nav.accountsReceivable'),   icon: ArrowDownToLine, group: 'accounting' },
-    { key: 'accounts-payable',     label: t('finance:nav.accountsPayable'),      icon: ArrowUpFromLine, group: 'accounting' },
-    { key: 'tm-office',            label: t('tm:nav.office'),                     icon: FileSignature,   group: 'accounting' },
-    { key: 'approved-expenses',    label: t('finance:nav.approvedExpenses'),     icon: CheckCircle,     group: 'expenses'   },
-    { key: 'expense-report',       label: t('finance:nav.expenseReport'),        icon: FileBarChart,    group: 'expenses'   },
-    { key: 'budgets',              label: t('finance:nav.budgets'),              icon: Wallet,          group: 'budgets'    },
-    { key: 'labor-cost',           label: t('finance:nav.laborCost'),            icon: HardHat,         group: 'labor'      },
-    { key: 'labor-payroll',        label: t('finance:nav.laborPayroll'),         icon: Banknote,        group: 'labor'      },
-    { key: 'supervisor-hours',     label: t('finance:nav.supervisorHours'),      icon: Clock,           group: 'labor'      },
-  ], [t]);
-
-  const navGroups = useMemo(() => [
-    { key: 'accounting', label: t('finance:group.accounting') },
-    { key: 'expenses',   label: t('finance:group.expenses')   },
-    { key: 'budgets',    label: t('finance:group.budgets')     },
-    { key: 'labor',      label: t('finance:group.labor')       },
-  ], [t]);
+  const navItems: AppShellNavItem[] = [
+    { key: 'dashboard', label: t('common:workspace.home'), icon: LayoutDashboard },
+    { key: 'accounts-receivable', label: t('finance:nav.accountsReceivable'), icon: ArrowDownToLine, group: 'collections' },
+    { key: 'clients', label: t('finance:nav.clients'), icon: UserRound, group: 'collections' },
+    { key: 'tm-office', label: t('tm:nav.office'), icon: FileSignature, group: 'collections' },
+    { key: 'accounts-payable', label: t('finance:nav.accountsPayable'), icon: ArrowUpFromLine, group: 'payments' },
+    { key: 'approved-expenses', label: t('finance:nav.approvedExpenses'), icon: CheckCircle, group: 'payments' },
+    { key: 'labor-payroll', label: t('finance:nav.laborPayroll'), icon: Banknote, group: 'payroll' },
+    { key: 'supervisor-hours', label: t('finance:nav.supervisorHours'), icon: Clock, group: 'payroll' },
+    { key: 'budgets', label: t('finance:nav.budgets'), icon: Wallet, group: 'works' },
+    { key: 'labor-cost', label: t('finance:nav.laborCost'), icon: HardHat, group: 'reports' },
+    { key: 'expense-report', label: t('finance:nav.expenseReport'), icon: FileBarChart, group: 'reports' },
+  ];
+  const navGroups = [
+    { key: 'collections', label: t('common:workspace.collections'), icon: ArrowDownToLine },
+    { key: 'payments', label: t('common:workspace.payments'), icon: ArrowUpFromLine },
+    { key: 'payroll', label: t('common:workspace.payroll'), icon: Banknote },
+    { key: 'works', label: t('common:workspace.works'), icon: Wallet },
+    { key: 'reports', label: t('common:workspace.reports'), icon: FileBarChart },
+  ];
 
   const metaKeys = SECTION_META_KEYS[activeSection];
   const onboardingKey = ONBOARDING_KEY[activeSection];
@@ -194,7 +183,7 @@ function FinancePanel({ initialSection }: { initialSection?: ActiveSection }) {
         }
       >
         {onboardingKey && (
-          <SectionTour section={onboardingKey} username={username} replayNonce={introReplay} sectionLabel={t(metaKeys.titleKey)} />
+          <SectionTour autoStart={false} section={onboardingKey} username={username} replayNonce={introReplay} sectionLabel={t(metaKeys.titleKey)} />
         )}
         {activeSection === 'dashboard' && (
           <FinanceOverview username={username} onNavigate={handleNavigate} />

@@ -1,3 +1,4 @@
+import { useScreenState, useProjectFilter } from '../../workspace/WorkspaceState';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, CalendarPlus, Check, ChevronRight, Loader2, Search } from 'lucide-react';
@@ -43,12 +44,13 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
   const { t, i18n } = useTranslation(['admin', 'common', 'finance']);
   const lang = i18n.language;
 
-  const [filters, setFilters] = useState<Filters>(EMPTY);
+  const [filters, setFilters] = useScreenState<Filters>('filtros', EMPTY);
+  const [projectId] = useProjectFilter<number | null>(null, true);
   const [records, setRecords] = useState<TimeRecordResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [openId, setOpenId] = useState<number | null>(null);
+  const [openId, setOpenId] = useScreenState<number | null>('registro', null, 'push');
   const [cursor, setCursor] = useState(0);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [rowBusy, setRowBusy] = useState<number | null>(null);
@@ -62,6 +64,7 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
       // records from the search — and from the counts built off this list.
       // The range (today / this week) is what bounds the sweep.
       const rows = await getAllTimeRecords({
+        projectId: projectId ?? undefined,
         status: filters.status || undefined,
         role: mode === 'finance' ? 'SUPERVISOR' : filters.role || undefined,
         dateFrom: filters.range === 'today' ? today() : mondayOfWeek(),
@@ -73,7 +76,7 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
     } finally {
       setLoading(false);
     }
-  }, [filters.status, filters.role, filters.range, mode]);
+  }, [filters.status, filters.role, filters.range, mode, projectId]);
 
   useEffect(() => { load(); }, [load]);
 

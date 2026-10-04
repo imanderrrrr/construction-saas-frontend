@@ -1,3 +1,4 @@
+import { useScreenState, useProjectFilter } from '../../workspace/WorkspaceState';
 // BuildTrack — The site side of T&M: the encargado captures, and collects the
 // signature standing next to the person who has to give it.
 //
@@ -104,12 +105,12 @@ export function TmFieldSection() {
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
 
-  const [projectFilter, setProjectFilter] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<'' | TmTicketStatus>('');
+  const [projectFilter, setProjectFilter] = useProjectFilter<string>('');
+  const [statusFilter, setStatusFilter] = useScreenState<'' | TmTicketStatus>('estado', '');
 
   const [composing, setComposing] = useState(false);
   const [editing, setEditing] = useState<TmTicket | null>(null);
-  const [expanded, setExpanded] = useState<number | null>(null);
+  const [expanded, setExpanded] = useScreenState<number | null>('registro', null, 'push');
   const [busyId, setBusyId] = useState<number | null>(null);
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [handoff, setHandoff] = useState<TmTicket | null>(null);

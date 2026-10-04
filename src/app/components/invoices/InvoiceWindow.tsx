@@ -1,3 +1,4 @@
+import { useUnsavedChanges } from '../../workspace/UnsavedChanges';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, ArrowRight, FileText, Loader2, Minus, Plus } from 'lucide-react';
@@ -89,6 +90,7 @@ export function InvoiceWindow({ onClose, onCreated, onOpenBranding }: {
   const [discount, setDiscount] = useState('');
   const [taxRate, setTaxRate] = useState('');
   const [notes, setNotes] = useState('');
+  const releaseDraft = useUnsavedChanges(Boolean(number || client || project || description || discount || taxRate || notes || lines.some(line => line.description || line.unitPrice || line.quantity !== '1')));
   const [submitting, setSubmitting] = useState(false);
   const [failure, setFailure] = useState<InvoiceSubmitError | null>(null);
   const [showDetail, setShowDetail] = useState(false);
@@ -309,6 +311,7 @@ export function InvoiceWindow({ onClose, onCreated, onOpenBranding }: {
       } catch {
         // The document is saved; a failed download is not a failed issue.
       }
+      releaseDraft();
       onCreated(created);
     } catch (err) {
       setFailure(submitError(err, t));
