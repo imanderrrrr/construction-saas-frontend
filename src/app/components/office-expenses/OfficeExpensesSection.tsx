@@ -1,3 +1,4 @@
+import { useScreenState } from '../../workspace/WorkspaceState';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -59,7 +60,7 @@ const COLS = '74px 1.7fr 0.88fr 100px 0.8fr 106px 128px';
 export function OfficeExpensesSection() {
   const { t, i18n } = useTranslation(['admin', 'common']);
   const lang = i18n.resolvedLanguage ?? 'es';
-  const [filters, setFilters] = useState<OfficeFilters>(defaultOfficeFilters);
+  const [filters, setFilters] = useScreenState<OfficeFilters>('filtros', defaultOfficeFilters);
   const {
     rows, total, page, totalPages, setPage,
     summary, categories, loading, listError, summaryError, reload, reloadCategories,

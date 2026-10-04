@@ -1,3 +1,4 @@
+import { useScreenState } from '../../workspace/WorkspaceState';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight, Plus, RefreshCw, Search, X } from 'lucide-react';
@@ -42,19 +43,19 @@ type Tab = 'returnable' | 'consumable';
 export function ToolsSection({ onNavigate }: { onNavigate?: (section: string) => void } = {}) {
   const { t, i18n } = useTranslation(['tools', 'common']);
   const lang = i18n.language;
-  const [tab, setTab] = useState<Tab>('returnable');
+  const [tab, setTab] = useScreenState<Tab>('pestana', 'returnable', 'replace', ['returnable', 'consumable']);
 
   // Returnables
   const [tools, setTools] = useState<ToolResponse[]>([]);
   const [toolsState, setToolsState] = useState<TableState>('loading');
   const [toolsTotal, setToolsTotal] = useState(0);
   const [toolsPages, setToolsPages] = useState(1);
-  const [toolsPage, setToolsPage] = useState(0);
-  const [pageSize, setPageSize] = useState(20);
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [category, setCategory] = useState('');
-  const [status, setStatus] = useState('');
+  const [toolsPage, setToolsPage] = useScreenState('pagina-herramientas', 0);
+  const [pageSize, setPageSize] = useScreenState('tamano', 20);
+  const [search, setSearch] = useScreenState('q', '');
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
+  const [category, setCategory] = useScreenState('categoria', '');
+  const [status, setStatus] = useScreenState('estado', '');
   const [worker, setWorker] = useState<UserDTO | null>(null);
   const [workers, setWorkers] = useState<UserDTO[]>([]);
   const [keepers, setKeepers] = useState<UserDTO[]>([]);
@@ -64,9 +65,9 @@ export function ToolsSection({ onNavigate }: { onNavigate?: (section: string) =>
   const [consumablesState, setConsumablesState] = useState<TableState>('loading');
   const [consumablesTotal, setConsumablesTotal] = useState(0);
   const [consumablesPages, setConsumablesPages] = useState(1);
-  const [consumablesPage, setConsumablesPage] = useState(0);
-  const [light, setLight] = useState<'' | StockLight>('');
-  const [unit, setUnit] = useState('');
+  const [consumablesPage, setConsumablesPage] = useScreenState('pagina-materiales', 0);
+  const [light, setLight] = useScreenState<'' | StockLight>('stock', '');
+  const [unit, setUnit] = useScreenState('unidad', '');
 
   // The two figure strips. They come from the server and never from the rows
   // on screen: with a worker filter on, the strip keeps counting the company.

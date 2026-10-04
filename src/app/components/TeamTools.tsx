@@ -1,3 +1,4 @@
+import { useScreenState } from '../workspace/WorkspaceState';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Wrench, Users, Clock, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -50,11 +51,11 @@ export function TeamTools() {
   const { t, i18n } = useTranslation('supervisor');
   const [tools,       setTools]       = useState<AssignmentResponse[]>([]);
   const [loading,     setLoading]     = useState(true);
-  const [workerFilter,   setWorkerFilter]   = useState('all');
-  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [workerFilter,   setWorkerFilter]   = useScreenState('persona', 'all');
+  const [categoryFilter, setCategoryFilter] = useScreenState('categoria', 'all');
   const [projectFilter,  setProjectFilter]  = useState('all');
   const [applied,        setApplied]        = useState({ worker: 'all', category: 'all', project: 'all' });
-  const [currentPage,    setCurrentPage]    = useState(1);
+  const [currentPage,    setCurrentPage]    = useScreenState('pagina', 1);
 
   const loadTools = useCallback(() => {
     setLoading(true);

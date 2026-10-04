@@ -38,7 +38,7 @@ test.describe('Admin invites a user via QR', () => {
     await page.goto('/admin/dashboard');
 
     // Open the Users section, then the QR invite modal.
-    await page.getByRole('button', { name: 'Users' }).first().click();
+    await page.getByRole('navigation', { name: 'Work areas' }).getByRole('button', { name: 'Team', exact: true }).first().click();
     await page.getByRole('button', { name: 'Invitar por QR' }).click();
     await expect(page.getByText('Invite a new user')).toBeVisible();
 

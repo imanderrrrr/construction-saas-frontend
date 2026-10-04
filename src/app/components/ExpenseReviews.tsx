@@ -1,3 +1,4 @@
+import { useScreenState } from '../workspace/WorkspaceState';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import {
@@ -359,20 +360,20 @@ export function ExpenseReviews() {
   }, []);
 
   // Filter state
-  const [dateFrom,      setDateFrom]      = useState(getThirtyDaysAgo);
-  const [dateTo,        setDateTo]        = useState(getToday);
-  const [workerFilter,  setWorkerFilter]  = useState('all');
-  const [typeFilter,    setTypeFilter]    = useState('all');
-  const [statusFilter,  setStatusFilter]  = useState('all');
-  const [appliedFrom,   setAppliedFrom]   = useState(getThirtyDaysAgo);
-  const [appliedTo,     setAppliedTo]     = useState(getToday);
-  const [appliedWorker, setAppliedWorker] = useState('all');
-  const [appliedType,   setAppliedType]   = useState('all');
-  const [appliedStatus, setAppliedStatus] = useState('all');
+  const [dateFrom,      setDateFrom]      = useScreenState('desde', getThirtyDaysAgo);
+  const [dateTo,        setDateTo]        = useScreenState('hasta', getToday);
+  const [workerFilter,  setWorkerFilter]  = useScreenState('persona', 'all');
+  const [typeFilter,    setTypeFilter]    = useScreenState('tipo', 'all');
+  const [statusFilter,  setStatusFilter]  = useScreenState('estado', 'all');
+  const [appliedFrom,   setAppliedFrom]   = useScreenState('f-desde', getThirtyDaysAgo);
+  const [appliedTo,     setAppliedTo]     = useScreenState('f-hasta', getToday);
+  const [appliedWorker, setAppliedWorker] = useScreenState('f-persona', 'all');
+  const [appliedType,   setAppliedType]   = useScreenState('f-tipo', 'all');
+  const [appliedStatus, setAppliedStatus] = useScreenState('f-estado', 'all');
 
   // UI state
   const [expandedId,    setExpandedId]    = useState<string | null>(null);
-  const [currentPage,   setCurrentPage]   = useState(1);
+  const [currentPage,   setCurrentPage]   = useScreenState('pagina', 1);
   const [receiptTarget, setReceiptTarget] = useState<ExpenseRecord | null>(null);
 
   // Modal: Approve

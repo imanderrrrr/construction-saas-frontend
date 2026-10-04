@@ -1,26 +1,25 @@
-import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from 'react';
+import { useSectionNavigation } from '../workspace/WorkspaceState';
+import { resolveSection } from '../workspace/paths';
+import { useState, lazy, Suspense } from 'react';
 import { useMarkDashboardReady } from '../lib/dashboardReady';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { AuthService } from '../services/auth';
 import {
-  LayoutDashboard, CheckCircle, FileBarChart, DollarSign, Clock,
-  Wallet, ArrowDownToLine, ArrowUpFromLine, BarChart3,
-  TrendingUp, TrendingDown, AlertTriangle, Receipt, Banknote, HardHat, Loader2, FileText,
+  LayoutDashboard, CheckCircle, FileBarChart, Clock,
+  Wallet, ArrowDownToLine, ArrowUpFromLine,
+  Banknote, HardHat, UserRound,
   FileSignature, HelpCircle,
 } from 'lucide-react';
 import { AppShell, type AppShellNavItem } from '../components/AppShell';
 import { SectionTour } from '../components/onboarding/SectionTour';
-import { StatCard } from '../components/StatCard';
-import { ErrorBanner } from '../components/ErrorBanner';
+import { ClientsSection } from '../components/clients/ClientsSection';
+import { FinanceOverview } from '../components/finance/FinanceOverview';
 import { Toaster } from '../components/ui/sonner';
-import {
-  getFinanceExpenses, getFinanceExpenseReport,
-  type ExpenseResponse, type ExpenseReportResponse,
-} from '../services/expenses';
-
-// Lazy-loaded sections
-
+const InvoiceManager = lazy(() =>
+  import('../components/InvoiceManager').then(m => ({ default: m.InvoiceManager }))
+);
+// The same screens as Administration; permissions live in the shared components.
 const FinanceExpenses = lazy(() =>
   import('../components/expenses/ExpensesSection').then(m => ({ default: () => <m.ExpensesSection readOnly /> }))
 );
@@ -38,34 +37,29 @@ const AccountsPayable = lazy(() =>
 const TmOffice = lazy(() =>
   import('../components/tm/TmOfficeSection').then(m => ({ default: m.TmOfficeSection }))
 );
-const InvoiceManager = lazy(() =>
-  import('../components/InvoiceManager').then(m => ({ default: m.InvoiceManager }))
-);
-const ProjectFinancials = lazy(() =>
-  import('../components/ProjectFinancials').then(m => ({ default: m.ProjectFinancials }))
-);
 // Presupuestos: the same screen the admin panel mounts, read-only. It carries
 // its own Obras | Reporte switcher, so `budget-report` is no longer a section.
 const BudgetsSection = lazy(() =>
   import('../components/budgets/BudgetsSection').then(m => ({ default: m.BudgetsSection }))
 );
 const LaborCostReport = lazy(() =>
-  import('../components/LaborCostReport').then(m => ({ default: m.LaborCostReport }))
+  import('../components/labor/LaborCostScreen').then(m => ({ default: m.LaborCostScreen }))
 );
 const LaborPayrollReport = lazy(() =>
-  import('../components/LaborPayrollReport').then(m => ({ default: m.LaborPayrollReport }))
+  import('../components/labor/LaborPayrollScreen').then(m => ({ default: m.LaborPayrollScreen }))
 );
 // Product decision 2026-07-01: finance approves SUPERVISOR hours (workers
 // stay with admins/assigned supervisors). Same shared approvals window; the
 // 'finance' mode scopes the list to supervisor-owned records server-side.
 const SupervisorApprovals = lazy(() =>
-  import('../components/SupervisorApprovals').then(m => ({ default: m.SupervisorApprovals }))
+  import('../components/approvals/ApprovalsInbox').then(m => ({ default: m.ApprovalsInbox }))
 );
 
 // Types & config
 
 type ActiveSection =
   | 'dashboard'
+  | 'clients'
   | 'invoices'
   | 'approved-expenses'
   | 'expense-report'
@@ -94,6 +88,7 @@ const ONBOARDING_KEY: Partial<Record<ActiveSection, string>> = {
 // role instead of the admin's word for word.
 
 const SECTION_META_KEYS: Record<ActiveSection, { titleKey: string; subtitleKey: string }> = {
+  'clients':              { titleKey: 'finance:section.clients.title', subtitleKey: 'finance:section.clients.subtitle' },
   'dashboard':            { titleKey: 'finance:section.dashboard.title',            subtitleKey: 'finance:section.dashboard.subtitle'            },
   'tm-office':            { titleKey: 'tm:section.office.title',                    subtitleKey: 'tm:section.office.subtitle'                    },
   'invoices':             { titleKey: 'finance:section.invoices.title',             subtitleKey: 'finance:section.invoices.subtitle'             },
@@ -108,179 +103,17 @@ const SECTION_META_KEYS: Record<ActiveSection, { titleKey: string; subtitleKey: 
   'supervisor-hours':     { titleKey: 'finance:section.supervisorHours.title',      subtitleKey: 'finance:section.supervisorHours.subtitle'      },
 };
 
-// Helpers
-
-function fmtDate(iso: string) {
-  return new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-function fmtAmount(n: number) {
-  return `$${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
-}
-function fmtCents(c: number) {
-  return fmtAmount(c / 100);
-}
-
-// Loading skeleton
-
 function LoadingSkeleton() {
-  return <div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />;
-}
-
-// Dashboard view
-
-function DashboardView({ username, onNavigate }: { username: string; onNavigate: (s: string) => void }) {
-  const { t } = useTranslation('finance');
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
-  const [recentExpenses, setRecentExpenses] = useState<ExpenseResponse[]>([]);
-  const [report, setReport] = useState<ExpenseReportResponse | null>(null);
-
-  const fetchDashboard = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [expensesRes, reportRes] = await Promise.all([
-        getFinanceExpenses({ size: 5, page: 0 }),
-        getFinanceExpenseReport({}),
-      ]);
-      setRecentExpenses(expensesRes.content);
-      setReport(reportRes);
-      setLoadError(false);
-    } catch {
-      // Cards still degrade to "—", but say WHY and offer a retry — a silent
-      // dashboard of dashes is indistinguishable from "no data yet".
-      setLoadError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
-
-  const totalApproved = report ? fmtCents(report.kpis.totalApprovedCents) : '—';
-  const avgPerWorker = report?.kpis.avgPerWorkerCents != null ? fmtCents(report.kpis.avgPerWorkerCents) : '—';
-  const expenseCount = report ? String(report.kpis.expenseCount) : '—';
-  const topCategory = report?.kpis.topCategory
-    ? t(`type.${report.kpis.topCategory}`, { defaultValue: report.kpis.topCategory })
-    : '—';
-  const recentTotal = recentExpenses.reduce((s, e) => s + e.amountCents, 0) / 100;
-
-  const tableHeaders = [
-    t('dash.table.date'), t('dash.table.worker'), t('dash.table.type'),
-    t('dash.table.amount'), t('dash.table.project'),
-  ];
-
-  return (
-    <div className="space-y-6 max-w-5xl">
-      {/* Welcome header */}
-      <div>
-        <h2 className="text-2xl font-bold text-[#0A0A0A]">{t('dash.welcome', { username })}</h2>
-        <p className="text-sm text-[#71717A] mt-1">{t('dash.financialOverview')}</p>
-      </div>
-
-      {loadError && (
-        <div data-testid="finance-dash-load-error">
-          <ErrorBanner message={t('dash.loadFailed')} onRetry={fetchDashboard} />
-        </div>
-      )}
-
-      {/* KPI cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={DollarSign}   title={t('dash.totalApproved')}  value={loading ? '...' : totalApproved}  subtitle={t('dash.allApprovedExpenses')}   iconBgColor="bg-purple-50"  iconColor="text-purple-600"  />
-        <StatCard icon={TrendingDown} title={t('dash.avgPerWorker')}   value={loading ? '...' : avgPerWorker}   subtitle={t('dash.perActiveWorker')}       iconBgColor="bg-amber-50"   iconColor="text-amber-600"   />
-        <StatCard icon={TrendingUp}   title={t('dash.topCategory')}    value={loading ? '...' : topCategory}    subtitle={t('dash.byTotalAmount')}         iconBgColor="bg-emerald-50" iconColor="text-emerald-600" />
-        <StatCard icon={Receipt}      title={t('dash.expenseCount')}   value={loading ? '...' : expenseCount}   subtitle={t('dash.totalRecords')}          iconBgColor="bg-purple-50"  iconColor="text-purple-600"  />
-      </div>
-
-      {/* Recent approved expenses */}
-      <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#D4D4D8]">
-          <div className="flex items-center gap-2">
-            <CheckCircle className="w-4 h-4 text-[#71717A]" />
-            <span className="text-sm font-semibold text-[#0A0A0A]">{t('dash.recentApprovedExpenses')}</span>
-            <span className="text-xs text-[#71717A]">· {t('dash.last5')}</span>
-          </div>
-          <button onClick={() => onNavigate('approved-expenses')}
-            className="text-xs font-medium text-purple-600 hover:text-purple-800 transition-colors">
-            {t('dash.viewAll')}
-          </button>
-        </div>
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-5 h-5 animate-spin text-purple-500" />
-          </div>
-        ) : loadError ? (
-          // The banner above already explains; never show the innocent
-          // "no approved expenses" empty state for a failed load.
-          null
-        ) : recentExpenses.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center px-4">
-            <CheckCircle className="w-8 h-8 text-[#D4D4D8] mb-2" />
-            <p className="text-sm font-medium text-[#71717A]">{t('dash.noApprovedExpenses')}</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-[#FAFAFA]">
-                  {tableHeaders.map(h => (
-                    <th key={h} className="text-left text-[11px] font-semibold text-[#71717A] uppercase tracking-wider px-4 py-2.5">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {recentExpenses.map(exp => (
-                  <tr key={exp.id} className="border-t border-[#D4D4D8]/50 hover:bg-[#FAFAFA]/50 transition-colors">
-                    <td className="px-4 py-3 text-sm text-[#0A0A0A] whitespace-nowrap">{fmtDate(exp.expenseDate)}</td>
-                    <td className="px-4 py-3 text-sm text-[#0A0A0A]">{exp.workerName ?? exp.workerUsername}</td>
-                    <td className="px-4 py-3 text-sm text-[#71717A]">{t(`type.${exp.expenseType}`, { defaultValue: exp.expenseType })}</td>
-                    <td className="px-4 py-3 font-mono font-semibold text-sm text-[#0A0A0A]">{fmtAmount(exp.amountCents / 100)}</td>
-                    <td className="px-4 py-3 text-sm text-[#71717A]">{exp.projectName}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        {!loading && recentExpenses.length > 0 && (
-          <div className="px-6 py-3 border-t border-[#D4D4D8]/50 bg-[#FAFAFA]/50 flex items-center justify-between">
-            <p className="text-[11px] text-[#71717A]">{t('dash.showingRecent', { count: recentExpenses.length })}</p>
-            <p className="text-[11px] font-medium text-[#0A0A0A]">
-              {t('dash.total')} <span className="font-mono">{fmtAmount(recentTotal)}</span>
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Quick access cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {[
-          { key: 'invoices',             icon: FileText,        label: t('dash.card.invoices'),            desc: t('dash.card.invoicesDesc')            },
-          { key: 'accounts-receivable', icon: ArrowDownToLine, label: t('dash.card.accountsReceivable'), desc: t('dash.card.accountsReceivableDesc') },
-          { key: 'accounts-payable',    icon: ArrowUpFromLine, label: t('dash.card.accountsPayable'),    desc: t('dash.card.accountsPayableDesc')    },
-          { key: 'approved-expenses',   icon: CheckCircle,     label: t('dash.card.approvedExpenses'),   desc: t('dash.card.approvedExpensesDesc')   },
-          { key: 'expense-report',      icon: FileBarChart,    label: t('dash.card.expenseReport'),      desc: t('dash.card.expenseReportDesc')      },
-          { key: 'budgets',             icon: Wallet,          label: t('dash.card.projectBudgets'),     desc: t('dash.card.projectBudgetsDesc')     },
-          { key: 'project-financials',  icon: BarChart3,       label: t('dash.card.projectFinancials'),  desc: t('dash.card.projectFinancialsDesc')  },
-          { key: 'labor-cost',          icon: HardHat,         label: t('dash.card.laborCost'),           desc: t('dash.card.laborCostDesc')          },
-          { key: 'labor-payroll',       icon: Banknote,        label: t('dash.card.laborPayroll'),        desc: t('dash.card.laborPayrollDesc')       },
-        ].map(card => (
-          <button key={card.key} onClick={() => onNavigate(card.key)}
-            className="bg-white rounded-xl border border-[#D4D4D8] p-5 text-left hover:border-purple-400 hover:shadow-sm transition-all group">
-            <div className="w-9 h-9 bg-purple-50 rounded-lg flex items-center justify-center mb-3">
-              <card.icon className="text-purple-600" style={{ width: 18, height: 18 }} />
-            </div>
-            <p className="text-sm font-semibold text-[#0A0A0A] mb-0.5 group-hover:text-purple-600 transition-colors">{card.label}</p>
-            <p className="text-xs text-[#71717A]">{card.desc}</p>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
+  return <div role="status" className="animate-pulse h-64 bg-[#FAF7F0] border border-[#DBD0BB]" />;
 }
 
 // Main component
 
 export function FinanceDashboard({ initialSection }: { initialSection?: ActiveSection } = {}) {
+  return <FinancePanel key={initialSection ?? 'dashboard'} initialSection={initialSection} />;
+}
+
+function FinancePanel({ initialSection }: { initialSection?: ActiveSection }) {
   // The welcome overlay fades once this page is on screen (lib/dashboardReady).
   useMarkDashboardReady();
   const navigate    = useNavigate();
@@ -292,32 +125,36 @@ export function FinanceDashboard({ initialSection }: { initialSection?: ActiveSe
   const [introReplay, setIntroReplay] = useState(0);
   // `initialSection` lets a deep-link route (e.g. /finance/expenses) open the
   // dashboard straight on a section while keeping the full shell + sidebar.
-  const [activeSection, setActiveSection] = useState<ActiveSection>(initialSection ?? 'dashboard');
+  const [activeSection, navigateSection] = useSectionNavigation<ActiveSection>('FINANCE', initialSection === 'project-financials' ? 'budgets' : initialSection ?? 'dashboard');
 
   const handleLogout   = () => { document.cookie = 'ofjr_session=; Path=/; Max-Age=0'; navigate('/'); AuthService.logout(); };
-  const handleNavigate = (section: string) => setActiveSection(section as ActiveSection);
+  const handleNavigate = (section: string) => {
+    const resolved = resolveSection('FINANCE', section);
+    if (!(resolved in SECTION_META_KEYS)) return;
+    navigateSection(resolved);
+  };
 
-  const navItems: AppShellNavItem[] = useMemo(() => [
-    { key: 'dashboard',            label: t('finance:nav.dashboard'),            icon: LayoutDashboard },
-    { key: 'invoices',              label: t('finance:nav.invoices'),              icon: FileText,        group: 'accounting' },
-    { key: 'accounts-receivable',  label: t('finance:nav.accountsReceivable'),   icon: ArrowDownToLine, group: 'accounting' },
-    { key: 'accounts-payable',     label: t('finance:nav.accountsPayable'),      icon: ArrowUpFromLine, group: 'accounting' },
-    { key: 'tm-office',            label: t('tm:nav.office'),                     icon: FileSignature,   group: 'accounting' },
-    { key: 'approved-expenses',    label: t('finance:nav.approvedExpenses'),     icon: CheckCircle,     group: 'expenses'   },
-    { key: 'expense-report',       label: t('finance:nav.expenseReport'),        icon: FileBarChart,    group: 'expenses'   },
-    { key: 'budgets',              label: t('finance:nav.budgets'),              icon: Wallet,          group: 'budgets'    },
-    { key: 'project-financials',   label: t('finance:nav.projectFinancials'),    icon: BarChart3,       group: 'budgets'    },
-    { key: 'labor-cost',           label: t('finance:nav.laborCost'),            icon: HardHat,         group: 'labor'      },
-    { key: 'labor-payroll',        label: t('finance:nav.laborPayroll'),         icon: Banknote,        group: 'labor'      },
-    { key: 'supervisor-hours',     label: t('finance:nav.supervisorHours'),      icon: Clock,           group: 'labor'      },
-  ], [t]);
-
-  const navGroups = useMemo(() => [
-    { key: 'accounting', label: t('finance:group.accounting') },
-    { key: 'expenses',   label: t('finance:group.expenses')   },
-    { key: 'budgets',    label: t('finance:group.budgets')     },
-    { key: 'labor',      label: t('finance:group.labor')       },
-  ], [t]);
+  const navItems: AppShellNavItem[] = [
+    { key: 'dashboard', label: t('common:workspace.home'), icon: LayoutDashboard },
+    { key: 'accounts-receivable', label: t('finance:nav.accountsReceivable'), icon: ArrowDownToLine, group: 'collections' },
+    { key: 'invoices', label: t('finance:nav.invoices'), icon: FileSignature, group: 'collections', parent: 'accounts-receivable' },
+    { key: 'clients', label: t('finance:nav.clients'), icon: UserRound, group: 'collections' },
+    { key: 'tm-office', label: t('tm:nav.office'), icon: FileSignature, group: 'collections' },
+    { key: 'accounts-payable', label: t('finance:nav.accountsPayable'), icon: ArrowUpFromLine, group: 'payments' },
+    { key: 'approved-expenses', label: t('finance:nav.approvedExpenses'), icon: CheckCircle, group: 'payments' },
+    { key: 'labor-payroll', label: t('finance:nav.laborPayroll'), icon: Banknote, group: 'payroll' },
+    { key: 'supervisor-hours', label: t('finance:nav.supervisorHours'), icon: Clock, group: 'payroll' },
+    { key: 'budgets', label: t('finance:nav.budgets'), icon: Wallet, group: 'works' },
+    { key: 'labor-cost', label: t('finance:nav.laborCost'), icon: HardHat, group: 'reports' },
+    { key: 'expense-report', label: t('finance:nav.expenseReport'), icon: FileBarChart, group: 'reports' },
+  ];
+  const navGroups = [
+    { key: 'collections', label: t('common:workspace.collections'), icon: ArrowDownToLine },
+    { key: 'payments', label: t('common:workspace.payments'), icon: ArrowUpFromLine },
+    { key: 'payroll', label: t('common:workspace.payroll'), icon: Banknote },
+    { key: 'works', label: t('common:workspace.works'), icon: Wallet },
+    { key: 'reports', label: t('common:workspace.reports'), icon: FileBarChart },
+  ];
 
   const metaKeys = SECTION_META_KEYS[activeSection];
   const onboardingKey = ONBOARDING_KEY[activeSection];
@@ -350,19 +187,20 @@ export function FinanceDashboard({ initialSection }: { initialSection?: ActiveSe
         }
       >
         {onboardingKey && (
-          <SectionTour section={onboardingKey} username={username} replayNonce={introReplay} sectionLabel={t(metaKeys.titleKey)} />
+          <SectionTour autoStart={false} section={onboardingKey} username={username} replayNonce={introReplay} sectionLabel={t(metaKeys.titleKey)} />
         )}
         {activeSection === 'dashboard' && (
-          <DashboardView username={username} onNavigate={handleNavigate} />
+          <FinanceOverview username={username} onNavigate={handleNavigate} />
+        )}
+        {activeSection === 'invoices' && <Suspense fallback={<LoadingSkeleton />}><InvoiceManager onNavigate={handleNavigate} /></Suspense>}
+        {activeSection === 'clients' && (
+          <Suspense fallback={<LoadingSkeleton />}>
+            <ClientsSection readOnly projectSection="budgets" onNavigate={handleNavigate} />
+          </Suspense>
         )}
         {activeSection === 'tm-office' && (
           <Suspense fallback={<LoadingSkeleton />}>
             <TmOffice />
-          </Suspense>
-        )}
-        {activeSection === 'invoices' && (
-          <Suspense fallback={<LoadingSkeleton />}>
-            <InvoiceManager />
           </Suspense>
         )}
         {activeSection === 'accounts-receivable' && (
@@ -390,19 +228,14 @@ export function FinanceDashboard({ initialSection }: { initialSection?: ActiveSe
             <BudgetsSection readOnly onNavigate={handleNavigate} />
           </Suspense>
         )}
-        {activeSection === 'project-financials' && (
-          <Suspense fallback={<LoadingSkeleton />}>
-            <ProjectFinancials />
-          </Suspense>
-        )}
         {activeSection === 'labor-cost' && (
           <Suspense fallback={<LoadingSkeleton />}>
-            <LaborCostReport />
+            <LaborCostReport mode="finance" onNavigate={handleNavigate} />
           </Suspense>
         )}
         {activeSection === 'labor-payroll' && (
           <Suspense fallback={<LoadingSkeleton />}>
-            <LaborPayrollReport />
+            <LaborPayrollReport mode="finance" onNavigate={handleNavigate} />
           </Suspense>
         )}
         {activeSection === 'supervisor-hours' && (

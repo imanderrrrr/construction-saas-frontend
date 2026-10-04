@@ -105,7 +105,7 @@ describe('AdminDashboard — coming back from Intuit', () => {
     expect(section).not.toBeNull();
     expect(section!.textContent).toBe('CONNECTED');
     expect(container.querySelector('[data-testid="dashboard-content"]')).toBeNull();
-    expect(mocks.navigate).toHaveBeenCalledWith({ pathname: '/admin/dashboard', search: '' }, { replace: true });
+    expect(mocks.navigate).toHaveBeenCalledWith({ pathname: '/admin/configuracion/quickbooks', search: '' }, { replace: true });
   });
 
   it('ignores a value that is not an outcome, and stays on the dashboard', async () => {
@@ -118,8 +118,10 @@ describe('AdminDashboard — coming back from Intuit', () => {
 
   it('forgets the outcome once the admin moves to another section', async () => {
     await render();
-    const users = Array.from(container.querySelectorAll('button')).find(b => (b.textContent ?? '').includes('admin:nav.users'))!;
+    const users = Array.from(container.querySelectorAll('button')).find(b => (b.textContent ?? '').includes('common:workspace.team'))!;
     await act(async () => { users.click(); });
+    const settings = Array.from(container.querySelectorAll('button')).find(b => (b.textContent ?? '').includes('common:workspace.settings'))!;
+    await act(async () => { settings.click(); });
     const back = Array.from(container.querySelectorAll('button')).find(b => (b.textContent ?? '').includes('admin:nav.quickbooks'))!;
     await act(async () => { back.click(); });
     await act(async () => { await Promise.resolve(); });

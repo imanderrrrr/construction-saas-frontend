@@ -1,3 +1,4 @@
+import { useScreenState } from '../workspace/WorkspaceState';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, ChevronLeft, ChevronRight, X } from 'lucide-react';
@@ -94,9 +95,9 @@ export function AuditLog() {
   const { t, i18n } = useTranslation(['admin']);
   const lang = i18n.language;
 
-  const [filters, setFilters] = useState<Filters>(EMPTY);
-  const [page, setPage] = useState(0);
-  const [size, setSize] = useState<number>(20);
+  const [filters, setFilters] = useScreenState<Filters>('filtros', EMPTY);
+  const [page, setPage] = useScreenState('pagina', 0);
+  const [size, setSize] = useScreenState<number>('tamano', 20, 'replace', [10, 20, 50]);
   const [rows, setRows] = useState<AuditLogDTO[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);

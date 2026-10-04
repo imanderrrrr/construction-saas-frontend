@@ -1,3 +1,4 @@
+import { useScreenState } from '../workspace/WorkspaceState';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Receipt, CheckCircle, Clock, AlertTriangle, Eye,
@@ -480,19 +481,19 @@ function ReceiptViewer({ expenseId, onClose }: { expenseId: number; onClose?: ()
 export function MyExpenses() {
   const { t } = useTranslation('expenses');
   // Filter state
-  const [dateFrom,       setDateFrom]       = useState(getThirtyDaysAgo);
-  const [dateTo,         setDateTo]         = useState(getToday);
-  const [typeFilter,     setTypeFilter]     = useState('all');
-  const [statusFilter,   setStatusFilter]   = useState('all');
+  const [dateFrom,       setDateFrom]       = useScreenState('desde', getThirtyDaysAgo);
+  const [dateTo,         setDateTo]         = useScreenState('hasta', getToday);
+  const [typeFilter,     setTypeFilter]     = useScreenState('tipo', 'all');
+  const [statusFilter,   setStatusFilter]   = useScreenState('estado', 'all');
   // Applied filters (committed on "Apply")
-  const [appliedFrom,    setAppliedFrom]    = useState(getThirtyDaysAgo);
-  const [appliedTo,      setAppliedTo]      = useState(getToday);
-  const [appliedType,    setAppliedType]    = useState('all');
-  const [appliedStatus,  setAppliedStatus]  = useState('all');
+  const [appliedFrom,    setAppliedFrom]    = useScreenState('f-desde', getThirtyDaysAgo);
+  const [appliedTo,      setAppliedTo]      = useScreenState('f-hasta', getToday);
+  const [appliedType,    setAppliedType]    = useScreenState('f-tipo', 'all');
+  const [appliedStatus,  setAppliedStatus]  = useScreenState('f-estado', 'all');
 
   // UI state
   const [expandedId,     setExpandedId]     = useState<string | null>(null);
-  const [currentPage,    setCurrentPage]    = useState(1);
+  const [currentPage,    setCurrentPage]    = useScreenState('pagina', 1);
   const [receiptExpense, setReceiptExpense] = useState<ExpenseRecord | null>(null);
 
   // Data from API

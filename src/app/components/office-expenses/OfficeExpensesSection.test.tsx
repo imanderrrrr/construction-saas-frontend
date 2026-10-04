@@ -145,6 +145,8 @@ describe('Gastos de oficina', () => {
   });
 
   it('el mes es la unidad y se puede retroceder', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-15T18:00:00Z'));
     await render();
     expect(getOfficeExpenseSummary).toHaveBeenCalledTimes(1);
     const first = getOfficeExpenseSummary.mock.calls[0][0];

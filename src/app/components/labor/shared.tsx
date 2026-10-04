@@ -207,13 +207,16 @@ export function mainProject(w: WorkerHoursSummary): string {
  * The HORAS | COSTO | NÓMINA switch that sits in every header — the thing that
  * tells the admin these are three views of one story, and lets them hop.
  */
-export function LaborSwitch({ current, onNavigate }: {
+export function LaborSwitch({ current, onNavigate, mode = 'admin' }: {
   current: LaborScreen;
   onNavigate: (section: string) => void;
+  mode?: 'admin' | 'finance';
 }) {
-  const { t } = useTranslation(['admin']);
-  const tabs: { key: LaborScreen; label: string }[] = [
-    { key: 'hours', label: t('admin:lab.tab.hours') },
+  const { t } = useTranslation(['admin', 'finance']);
+  const tabs: { key: string; label: string }[] = [
+    mode === 'finance'
+      ? { key: 'supervisor-hours', label: t('finance:nav.supervisorHours') }
+      : { key: 'hours', label: t('admin:lab.tab.hours') },
     { key: 'labor-cost', label: t('admin:lab.tab.cost') },
     { key: 'labor-payroll', label: t('admin:lab.tab.payroll') },
   ];
@@ -311,7 +314,7 @@ export function LaborSkeleton({ rows = 5 }: { rows?: number }) {
 
 /** Shared section header: kicker + switch + display title + summary line. */
 export function LaborHeader({
-  screen, onNavigate, title, summary, alert, right,
+  screen, onNavigate, title, summary, alert, right, mode = 'admin',
 }: {
   screen: LaborScreen;
   onNavigate: (section: string) => void;
@@ -319,14 +322,15 @@ export function LaborHeader({
   summary: string;
   alert?: string | null;
   right?: React.ReactNode;
+  mode?: 'admin' | 'finance';
 }) {
-  const { t } = useTranslation(['admin']);
+  const { t } = useTranslation(['admin', 'finance']);
   return (
     <div className="flex items-end justify-between gap-4 flex-wrap">
       <div className="min-w-0">
         <div className="flex items-center gap-3 flex-wrap">
-          <Mono className="text-[11px] tracking-[0.15em] text-[#71717A]">{t(`admin:lab.kicker.${screen}`)}</Mono>
-          <LaborSwitch current={screen} onNavigate={onNavigate} />
+          <Mono className="text-[11px] tracking-[0.15em] text-[#71717A]">{mode === 'finance' ? t('finance:group.labor') : t(`admin:lab.kicker.${screen}`)}</Mono>
+          <LaborSwitch current={screen} onNavigate={onNavigate} mode={mode} />
         </div>
         <h2 className="font-bt-display font-bold uppercase text-4xl md:text-5xl leading-none text-[#0A0A0A] mt-1.5">
           {title}

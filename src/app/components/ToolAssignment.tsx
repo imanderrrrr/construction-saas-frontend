@@ -1,4 +1,5 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import { useScreenState } from '../workspace/WorkspaceState';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeftRight, Calendar, RotateCcw, ArrowRight, ArrowLeft,
@@ -319,12 +320,12 @@ export function ToolAssignment() {
   const [loading,           setLoading]           = useState(true);
   const [logTotalPages,     setLogTotalPages]     = useState(1);
 
-  const [activeTab, setActiveTab] = useState<'active' | 'log'>('active');
+  const [activeTab, setActiveTab] = useScreenState<'active' | 'log'>('pestana', 'active', 'replace', ['active', 'log']);
   const [showAssign, setShowAssign] = useState(false);
   const [showReturn, setShowReturn] = useState(false);
 
-  const [activePage, setActivePage] = useState(1);
-  const [logPage,    setLogPage]    = useState(1);
+  const [activePage, setActivePage] = useScreenState('pagina', 1);
+  const [logPage,    setLogPage]    = useScreenState('pagina-historial', 1);
 
   // Fetch all data from API
   const loadAllData = useCallback((currentLogPage = logPage) => {

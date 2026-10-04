@@ -86,11 +86,13 @@ function canSpotlight(): boolean {
 }
 
 export function SectionTour({
+  autoStart = true,
   section: navSection,
   username,
   replayNonce,
   sectionLabel: navLabel,
 }: {
+  autoStart?: boolean;
   section: string;
   username: string | null;
   /** Increment (with the section current) to replay on demand (topbar "?"). */
@@ -162,7 +164,7 @@ export function SectionTour({
     setFellBack(false);
     setIntroNonce(0);
     viaRequest.current = false;
-    if (!SECTION_TOUR_STEPS[section]) return;
+    if (!autoStart || !SECTION_TOUR_STEPS[section]) return;
     if (hasSeen(username, section)) return;
 
     let tries = 0;
@@ -180,7 +182,7 @@ export function SectionTour({
       }
     }, ANCHOR_POLL_MS);
     return () => clearInterval(timer);
-  }, [section, username, start]);
+  }, [autoStart, section, username, start]);
 
   // A stop asked for by name. Its anchor may not exist yet — the signature
   // block lives inside the document the deep link is still opening — so poll

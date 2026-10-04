@@ -1,3 +1,4 @@
+import { useScreenState, useProjectFilter } from '../../workspace/WorkspaceState';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, CalendarPlus, Check, ChevronRight, Loader2, Search } from 'lucide-react';
@@ -6,6 +7,7 @@ import {
   approveRecord, getAllTimeRecords, type TimeRecordResponse,
 } from '../../services/time';
 import { ApiError } from '../../lib/api';
+import { businessToday } from '../../helpers/dateTime';
 import { RecordDrawer } from './RecordDrawer';
 import { ModalCreateDay } from '../phase2/ModalCreateDay';
 import {
@@ -23,12 +25,12 @@ import {
  */
 
 function mondayOfWeek(): string {
-  const d = new Date();
+  const d = new Date(`${businessToday()}T12:00:00`);
   const day = (d.getDay() + 6) % 7; // Monday = 0
   d.setDate(d.getDate() - day);
   return d.toISOString().slice(0, 10);
 }
-const today = () => new Date().toISOString().slice(0, 10);
+const today = businessToday;
 
 interface Filters {
   q: string;
@@ -40,15 +42,16 @@ interface Filters {
 const EMPTY: Filters = { q: '', range: 'week', status: 'PENDING', role: '' };
 
 export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'supervisor' | 'finance' } = {}) {
-  const { t, i18n } = useTranslation(['admin', 'common']);
+  const { t, i18n } = useTranslation(['admin', 'common', 'finance']);
   const lang = i18n.language;
 
-  const [filters, setFilters] = useState<Filters>(EMPTY);
+  const [filters, setFilters] = useScreenState<Filters>('filtros', EMPTY);
+  const [projectId] = useProjectFilter<number | null>(null, true);
   const [records, setRecords] = useState<TimeRecordResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [openId, setOpenId] = useState<number | null>(null);
+  const [openId, setOpenId] = useScreenState<number | null>('registro', null, 'push');
   const [cursor, setCursor] = useState(0);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [rowBusy, setRowBusy] = useState<number | null>(null);
@@ -62,8 +65,9 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
       // records from the search — and from the counts built off this list.
       // The range (today / this week) is what bounds the sweep.
       const rows = await getAllTimeRecords({
+        projectId: projectId ?? undefined,
         status: filters.status || undefined,
-        role: filters.role || undefined,
+        role: mode === 'finance' ? 'SUPERVISOR' : filters.role || undefined,
         dateFrom: filters.range === 'today' ? today() : mondayOfWeek(),
         dateTo: today(),
       });
@@ -73,7 +77,7 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
     } finally {
       setLoading(false);
     }
-  }, [filters.status, filters.role, filters.range]);
+  }, [filters.status, filters.role, filters.range, mode, projectId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -221,9 +225,9 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
       {/* Header */}
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div className="min-w-0">
-          <Mono className="text-[11px] tracking-[0.15em] text-[#71717A]">{t('admin:apr.kicker')}</Mono>
+          <Mono className="text-[11px] tracking-[0.15em] text-[#71717A]">{mode === 'finance' ? t('finance:section.supervisorHours.subtitle') : t('admin:apr.kicker')}</Mono>
           <h2 className="font-bt-display font-bold uppercase text-4xl md:text-5xl leading-none text-[#0A0A0A] mt-1">
-            {t('admin:apr.title')}
+            {mode === 'finance' ? t('finance:section.supervisorHours.title') : t('admin:apr.title')}
           </h2>
           <Mono className="block text-[12.5px] tracking-[0.06em] normal-case text-[#5A5346] mt-2">
             {t('admin:apr.summary', { count: pendingCount })}
@@ -474,6 +478,7 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
           recordId={openId}
           onClose={() => setOpenId(null)}
           onChanged={() => { setOpenId(null); load(); }}
+          mode={mode}
         />
       )}
 
@@ -482,6 +487,7 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
           open={createDayOpen}
           onClose={() => setCreateDayOpen(false)}
           onCreated={load}
+          subjectRole={mode === 'finance' ? 'SUPERVISOR' : undefined}
         />
       )}
     </div>

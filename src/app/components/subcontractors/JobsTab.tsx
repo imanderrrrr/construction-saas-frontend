@@ -1,3 +1,4 @@
+import { useScreenState } from '../../workspace/WorkspaceState';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowRight, Plus, RefreshCw, Search } from 'lucide-react';
@@ -59,13 +60,13 @@ export function JobsTab({ summary, summaryState, refData, initialFilters, onOpen
   const [error, setError] = useState<string | null>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
 
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [search, setSearch] = useScreenState('q-trabajos', '');
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
   const [subFilter, setSubFilter] = useState<number | ''>(initialFilters?.subcontractorId ?? '');
   const [projectFilter, setProjectFilter] = useState<number | ''>('');
-  const [statusFilter, setStatusFilter] = useState<'' | JobStatus>(initialFilters?.status ?? '');
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(20);
+  const [statusFilter, setStatusFilter] = useScreenState<'' | JobStatus>('estado-trabajos', initialFilters?.status ?? '');
+  const [page, setPage] = useScreenState('pagina-trabajos', 0);
+  const [pageSize, setPageSize] = useScreenState('tamano-trabajos', 20);
   const [totalElements, setTotalElements] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 

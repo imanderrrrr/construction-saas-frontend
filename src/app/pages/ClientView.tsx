@@ -1,3 +1,4 @@
+import { useScreenState } from '../workspace/WorkspaceState';
 // BuildTrack — Public client portal: read-only site log (bitácora) of ONE
 // project, opened from a share link. No account, no install: the token in the
 // URL is exchanged (+ optional 6-digit PIN) for a short-lived session and the
@@ -55,7 +56,7 @@ export function ClientView() {
   const { token = '' } = useParams<{ token: string }>();
   const { t, i18n } = useTranslation(['clientView', 'punchList', 'rfi']);
 
-  const [tab, setTab] = useState<PortalTab>('sitelog');
+  const [tab, setTab] = useScreenState<PortalTab>('pestana', 'sitelog', 'replace', ['sitelog', 'punch', 'rfi']);
   const [phase, setPhase] = useState<Phase>('loading');
   const [session, setSession] = useState<ClientViewSession | null>(null);
   const [pin, setPin] = useState('');

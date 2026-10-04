@@ -1,3 +1,4 @@
+import { useScreenState } from '../../workspace/WorkspaceState';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { RefreshCw, Search } from 'lucide-react';
@@ -44,12 +45,12 @@ export function InvoicesTab({ summary, summaryState, refData, onReview, onPay, f
   const [error, setError] = useState<string | null>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
 
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [search, setSearch] = useScreenState('q-facturas', '');
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
   const [subFilter, setSubFilter] = useState<number | ''>('');
-  const [statusFilter, setStatusFilter] = useState<'' | InvoiceStatus>('');
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(20);
+  const [statusFilter, setStatusFilter] = useScreenState<'' | InvoiceStatus>('estado-facturas', '');
+  const [page, setPage] = useScreenState('pagina-facturas', 0);
+  const [pageSize, setPageSize] = useScreenState('tamano-facturas', 20);
   const [totalElements, setTotalElements] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -156,8 +157,7 @@ export function InvoicesTab({ summary, summaryState, refData, onReview, onPay, f
             <option value="">{t('subcontractors:inv.filter.subcontractor')}</option>
             {refData.subcontractors.map(s => <option key={s.id} value={s.id}>{s.fullName ?? s.username}</option>)}
           </MonoSelect>
-          {/* Five states, not six: nothing writes PENDING_PAYMENT, so it is not
-              offered as a filter that could only ever come back empty. */}
+          {/* Partial payments are a filterable state of the linked payable. */}
           <MonoSelect
             value={statusFilter}
             onChange={e => { setStatusFilter(e.target.value as '' | InvoiceStatus); setPage(0); }}
@@ -284,9 +284,7 @@ export function InvoicesTab({ summary, summaryState, refData, onReview, onPay, f
 /**
  * What this row asks of you: review it, pay it, or nothing.
  *
- * "Registrar pago" hangs off Aprobada. It used to hang off PENDING_PAYMENT — a
- * state nothing in the system writes — so an approved invoice could not be paid
- * from the panel at all, and the "Revisar" it offered instead came back 409.
+ * Approved and partially paid invoices can receive payments.
  */
 function InvoiceAction({ invoice, lead, onReview, onPay, lang }: {
   invoice: SubcontractorInvoiceDTO;

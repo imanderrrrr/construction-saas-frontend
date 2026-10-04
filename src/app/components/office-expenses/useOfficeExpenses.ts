@@ -1,3 +1,4 @@
+import { useScreenState, useWorkspace } from '../../workspace/WorkspaceState';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   getOfficeExpenseSummary, listOfficeCategories, listOfficeExpenses,
@@ -112,7 +113,9 @@ export function useOfficeExpenses(filters: OfficeFilters): OfficeState {
   const [rows, setRows] = useState<OfficeExpense[]>([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [page, setPage] = useState(0);
+  const workspace = useWorkspace();
+  const hasWorkspace = workspace !== null;
+  const [page, setPage] = useScreenState('pagina', 0);
   const [summary, setSummary] = useState<OfficeExpenseSummary | null>(null);
   const [categories, setCategories] = useState<OfficeCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -126,7 +129,7 @@ export function useOfficeExpenses(filters: OfficeFilters): OfficeState {
 
   // Cambiar el recorte vuelve a la primera página: quedarse en la cuatro de un
   // mes que tiene dos enseña un vacío que parece un fallo.
-  useEffect(() => { setPage(0); }, [key]);
+  useEffect(() => { if (!hasWorkspace) setPage(0); }, [key, hasWorkspace]);
 
   useEffect(() => {
     const ticket = ++latest.current;

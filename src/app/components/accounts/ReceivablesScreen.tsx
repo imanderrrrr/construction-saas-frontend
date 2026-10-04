@@ -1,3 +1,4 @@
+import { useScreenState, useProjectFilter, useWorkspace } from '../../workspace/WorkspaceState';
 import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight, Pencil, RefreshCw, Trash2 } from 'lucide-react';
@@ -58,6 +59,7 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
   const month = currentMonth();
   const isAdmin = AuthService.getCanonicalRole() === 'ADMIN';
   const bodyId = useId();
+  const workspace = useWorkspace();
 
   const [rows, setRows] = useState<Receivable[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -78,20 +80,21 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
   const [intent] = useState(() => peekSectionIntent('accounts-receivable'));
   useEffect(() => { clearSectionIntent('accounts-receivable'); }, []);
 
-  const [view, setView] = useState<ViewKey>(intent ? 'docs' : 'clients');
-  const [client, setClient] = useState('');
-  const [projectId, setProjectId] = useState('');
-  const [status, setStatus] = useState('');
-  const [range, setRange] = useState<RangeKey>('all');
-  const [search, setSearch] = useState('');
-  const [overdueOnly, setOverdueOnly] = useState(false);
-  const [openParty, setOpenParty] = useState<string | null>(null);
-  const [openDoc, setOpenDoc] = useState<number | null>(intent?.openReceivableId ?? null);
+  const [view, setView] = useScreenState<ViewKey>('vista', intent ? 'docs' : 'clients', 'replace', ['clients', 'docs']);
+  const [client, setClient] = useScreenState('cliente-nombre', '');
+  const [projectId, setProjectId] = useProjectFilter<string>('');
+  const [status, setStatus] = useScreenState('estado', '');
+  const [range, setRange] = useScreenState<RangeKey>('rango', 'all', 'replace', ['all', 'month', 'quarter', 'year']);
+  const [search, setSearch] = useScreenState('q', '');
+  const [overdueOnly, setOverdueOnly] = useScreenState('vencidas', false);
+  const [openParty, setOpenParty] = useScreenState<string | null>('grupo', '');
+  const [openDoc, setOpenDoc] = useScreenState<number | null>('registro', intent?.openReceivableId ?? null, 'push');
 
   const [collectDoc, setCollectDoc] = useState<Receivable | null>(null);
   const [editDoc, setEditDoc] = useState<Receivable | null>(null);
   const [deleteDoc, setDeleteDoc] = useState<Receivable | null>(null);
   const [rejectDoc, setRejectDoc] = useState<Receivable | null>(null);
+  const visiblePendingCos = useMemo(() => projectId ? pendingCos.filter(co => String(co.projectId) === projectId) : pendingCos, [pendingCos, projectId]);
 
   /* ── Data ───────────────────────────────────────────────────────────── */
 
@@ -295,7 +298,7 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
             meta={t('finance:receivable.fig.collectedMeta', { count: figures.collected.count, month: currentMonthLabel(dateLocale) })}
           />
         </FiguresStrip>
-        <ContextLine aside={pendingCos.length > 0 ? t('finance:receivable.context.coNotCounted') : undefined}>
+        <ContextLine aside={visiblePendingCos.length > 0 ? t('finance:receivable.context.coNotCounted') : undefined}>
           {projectSubtotal != null
             ? <>{projects.find(p => String(p.id) === projectId)?.name} <b className="text-[#0A0A0A]">{fmtMoney(projectSubtotal)}</b> · {t('finance:receivable.context.ofTotal', { total: fmtMoney(figures.total) })}</>
             : <>{t('finance:receivable.context.total')} <b className="text-[#0A0A0A]">{figure(fmtMoney(figures.total))}</b></>}
@@ -325,20 +328,20 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
       </div>
 
       {/* Change orders the client has not approved: not receivable, and said so. */}
-      {pendingCos.length > 0 && !loadError && (
+      {visiblePendingCos.length > 0 && !loadError && (
         <div className="bg-white border border-[#E7E1D5] border-l-[3px] border-l-[#F97316]">
-          {pendingCos.length > 1 && (
+          {visiblePendingCos.length > 1 && (
             <div className="flex items-center gap-2.5 px-4 py-2 border-b border-[#EDE7DB] bg-[#FBF8F2]">
               <Mono className="text-[10px] font-semibold tracking-[0.12em] text-[#C2410C]">{t('finance:receivable.co.pending')}</Mono>
               <Mono className="ml-auto text-[10.5px] tracking-[0.08em] text-[#5A5346] normal-case">
-                {t('finance:receivable.co.count', { count: pendingCos.length })} · {fmtMoney(pendingCos.reduce((s, c) => s + c.amount, 0))}
+                {t('finance:receivable.co.count', { count: visiblePendingCos.length })} · {fmtMoney(visiblePendingCos.reduce((s, c) => s + c.amount, 0))}
               </Mono>
             </div>
           )}
-          {pendingCos.map(co => (
+          {visiblePendingCos.map(co => (
             <div key={co.id} className="flex items-center gap-4 flex-wrap px-4 py-2 border-b border-[#F0EBE1] last:border-b-0">
               <div className="flex-shrink-0">
-                {pendingCos.length === 1 && (
+                {visiblePendingCos.length === 1 && (
                   <Mono className="block text-[10px] font-semibold tracking-[0.11em] text-[#C2410C]">{t('finance:receivable.co.pending')}</Mono>
                 )}
                 <Mono className="block text-[12.5px] font-semibold normal-case text-[#0A0A0A] mt-1">{co.invoiceNumber}</Mono>
@@ -397,10 +400,10 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
           <option value="">{t('finance:receivable.filter.allClients')}</option>
           {clients.map(c => <option key={c} value={c}>{c}</option>)}
         </MonoSelect>
-        <MonoSelect value={projectId} onChange={e => setProjectId(e.target.value)} aria-label={t('common:labels.project')} className="text-[10px] py-2">
+        {!workspace && <MonoSelect value={projectId} onChange={e => setProjectId(e.target.value)} aria-label={t('common:labels.project')} className="text-[10px] py-2">
           <option value="">{t('common:labels.allProjects')}</option>
           {projects.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
-        </MonoSelect>
+        </MonoSelect>}
         <MonoSelect
           value={status}
           onChange={e => { setStatus(e.target.value); if (e.target.value === 'paid') setView('docs'); }}

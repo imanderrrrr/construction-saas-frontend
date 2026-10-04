@@ -10,6 +10,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 const svc = vi.hoisted(() => ({
   updateJobStatus: vi.fn(),
   reviewInvoice: vi.fn(),
+  registerPayment: vi.fn(),
   getJobObservations: vi.fn(),
   addJobObservation: vi.fn(),
 }));
@@ -17,6 +18,7 @@ vi.mock('../../services/subcontractors', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../services/subcontractors')>()),
   updateJobStatus: svc.updateJobStatus,
   reviewInvoice: svc.reviewInvoice,
+  registerPayment: svc.registerPayment,
   getJobObservations: svc.getJobObservations,
   addJobObservation: svc.addJobObservation,
 }));
@@ -24,6 +26,7 @@ vi.mock('../../services/subcontractors', async (importOriginal) => ({
 import i18n from '../../../i18n';
 import { ChangeStatusModal } from './ChangeStatusModal';
 import { ReviewInvoiceModal } from './ReviewInvoiceModal';
+import { RegisterPaymentModal } from './RegisterPaymentModal';
 import { JobNotes } from './JobNotes';
 import { buttonByText, click, flush, invoice, job, note, type } from './testing';
 
@@ -116,7 +119,7 @@ describe('subcontractor windows', () => {
       await flush();
       click(buttonByText(doc(), 'Aprobar factura'));
       await flush();
-      expect(svc.reviewInvoice).toHaveBeenCalledWith(418, { action: 'APPROVE', comment: null });
+      expect(svc.reviewInvoice).toHaveBeenCalledWith(418, expect.objectContaining({ action: 'APPROVE', comment: null, dueDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) }));
     });
 
     it('drops both review actions once the invoice has been reviewed, and offers the payment', async () => {
@@ -157,4 +160,37 @@ describe('subcontractor windows', () => {
       expect(svc.addJobObservation).toHaveBeenCalledWith(418, { message: 'Corrige la soldadura' });
     });
   });
+  describe('RegisterPaymentModal', () => {
+    const onPaid = vi.fn();
+    const render = async () => {
+      await act(async () => root.render(<RegisterPaymentModal open onOpenChange={() => {}} invoice={invoice({ id: 418, amountCents: 10000, outstandingCents: 6000, status: 'PENDING_PAYMENT' })} onPaid={onPaid} />));
+      await flush();
+      const select = doc().querySelector('select')!;
+      act(() => { select.value = 'Cash'; select.dispatchEvent(new Event('change', { bubbles: true })); });
+    };
+    it('records the selected partial amount and preserves its request key on retry', async () => {
+      svc.registerPayment.mockReset();
+      svc.registerPayment.mockRejectedValueOnce(new Error('timeout')).mockResolvedValueOnce(invoice({ id: 418, status: 'PENDING_PAYMENT', outstandingCents: 2000 }));
+      await render();
+      expect((doc().querySelector('input[type="number"]') as HTMLInputElement).value).toBe('60.00');
+      type(doc().querySelector('input[type="number"]') as HTMLInputElement, '40.00');
+      click(buttonByText(doc(), 'Registrar pago'));
+      await flush();
+      click(buttonByText(doc(), 'Registrar pago'));
+      await flush();
+      expect(svc.registerPayment).toHaveBeenCalledTimes(2);
+      expect(svc.registerPayment.mock.calls[0]).toEqual(svc.registerPayment.mock.calls[1]);
+      expect(svc.registerPayment).toHaveBeenCalledWith(418, expect.objectContaining({ amountCents: 4000, method: 'Cash', requestKey: expect.any(String) }));
+      expect(onPaid).toHaveBeenCalledWith(expect.objectContaining({ outstandingCents: 2000 }));
+    });
+    it('rejects an amount above the remaining balance before submitting', async () => {
+      svc.registerPayment.mockReset();
+      await render();
+      type(doc().querySelector('input[type="number"]') as HTMLInputElement, '70.00');
+      click(buttonByText(doc(), 'Registrar pago'));
+      await flush();
+      expect(svc.registerPayment).not.toHaveBeenCalled();
+    });
+  });
+
 });

@@ -1,3 +1,4 @@
+import { useScreenState } from '../../app/workspace/WorkspaceState';
 import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 
@@ -20,10 +21,10 @@ import { FIELD_LIMITS } from '../../shared/fieldLimits';
 const PAGE_SIZE = 100;
 
 export function PlatformAudit() {
-  const [actionFilter, setActionFilter] = useState('');
-  const [tenantIdFilter, setTenantIdFilter] = useState('');
-  const [actorIdFilter, setActorIdFilter] = useState('');
-  const [page, setPage] = useState(0);
+  const [actionFilter, setActionFilter] = useScreenState('accion', '');
+  const [tenantIdFilter, setTenantIdFilter] = useScreenState('empresa', '');
+  const [actorIdFilter, setActorIdFilter] = useScreenState('persona', '');
+  const [page, setPage] = useScreenState('pagina', 0);
   const [data, setData] = useState<Page<PlatformAuditEntry> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

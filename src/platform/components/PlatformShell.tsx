@@ -1,3 +1,4 @@
+import { BrowsingStateProvider } from '../../app/workspace/BrowsingState';
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { Building2, FileClock, LayoutDashboard, LogOut, ShieldCheck, TriangleAlert } from 'lucide-react';
@@ -144,7 +145,7 @@ export function PlatformShell({ children }: { children?: ReactNode }) {
                 animate={{ opacity: 1, y: 0, transition: { duration: 0.3, ease: EASE_OUT } }}
                 exit={{ opacity: 0, transition: { duration: 0.12 } }}
               >
-                <div className="mx-auto w-full max-w-[1072px] px-11 pb-14 pt-9">{children ?? outlet}</div>
+                <div className="mx-auto w-full max-w-[1072px] px-11 pb-14 pt-9"><BrowsingStateProvider>{children ?? outlet}</BrowsingStateProvider></div>
               </motion.div>
             </AnimatePresence>
           </main>

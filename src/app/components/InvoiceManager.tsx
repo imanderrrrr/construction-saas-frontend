@@ -1,3 +1,4 @@
+import { useScreenState, useProjectFilter, useWorkspace } from '../workspace/WorkspaceState';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -110,12 +111,13 @@ export function InvoiceManager({ onNavigate }: { onNavigate?: (section: string) 
   const [errorDetail, setErrorDetail] = useState<string | null>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
 
-  const [projectId, setProjectId] = useState('');
-  const [docType, setDocType] = useState('');
-  const [status, setStatus] = useState('');
-  const [range, setRange] = useState<RangeKey>('year');
-  const [pageSize, setPageSize] = useState<number>(20);
-  const [current, setCurrent] = useState(0);
+  const workspace = useWorkspace();
+  const [projectId, setProjectId] = useProjectFilter<string>('');
+  const [docType, setDocType] = useScreenState('tipo', '');
+  const [status, setStatus] = useScreenState('estado', '');
+  const [range, setRange] = useScreenState<RangeKey>('rango', 'year', 'replace', ['month', 'quarter', 'year', 'all']);
+  const [pageSize, setPageSize] = useScreenState<number>('tamano', 20);
+  const [current, setCurrent] = useScreenState('pagina', 0);
 
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
   const [windowOpen, setWindowOpen] = useState(false);
@@ -251,7 +253,8 @@ export function InvoiceManager({ onNavigate }: { onNavigate?: (section: string) 
     if (!justCreated || !onNavigate) return;
     setSectionIntent('accounts-receivable', { openReceivableId: justCreated.id });
     requestTourStop('accounts-receivable', 'signature');
-    onNavigate('accounts-receivable');
+    if (workspace) workspace.navigateSection('accounts-receivable', { registro: justCreated.id, vista: 'docs', obra: justCreated.projectId ?? null });
+    else onNavigate('accounts-receivable');
   };
 
   const figure = (value: number | undefined) =>
@@ -370,10 +373,10 @@ export function InvoiceManager({ onNavigate }: { onNavigate?: (section: string) 
       {/* ── Filters ──────────────────────────────────────────────────── */}
       <div className="bg-white border border-[#E7E1D5] p-3.5 md:px-4" data-tour="sec.invoices.filters">
         <div className="flex flex-wrap items-center gap-2.5">
-          <MonoSelect value={projectId} onChange={e => { setProjectId(e.target.value); setCurrent(0); }} aria-label={t('finance:invoice.filter.project')}>
+          {!workspace && <MonoSelect value={projectId} onChange={e => { setProjectId(e.target.value); setCurrent(0); }} aria-label={t('finance:invoice.filter.project')}>
             <option value="">{t('finance:invoice.filter.allProjects')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </MonoSelect>
+          </MonoSelect>}
           <MonoSelect value={docType} onChange={e => { setDocType(e.target.value); setCurrent(0); }} aria-label={t('finance:invoice.filter.type')}>
             <option value="">{t('finance:invoice.filter.allTypes')}</option>
             <option value="INVOICE">{t('finance:invoice.type.invoice')}</option>

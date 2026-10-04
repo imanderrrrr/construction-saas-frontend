@@ -1,3 +1,4 @@
+import { useScreenState, useProjectFilter } from '../../workspace/WorkspaceState';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, ArrowRight, ChevronRight, X } from 'lucide-react';
@@ -18,13 +19,13 @@ const SHADES = ['#0A0A0A', '#5A5346', '#A69C8D', '#CDBFA6', '#DED4C2'];
  * with money already paid — hence the permanent stamp; (2) a total that lies
  * because someone has no hourly rate, so their hours silently cost zero.
  */
-export function LaborCostScreen({ onNavigate }: { onNavigate: (section: string) => void }) {
+export function LaborCostScreen({ onNavigate, mode = 'admin' }: { onNavigate: (section: string) => void; mode?: 'admin' | 'finance' }) {
   const { t, i18n } = useTranslation(['admin', 'common']);
   const lang = i18n.language;
 
-  const [range, setRange] = useState<'week' | 'month'>('week');
-  const [q, setQ] = useState('');
-  const [project, setProject] = useState('');
+  const [range, setRange] = useScreenState<'week' | 'month'>('periodo', 'week', 'replace', ['week', 'month']);
+  const [q, setQ] = useScreenState('q', '');
+  const [project, setProject] = useProjectFilter<string>('');
   const [data, setData] = useState<AdminHoursReportResponse | null>(null);
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,7 +101,7 @@ export function LaborCostScreen({ onNavigate }: { onNavigate: (section: string) 
   return (
     <div className="relative p-4 md:p-6 max-w-[1400px] mx-auto space-y-4">
       <LaborHeader
-        screen="labor-cost" onNavigate={onNavigate}
+        screen="labor-cost" onNavigate={onNavigate} mode={mode}
         title={t('admin:cost.title')}
         summary={t('admin:cost.summary', {
           workers: visible.length, amount: money(totalCost),
@@ -216,7 +217,7 @@ export function LaborCostScreen({ onNavigate }: { onNavigate: (section: string) 
                   <Mono className="text-[9.5px] text-[#B4A992]">{t('admin:lab.peopleCount', { count: rateless.length })}</Mono>
                 </div>
                 {rateless.map(w => (
-                  <CostRow key={w.workerId} w={w} total={totalCost} onOpen={() => setOpen(w)} onNavigate={onNavigate} />
+                  <CostRow key={w.workerId} w={w} total={totalCost} onOpen={() => setOpen(w)} onNavigate={onNavigate} canManageRates={mode === 'admin'} />
                 ))}
               </div>
             )}
@@ -228,7 +229,7 @@ export function LaborCostScreen({ onNavigate }: { onNavigate: (section: string) 
                   <Mono className="text-[9.5px] text-[#B4A992]">{t('admin:lab.peopleCount', { count: sorted.length })}</Mono>
                 </div>
                 {sorted.map(w => (
-                  <CostRow key={w.workerId} w={w} total={totalCost} onOpen={() => setOpen(w)} onNavigate={onNavigate} />
+                  <CostRow key={w.workerId} w={w} total={totalCost} onOpen={() => setOpen(w)} onNavigate={onNavigate} canManageRates={mode === 'admin'} />
                 ))}
               </div>
             )}
@@ -236,15 +237,16 @@ export function LaborCostScreen({ onNavigate }: { onNavigate: (section: string) 
         )}
       </div>
 
-      {open && <CostDrawer worker={open} lang={lang} onClose={() => setOpen(null)} onNavigate={onNavigate} />}
+      {open && <CostDrawer worker={open} lang={lang} onClose={() => setOpen(null)} onNavigate={onNavigate} canManageRates={mode === 'admin'} />}
     </div>
   );
 }
 
-function CostRow({ w, total, onOpen, onNavigate }: {
+function CostRow({ w, total, onOpen, onNavigate, canManageRates }: {
   w: WorkerHoursSummary; total: number; onOpen: () => void; onNavigate: (s: string) => void;
+  canManageRates: boolean;
 }) {
-  const { t } = useTranslation(['admin']);
+  const { t } = useTranslation(['admin', 'finance']);
   const cost = projectedCost(w);
   const rateless = w.hourlyRate == null;
   const share = cost != null && total > 0 ? (cost / total) * 100 : 0;
@@ -277,7 +279,7 @@ function CostRow({ w, total, onOpen, onNavigate }: {
         )}
       </div>
       <div className="flex-shrink-0 text-right min-w-[110px]">
-        {rateless ? (
+        {rateless && !canManageRates ? <Mono className="text-[10px] text-[#C2410C]">{t('finance:labor.rateAdmin')}</Mono> : rateless ? (
           <button onClick={e => { e.stopPropagation(); onNavigate('users'); }}
             className="inline-flex items-center gap-1.5 font-bt-mono text-[10px] font-semibold uppercase tracking-[0.06em] text-[#C2410C] hover:text-[#F97316]">
             {t('admin:cost.setRate')} <ArrowRight className="w-3 h-3" />
@@ -299,10 +301,11 @@ function CostRow({ w, total, onOpen, onNavigate }: {
   );
 }
 
-function CostDrawer({ worker, lang, onClose, onNavigate }: {
+function CostDrawer({ worker, lang, onClose, onNavigate, canManageRates }: {
   worker: WorkerHoursSummary; lang: string; onClose: () => void; onNavigate: (s: string) => void;
+  canManageRates: boolean;
 }) {
-  const { t } = useTranslation(['admin']);
+  const { t } = useTranslation(['admin', 'finance']);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
@@ -343,10 +346,10 @@ function CostDrawer({ worker, lang, onClose, onNavigate }: {
               <p className="text-[13px] text-[#43301F] leading-relaxed mt-1.5">
                 {t('admin:cost.d.ratelessBody', { hours: worker.totalApprovedHours.toFixed(1) })}
               </p>
-              <button onClick={() => onNavigate('users')}
+              {canManageRates ? <button onClick={() => onNavigate('users')}
                 className="mt-3.5 inline-flex items-center gap-2 bg-[#F97316] hover:bg-[#EA580C] text-[#0A0A0A] px-3.5 py-2.5 font-bt-mono text-[10.5px] font-semibold uppercase tracking-[0.08em]">
                 {t('admin:cost.d.ratelessCta')} <ArrowRight className="w-3.5 h-3.5" />
-              </button>
+              </button> : <p className="font-bt-mono uppercase text-[10px] text-[#C2410C] mt-3.5">{t('finance:labor.rateAdmin')}</p>}
             </div>
           ) : (
             <>

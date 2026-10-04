@@ -1,3 +1,4 @@
+import { clearSectionIntent } from '../../lib/sectionIntent';
 // BuildTrack — QuickBooks Online: the tenant's link to the company that keeps
 // its books.
 //
@@ -40,6 +41,7 @@ export function QuickBooksSection({ outcome = null }: {
   /** How the last trip through Intuit ended, read from `?quickbooks=` by the dashboard. */
   outcome?: QuickBooksOutcome | null;
 }) {
+  useEffect(() => { clearSectionIntent('quickbooks'); }, []);
   const { t, i18n } = useTranslation('quickbooks');
   const lang = i18n.resolvedLanguage ?? i18n.language ?? 'es';
   const [status, setStatus] = useState<QuickBooksStatus | null>(null);

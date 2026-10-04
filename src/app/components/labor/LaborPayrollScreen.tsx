@@ -1,3 +1,4 @@
+import { useScreenState, useProjectFilter } from '../../workspace/WorkspaceState';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, ArrowRight, Check, CreditCard, Download, FileSpreadsheet, Loader2, X } from 'lucide-react';
@@ -21,13 +22,13 @@ import {
  * and unpaid are separated so hard you can tell them apart across the room,
  * and confirming a payment surfaces any budget overrun BEFORE you commit.
  */
-export function LaborPayrollScreen({ onNavigate }: { onNavigate: (section: string) => void }) {
+export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate: (section: string) => void; mode?: 'admin' | 'finance' }) {
   const { t, i18n } = useTranslation(['admin', 'common']);
   const lang = i18n.language;
 
-  const [range, setRange] = useState<'week' | 'month'>('week');
-  const [q, setQ] = useState('');
-  const [project, setProject] = useState('');
+  const [range, setRange] = useScreenState<'week' | 'month'>('periodo', 'week', 'replace', ['week', 'month']);
+  const [q, setQ] = useScreenState('q', '');
+  const [project, setProject] = useProjectFilter<string>('');
   const [status, setStatus] = useState<'' | 'unpaid' | 'paid'>('');
   const [data, setData] = useState<AdminHoursReportResponse | null>(null);
   const [projects, setProjects] = useState<{ id: number; name: string; remainingCents: number | null }[]>([]);
@@ -70,7 +71,9 @@ export function LaborPayrollScreen({ onNavigate }: { onNavigate: (section: strin
       .catch(() => setProjects([]));
   }, []);
 
-  const workers = data?.workers ?? [];
+  // A person with only unapproved hours has no payroll yet; zero payable
+  // hours must not label that person (or the entire period) as already paid.
+  const workers = useMemo(() => (data?.workers ?? []).filter(w => w.totalApprovedHours > 0 || paidAmount(w) > 0), [data]);
   const isPaid = (w: WorkerHoursSummary) => unpaidHours(w) <= 0;
 
   const visible = useMemo(() => {
@@ -115,7 +118,7 @@ export function LaborPayrollScreen({ onNavigate }: { onNavigate: (section: strin
   return (
     <div className="relative p-4 md:p-6 max-w-[1400px] mx-auto space-y-4">
       <LaborHeader
-        screen="labor-payroll" onNavigate={onNavigate}
+        screen="labor-payroll" onNavigate={onNavigate} mode={mode}
         title={t('admin:pay.title')}
         summary={t('admin:pay.summary', {
           amount: money(totalOwed), count: unpaid.length, range: fmtRange(from, to, lang),
@@ -215,7 +218,7 @@ export function LaborPayrollScreen({ onNavigate }: { onNavigate: (section: strin
             {unpaidSorted.length > 0 && (
               <Group title={t('admin:pay.groupUnpaid')} dot="#F97316" bg="#FBF8F2" color="#0A0A0A" count={unpaidSorted.length}>
                 {unpaidSorted.map(w => (
-                  <PayRow key={w.workerId} w={w} paid={false} onPay={() => setPaying(w)} onNavigate={onNavigate}
+                  <PayRow key={w.workerId} w={w} paid={false} onPay={() => setPaying(w)} onNavigate={onNavigate} canManageRates={mode === 'admin'}
                     lang={lang} blockers={budgetBlockers(w, remainingByProject)} />
                 ))}
               </Group>
@@ -223,7 +226,7 @@ export function LaborPayrollScreen({ onNavigate }: { onNavigate: (section: strin
             {paid.length > 0 && (
               <Group title={t('admin:pay.groupPaid')} dot="#7A9A7E" bg="#F3F5F1" color="#2E6B34" count={paid.length}>
                 {paid.map(w => (
-                  <PayRow key={w.workerId} w={w} paid onPay={() => {}} onNavigate={onNavigate} lang={lang} blockers={[]} />
+                  <PayRow key={w.workerId} w={w} paid onPay={() => {}} onNavigate={onNavigate} canManageRates={mode === 'admin'} lang={lang} blockers={[]} />
                 ))}
               </Group>
             )}
@@ -260,11 +263,12 @@ function Group({ title, dot, bg, color, count, children }: {
   );
 }
 
-function PayRow({ w, paid, onPay, onNavigate, lang, blockers }: {
+function PayRow({ w, paid, onPay, onNavigate, lang, blockers, canManageRates }: {
   w: WorkerHoursSummary; paid: boolean; onPay: () => void; onNavigate: (s: string) => void; lang: string;
+  canManageRates: boolean;
   blockers: { name: string; amount: number; remaining: number }[];
 }) {
-  const { t } = useTranslation(['admin']);
+  const { t } = useTranslation(['admin', 'finance']);
   const rateless = w.hourlyRate == null;
   const owed = amountOwed(w);
   const periodPaid = paidAmount(w);
@@ -274,7 +278,7 @@ function PayRow({ w, paid, onPay, onNavigate, lang, blockers }: {
 
   return (
     <div onClick={() => { if (!paid && !rateless) onPay(); }}
-      className={`flex gap-3.5 items-center px-5 py-4 border-b border-[#F0EBE1] transition-colors ${paid ? '' : 'cursor-pointer hover:bg-[#FBF8F2]'}`}
+      className={`grid grid-cols-[40px_minmax(0,1fr)] sm:grid-cols-[40px_minmax(0,1fr)_104px_150px] gap-3.5 items-center px-5 py-4 border-b border-[#F0EBE1] transition-colors ${paid ? '' : 'cursor-pointer hover:bg-[#FBF8F2]'}`}
       style={{ borderLeft: !paid && rateless ? '3px solid #F97316' : '3px solid transparent', opacity: paid ? 0.72 : 1 }}>
       <span className={`w-10 h-10 flex items-center justify-center font-bt-mono text-[13px] font-semibold flex-shrink-0 ${
         paid ? 'bg-[#EDE5D6] text-[#8A8175]' : rateless ? 'bg-[#0A0A0A] text-[#F97316]' : 'bg-[#0A0A0A] text-[#F5F1E8]'
@@ -309,7 +313,7 @@ function PayRow({ w, paid, onPay, onNavigate, lang, blockers }: {
           )}
         </Mono>
       </div>
-      <div className="flex-shrink-0 text-right min-w-[104px]">
+      <div className="col-start-2 sm:col-start-auto text-right min-w-[104px]">
         <div className="flex items-baseline gap-0.5 justify-end">
           <span className={`font-bt-display font-bold text-base ${paid ? 'text-[#B4A992]' : rateless ? 'text-[#C6BBA6]' : 'text-[#8A8175]'}`}>$</span>
           <span className={`font-bt-display font-bold text-3xl leading-none ${paid ? 'text-[#8A8175]' : rateless ? 'text-[#C6BBA6]' : 'text-[#0A0A0A]'}`}>
@@ -320,14 +324,15 @@ function PayRow({ w, paid, onPay, onNavigate, lang, blockers }: {
           {paid ? t('admin:pay.paidTag') : rateless ? t('admin:pay.notCalculable') : t('admin:pay.toPay')}
         </Mono>
       </div>
-      <div className="flex-shrink-0 w-[150px] flex justify-end" onClick={e => e.stopPropagation()}>
+      <div className="col-start-2 sm:col-start-auto flex justify-end" onClick={e => e.stopPropagation()}>
         {!paid && !rateless && (
           <button onClick={onPay}
             className="inline-flex items-center gap-2 bg-[#0A0A0A] hover:bg-[#2E6B34] text-[#F5F1E8] px-3.5 py-2.5 font-bt-mono text-[10px] font-semibold uppercase tracking-[0.07em] transition-colors">
             <CreditCard className="w-3.5 h-3.5" />{t('admin:pay.confirm')}
           </button>
         )}
-        {!paid && rateless && (
+        {!paid && rateless && !canManageRates && <Mono className="text-[10px] text-[#C2410C]">{t('finance:labor.rateAdmin')}</Mono>}
+        {!paid && rateless && canManageRates && (
           <button onClick={() => onNavigate('users')}
             className="inline-flex items-center gap-1.5 font-bt-mono text-[10px] font-semibold uppercase tracking-[0.06em] text-[#C2410C] hover:text-[#F97316]">
             {t('admin:cost.setRate')} <ArrowRight className="w-3 h-3" />

@@ -1,3 +1,5 @@
+import { useScreenState, useWorkspace } from '../workspace/WorkspaceState';
+import { workspaceStorageKey } from '../workspace/paths';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -430,9 +432,10 @@ function PulseSection({
   onNavigate: (section: string) => void;
 }) {
   const { t } = useTranslation(['admin']);
-  const storageKey = `bt.dash.pulse.${username ?? 'anon'}`;
+  const workspace = useWorkspace();
+  const storageKey = workspaceStorageKey('ADMIN', username ?? 'anon', 'pulse');
 
-  const [selected, setSelected] = useState<number | null>(null);
+  const [selected, setSelected] = useScreenState<number | null>('obra-inicio', null);
   const [pulse, setPulse] = useState<BlockState<ProjectPulse>>(loading);
   const railRef = useRef<HTMLDivElement>(null);
 
@@ -480,7 +483,7 @@ function PulseSection({
         </div>
         <div className="bg-[#EDE5D6]/60 p-6 text-center">
           <p className="text-sm text-[#3F3F46]">{t('admin:dash.pulse.noProjects')}</p>
-          <button onClick={() => onNavigate('projects')}
+          <button onClick={() => workspace && selected != null ? workspace.navigateSection('projects', { obra: selected, registro: selected, pestana: 'resumen' }) : onNavigate('projects')}
             className="mt-3 inline-flex items-center gap-2 bg-[#F97316] hover:bg-[#EA580C] text-white font-bt-mono text-[11px] uppercase tracking-[0.1em] px-4 py-2.5 transition-colors">
             {t('admin:dash.pulse.noProjectsCta')} <ArrowRight className="w-3.5 h-3.5" />
           </button>
@@ -561,7 +564,7 @@ function PulseSection({
               ) : (
                 <p className="text-sm text-[#71717A]">{t('admin:dash.pulse.sitelogEmpty')}</p>
               )}
-              <button onClick={() => onNavigate('projects')}
+              <button onClick={() => workspace && selected != null ? workspace.navigateSection('projects', { obra: selected, registro: selected, pestana: 'resumen' }) : onNavigate('projects')}
                 className="mt-3 font-bt-mono text-[10px] uppercase tracking-[0.1em] text-[#0A0A0A] hover:text-[#F97316] inline-flex items-center gap-1 transition-colors">
                 {t('admin:dash.pulse.sitelogCta')} <ArrowRight className="w-3 h-3" />
               </button>

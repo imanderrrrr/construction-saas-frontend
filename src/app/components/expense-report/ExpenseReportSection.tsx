@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useScreenState, useWorksiteFilters, useWorkspace } from '../../workspace/WorkspaceState';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '../ui/utils';
@@ -46,7 +47,8 @@ export function ExpenseReportSection({ readOnly = false, onNavigate }: {
 }) {
   const { t, i18n } = useTranslation(['admin', 'common']);
   const lang = i18n.resolvedLanguage ?? 'es';
-  const [filters, setFilters] = useState<ReportFilters>(defaultReportFilters);
+  const workspace = useWorkspace();
+  const [filters, setFilters] = useWorksiteFilters<ReportFilters>(defaultReportFilters);
   const { report, loading, error, reload } = useExpenseReport(filters, readOnly);
 
   const [tenant, setTenant] = useState<string | null>(null);
@@ -56,7 +58,7 @@ export function ExpenseReportSection({ readOnly = false, onNavigate }: {
     listProjects({ size: 200 }).then(r => setProjects(r.content)).catch(() => { /* el filtro se queda en «todas» */ });
   }, []);
 
-  const [openProject, setOpenProject] = useState<number | null>(null);
+  const [openProject, setOpenProject] = useScreenState<number | null>('registro', null, 'push');
   const [exporting, setExporting] = useState<'pdf' | 'xlsx' | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -81,6 +83,14 @@ export function ExpenseReportSection({ readOnly = false, onNavigate }: {
     : null;
 
   const openInbox = (projectId: number, status: 'PENDING' | 'OBSERVED' | 'REJECTED') => {
+    if (workspace) {
+      workspace.navigateSection('expenses', {
+        obra: projectId, registro: null, pagina: null,
+        pestana: readOnly || status === 'REJECTED' ? 'history' : 'review',
+        filtros: JSON.stringify({ dateFrom: filters.dateFrom, dateTo: filters.dateTo, projectId: 'all', workerId: 'all', type: 'all', status: !readOnly && status === 'REJECTED' ? 'REJECTED' : 'all' }),
+      });
+      return;
+    }
     writeInboxPreset({ projectId, status, dateFrom: filters.dateFrom, dateTo: filters.dateTo });
     onNavigate?.('expenses');
   };
@@ -384,6 +394,13 @@ export function ExpenseReportSection({ readOnly = false, onNavigate }: {
                 pendingCount: 0, observedCount: 0, rejectedCount: 0, totalApprovedCents: 0,
               }}
               onOpenWorker={workerId => {
+                if (workspace) {
+                  workspace.navigateSection('expenses', {
+                    registro: null, pagina: null, pestana: readOnly ? 'history' : 'review',
+                    filtros: JSON.stringify({ dateFrom: filters.dateFrom, dateTo: filters.dateTo, projectId: 'all', workerId: String(workerId), type: 'all', status: 'all' }),
+                  });
+                  return;
+                }
                 writeInboxPreset({ workerId, dateFrom: filters.dateFrom, dateTo: filters.dateTo });
                 onNavigate?.('expenses');
               }}

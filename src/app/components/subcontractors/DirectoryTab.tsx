@@ -1,3 +1,4 @@
+import { useScreenState } from '../../workspace/WorkspaceState';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowRight, RefreshCw, Search } from 'lucide-react';
@@ -40,12 +41,12 @@ export function DirectoryTab({ summary, summaryState, onPickSubcontractor, onGoT
   const [error, setError] = useState<string | null>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
 
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [search, setSearch] = useScreenState('q-directorio', '');
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
   const [jobsFilter, setJobsFilter] = useState<'' | DirectoryJobsFilter>('');
   const [balanceFilter, setBalanceFilter] = useState<'' | DirectoryBalanceFilter>('');
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(20);
+  const [page, setPage] = useScreenState('pagina-directorio', 0);
+  const [pageSize, setPageSize] = useScreenState('tamano-directorio', 20);
   const [totalElements, setTotalElements] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
