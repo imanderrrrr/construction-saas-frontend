@@ -19,8 +19,14 @@
  * `SectionIntents` can carry one, so a typo in the key fails to compile.
  */
 export interface SectionIntents {
+  /** A one-time arrival notice survives the redirect into the settings route. */
+  quickbooks: { outcome: import('../services/quickbooks').QuickBooksOutcome };
   /** Proyectos: open the list already narrowed to this client — and, if asked, straight into one of its fichas. */
   projects: { clientId: number; clientName: string; openProjectId?: number };
+  /** Cuentas por Cobrar: open straight onto one document — «Ver cómo» on the notice Facturas shows after issuing it. */
+  'accounts-receivable': { openReceivableId: number };
+  /** Finance: view this client's budgets, optionally opening one jobsite. */
+  budgets: { clientId: number; clientName: string; openProjectId?: number };
 }
 
 type Key = keyof SectionIntents;

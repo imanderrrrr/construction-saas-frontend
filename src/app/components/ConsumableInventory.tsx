@@ -1,3 +1,4 @@
+import { useScreenState } from '../workspace/WorkspaceState';
 // ConsumableInventory.tsx — Consumable supplies inventory management
 
 import { useState, useEffect, useCallback } from 'react';
@@ -102,10 +103,10 @@ export function ConsumableInventory({ onNavigate }: { onNavigate?: (section: str
   const { t } = useTranslation('inventory');
   const [items, setItems] = useState<ConsumableItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [page, setPage] = useState(1);
+  const [search, setSearch] = useScreenState('q', '');
+  const [categoryFilter, setCategoryFilter] = useScreenState('categoria', 'all');
+  const [statusFilter, setStatusFilter] = useScreenState('estado', 'all');
+  const [page, setPage] = useScreenState('pagina', 1);
 
   // Modals
   const [addOpen, setAddOpen] = useState(false);

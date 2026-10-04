@@ -106,11 +106,11 @@ describe('InvoicesTab', () => {
     expect(primary).toHaveLength(1);
   });
 
-  it('never offers "Pago pendiente" as a filter — nothing writes it', async () => {
+  it('offers partial payments as a filter', async () => {
     await render([invoice({ id: 1 })]);
     const options = Array.from(container.querySelectorAll('option')).map(o => o.value);
-    expect(options).not.toContain('PENDING_PAYMENT');
-    expect(options.filter(v => ['SUBMITTED', 'IN_REVIEW', 'OBSERVED', 'APPROVED', 'PAID'].includes(v))).toHaveLength(5);
+    expect(options).toContain('PENDING_PAYMENT');
+    expect(options.filter(v => ['SUBMITTED', 'IN_REVIEW', 'OBSERVED', 'APPROVED', 'PENDING_PAYMENT', 'PAID'].includes(v))).toHaveLength(6);
   });
 
   it('writes an em dash when the figures never arrive, and never counts the page', async () => {

@@ -42,6 +42,9 @@ export function payableAt(e: Ev): string {
   return e.capturedAtClient || e.capturedAtServer;
 }
 
+/** Compatibility for reports using the same client capture timestamp. */
+export const eventTime = payableAt;
+
 function timeOf(e: Ev): number {
   return new Date(payableAt(e)).getTime();
 }

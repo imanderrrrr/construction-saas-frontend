@@ -10,7 +10,8 @@ import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('react-router', () => ({ useNavigate: () => vi.fn() }));
+const router = vi.hoisted(() => ({ navigate: vi.fn() }));
+vi.mock('react-router', () => ({ useNavigate: () => router.navigate }));
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
 }));
@@ -18,10 +19,11 @@ vi.mock('../services/auth', () => ({
   AuthService: { getUsername: () => 'fin', logout: () => Promise.resolve() },
 }));
 vi.mock('../components/AppShell', () => ({
-  AppShell: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="app-shell">{children}</div>
+  AppShell: ({ children, navItems, onNavigate }: { children: React.ReactNode; navItems: { key: string; label: string }[]; onNavigate: (section: string) => void }) => (
+    <div data-testid="app-shell"><nav>{navItems.map(item => <button key={item.key} data-section={item.key} onClick={() => onNavigate(item.key)}>{item.label}</button>)}</nav>{children}</div>
   ),
 }));
+vi.mock('../components/InvoiceManager', () => ({ InvoiceManager: () => <div data-testid="section-invoices" /> }));
 vi.mock('../components/StatCard', () => ({ StatCard: () => <div data-testid="stat-card" /> }));
 vi.mock('../components/ui/sonner', () => ({ Toaster: () => <span data-testid="toaster" /> }));
 vi.mock('../services/expenses', () => ({
@@ -47,6 +49,14 @@ vi.mock('../components/budgets/BudgetsSection', () => ({
   ),
 }));
 
+vi.mock('../components/finance/FinanceOverview', () => ({ FinanceOverview: () => <div data-testid="finance-overview" /> }));
+vi.mock('../components/clients/ClientsSection', () => ({ ClientsSection: (props: { readOnly?: boolean; projectSection?: string }) => <div data-testid="section-clients" data-readonly={String(props.readOnly)} data-projectsection={props.projectSection} /> }));
+vi.mock('../components/AccountsReceivable', () => ({ AccountsReceivable: () => <div data-testid="section-receivables" /> }));
+vi.mock('../components/AccountsPayable', () => ({ AccountsPayable: () => <div data-testid="section-payables" /> }));
+vi.mock('../components/labor/LaborCostScreen', () => ({ LaborCostScreen: ({ mode }: { mode: string }) => <div data-testid="section-labor-cost" data-mode={mode} /> }));
+vi.mock('../components/labor/LaborPayrollScreen', () => ({ LaborPayrollScreen: ({ mode }: { mode: string }) => <div data-testid="section-labor-payroll" data-mode={mode} /> }));
+vi.mock('../components/approvals/ApprovalsInbox', () => ({ ApprovalsInbox: ({ mode }: { mode: string }) => <div data-testid="section-supervisor-hours" data-mode={mode} /> }));
+
 import { FinanceDashboard } from './FinanceDashboard';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -63,6 +73,7 @@ describe('FinanceDashboard – initialSection deep-linking', () => {
   let root: Root;
 
   beforeEach(() => {
+    router.navigate.mockReset();
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -107,5 +118,46 @@ describe('FinanceDashboard – initialSection deep-linking', () => {
     expect(container.querySelector('[data-testid="app-shell"]')).toBeTruthy();
     expect(container.querySelector('[data-testid="section-expenses"]')).toBeNull();
     expect(container.querySelector('[data-testid="section-budgets"]')).toBeNull();
+  });
+  it('includes Clients, client billing and payables in the finance navigation', async () => {
+    await act(async () => root.render(<FinanceDashboard />));
+    await flush();
+    expect(container.querySelector('[data-section="clients"]')).toBeTruthy();
+    expect(container.querySelector('[data-section="accounts-receivable"]')).toBeTruthy();
+    expect(container.querySelector('[data-section="accounts-payable"]')).toBeTruthy();
+    expect(container.querySelector('[data-section="invoices"]')).toBeTruthy();
+    await act(async () => (container.querySelector('[data-section="clients"]') as HTMLButtonElement).click());
+    expect(router.navigate).toHaveBeenCalledWith('/finance/clients');
+    await act(async () => root.render(<FinanceDashboard initialSection="clients" />));
+    await flush();
+    expect(container.querySelector('[data-testid="section-clients"]')?.getAttribute('data-readonly')).toBe('true');
+    expect(container.querySelector('[data-testid="section-clients"]')?.getAttribute('data-projectsection')).toBe('budgets');
+  });
+
+  it('keeps document issuance accessible within collections', async () => {
+    await act(async () => root.render(<FinanceDashboard initialSection="invoices" />));
+    await flush();
+    expect(container.querySelector('[data-testid="section-invoices"]')).toBeTruthy();
+  });
+
+  it('updates the screen when the router changes the initial section', async () => {
+    await act(async () => root.render(<FinanceDashboard initialSection="accounts-receivable" />));
+    await flush();
+    await act(async () => root.render(<FinanceDashboard initialSection="accounts-payable" />));
+    await flush();
+    expect(container.querySelector('[data-testid="section-payables"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="section-receivables"]')).toBeNull();
+  });
+
+  it.each([
+    ['labor-cost', '/finance/labor-cost'],
+    ['labor-payroll', '/finance/payroll'],
+    ['supervisor-hours', '/finance/supervisor-hours'],
+  ] as const)('opens the new %s screen in finance mode and keeps its own URL', async (section, path) => {
+    await act(async () => root.render(<FinanceDashboard initialSection={section} />));
+    await flush();
+    expect(container.querySelector(`[data-testid="section-${section}"]`)?.getAttribute('data-mode')).toBe('finance');
+    await act(async () => (container.querySelector(`[data-section="${section}"]`) as HTMLButtonElement).click());
+    expect(router.navigate).toHaveBeenCalledWith(path);
   });
 });

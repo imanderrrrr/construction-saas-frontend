@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useScreenState, useWorksiteFilters } from '../../workspace/WorkspaceState';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { cn } from '../ui/utils';
@@ -45,12 +46,13 @@ export function ExpensesSection({ readOnly = false }: { readOnly?: boolean }) {
   // Se lee UNA vez —`takeInboxPreset` lo borra al leerlo— porque volver aquí
   // por el menú tres días después no debe reabrir un filtro que nadie pidió.
   const [preset] = useState(takeInboxPreset);
-  const [tab, setTab] = useState<Tab>(
+  const [tab, setTab] = useScreenState<Tab>('pestana',
     readOnly || (preset?.status && preset.status !== 'PENDING' && preset.status !== 'OBSERVED')
       ? 'history'
       : 'review',
+    'replace', readOnly ? ['history'] : ['review', 'history'],
   );
-  const [filters, setFilters] = useState<Filters>(() => ({
+  const [filters, setFilters] = useWorksiteFilters<Filters>(() => ({
     ...defaultFilters(),
     ...(preset?.dateFrom ? { dateFrom: preset.dateFrom } : {}),
     ...(preset?.dateTo ? { dateTo: preset.dateTo } : {}),
@@ -61,8 +63,8 @@ export function ExpensesSection({ readOnly = false }: { readOnly?: boolean }) {
       ? { status: preset.status }
       : {}),
   }));
-  const [sort, setSort] = useState<SortKey>('amount');
-  const [group, setGroup] = useState<GroupKey>(readOnly ? 'project' : 'status');
+  const [sort, setSort] = useScreenState<SortKey>('orden', 'amount', 'replace', ['amount', 'date', 'age']);
+  const [group, setGroup] = useScreenState<GroupKey>('grupo', readOnly ? 'project' : 'status', 'replace', ['none', 'status', 'project', 'worker']);
 
   const { rows, loading, listError, summary, summaryError, previous, reload, reloadSummary } =
     useExpenseInbox(tab, filters, readOnly);

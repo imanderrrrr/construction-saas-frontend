@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Spotlight } from './Spotlight';
 import { SectionIntro } from './SectionIntro';
 import { SECTION_TOUR_STEPS } from './sectionTourSteps';
 import { useFirstRunIdle } from '../../lib/firstRunQueue';
 import { useTourScope } from '../../lib/tourScope';
+import { consumeTourRequest, peekTourRequest, useTourRequest } from '../../lib/tourRequest';
 
 /**
  * Per-section guided tour — the same spotlight the dashboard uses, for every
@@ -34,6 +35,11 @@ import { useTourScope } from '../../lib/tourScope';
  * mobile (where the dashboard tour is already suppressed: a dimmed hole on a
  * 375px screen hides the very thing it points at) and sections whose anchors
  * are all off-screen. Better a banner than nothing.
+ *
+ * A THIRD WAY IN: a stop asked for by name (lib/tourRequest). «Ver cómo» on
+ * the notice Facturas shows after issuing a document sends the user to Cobrar
+ * and asks for its signature stop; the tour opens there, at that stop, once
+ * its anchor is on screen. Like the "?", it marks nothing as seen.
  */
 
 // v1 — first release of per-section tours. Bump to re-show after a redesign.
@@ -42,6 +48,9 @@ const SEEN_VERSION = 'v1';
 /** Anchor polling: ~4s total, enough for a lazy chunk plus a slow first fetch. */
 const ANCHOR_POLL_MS = 250;
 const MAX_ANCHOR_POLLS = 16;
+/** A requested stop waits longer: its anchor may sit inside a document the
+    deep link is still opening — a fetch behind the section's own. */
+const MAX_REQUEST_POLLS = 32;
 const seenKey = (username: string | null, section: string) =>
   `bt.sectiontour.${SEEN_VERSION}.${username ?? 'anon'}.${section}`;
 
@@ -77,11 +86,13 @@ function canSpotlight(): boolean {
 }
 
 export function SectionTour({
+  autoStart = true,
   section: navSection,
   username,
   replayNonce,
   sectionLabel: navLabel,
 }: {
+  autoStart?: boolean;
   section: string;
   username: string | null;
   /** Increment (with the section current) to replay on demand (topbar "?"). */
@@ -110,9 +121,15 @@ export function SectionTour({
       back). This one only moves when a replay actually degrades to the banner,
       and resets when the section changes. */
   const [introNonce, setIntroNonce] = useState(0);
+  /** A stop asked for by name, for the section on screen (lib/tourRequest). */
+  const request = useTourRequest();
+  const requested = request && request.section === section ? request : null;
+  /** Set once a request opened the tour on this section, so the first-visit
+      poll — which may still be ticking — does not restart it at stop one. */
+  const viaRequest = useRef(false);
 
   const start = useCallback(
-    (replay: boolean) => {
+    (replay: boolean, at?: string) => {
       // A replay that degrades to the banner must still open the banner.
       const fallBack = () => {
         setFellBack(true);
@@ -129,7 +146,9 @@ export function SectionTour({
       }
       if (!replay) markSeen(username, section);
       setSteps(found);
-      setStepIdx(0);
+      // A stop asked for by name that is not on screen degrades to the first
+      // one rather than to nothing — the section is still worth touring.
+      setStepIdx(at ? Math.max(0, found.indexOf(at)) : 0);
       setFellBack(false);
     },
     [section, username],
@@ -144,19 +163,46 @@ export function SectionTour({
     setSteps(null);
     setFellBack(false);
     setIntroNonce(0);
-    if (!SECTION_TOUR_STEPS[section]) return;
+    viaRequest.current = false;
+    if (!autoStart || !SECTION_TOUR_STEPS[section]) return;
     if (hasSeen(username, section)) return;
 
     let tries = 0;
     const timer = setInterval(() => {
       tries += 1;
+      // A stop asked for by name outranks the first visit, which keeps its
+      // turn for a later one: nothing is marked seen either way.
+      if (viaRequest.current || peekTourRequest()?.section === section) {
+        clearInterval(timer);
+        return;
+      }
       if (visibleSteps(section).length > 0 || tries >= MAX_ANCHOR_POLLS) {
         clearInterval(timer);
         start(false);
       }
     }, ANCHOR_POLL_MS);
     return () => clearInterval(timer);
-  }, [section, username, start]);
+  }, [autoStart, section, username, start]);
+
+  // A stop asked for by name. Its anchor may not exist yet — the signature
+  // block lives inside the document the deep link is still opening — so poll
+  // for THAT stop, longer than the first visit does, and settle for whatever
+  // is visible at the limit. Taken out of the slot as it starts, so it fires
+  // once; and a replay, so nothing is marked seen.
+  useEffect(() => {
+    if (!requested || !SECTION_TOUR_STEPS[section]) return;
+    let tries = 0;
+    const timer = setInterval(() => {
+      tries += 1;
+      if (visibleSteps(section).includes(requested.key) || tries >= MAX_REQUEST_POLLS) {
+        clearInterval(timer);
+        consumeTourRequest();
+        viaRequest.current = true;
+        start(true, requested.key);
+      }
+    }, ANCHOR_POLL_MS);
+    return () => clearInterval(timer);
+  }, [requested, section, start]);
 
   // Topbar "?" replay for the section on screen.
   useEffect(() => {

@@ -27,6 +27,16 @@ describe('sectionIntent', () => {
     expect(consumeSectionIntent('projects')).toBeNull();
   });
 
+  it('each section keeps its own slot — the document Cobrar opens does not touch the client Proyectos narrows to', () => {
+    setSectionIntent('projects', { clientId: 7, clientName: 'Inmobiliaria Andes' });
+    setSectionIntent('accounts-receivable', { openReceivableId: 42 });
+    expect(peekSectionIntent('accounts-receivable')).toEqual({ openReceivableId: 42 });
+    expect(peekSectionIntent('projects')?.clientId).toBe(7);
+    clearSectionIntent('accounts-receivable');
+    expect(peekSectionIntent('accounts-receivable')).toBeNull();
+    expect(peekSectionIntent('projects')?.clientId).toBe(7);
+  });
+
   it('a later intent replaces the earlier one', () => {
     setSectionIntent('projects', { clientId: 7, clientName: 'Inmobiliaria Andes' });
     setSectionIntent('projects', { clientId: 9, clientName: 'Grupo Eucalipto' });

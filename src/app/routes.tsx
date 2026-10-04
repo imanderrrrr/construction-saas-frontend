@@ -1,3 +1,4 @@
+import { BrowsingStateProvider } from './workspace/BrowsingState';
 // OFJR Construction — Route configuration (canonical, Phase 1 + 2)
 // Role → route mapping is the source of truth in types/index.ts (ROLE_DASHBOARD_ROUTES)
 
@@ -30,6 +31,8 @@ import { BillingGuard }        from './components/BillingGuard';
 import { PasswordChangeGuard } from './components/PasswordChangeGuard';
 import { WhatsNewModal }       from './components/WhatsNewModal';
 import { CanonicalRole, ROLE_DASHBOARD_ROUTES } from './types';
+import { WorkspaceStateProvider } from './workspace/WorkspaceState';
+import { WORKSPACE_PATHS, type WorkspaceRole } from './workspace/paths';
 
 // Platform (super-admin) console — separate auth model (Bearer + MFA),
 // separate context, separate shell. Lives at /platform/<...>.
@@ -82,8 +85,9 @@ function GuardedPage({
   return (
     <ProtectedRoute allowedRoles={allowedRoles}>
       <BillingGuard>
-        {children}
-        <WhatsNewModal />
+        {allowedRoles?.[0] && allowedRoles[0] !== 'SUBCONTRACTOR' ? (
+          <WorkspaceStateProvider role={allowedRoles[0] as WorkspaceRole}>{children}<WhatsNewModal /></WorkspaceStateProvider>
+        ) : <>{children}<WhatsNewModal /></>}
       </BillingGuard>
     </ProtectedRoute>
   );
@@ -100,6 +104,8 @@ function RoleRedirect() {
 // Router
 // `routes` is exported separately from `router` so tests can mount any path
 // with createMemoryRouter without spinning up a real browser history.
+
+const LEGACY_WORKSPACE_PATHS = new Set(["/admin/billing", "/admin/dashboard", "/finance/budgets", "/finance/clients", "/finance/dashboard", "/finance/expenses", "/finance/invoices", "/finance/labor-cost", "/finance/payables", "/finance/payroll", "/finance/receivables", "/finance/supervisor-hours", "/supervisor/dashboard", "/supervisor/time-approvals", "/warehouse/dashboard", "/warehouse/inventory", "/worker/dashboard", "/worker/time"]);
 
 export const routes = [
 
@@ -121,7 +127,7 @@ export const routes = [
   { path: '/pay',                    element: <Pay /> },
   // Client portal — public read-only site-log view. Auth is the signed token
   // in the URL (exchanged in-page), NOT a user session: no guards on purpose.
-  { path: '/client-view/:token',     element: <ClientView /> },
+  { path: '/client-view/:token',     element: <BrowsingStateProvider><ClientView /></BrowsingStateProvider> },
   // Document signing — public by design: the person signing is an external
   // superintendent / PM with no account here. Auth is the signed token in the
   // URL (exchanged in-page for a short-lived session), NOT a user session.
@@ -220,6 +226,23 @@ export const routes = [
     ),
   },
 
+  ...([
+    ['/finance/clients', 'clients'],
+    ['/finance/receivables', 'accounts-receivable'],
+    ['/finance/payables', 'accounts-payable'],
+    ['/finance/invoices', 'accounts-receivable'],
+    ['/finance/labor-cost', 'labor-cost'],
+    ['/finance/payroll', 'labor-payroll'],
+    ['/finance/supervisor-hours', 'supervisor-hours'],
+  ] as const).map(([path, initialSection]) => ({
+    path,
+    element: (
+      <GuardedPage allowedRoles={['FINANCE']}>
+        <FinanceDashboard initialSection={initialSection} />
+      </GuardedPage>
+    ),
+  })),
+
   // WAREHOUSE
   {
     path: '/warehouse/dashboard',
@@ -284,6 +307,19 @@ export const routes = [
       { path: 'audit', element: <PlatformAudit /> },
     ],
   },
+
+  // Every operational screen has a protected, bookmarkable destination.
+  ...Object.entries(WORKSPACE_PATHS).flatMap(([role, sections]) =>
+    Object.entries(sections).filter(([, path]) => !LEGACY_WORKSPACE_PATHS.has(path)).map(([section, path]) => ({
+      path,
+      element: <GuardedPage allowedRoles={[role as CanonicalRole]}>{
+        role === 'ADMIN' ? <AdminDashboard initialSection={section as never} /> :
+        role === 'FINANCE' ? <FinanceDashboard initialSection={section as never} /> :
+        role === 'SUPERVISOR' ? <SupervisorDashboard initialSection={section as never} /> :
+        role === 'WORKER' ? <WorkerDashboard initialSection={section as never} /> :
+        <WarehouseDashboard initialSection={section as never} />
+      }</GuardedPage>,
+    }))),
 
   // Catch-all
   { path: '*', element: <Navigate to="/" replace /> },

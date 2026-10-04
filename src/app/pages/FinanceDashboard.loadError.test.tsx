@@ -34,6 +34,13 @@ vi.mock('../services/expenses', () => ({
   getFinanceExpenseReport: (...a: unknown[]) => getFinanceExpenseReport(...a),
 }));
 
+vi.mock('../services/finance', () => ({
+  getReceivableSummary: () => Promise.resolve({ outstanding: 9500, overdue: 6000, overdueCount: 1, collectedThisMonth: 9000, month: '2026-10' }),
+  listAllPayables: () => Promise.resolve([]),
+}));
+
+vi.mock('../components/clients/ClientsSection', () => ({ ClientsSection: () => null }));
+
 import { FinanceDashboard } from './FinanceDashboard';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -86,7 +93,7 @@ describe('FinanceDashboard — dashboard load errors', () => {
 
     expect(container.textContent).toContain('Worker 1');
     expect(container.querySelector('[data-testid="finance-dash-load-error"]')).toBeNull();
-    expect(container.textContent).not.toContain('dash.noApprovedExpenses');
+    expect(container.textContent).not.toContain('finance:dash.noApprovedExpenses');
   });
 
   it('a failed load shows the banner + retry, NEVER the empty state', async () => {
@@ -97,8 +104,8 @@ describe('FinanceDashboard — dashboard load errors', () => {
 
     const banner = container.querySelector('[data-testid="finance-dash-load-error"]');
     expect(banner).not.toBeNull();
-    expect(banner!.textContent).toContain('dash.loadFailed');
-    expect(container.textContent).not.toContain('dash.noApprovedExpenses');
+    expect(banner!.textContent).toContain('finance:dash.loadFailed');
+    expect(container.textContent).not.toContain('finance:dash.noApprovedExpenses');
 
     // Retry re-invokes the loader and recovers.
     getFinanceExpenses.mockResolvedValueOnce({ content: [apiExpense(7)] });

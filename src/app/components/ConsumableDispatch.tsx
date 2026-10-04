@@ -1,3 +1,4 @@
+import { useScreenState } from '../workspace/WorkspaceState';
 // ConsumableDispatch.tsx — Dispatch consumable supplies to projects
 
 import { useState, useEffect, useCallback } from 'react';
@@ -17,10 +18,9 @@ import {
 } from './ui/select';
 import { toast } from 'sonner';
 import {
-  getAllDispatches, dispatchConsumable, listConsumables,
-  type DispatchResponse, type ConsumableResponse,
+  getAllDispatches, dispatchConsumable, listConsumables, listWarehouseProjects,
+  type DispatchResponse, type ConsumableResponse, type WarehouseProjectResponse,
 } from '../services/warehouse';
-import { listProjects, type ProjectResponse } from '../services/projects';
 import { listActiveUsers, type UserDTO } from '../services/users';
 import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
@@ -68,10 +68,10 @@ export function ConsumableDispatch() {
   const { t } = useTranslation('inventory');
   const [dispatches, setDispatches] = useState<DispatchItem[]>([]);
   const [consumables, setConsumables] = useState<ConsumableResponse[]>([]);
-  const [projects, setProjects] = useState<ProjectResponse[]>([]);
+  const [projects, setProjects] = useState<WarehouseProjectResponse[]>([]);
   const [workers, setWorkers] = useState<UserDTO[]>([]);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useScreenState('pagina', 1);
   const [modalOpen, setModalOpen] = useState(false);
 
   const loadData = useCallback(() => {
@@ -79,7 +79,7 @@ export function ConsumableDispatch() {
     Promise.all([
       getAllDispatches({ page: 0, size: 500 }),
       listConsumables(),
-      listProjects({ status: 'ACTIVE', size: 100 }),
+      listWarehouseProjects({ status: 'ACTIVE', size: 100 }),
       listActiveUsers(),
     ])
       .then(([dispatchPage, consumableList, projectsPage, userList]) => {
@@ -274,7 +274,7 @@ function DispatchModal({
   open: boolean;
   onClose: () => void;
   consumables: ConsumableResponse[];
-  projects: ProjectResponse[];
+  projects: WarehouseProjectResponse[];
   workers: UserDTO[];
   onDispatch: (
     consumableCode: string,

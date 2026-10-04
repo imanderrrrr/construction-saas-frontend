@@ -1,3 +1,4 @@
+import { useScreenState, useProjectFilter, useWorkspace } from '../../workspace/WorkspaceState';
 // BuildTrack — Internal RFI view ("Consultas de obra", Procore-style).
 // Shared by the admin project ficha (Consultas tab) and the supervisor
 // section: drafts (edit/send/discard), the answer thread with the client,
@@ -64,9 +65,13 @@ const fmtUsd = (cents: number): string =>
 export function RfiList({ projects }: { projects: RfiProject[] }) {
   const { t, i18n } = useTranslation(['rfi']);
 
-  const [projectId, setProjectId] = useState<number | null>(projects[0]?.id ?? null);
-  const [statusFilter, setStatusFilter] = useState<RfiStatus | 'ALL'>('ALL');
-  const [mineOnly, setMineOnly] = useState(false);
+  const workspace = useWorkspace();
+  const [sharedProject, setSharedProject] = useProjectFilter<number | null>(null, true);
+  const [localProject, setLocalProject] = useState<number | null>(projects[0]?.id ?? null);
+  const projectId = projects.length === 1 ? projects[0].id : workspace ? sharedProject : localProject;
+  const setProjectId = workspace ? setSharedProject : setLocalProject;
+  const [statusFilter, setStatusFilter] = useScreenState<RfiStatus | 'ALL'>('estado', 'ALL');
+  const [mineOnly, setMineOnly] = useScreenState('mias', false);
   const [items, setItems] = useState<Rfi[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
@@ -78,7 +83,7 @@ export function RfiList({ projects }: { projects: RfiProject[] }) {
   const project = projects.find((p) => p.id === projectId) ?? null;
 
   useEffect(() => {
-    if (projectId == null && projects.length > 0) setProjectId(projects[0].id);
+    if (!workspace && projectId == null && projects.length > 0) setProjectId(projects[0].id);
   }, [projects, projectId]);
 
   const load = useCallback(async () => {
@@ -174,6 +179,7 @@ export function RfiList({ projects }: { projects: RfiProject[] }) {
               onChange={(e) => setProjectId(Number(e.target.value))}
               className="h-[38px] py-0"
             >
+              {projectId == null && <option value="">{t('common:workspace.chooseWorksite')}</option>}
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}

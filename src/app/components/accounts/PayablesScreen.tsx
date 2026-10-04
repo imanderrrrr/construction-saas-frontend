@@ -1,3 +1,4 @@
+import { useScreenState, useProjectFilter, useWorkspace } from '../../workspace/WorkspaceState';
 import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus } from 'lucide-react';
@@ -65,6 +66,7 @@ export function PayablesScreen({ onNavigate }: { onNavigate?: (section: string) 
   const month = currentMonth();
   const canManage = ['ADMIN', 'FINANCE'].includes(AuthService.getCanonicalRole() ?? '');
   const bodyId = useId();
+  const workspace = useWorkspace();
 
   const [bills, setBills] = useState<VendorBill[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -75,17 +77,17 @@ export function PayablesScreen({ onNavigate }: { onNavigate?: (section: string) 
   const [reloadNonce, setReloadNonce] = useState(0);
   const [busy, setBusy] = useState(false);
 
-  const [view, setView] = useState<ViewKey>('lanes');
-  const [vendor, setVendor] = useState('');
-  const [projectId, setProjectId] = useState('');
-  const [category, setCategory] = useState('');
-  const [status, setStatus] = useState('');
-  const [range, setRange] = useState<RangeKey>('all');
-  const [search, setSearch] = useState('');
-  const [openVendor, setOpenVendor] = useState<string | null>(null);
+  const [view, setView] = useScreenState<ViewKey>('vista', 'lanes', 'replace', ['lanes', 'vendors']);
+  const [vendor, setVendor] = useScreenState('proveedor', '');
+  const [projectId, setProjectId] = useProjectFilter<string>('');
+  const [category, setCategory] = useScreenState('categoria', '');
+  const [status, setStatus] = useScreenState('estado', '');
+  const [range, setRange] = useScreenState<RangeKey>('rango', 'all', 'replace', ['all', 'month', 'quarter', 'year']);
+  const [search, setSearch] = useScreenState('q', '');
+  const [openVendor, setOpenVendor] = useScreenState<string | null>('grupo', '');
   const [selected, setSelected] = useState<Set<number>>(new Set());
 
-  const [detailId, setDetailId] = useState<number | null>(null);
+  const [detailId, setDetailId] = useScreenState<number | null>('registro', null, 'push');
   const [payBill, setPayBill] = useState<VendorBill | null>(null);
   const [batchOpen, setBatchOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -349,10 +351,10 @@ export function PayablesScreen({ onNavigate }: { onNavigate?: (section: string) 
           <option value="">{t('finance:payable.filters.allVendors')}</option>
           {vendorOptions.map(v => <option key={v} value={v}>{v}</option>)}
         </MonoSelect>
-        <MonoSelect value={projectId} onChange={e => setProjectId(e.target.value)} aria-label={t('common:labels.project')} className="text-[10px] py-2">
+        {!workspace && <MonoSelect value={projectId} onChange={e => setProjectId(e.target.value)} aria-label={t('common:labels.project')} className="text-[10px] py-2">
           <option value="">{t('common:labels.allProjects')}</option>
           {projects.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
-        </MonoSelect>
+        </MonoSelect>}
         <MonoSelect value={category} onChange={e => setCategory(e.target.value)} aria-label={t('common:labels.category')} className="text-[10px] py-2">
           <option value="">{t('common:labels.allCategories')}</option>
           {Object.entries(CATEGORY_KEY_MAP).map(([k, key]) => <option key={k} value={k}>{t(`finance:${key}`)}</option>)}

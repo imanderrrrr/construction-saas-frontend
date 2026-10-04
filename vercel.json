@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/api/platform/:path*",
+      "destination": "https://construction-saas-backend-b00g.onrender.com/platform/:path*"
+    },
+    {
       "source": "/api/:path*",
       "destination": "https://construction-saas-backend-b00g.onrender.com/api/:path*"
     },

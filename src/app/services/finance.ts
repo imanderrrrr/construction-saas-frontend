@@ -171,6 +171,7 @@ export function createPayable(data: {
 }
 
 export function recordPayablePayment(id: number, data: {
+  requestKey?: string;
   amount: number;
   date: string;
   method: string;
@@ -415,6 +416,23 @@ export interface Receivable {
 }
 
 const RECEIVABLES = '/api/v1/finance/receivables';
+
+export interface ReceivableSummary {
+  issuedThisMonth: number;
+  issuedThisMonthCount: number;
+  outstanding: number;
+  overdue: number;
+  overdueCount: number;
+  collectedThisMonth: number;
+  pending: number;
+  pendingCount: number;
+  month: string;
+  asOf: string;
+}
+
+export function getReceivableSummary(): Promise<ReceivableSummary> {
+  return api<ReceivableSummary>(`${RECEIVABLES}/summary`);
+}
 
 export function listReceivables(params?: {
   projectId?: number;

@@ -13,6 +13,27 @@ export interface PageResponse<T> {
   totalPages: number;
 }
 
+// Projects available for warehouse dispatch
+
+export interface WarehouseProjectResponse {
+  id: number;
+  name: string;
+  status: 'ACTIVE' | 'INACTIVE' | 'CLOSED';
+}
+
+export function listWarehouseProjects(params?: {
+  status?: WarehouseProjectResponse['status'];
+  page?: number;
+  size?: number;
+}): Promise<PageResponse<WarehouseProjectResponse>> {
+  const qs = new URLSearchParams();
+  if (params?.status) qs.set('status', params.status);
+  if (params?.page != null) qs.set('page', String(params.page));
+  if (params?.size != null) qs.set('size', String(params.size));
+  const query = qs.toString();
+  return api<PageResponse<WarehouseProjectResponse>>(`/api/v1/warehouse/projects${query ? `?${query}` : ''}`);
+}
+
 // Dashboard
 
 export interface DashboardActivityEntry {

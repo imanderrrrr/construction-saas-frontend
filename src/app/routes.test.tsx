@@ -128,4 +128,20 @@ describe('routes – formerly ComingSoon, now real modules', () => {
     expect(container.querySelector('[data-testid="warehouse-dash"]')).toBeNull();
     expect(container.querySelector('[data-testid="worker-dash"]')).toBeTruthy();
   });
+  it.each([
+    ['/finance/clients', 'clients'], ['/finance/receivables', 'accounts-receivable'],
+    ['/finance/payables', 'accounts-payable'], ['/finance/invoices', 'accounts-receivable'],
+    ['/finance/labor-cost', 'labor-cost'], ['/finance/payroll', 'labor-payroll'], ['/finance/supervisor-hours', 'supervisor-hours'],
+  ])('%s opens the financial section for FINANCE', async (path, section) => {
+    await renderPath(root, path);
+    expect(container.querySelector('[data-testid="finance-dash"]')?.textContent).toContain(section);
+  });
+
+  it.each(['/finance/clients', '/finance/receivables', '/finance/payables', '/finance/invoices', '/finance/labor-cost', '/finance/payroll', '/finance/supervisor-hours'])('keeps %s restricted to FINANCE', async path => {
+    auth.ref.role = 'WORKER';
+    await renderPath(root, path);
+    expect(container.querySelector('[data-testid="finance-dash"]')).toBeNull();
+    expect(container.querySelector('[data-testid="worker-dash"]')).toBeTruthy();
+  });
+
 });

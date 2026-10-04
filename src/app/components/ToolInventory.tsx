@@ -1,4 +1,5 @@
-﻿import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { useScreenState } from '../workspace/WorkspaceState';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Wrench, Package, CheckCircle, ArrowLeftRight, AlertTriangle, XCircle,
@@ -420,13 +421,13 @@ export function ToolInventory({ onNavigate }: ToolInventoryProps) {
   const [historyTool,  setHistoryTool]  = useState<Tool | null>(null);
 
   // Filter state
-  const [search,         setSearch]         = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('all');
-  const [statusFilter,   setStatusFilter]   = useState('all');
+  const [search,         setSearch]         = useScreenState('q', '');
+  const [categoryFilter, setCategoryFilter] = useScreenState('categoria', 'all');
+  const [statusFilter,   setStatusFilter]   = useScreenState('estado', 'all');
 
   // UI state
   const [expandedId,   setExpandedId]   = useState<string | null>(null);
-  const [currentPage,  setCurrentPage]  = useState(1);
+  const [currentPage,  setCurrentPage]  = useScreenState('pagina', 1);
 
   // Data loading
   const loadTools = useCallback(() => {

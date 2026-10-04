@@ -17,6 +17,7 @@ vi.mock('react-i18next', () => ({
 
 import { SectionTour } from './SectionTour';
 import { pushTourScope, resetTourScope } from '../../lib/tourScope';
+import { peekTourRequest, requestTourStop, resetTourRequests } from '../../lib/tourRequest';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -205,5 +206,89 @@ describe('SectionTour', () => {
     });
     await advance(100);
     expect(container.textContent).toContain('sec.users.title');
+  });
+});
+
+describe('SectionTour — a stop asked for by name (lib/tourRequest)', () => {
+  // «Ver cómo» on the notice Facturas shows after issuing a document sends the
+  // user to Cobrar and asks for its signature stop. The stop's anchor lives
+  // inside the document the deep link is still opening, so the tour has to
+  // wait for it; and, being asked for, it outranks the first visit without
+  // spending it, exactly as the "?" does.
+  let container: HTMLDivElement;
+  let root: Root;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    localStorage.clear();
+    setViewport(true);
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(async () => {
+    await act(async () => root.unmount());
+    container.remove();
+    document.querySelectorAll('[data-tour]').forEach(el => el.remove());
+    resetTourScope();
+    resetTourRequests();
+    vi.useRealTimers();
+  });
+
+  const card = () => document.querySelector('[data-testid="tour-spotlight-card"]');
+
+  it('opens at the requested stop once its anchor appears, and marks nothing seen', async () => {
+    // Cobrar has painted, but the document — and the signature block in it —
+    // is still loading. The first visit would have started on the header.
+    plantAnchor('sec.accounts-receivable.header');
+    plantAnchor('sec.accounts-receivable.rows');
+    requestTourStop('accounts-receivable', 'signature');
+    await act(async () => {
+      root.render(<SectionTour section="accounts-receivable" username="ana" replayNonce={0} />);
+    });
+    await advance(1200);
+    expect(card(), 'the first visit stands aside while the request waits').toBeNull();
+    expect(peekTourRequest(), 'the request is still waiting for its anchor').not.toBeNull();
+
+    // The document opens: the block is on screen.
+    plantAnchor('sec.accounts-receivable.signature');
+    await advance(300);
+
+    expect(card()).not.toBeNull();
+    expect(card()!.textContent).toContain('sec.accounts-receivable.step.signature.title');
+    expect(card()!.textContent).not.toContain('sec.accounts-receivable.step.header.title');
+    // Not the first stop: the way back to the earlier ones is offered.
+    expect(Array.from(document.querySelectorAll('button')).some(b => b.textContent?.includes('admin:tour.back'))).toBe(true);
+    // Spent once it opened; the first visit keeps its turn for another day.
+    expect(peekTourRequest()).toBeNull();
+    expect(localStorage.getItem('bt.sectiontour.v1.ana.accounts-receivable')).toBeNull();
+  });
+
+  it('a requested stop that never shows up degrades to the first one, not to nothing', async () => {
+    plantAnchor('sec.accounts-receivable.header');
+    requestTourStop('accounts-receivable', 'signature');
+    await act(async () => {
+      root.render(<SectionTour section="accounts-receivable" username="ana" replayNonce={0} />);
+    });
+    // Past the (longer) request poll.
+    await advance(8500);
+
+    expect(card()).not.toBeNull();
+    expect(card()!.textContent).toContain('sec.accounts-receivable.step.header.title');
+    expect(peekTourRequest()).toBeNull();
+  });
+
+  it('a request for another section is left alone', async () => {
+    plantAnchor('sec.users.kpis');
+    requestTourStop('accounts-receivable', 'signature');
+    await act(async () => {
+      root.render(<SectionTour section="users" username="ana" replayNonce={0} />);
+    });
+    await advance(600);
+
+    // Users runs its own first visit as always; Cobrar's request waits for Cobrar.
+    expect(card()!.textContent).toContain('sec.users.step.kpis.title');
+    expect(peekTourRequest()).toEqual({ section: 'accounts-receivable', key: 'signature' });
   });
 });

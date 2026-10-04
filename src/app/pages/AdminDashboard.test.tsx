@@ -113,7 +113,7 @@ vi.mock('../components/ui/dropdown-menu', () => ({
   DropdownMenuSeparator: () => <hr />,
 }));
 
-import { AdminDashboard } from './AdminDashboard';
+import { AdminDashboard, migrateFavorites } from './AdminDashboard';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -149,43 +149,37 @@ describe('AdminDashboard – billing entry points', () => {
     container.remove();
   });
 
-  it('renders the billing entry in the sidebar', async () => {
+  it('keeps settings separate from the six main work areas', async () => {
     await renderDashboard(root);
-    const sidebarBilling = buttonsWithText(container, 'admin:nav.billing').filter(
-      btn => btn.getAttribute('data-testid') !== 'dropdown-item',
-    );
-    expect(sidebarBilling).toHaveLength(1);
+    expect(container.querySelectorAll('nav[aria-label="workspace.primaryNavigation"] button')).toHaveLength(6);
+    expect(buttonsWithText(container, 'common:workspace.settings')).toHaveLength(1);
+    expect(buttonsWithText(container, 'admin:nav.billing').filter(btn => btn.dataset.testid !== 'dropdown-item')).toHaveLength(0);
   });
 
-  it('opens the billing section in-shell (does not leave the panel) when clicked', async () => {
+  it('groups document issuance under collections and migrates legacy favorites', async () => {
     await renderDashboard(root);
-    const sidebarBilling = buttonsWithText(container, 'admin:nav.billing').filter(
-      btn => btn.getAttribute('data-testid') !== 'dropdown-item',
-    );
-    expect(sidebarBilling).toHaveLength(1);
+    await act(async () => { buttonsWithText(container, 'common:workspace.finance')[0].click(); });
+    expect(buttonsWithText(container, 'admin:nav.invoices')).toHaveLength(1);
+    expect(buttonsWithText(container, 'admin:nav.accountsReceivable')).toHaveLength(1);
+    expect(mocks.navigate).toHaveBeenCalledWith('/admin/cobros');
+    expect(migrateFavorites(['invoices', 'accounts-receivable', 'budget-report', 'budgets'])).toEqual(['accounts-receivable', 'budgets']);
+  });
 
-    await act(async () => {
-      sidebarBilling[0].click();
-    });
-
-    // Billing is now an internal section, not a route: the panel stays put
-    // and the BillingSection renders in place.
-    expect(mocks.navigate).not.toHaveBeenCalled();
+  it('opens billing from the settings area while retaining the shell', async () => {
+    await renderDashboard(root);
+    await act(async () => { buttonsWithText(container, 'common:workspace.settings')[0].click(); });
+    const billing = buttonsWithText(container, 'admin:nav.billing').find(btn => btn.dataset.testid !== 'dropdown-item');
+    expect(billing).toBeDefined();
+    await act(async () => { billing!.click(); });
+    expect(mocks.navigate).toHaveBeenLastCalledWith('/admin/configuracion/suscripcion');
     expect(container.querySelector('[data-testid="billing-section"]')).not.toBeNull();
   });
 
-  it('does not call navigate when clicking an internal section item (Users)', async () => {
+  it('gives the team area its own recoverable route', async () => {
     await renderDashboard(root);
-    const usersBtns = buttonsWithText(container, 'admin:nav.users').filter(
-      btn => btn.getAttribute('data-testid') !== 'dropdown-item',
-    );
-    expect(usersBtns.length).toBeGreaterThan(0);
-
-    await act(async () => {
-      usersBtns[0].click();
-    });
-
-    expect(mocks.navigate).not.toHaveBeenCalled();
+    await act(async () => { buttonsWithText(container, 'common:workspace.team')[0].click(); });
+    expect(mocks.navigate).toHaveBeenCalledWith('/admin/equipo');
+    expect(container.querySelector('[data-testid="user-mgmt"]')).not.toBeNull();
   });
 
   it('exposes a billing entry in the user dropdown', async () => {
@@ -213,8 +207,8 @@ describe('AdminDashboard – billing entry points', () => {
       billingDropdownItem!.click();
     });
 
-    // Consistent with the sidebar: opens the section in place, no route change.
-    expect(mocks.navigate).not.toHaveBeenCalled();
+    // The dashboard retains its shell while the address reflects the section.
+    expect(mocks.navigate).toHaveBeenCalledWith('/admin/configuracion/suscripcion');
     expect(container.querySelector('[data-testid="billing-section"]')).not.toBeNull();
   });
 });

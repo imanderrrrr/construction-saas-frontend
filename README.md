@@ -105,6 +105,26 @@ npm run dev            # → http://localhost:5173
 | `npm test` | Unit / component tests (Vitest) |
 | `npm run e2e` | End-to-end tests (Playwright) |
 | `npm run build` | Production build → `dist/` |
+| `npm run e2e:platform:prod` | Platform login/MFA routing against the production bundle locally |
+
+## API routing
+
+Tenant requests use `/api/v1/...` and platform requests use `/api/platform/...`.
+Vite proxies platform requests to `/platform/...` on `API_PROXY_TARGET`
+(default `http://localhost:58080`). Start a second backend with
+`API_PROXY_TARGET=http://localhost:58090 npm run dev` when needed.
+
+Vercel applies the dedicated platform rewrite **before** the general `/api`
+rewrite and SPA fallback. `/platform/login`, `/platform/overview` and tenant
+pages remain SPA routes, including direct navigation and reload. The rewrite
+host is the explicit deployment target in `vercel.json`; when moving hosting,
+update both API rewrite targets. The browser bundle has no fallback Render host.
+
+Leave `VITE_PLATFORM_API_ORIGIN` unset for the proxy setup. For a separate API
+origin, set it at build time (for example `https://api.example.com`), configure
+CORS for the SPA origin on the backend, and rebuild. This bearer client sends
+no cookies or tenant CSRF token. `VITE_API_URL` continues to configure local
+tenant requests only.
 
 ## Roadmap
 

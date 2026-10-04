@@ -1,3 +1,4 @@
+import { useScreenState, useProjectFilter } from '../../workspace/WorkspaceState';
 // BuildTrack — The office side of T&M: what is waiting, and turning a signed
 // ticket into a change order.
 //
@@ -64,15 +65,16 @@ export function TmOfficeSection() {
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
 
-  const [statusFilter, setStatusFilter] = useState<'' | TmTicketStatus>('');
-  const [expanded, setExpanded] = useState<number | null>(null);
+  const [statusFilter, setStatusFilter] = useScreenState<'' | TmTicketStatus>('estado', '');
+  const [projectFilter] = useProjectFilter<string>('');
+  const [expanded, setExpanded] = useScreenState<number | null>('registro', null, 'push');
 
   const [converting, setConverting] = useState<TmTicket | null>(null);
   const [changeOrderNumber, setChangeOrderNumber] = useState('');
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const filters = useMemo(() => ({ status: statusFilter || undefined }), [statusFilter]);
+  const filters = useMemo(() => ({ status: statusFilter || undefined, projectId: projectFilter ? Number(projectFilter) : undefined }), [statusFilter, projectFilter]);
 
   // Bumped to ask for a fresh read after a conversion.
   const [refreshKey, setRefreshKey] = useState(0);
@@ -83,7 +85,7 @@ export function TmOfficeSection() {
   // `cancelled` keeps a late response from writing after a filter change.
   useEffect(() => {
     let cancelled = false;
-    Promise.all([listOfficeTmTickets(filters), getOfficeTmPending()])
+    Promise.all([listOfficeTmTickets(filters), getOfficeTmPending(filters.projectId)])
       .then(([list, summary]) => {
         if (cancelled) return;
         setTickets(list);

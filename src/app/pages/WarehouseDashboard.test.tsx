@@ -18,6 +18,7 @@ const inbox = vi.hoisted(() => ({
 
 vi.mock('react-router', () => ({ useNavigate: () => vi.fn() }));
 vi.mock('react-i18next', () => ({
+  initReactI18next: { type: '3rdParty', init: () => {} },
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
 }));
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
@@ -57,7 +58,7 @@ vi.mock('../components/ToolInventory', () => ({
 // registry, which is what says WAREHOUSE has an inbox at all; its network
 // calls are stubbed. lib/api is stubbed too — the real one boots src/i18n on
 // import, which this file's react-i18next mock cannot serve.
-vi.mock('../lib/api', () => ({ api: vi.fn(), apiMultipart: vi.fn(), getBaseUrl: () => '' }));
+vi.mock('../lib/api', () => ({ api: vi.fn(), apiMultipart: vi.fn(), getBaseUrl: () => '', getStoredRole: () => 'WAREHOUSE' }));
 vi.mock('../services/notifications', async importOriginal => ({
   ...(await importOriginal<typeof import('../services/notifications')>()),
   getNotifications: inbox.getNotifications,

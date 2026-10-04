@@ -155,4 +155,18 @@ describe('ClientFicha', () => {
     click(buttonByText(container, 'Desactivar'));
     expect(handlers.onToggleStatus).toHaveBeenCalledTimes(1);
   });
+  it('finance sees billing details and jobsites without editing or project creation', async () => {
+    act(() => root.render(<ClientFicha client={ANDES} {...handlers} readOnly />));
+    await flush();
+    const buttons = Array.from(container.querySelectorAll('button')).map(button => button.textContent);
+    expect(buttons.some(label => label?.includes('Desactivar') || label?.includes('Editar') || label?.includes('Crear obra'))).toBe(false);
+    expect(container.textContent).toContain(ANDES.rfc);
+    click(tab('Obras'));
+    await flush();
+    click(buttonByText(container, 'Ver presupuestos de sus obras'));
+    expect(handlers.onOpenProjects).toHaveBeenCalledOnce();
+    click(Array.from(container.querySelectorAll('[role="button"]')).find(row => row.textContent?.includes('Torre Vista Hermosa')));
+    expect(handlers.onOpenProject).toHaveBeenCalledWith(1);
+  });
+
 });

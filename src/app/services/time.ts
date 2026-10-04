@@ -349,7 +349,6 @@ export interface DashboardProject {
   name: string;
   status: string;
   members: number;
-  contractAmountCents: number | null;
   assignedUsers: DashboardUser[];
 }
 
@@ -373,7 +372,6 @@ export interface SupervisorProjectDetail {
   id: number;
   name: string;
   status: string;
-  contractAmountCents: number | null;
   hoursThisWeek: number;
   approvedRecordsThisWeek: number;
   pendingRecordsThisWeek: number;

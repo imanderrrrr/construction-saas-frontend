@@ -28,6 +28,7 @@ interface ModalCreateDayProps {
   onClose: () => void;
   /** Called after a day is created so the parent can refetch the list. */
   onCreated: () => void;
+  subjectRole?: 'SUPERVISOR';
 }
 
 /** The four standard punches — IN_TRANSIT is out of scope for manual creation. */
@@ -68,8 +69,8 @@ function findDependencyViolation(combined: Set<TimeEventType>): [TimeEventType, 
  * also drives the paid-period warning and the "record already exists" hint).
  * CHECK_IN is required; the day is born PENDING in the normal approval flow.
  */
-export function ModalCreateDay({ open, onClose, onCreated }: ModalCreateDayProps) {
-  const { t } = useTranslation(['time', 'common']);
+export function ModalCreateDay({ open, onClose, onCreated, subjectRole }: ModalCreateDayProps) {
+  const { t } = useTranslation(['time', 'common', 'finance']);
 
   const [users, setUsers]           = useState<UserDTO[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
@@ -95,14 +96,17 @@ export function ModalCreateDay({ open, onClose, onCreated }: ModalCreateDayProps
     setError('');
     setLoading(false);
     setUsersLoading(true);
-    Promise.all([listActiveUsers('WORKER'), listActiveUsers('SUPERVISOR')])
-      .then(([workers, supervisors]) => setUsers([...workers, ...supervisors]))
+    const usersRequest = subjectRole
+      ? listActiveUsers(subjectRole)
+      : Promise.all([listActiveUsers('WORKER'), listActiveUsers('SUPERVISOR')]).then(([workers, supervisors]) => [...workers, ...supervisors]);
+    usersRequest
+      .then(setUsers)
       .catch(() => {
         setUsers([]);
         toast.error(t('manualMarks.usersLoadFailed', 'Could not load the user list.'));
       })
       .finally(() => setUsersLoading(false));
-  }, [open]);
+  }, [open, subjectRole]);
 
   // User + date chosen → fetch context (assigned projects, paid flag, existing records).
   useEffect(() => {
@@ -176,16 +180,16 @@ export function ModalCreateDay({ open, onClose, onCreated }: ModalCreateDayProps
 
   return (
     <Dialog open={open} onOpenChange={o => { if (!o) handleClose(); }}>
-      <DialogContent className="sm:max-w-md bg-white max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-md bg-[#FAF7F0] rounded-none border-[#DBD0BB] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center gap-3 mb-1">
-            <div className="w-10 h-10 bg-violet-50 rounded-xl flex items-center justify-center flex-shrink-0">
-              <CalendarPlus className="w-5 h-5 text-violet-700" />
+            <div className="w-10 h-10 bg-[#FBEDE0] rounded-none flex items-center justify-center flex-shrink-0">
+              <CalendarPlus className="w-5 h-5 text-[#C2410C]" />
             </div>
             <div>
-              <DialogTitle className="text-[#0A0A0A]">{t('manualMarks.createTitle', 'Create day')}</DialogTitle>
+              <DialogTitle className="font-bt-display uppercase text-2xl text-[#0A0A0A]">{t('manualMarks.createTitle', 'Create day')}</DialogTitle>
               <DialogDescription className="text-[11px]">
-                {t('manualMarks.createSubtitle', 'Register a full day on behalf of a worker or supervisor.')}
+                {subjectRole ? t('finance:labor.manualSupervisorHint') : t('manualMarks.createSubtitle', 'Register a full day on behalf of a worker or supervisor.')}
               </DialogDescription>
             </div>
           </div>
@@ -195,10 +199,10 @@ export function ModalCreateDay({ open, onClose, onCreated }: ModalCreateDayProps
           {/* Subject (worker / supervisor) */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-[#0A0A0A]">
-              {t('manualMarks.userLabel', 'Worker / Supervisor')} <span className="text-red-500">*</span>
+              {subjectRole ? t('common:roles.SUPERVISOR') : t('manualMarks.userLabel', 'Worker / Supervisor')} <span className="text-red-500">*</span>
             </label>
             <Select value={userId} onValueChange={v => { setUserId(v); setError(''); }} disabled={usersLoading || loading}>
-              <SelectTrigger className="h-10 border-[#D4D4D8] w-full" data-testid="create-day-user">
+              <SelectTrigger className="rounded-none bg-[#FAF7F0] h-10 border-[#DBD0BB] w-full" data-testid="create-day-user">
                 <SelectValue placeholder={usersLoading ? t('manualMarks.loading', 'Loading…') : t('manualMarks.userPlaceholder', 'Select a user')} />
               </SelectTrigger>
               <SelectContent>
@@ -223,7 +227,7 @@ export function ModalCreateDay({ open, onClose, onCreated }: ModalCreateDayProps
               onChange={e => { setWorkDate(e.target.value); setError(''); }}
               disabled={loading}
               data-testid="create-day-date"
-              className="w-full px-3.5 py-2.5 border rounded-xl text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 transition-all border-[#D4D4D8] focus:ring-violet-200 focus:border-violet-400 disabled:opacity-50 bg-white"
+              className="w-full px-3.5 py-2.5 border rounded-none text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 transition-all border-[#DBD0BB] focus:ring-[#F97316]/25 focus:border-[#F97316] disabled:opacity-50 bg-white"
             />
           </div>
 
@@ -235,7 +239,7 @@ export function ModalCreateDay({ open, onClose, onCreated }: ModalCreateDayProps
               </label>
               <Select value={projectId} onValueChange={v => { setProjectId(v); setError(''); }}
                 disabled={contextLoading || loading || !context}>
-                <SelectTrigger className="h-10 border-[#D4D4D8] w-full" data-testid="create-day-project">
+                <SelectTrigger className="h-10 border-[#DBD0BB] w-full" data-testid="create-day-project">
                   <SelectValue placeholder={contextLoading ? t('manualMarks.loading', 'Loading…') : t('manualMarks.projectPlaceholder', 'Select a project')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -245,12 +249,12 @@ export function ModalCreateDay({ open, onClose, onCreated }: ModalCreateDayProps
                 </SelectContent>
               </Select>
               {context && context.assignedProjects.length === 0 && (
-                <p className="text-[11px] text-[#71717A]">
+                <p className="text-[11px] text-[#8A8175]">
                   {t('manualMarks.noProjects', 'This user has no active project assignments.')}
                 </p>
               )}
               {contextFailed && (
-                <p className="flex items-center gap-1 text-[11px] text-[#71717A]">
+                <p className="flex items-center gap-1 text-[11px] text-[#8A8175]">
                   <Info className="w-3 h-3 flex-shrink-0" />
                   {t('manualMarks.notAvailable', 'Manual marks are not available on the server yet.')}
                 </p>
@@ -260,7 +264,7 @@ export function ModalCreateDay({ open, onClose, onCreated }: ModalCreateDayProps
 
           {/* Paid-period warning (yellow) */}
           {context?.paidPeriod && (
-            <div className="flex items-start gap-2 px-3.5 py-3 rounded-xl bg-amber-50 border border-amber-200"
+            <div className="flex items-start gap-2 px-3.5 py-3 rounded-none bg-amber-50 border border-amber-200"
               data-testid="paid-period-warning">
               <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
               <p className="text-xs text-amber-800">
@@ -272,7 +276,7 @@ export function ModalCreateDay({ open, onClose, onCreated }: ModalCreateDayProps
 
           {/* Record already exists on this project+date → route to "Add marks" */}
           {existingOnProject && (
-            <div className="flex items-start gap-2 px-3.5 py-3 rounded-xl bg-red-50 border border-red-200"
+            <div className="flex items-start gap-2 px-3.5 py-3 rounded-none bg-red-50 border border-red-200"
               data-testid="record-exists-hint">
               <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
               <p className="text-xs text-red-700">
@@ -288,11 +292,11 @@ export function ModalCreateDay({ open, onClose, onCreated }: ModalCreateDayProps
             {MANUAL_TYPES.map(type => (
               <div key={type} className="space-y-1">
                 <label className="text-sm font-medium text-[#0A0A0A] flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-violet-500" />
+                  <Clock className="w-3.5 h-3.5 text-[#C2410C]" />
                   {t(`modalCorrect.event.${type}`)}
                   {type === 'CHECK_IN'
                     ? <span className="text-red-500">*</span>
-                    : <span className="text-[10px] font-normal text-[#71717A] ml-1">{t('manualMarks.optionalLeaveEmpty', '(leave empty to skip)')}</span>}
+                    : <span className="text-[10px] font-normal text-[#8A8175] ml-1">{t('manualMarks.optionalLeaveEmpty', '(leave empty to skip)')}</span>}
                 </label>
                 <input
                   type="time"
@@ -300,7 +304,7 @@ export function ModalCreateDay({ open, onClose, onCreated }: ModalCreateDayProps
                   onChange={e => { setTimes(prev => ({ ...prev, [type]: e.target.value })); setError(''); }}
                   disabled={loading}
                   data-testid={`time-input-${type}`}
-                  className="w-full px-3.5 py-2.5 border rounded-xl text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 transition-all border-[#D4D4D8] focus:ring-violet-200 focus:border-violet-400 disabled:opacity-50 bg-white"
+                  className="w-full px-3.5 py-2.5 border rounded-none text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 transition-all border-[#DBD0BB] focus:ring-[#F97316]/25 focus:border-[#F97316] disabled:opacity-50 bg-white"
                 />
               </div>
             ))}
@@ -311,18 +315,18 @@ export function ModalCreateDay({ open, onClose, onCreated }: ModalCreateDayProps
               <AlertCircle className="w-3 h-3 flex-shrink-0" />{error}
             </p>
           ) : (
-            <p className="text-[10px] text-[#71717A]">
+            <p className="text-[10px] text-[#8A8175]">
               {t('manualMarks.pendingNote', 'Marks are created as PENDING and go through the normal approval flow, labeled with your username.')}
             </p>
           )}
 
           <DialogFooter className="pt-1">
             <Button type="button" variant="outline" onClick={handleClose} disabled={loading}
-              className="border-[#D4D4D8] text-[#0A0A0A]">
+              className="rounded-none font-bt-mono uppercase text-[10px] tracking-wide border-[#DBD0BB] text-[#0A0A0A]">
               {t('common:buttons.cancel', 'Cancel')}
             </Button>
             <Button type="submit" disabled={!canSubmit}
-              className="gap-2 bg-violet-600 hover:bg-violet-700 text-white" data-testid="create-day-submit">
+              className="rounded-none font-bt-mono uppercase text-[10px] tracking-wide gap-2 bg-[#0A0A0A] hover:bg-[#C2410C] text-white" data-testid="create-day-submit">
               {loading
                 ? <><Loader2 className="w-4 h-4 animate-spin" />{t('manualMarks.submitting', 'Creating…')}</>
                 : <><CalendarPlus className="w-4 h-4" />{t('manualMarks.createSubmit', 'Create day')}</>}

@@ -1,3 +1,4 @@
+import { useUnsavedChanges } from '../workspace/UnsavedChanges';
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Receipt, Camera, Send, X, FileText, Loader2, AlertCircle,
@@ -109,6 +110,7 @@ export function NewExpense({ onSubmitSuccess }: NewExpenseProps) {
   const [receiptFile,  setReceiptFile]  = useState<File | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const [comment,      setComment]      = useState('');
+  const releaseDraft = useUnsavedChanges(Boolean(expenseType || amount || project || receiptFile || comment));
 
   // UI state
   const [touched,      setTouched]      = useState<Record<string, boolean>>({});
@@ -207,6 +209,7 @@ export function NewExpense({ onSubmitSuccess }: NewExpenseProps) {
         description: `$${Number(amount).toFixed(2)} · ${typeLabel} · ${proj?.name}`,
       });
       handleReset();
+      releaseDraft();
       onSubmitSuccess?.();
     } catch (err: any) {
       toast.error(t('new.toast.error'), { description: err?.message });
@@ -269,6 +272,7 @@ export function NewExpense({ onSubmitSuccess }: NewExpenseProps) {
               </span>
               <input
                 type="number"
+                aria-label={t('new.amount.label')}
                 step="0.01"
                 min="0.01"
                 value={amount}

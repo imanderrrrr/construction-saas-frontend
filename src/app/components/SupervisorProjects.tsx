@@ -1,4 +1,5 @@
-﻿// SupervisorProjects.tsx — Supervisor's assigned projects with operational detail
+import { useScreenState } from '../workspace/WorkspaceState';
+// SupervisorProjects.tsx — Supervisor's assigned projects with operational detail
 // Connected to GET /api/v1/supervisor/dashboard/projects
 
 import { useState, useEffect } from 'react';
@@ -138,7 +139,7 @@ function SkeletonCard() {
 
 export function SupervisorProjects() {
   const { t } = useTranslation(['supervisor', 'common']);
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useScreenState<string>('estado', 'all');
   const [projects, setProjects] = useState<SupervisorProjectDetail[]>([]);
   const [loading, setLoading] = useState(true);
 

@@ -54,6 +54,20 @@ const PENDING: SignatureRequestState = {
   declineReason: null,
   revokedAt: null,
   documentChanged: false,
+  documentChangedSinceSigned: false,
+};
+
+const SIGNED: SignatureRequestState = {
+  ...PENDING,
+  id: 4,
+  status: 'SIGNED',
+  signToken: null,
+  signUrl: null,
+  signerName: 'Carlos Méndez',
+  signerTitle: 'Superintendente',
+  signedAt: '2026-08-10T15:00:00Z',
+  signerIp: '203.0.113.7',
+  hasSignatureImage: true,
 };
 
 describe('SignatureRequestPanel — document-changed warning', () => {
@@ -94,7 +108,7 @@ describe('SignatureRequestPanel — document-changed warning', () => {
     expect(warning).not.toBeNull();
     expect(warning!.textContent).toContain('cambió después de mandar el enlace');
     // The warning has to say what to DO about it, not just that something is off.
-    expect(warning!.textContent).toContain('pida la firma otra vez');
+    expect(warning!.textContent).toContain('pide la firma otra vez');
   });
 
   it('warns without disabling anything — reporting is not invalidating', async () => {
@@ -106,5 +120,69 @@ describe('SignatureRequestPanel — document-changed warning', () => {
     const copy = buttons.find((b) => /copiar|copy/i.test(b.textContent ?? ''));
     expect(copy, 'the copy-link button must survive the warning').toBeTruthy();
     expect(copy!.disabled).toBe(false);
+  });
+});
+
+describe('SignatureRequestPanel — signed, then the document changed', () => {
+  // The other half of the same flaw: once SIGNED, the panel used to read as
+  // "signed" forever, however much the invoice moved afterwards. The signature
+  // is still evidence of the version it was put on — nothing is invalidated —
+  // but the office has to see that it is not the current version, and be able
+  // to ask again (the backend keeps the signed request as history).
+  let container: HTMLDivElement;
+  let root: Root;
+
+  async function render(state: SignatureRequestState) {
+    svc.getSignatureRequest.mockResolvedValue(state);
+    await act(async () => {
+      root.render(<SignatureRequestPanel receivableId={42} />);
+    });
+    await act(async () => { await Promise.resolve(); });
+  }
+
+  beforeEach(async () => {
+    await i18n.changeLanguage('es');
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    svc.getSignatureRequest.mockReset();
+  });
+
+  afterEach(async () => {
+    await act(async () => { root.unmount(); });
+    container.remove();
+  });
+
+  it('shows a signed document with no warning and no re-request while it still matches', async () => {
+    await render(SIGNED);
+    expect(container.textContent).toContain('Carlos Méndez');
+    expect(container.querySelector('[role="status"]')).toBeNull();
+    const again = [...container.querySelectorAll('button')].find((b) => /pedir firma de nuevo/i.test(b.textContent ?? ''));
+    expect(again, 'nothing to ask again for while the signature covers the current version').toBeUndefined();
+  });
+
+  it('warns that the signature belongs to the earlier version and offers to ask again', async () => {
+    await render({ ...SIGNED, documentChangedSinceSigned: true });
+
+    const warning = container.querySelector('[role="status"]');
+    expect(warning).not.toBeNull();
+    expect(warning!.textContent).toContain('cambió después de que la firmaron');
+    expect(warning!.textContent).toContain('versión anterior');
+    // Still reads as signed — the warning qualifies the signature, it does not erase it.
+    expect(container.textContent).toContain('Carlos Méndez');
+
+    const again = [...container.querySelectorAll('button')].find((b) => /pedir firma de nuevo/i.test(b.textContent ?? ''));
+    expect(again, 'the way out is a fresh request').toBeTruthy();
+  });
+
+  it('asking again from the warning opens the request form', async () => {
+    await render({ ...SIGNED, documentChangedSinceSigned: true });
+    const again = [...container.querySelectorAll('button')].find((b) => /pedir firma de nuevo/i.test(b.textContent ?? ''))!;
+
+    await act(async () => { again.click(); });
+
+    expect(container.querySelector('input[type="email"]'), 'the compose form must open').not.toBeNull();
+    const send = [...container.querySelectorAll('button')].find((b) => /enviar solicitud/i.test(b.textContent ?? ''));
+    expect(send).toBeTruthy();
   });
 });

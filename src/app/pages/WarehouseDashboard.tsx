@@ -1,22 +1,16 @@
-﻿import { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { AppShell } from '../components/AppShell';
+import { useSectionNavigation } from '../workspace/WorkspaceState';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useMarkDashboardReady } from '../lib/dashboardReady';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { AuthService } from '../services/auth';
-import { Button } from '../components/ui/button';
-import {
-  Building2, LayoutDashboard, LogOut, User, Menu, X,
-  Wrench, ArrowLeftRight, History as HistoryIcon,
-  CheckCircle, AlertTriangle, Package, Boxes, Loader2,
-} from 'lucide-react';
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
-} from '../components/ui/dropdown-menu';
+
+import { LayoutDashboard, Wrench, ArrowLeftRight, History as HistoryIcon, CheckCircle, AlertTriangle, Package, Boxes, Loader2 } from 'lucide-react';
+
 import { StatCard } from '../components/StatCard';
 import { Toaster } from '../components/ui/sonner';
-import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { NotificationInbox } from '../components/notifications/NotificationInbox';
 import { getDashboard, type DashboardResponse, type DashboardActivityEntry, type LowStockAlertEntry, type DashboardKpis } from '../services/warehouse';
 
@@ -64,18 +58,6 @@ const SECTION_META: Record<ActiveSection, { title: string; subtitle: string }> =
   'tool-history':        { title: 'warehouse.nav.toolHistory',      subtitle: 'warehouse.section.toolHistory'      },
   'consumables':         { title: 'warehouse.nav.consumableStock',  subtitle: 'warehouse.section.consumableStock'  },
   'consumable-dispatch': { title: 'warehouse.nav.dispatchSupply',   subtitle: 'warehouse.section.dispatchSupply'   },
-};
-
-// Constants
-
-const PANEL_LABEL = 'Warehouse Panel';
-
-// Industrial chassis — keep in sync with components/AppShell.tsx and
-// pages/AdminDashboard.tsx (same markup, maintained by hand).
-const GRID_INK: React.CSSProperties = {
-  backgroundImage:
-    'linear-gradient(rgba(245,241,232,0.055) 1px, transparent 1px), linear-gradient(90deg, rgba(245,241,232,0.055) 1px, transparent 1px)',
-  backgroundSize: '24px 24px',
 };
 
 // Dashboard data loaded from API
@@ -269,169 +251,24 @@ function DashboardView({ username, onNavigate }: { username: string; onNavigate:
 
 // Main component
 
-export function WarehouseDashboard({ initialSection }: { initialSection?: ActiveSection } = {}) {
-  // The welcome overlay fades once this page is on screen (lib/dashboardReady).
+export function WarehouseDashboard({ initialSection = 'dashboard' }: { initialSection?: ActiveSection } = {}) {
   useMarkDashboardReady();
-  const { t }      = useTranslation('inventory');
-  const navigate   = useNavigate();
-  const username   = AuthService.getUsername() ?? 'warehouse';
-  const initials   = username.slice(0, 2).toUpperCase();
-  // `initialSection` lets a deep-link route (e.g. /warehouse/inventory) open the
-  // dashboard straight on a section while keeping the full shell + sidebar.
-  const [activeSection, setActiveSection] = useState<ActiveSection>(initialSection ?? 'dashboard');
-  const [sidebarOpen,   setSidebarOpen]   = useState(false);
-  const navScrollPos = useRef(0);
-
-  const handleLogout   = () => { document.cookie = 'ofjr_session=; Path=/; Max-Age=0'; navigate('/'); AuthService.logout(); };
-  const handleNavigate = (section: string) => { setActiveSection(section as ActiveSection); setSidebarOpen(false); };
-  const meta = SECTION_META[activeSection];
-
-  // Nav item
-  function NavItem({ item }: { item: typeof NAV_ITEMS[number] }) {
-    const isActive = activeSection === item.key;
-    return (
-      <button onClick={() => handleNavigate(item.key)}
-        className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-colors font-bt-mono text-[10.5px] font-medium uppercase tracking-[0.07em] ${
-          isActive ? 'bg-[#0A0A0A] text-[#F5F1E8]' : 'text-[#5A5346] hover:bg-[#F3EEE4] hover:text-[#0A0A0A]'
-        }`}>
-        <item.icon className="flex-shrink-0" style={{ width: 15, height: 15 }} />
-        <span className={`flex-1 ${isActive ? 'font-semibold' : ''}`}>{t(item.label)}</span>
-        {isActive && <span className="w-1.5 h-1.5 bg-[#F97316] flex-shrink-0" />}
-      </button>
-    );
-  }
-
-  // Sidebar content
-  function SidebarContent() {
-    const mainItems        = NAV_ITEMS.filter(i => i.group === 'main');
-    const inventoryItems   = NAV_ITEMS.filter(i => i.group === 'inventory');
-    const consumableItems  = NAV_ITEMS.filter(i => i.group === 'consumables');
-    return (
-      <>
-        {/* Brand plate */}
-        <div className="px-4 py-4 bg-[#0A0A0A] flex-shrink-0" style={GRID_INK}>
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-[#F97316] flex items-center justify-center flex-shrink-0">
-              <Wrench className="w-5 h-5 text-[#0A0A0A]" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="font-bt-display font-bold uppercase text-[16px] leading-none text-[#F5F1E8] truncate">{t('brand', { ns: 'common' })}</h1>
-              <p className="font-bt-mono text-[8.5px] uppercase tracking-[0.16em] text-[#B4A992] mt-1 truncate">{t('warehouse.panelLabel')}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Navigation */}
-        <nav
-          className="flex-1 p-3 space-y-0.5 overflow-y-auto min-h-0"
-          ref={(el) => { if (el) el.scrollTop = navScrollPos.current; }}
-          onScroll={(e) => { navScrollPos.current = e.currentTarget.scrollTop; }}
-        >
-          <p className="font-bt-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-[#A69C8D] px-3 py-2">{t('warehouse.groups.general')}</p>
-          {mainItems.map(item => <NavItem key={item.key} item={item} />)}
-
-          <div className="my-3 border-t border-[#EDE7DB]" />
-          <p className="font-bt-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-[#A69C8D] px-3 py-2">{t('warehouse.groups.inventory')}</p>
-          {inventoryItems.map(item => <NavItem key={item.key} item={item} />)}
-
-          <div className="my-3 border-t border-[#EDE7DB]" />
-          <p className="font-bt-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-[#A69C8D] px-3 py-2">{t('warehouse.groups.consumables')}</p>
-          {consumableItems.map(item => <NavItem key={item.key} item={item} />)}
-        </nav>
-
-        {/* User footer */}
-        <div className="p-3 border-t border-[#DBD0BB] flex-shrink-0">
-          <div className="flex items-center gap-2.5 p-2">
-            <div className="w-9 h-9 bg-[#0A0A0A] flex items-center justify-center font-bt-mono text-[11px] font-semibold text-[#F97316] flex-shrink-0">
-              {initials}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-bt-mono text-[11px] font-semibold text-[#0A0A0A] truncate">{username}</p>
-              <p className="font-bt-mono text-[8.5px] uppercase tracking-[0.14em] text-[#8A8175] mt-0.5 truncate">{t('roles.WAREHOUSE', { ns: 'common' })}</p>
-            </div>
-            <button onClick={handleLogout} title={t('signOut', { ns: 'common' })}
-              className="p-1.5 text-[#8A8175] hover:text-[#C2410C] hover:bg-[#F3EEE4] transition-colors flex-shrink-0">
-              <LogOut className="w-3.5 h-3.5" />
-            </button>
-          </div>
-          <p className="font-bt-mono text-[8px] uppercase tracking-[0.1em] text-[#B4A992] px-2 mt-1.5">{t('warehouse.sidebar.version')}</p>
-        </div>
-      </>
-    );
-  }
-
-  // Render
-  return (
-    <div className="min-h-screen bg-[#FAFAFA] flex">
-
-      {/* Desktop sidebar */}
-      <aside className="hidden md:flex w-60 bg-[#FAF7F0] border-r border-[#DBD0BB] flex-col flex-shrink-0 sticky top-0 h-screen">
-        <SidebarContent />
-      </aside>
-
-      {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-40 md:hidden">
-          <div className="absolute inset-0 bg-[#0A0A0A]/50 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
-          <aside className="absolute left-0 top-0 bottom-0 w-72 bg-[#FAF7F0] flex flex-col shadow-2xl">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[#DBD0BB] flex-shrink-0">
-              <span className="font-bt-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-[#0A0A0A]">{t('menu', { ns: 'common' })}</span>
-              <button onClick={() => setSidebarOpen(false)} className="w-8 h-8 flex items-center justify-center text-[#8A8175] hover:bg-[#F3EEE4] hover:text-[#0A0A0A]">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-              <SidebarContent />
-            </div>
-          </aside>
-        </div>
-      )}
-
-      {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0">
-
-        {/* Topbar — identity + context + actions; the content below carries
-            its own display title, so the masthead only whispers where you are. */}
-        <header className="h-14 bg-[#FAF7F0] border-b border-[#0A0A0A] flex items-center justify-between px-4 md:px-6 flex-shrink-0 sticky top-0 z-30">
-          <div className="flex items-center gap-3 min-w-0">
-            <button onClick={() => setSidebarOpen(true)}
-              className="md:hidden w-9 h-9 flex items-center justify-center border border-[#0A0A0A] text-[#0A0A0A] hover:bg-[#F3EEE4] flex-shrink-0">
-              <Menu className="w-4 h-4" />
-            </button>
-            <h2 className="min-w-0 truncate font-bt-mono text-[10.5px] font-semibold uppercase tracking-[0.14em] text-[#0A0A0A]">
-              <span className="text-[#8A8175] hidden sm:inline">{t('warehouse.panelLabel')} · </span>{t(meta.title)}
-            </h2>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <LanguageSwitcher variant="shell" />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-2 h-9 px-2 rounded-none hover:bg-[#F3EEE4]">
-                  <div className="w-7 h-7 bg-[#0A0A0A] flex items-center justify-center flex-shrink-0">
-                    <span className="font-bt-mono text-[10px] font-semibold text-[#F97316]">{initials}</span>
-                  </div>
-                  <div className="text-left hidden sm:block">
-                    <div className="font-bt-mono text-[10.5px] font-semibold text-[#0A0A0A]">{username}</div>
-                    <div className="font-bt-mono text-[8.5px] uppercase tracking-[0.1em] text-[#8A8175]">{t('roles.WAREHOUSE', { ns: 'common' })}</div>
-                  </div>
-                </Button>
-              </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 rounded-none border-[#DBD0BB]">
-              <DropdownMenuLabel className="font-bt-mono text-[10px] uppercase tracking-[0.08em] text-[#8A8175]">{t('signedInAs', { ns: 'common', username })}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="gap-2 text-sm cursor-pointer"><User className="w-4 h-4" />{t('profile', { ns: 'common' })}</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout} className="gap-2 text-sm text-[#C2410C] focus:text-[#C2410C] cursor-pointer">
-                <LogOut className="w-4 h-4" />{t('signOut', { ns: 'common' })}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </header>
-
-        {/* Content area */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">
+  const navigate = useNavigate();
+  const { t } = useTranslation(['inventory', 'common']);
+  const username = AuthService.getUsername() ?? 'warehouse';
+  const [activeSection, handleNavigate] = useSectionNavigation('WAREHOUSE', initialSection);
+  const handleLogout = () => { document.cookie = 'ofjr_session=; Path=/; Max-Age=0'; navigate('/'); void AuthService.logout(); };
+  const navItems = NAV_ITEMS.map(item => ({ ...item, label: item.key === 'dashboard' ? t('common:workspace.home') : t(item.label),
+    group: item.key === 'dashboard' ? undefined : item.key === 'tool-history' ? 'movements' : item.group }));
+  const navGroups = [
+    { key: 'inventory', label: t('common:workspace.tools'), icon: Wrench },
+    { key: 'consumables', label: t('common:workspace.materials'), icon: Boxes },
+    { key: 'movements', label: t('common:workspace.movements'), icon: HistoryIcon },
+  ];
+  return <>
+    <AppShell role="WAREHOUSE" username={username} panelLabel={t('common:roles.WAREHOUSE')}
+      navItems={navItems} navGroups={navGroups} activeSection={activeSection} onNavigate={handleNavigate} onLogout={handleLogout}
+      pageTitle={t(SECTION_META[activeSection].title)}>
           {activeSection === 'dashboard' && (
             <DashboardView username={username} onNavigate={handleNavigate} />
           )}
@@ -460,10 +297,6 @@ export function WarehouseDashboard({ initialSection }: { initialSection?: Active
               <ConsumableDispatch />
             </Suspense>
           )}
-        </main>
-      </div>
-
-      <Toaster position="top-right" richColors />
-    </div>
-  );
+    </AppShell><Toaster position="top-right" richColors />
+  </>;
 }

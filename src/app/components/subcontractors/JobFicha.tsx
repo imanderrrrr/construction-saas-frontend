@@ -1,3 +1,4 @@
+import { useScreenState } from '../../workspace/WorkspaceState';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft } from 'lucide-react';
@@ -47,7 +48,7 @@ export function JobFicha({ job, onBack, onChangeStatus, onJobChanged, onOpenInvo
 }) {
   const { t, i18n } = useTranslation(['subcontractors', 'common']);
   const lang = i18n.language;
-  const [tab, setTab] = useState<JobFichaTab>('notes');
+  const [tab, setTab] = useScreenState<JobFichaTab>('pestana-ficha', 'notes', 'replace', ['notes', 'evidence', 'history']);
   const [busy, setBusy] = useState<'approve' | null>(null);
   const [actionError, setActionError] = useState(false);
   const [noteCount, setNoteCount] = useState<number | null>(job.observationCount);

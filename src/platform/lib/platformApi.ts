@@ -5,17 +5,15 @@ import { readPlatformSession, clearPlatformSession } from './platformAuthStorage
 // we keep the platform fetch wrapper separate to avoid an `if (platform)`
 // branch on every call.
 
-// The platform console runs on the Vercel SPA origin, but its API lives on the
-// Render backend at /platform/*. Unlike the tenant app (relative /api/* URLs that
-// vercel.json proxies to the backend), the platform paths can't ride that rewrite:
-// /platform/* both collides with this SPA's own /platform/* page routes AND isn't
-// matched by the /api/* rewrite — so a relative URL in prod hits Vercel's static
-// host and 405s. We therefore call the backend origin directly. Platform auth is
-// bearer-only (no cookies), and the backend already returns CORS
-// Access-Control-Allow-Origin for the kappa origin on /platform/*, so cross-origin
-// is safe. Keep this host in sync with the /api rewrite target in vercel.json.
-const PROD_API_ORIGIN = 'https://construction-saas-backend-b00g.onrender.com';
-const BASE_URL = import.meta.env.PROD ? PROD_API_ORIGIN : (import.meta.env.VITE_API_URL ?? '');
+// Use a dedicated API namespace so requests cannot collide with the SPA's
+// /platform page routes. Vite and Vercel strip /api before forwarding to the
+// backend's bearer-only /platform endpoints. An explicit public origin can be
+// supplied for installations using direct CORS requests.
+const API_ORIGIN = (import.meta.env.VITE_PLATFORM_API_ORIGIN ?? '').trim().replace(/\/+$/, '');
+
+function platformUrl(endpoint: string): string {
+  return API_ORIGIN ? `${API_ORIGIN}${endpoint}` : `/api${endpoint}`;
+}
 
 export interface PlatformApiError extends Error {
   status: number;
@@ -53,8 +51,9 @@ export async function platformApi<T>(
 
   let response: Response;
   try {
-    response = await fetch(`${BASE_URL}${endpoint}`, {
+    response = await fetch(platformUrl(endpoint), {
       method: options.method ?? 'GET',
+      credentials: 'omit',
       headers,
       body: options.body ? JSON.stringify(options.body) : undefined,
       signal: options.signal ?? controller.signal,

@@ -1,3 +1,4 @@
+import { useScreenState } from '../../app/workspace/WorkspaceState';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { ChevronDown, ChevronRight, CirclePause, CirclePlay, Plus, RefreshCw, Trash2 } from 'lucide-react';
@@ -80,7 +81,7 @@ export function PlatformTenantDetailPage() {
   const [users, setUsers] = useState<Page<TenantUserSummary> | null>(null);
   const [audit, setAudit] = useState<Page<PlatformAuditEntry> | null>(null);
   const [payments, setPayments] = useState<TenantPayments | null>(null);
-  const [tab, setTab] = useState<Tab>('summary');
+  const [tab, setTab] = useScreenState<Tab>('pestana', 'summary', 'replace', role === 'OWNER' || role === 'BILLING' ? ['summary', 'users', 'audit', 'payments'] : ['summary', 'users', 'audit']);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);

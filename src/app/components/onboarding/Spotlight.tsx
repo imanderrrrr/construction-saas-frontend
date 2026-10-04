@@ -31,7 +31,11 @@ import { cn } from '../ui/utils';
 const GAP = 18;
 /** Ring margin around the element. */
 const PAD = 6;
-/** Card height budget for the below / above checks (the real card is ~230). */
+/** Card height budget for the below / above checks until the real card has
+    been measured: the body runs from one line to six, so the card is anywhere
+    between ~200 and ~320 px, and placing it by a nominal 240 put a long stop
+    (Cobrar's signature stop, on a 900 px screen) with its buttons below the
+    fold. The measured height takes over after the first paint. */
 const CARD_H = 240;
 
 export function Spotlight({
@@ -62,6 +66,8 @@ export function Spotlight({
   const { t } = useTranslation(['admin']);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const scrolledFor = useRef<string | null>(null);
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const [cardH, setCardH] = useState(CARD_H);
 
   const measure = useCallback(() => {
     const el = document.querySelector<HTMLElement>(`[data-tour="${anchor}"]`);
@@ -91,6 +97,15 @@ export function Spotlight({
       cancelAnimationFrame(raf);
     };
   }, [measure]);
+
+  // The card's real height, read after every commit and before paint so a
+  // corrected position never flashes; the guard is what stops it re-rendering
+  // forever. Same mechanism as OFJR's spotlight.
+  useLayoutEffect(() => {
+    const h = cardRef.current?.offsetHeight;
+    if (h && Math.abs(h - cardH) > 1) setCardH(h);
+    // Re-read whenever the copy or the box it is placed against changes.
+  }, [title, body, index, total, rect, cardH]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -129,9 +144,9 @@ export function Spotlight({
     facing = 'left';
     cardStyle = {
       left: hl.left + hl.width + GAP,
-      top: Math.min(Math.max(hl.top, 16), Math.max(16, vh - CARD_H - 16)),
+      top: Math.min(Math.max(hl.top, 16), Math.max(16, vh - cardH - 16)),
     };
-  } else if (hl && hl.top + hl.height + GAP + CARD_H <= vh) {
+  } else if (hl && hl.top + hl.height + GAP + cardH <= vh) {
     facing = 'top';
     cardStyle = { left: alignX(hl), top: hl.top + hl.height + GAP };
   } else if (hl) {
@@ -171,6 +186,7 @@ export function Spotlight({
 
       {/* Explanation card */}
       <div
+        ref={cardRef}
         className={cn(
           'fixed bg-white bt-card-in transition-[left,top,bottom] duration-300 ease-out',
           WINDOW_SHADOW,

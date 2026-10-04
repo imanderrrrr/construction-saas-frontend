@@ -209,4 +209,25 @@ describe('ClientsSection', () => {
     expect(row(10)?.textContent).toContain('Nuevo');
     expect(svc.getClientsSummary).toHaveBeenCalledTimes(2);
   });
+  it('finance can consult clients and open their budgets without client write actions', async () => {
+    act(() => root.render(<ClientsSection readOnly projectSection="budgets" onNavigate={onNavigate} />));
+    await flush();
+    const buttons = Array.from(container.querySelectorAll('button')).map(button => button.textContent);
+    expect(buttons.some(label => label?.includes('Crear cliente'))).toBe(false);
+    expect(buttons.some(label => label?.includes('Editar'))).toBe(false);
+    expect(buttons.some(label => label?.includes('Desactivar') || label?.includes('Reactivar'))).toBe(false);
+    click(Array.from(row(7)!.querySelectorAll('button')).find(button => button.textContent === 'Ver presupuestos de sus obras'));
+    expect(peekSectionIntent('budgets')).toEqual({ clientId: 7, clientName: 'Inmobiliaria Andes', openProjectId: undefined });
+    expect(onNavigate).toHaveBeenCalledWith('budgets');
+    expect(peekSectionIntent('projects')).toBeNull();
+  });
+
+  it('finance empty state does not invite the user to create a client', async () => {
+    svc.listClients.mockResolvedValue(page([], 0));
+    act(() => root.render(<ClientsSection readOnly />));
+    await flush();
+    expect(container.textContent).toContain('Los clientes registrados por Administración aparecerán aquí.');
+    expect(container.querySelector('[data-tour="sec.clients.add-client"]')).toBeNull();
+  });
+
 });

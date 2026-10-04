@@ -1,13 +1,14 @@
+import { useScreenState, useProjectFilter, useWorkspace } from '../workspace/WorkspaceState';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  ChevronLeft, ChevronRight, Download, FileText, MoreVertical, Plus, RefreshCw,
+  ChevronLeft, ChevronRight, Download, FileSignature, FileText, MoreVertical, Plus, RefreshCw,
 } from 'lucide-react';
 
 import { cn } from './ui/utils';
 import { ApiError } from '../lib/api';
 import { businessToday } from '../helpers/dateTime';
-import { FOCUS_RING, SecondaryButton } from './onboarding/chrome';
+import { CloseButton, FOCUS_RING, SecondaryButton } from './onboarding/chrome';
 import { Bone, CreateButton, EmptyWord, Mono, MonoSelect, PaperNote, stampDay } from './projects/bt';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,
@@ -19,6 +20,8 @@ import { listProjects } from '../services/projects';
 import { loadInvoiceIssuer } from '../services/invoiceBranding';
 import { downloadInvoicePdf, type InvoicePdfData } from '../helpers/exportInvoicePdf';
 import { loadSignatureForPdf } from '../services/signatures';
+import { setSectionIntent } from '../lib/sectionIntent';
+import { requestTourStop } from '../lib/tourRequest';
 import { CellEmpty, DocTypeChip, InvoiceStatusChip, fmtMoney } from './invoices/bits';
 import { InvoiceWindow } from './invoices/InvoiceWindow';
 
@@ -108,16 +111,19 @@ export function InvoiceManager({ onNavigate }: { onNavigate?: (section: string) 
   const [errorDetail, setErrorDetail] = useState<string | null>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
 
-  const [projectId, setProjectId] = useState('');
-  const [docType, setDocType] = useState('');
-  const [status, setStatus] = useState('');
-  const [range, setRange] = useState<RangeKey>('year');
-  const [pageSize, setPageSize] = useState<number>(20);
-  const [current, setCurrent] = useState(0);
+  const workspace = useWorkspace();
+  const [projectId, setProjectId] = useProjectFilter<string>('');
+  const [docType, setDocType] = useScreenState('tipo', '');
+  const [status, setStatus] = useScreenState('estado', '');
+  const [range, setRange] = useScreenState<RangeKey>('rango', 'year', 'replace', ['month', 'quarter', 'year', 'all']);
+  const [pageSize, setPageSize] = useScreenState<number>('tamano', 20);
+  const [current, setCurrent] = useScreenState('pagina', 0);
 
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
   const [windowOpen, setWindowOpen] = useState(false);
   const [flashId, setFlashId] = useState<number | null>(null);
+  /** The document just issued, while its note under the header is up. */
+  const [justCreated, setJustCreated] = useState<Receivable | null>(null);
   const [downloading, setDownloading] = useState<number | null>(null);
 
   /* ── The list ───────────────────────────────────────────────────────── */
@@ -232,10 +238,23 @@ export function InvoiceManager({ onNavigate }: { onNavigate?: (section: string) 
     setWindowOpen(false);
     // No success card and no toast: the list reloads, the new row lights up
     // for two seconds, and the PDF has already downloaded with its number.
+    // What the row cannot say is said once, in a note under the header: the
+    // client's signature is asked for later, from the document in Cobrar —
+    // the owner issued a document and did not know where that was.
     clearFilters();
     setReloadNonce(n => n + 1);
     setFlashId(created.id);
+    setJustCreated(created);
     focusCreate();
+  };
+
+  /** «Ver cómo»: Cobrar opens on the new document, with the tour at its signature stop. */
+  const seeHowToSign = () => {
+    if (!justCreated || !onNavigate) return;
+    setSectionIntent('accounts-receivable', { openReceivableId: justCreated.id });
+    requestTourStop('accounts-receivable', 'signature');
+    if (workspace) workspace.navigateSection('accounts-receivable', { registro: justCreated.id, vista: 'docs', obra: justCreated.projectId ?? null });
+    else onNavigate('accounts-receivable');
   };
 
   const figure = (value: number | undefined) =>
@@ -286,6 +305,35 @@ export function InvoiceManager({ onNavigate }: { onNavigate?: (section: string) 
         </div>
       </div>
 
+      {/* ── Issued: where the signature is asked for ─────────────────── */}
+      {justCreated && (
+        <div role="status" data-testid="invoice-created-notice">
+          <PaperNote className="flex items-start gap-4 flex-wrap px-4 py-3.5">
+            <div className="flex-1 min-w-[240px]">
+              <Mono className="block text-[9.5px] font-semibold tracking-[0.13em] text-[#C2410C]">
+                {t(justCreated.documentType === 'CHANGE_ORDER_REQUEST'
+                  ? 'finance:invoice.created.changeOrder'
+                  : 'finance:invoice.created.invoice', { number: justCreated.invoiceNumber })}
+              </Mono>
+              <p className="text-[13px] leading-[1.55] mt-1.5">
+                {t(justCreated.documentType === 'CHANGE_ORDER_REQUEST'
+                  ? 'finance:invoice.created.signatureHintChangeOrder'
+                  : 'finance:invoice.created.signatureHint')}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {onNavigate && (
+                <SecondaryButton onClick={seeHowToSign} className="bg-white text-[10.5px] px-3 py-2.5 gap-1.5">
+                  <FileSignature className="w-3.5 h-3.5" strokeWidth={2.2} />
+                  {t('finance:invoice.created.seeHow')}
+                </SecondaryButton>
+              )}
+              <CloseButton onClick={() => setJustCreated(null)} aria-label={t('common:buttons.close')} />
+            </div>
+          </PaperNote>
+        </div>
+      )}
+
       {/* ── The three counts ─────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 bg-white border border-[#E7E1D5]" data-tour="sec.invoices.summary" data-testid="invoice-figures">
         <div className="px-[22px] py-4 border-b sm:border-b-0 sm:border-r border-[#EDE7DB]">
@@ -325,10 +373,10 @@ export function InvoiceManager({ onNavigate }: { onNavigate?: (section: string) 
       {/* ── Filters ──────────────────────────────────────────────────── */}
       <div className="bg-white border border-[#E7E1D5] p-3.5 md:px-4" data-tour="sec.invoices.filters">
         <div className="flex flex-wrap items-center gap-2.5">
-          <MonoSelect value={projectId} onChange={e => { setProjectId(e.target.value); setCurrent(0); }} aria-label={t('finance:invoice.filter.project')}>
+          {!workspace && <MonoSelect value={projectId} onChange={e => { setProjectId(e.target.value); setCurrent(0); }} aria-label={t('finance:invoice.filter.project')}>
             <option value="">{t('finance:invoice.filter.allProjects')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </MonoSelect>
+          </MonoSelect>}
           <MonoSelect value={docType} onChange={e => { setDocType(e.target.value); setCurrent(0); }} aria-label={t('finance:invoice.filter.type')}>
             <option value="">{t('finance:invoice.filter.allTypes')}</option>
             <option value="INVOICE">{t('finance:invoice.type.invoice')}</option>

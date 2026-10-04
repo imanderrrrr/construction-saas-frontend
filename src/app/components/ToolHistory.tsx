@@ -1,4 +1,5 @@
-﻿import React, { useState, useEffect } from 'react';
+import { useScreenState } from '../workspace/WorkspaceState';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import {
@@ -107,17 +108,17 @@ function Pagination({ current, total, onPage }: { current: number; total: number
 export function ToolHistory() {
   const { t } = useTranslation('inventory');
   // Filter state
-  const [toolFilter,   setToolFilter]   = useState('all');
-  const [actionFilter, setActionFilter] = useState('all');
-  const [workerFilter, setWorkerFilter] = useState('all');
-  const [fromDate,     setFromDate]     = useState('');
-  const [toDate,       setToDate]       = useState('');
-  const [appliedTool,   setAppliedTool]   = useState('all');
-  const [appliedAction, setAppliedAction] = useState('all');
-  const [appliedWorker, setAppliedWorker] = useState('all');
-  const [appliedFrom,   setAppliedFrom]   = useState('');
-  const [appliedTo,     setAppliedTo]     = useState('');
-  const [currentPage,  setCurrentPage]  = useState(1);
+  const [toolFilter,   setToolFilter]   = useScreenState('herramienta', 'all');
+  const [actionFilter, setActionFilter] = useScreenState('accion', 'all');
+  const [workerFilter, setWorkerFilter] = useScreenState('persona', 'all');
+  const [fromDate,     setFromDate]     = useScreenState('desde', '');
+  const [toDate,       setToDate]       = useScreenState('hasta', '');
+  const [appliedTool,   setAppliedTool]   = useScreenState('f-herramienta', 'all');
+  const [appliedAction, setAppliedAction] = useScreenState('f-accion', 'all');
+  const [appliedWorker, setAppliedWorker] = useScreenState('f-persona', 'all');
+  const [appliedFrom,   setAppliedFrom]   = useScreenState('f-desde', '');
+  const [appliedTo,     setAppliedTo]     = useScreenState('f-hasta', '');
+  const [currentPage,  setCurrentPage]  = useScreenState('pagina', 1);
 
   // Data state
   const [entries, setEntries] = useState<HistoryEntry[]>([]);

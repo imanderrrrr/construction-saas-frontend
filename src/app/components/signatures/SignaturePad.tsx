@@ -8,10 +8,17 @@
 // Exports PNG via toDataURL. That is deliberate and load-bearing: the backend
 // accepts PNG only (magic bytes checked) because the stored image is served
 // inline, and an inline SVG would be script execution in the viewer's session.
+//
+// The frame is the panel's dashed sand frame — the one a document without a
+// photo shows on Cobrar — because an empty pad is the same kind of thing: a
+// place where something is expected. Square, like every control in the panel.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Eraser } from 'lucide-react';
+import { cn } from '../ui/utils';
+import { FOCUS_RING } from '../onboarding/chrome';
+import { Mono } from '../projects/bt';
 
 interface SignaturePadProps {
   /** Called with the PNG data URL, or null when the pad is cleared/empty. */
@@ -105,12 +112,12 @@ export function SignaturePad({ onChange, disabled = false }: SignaturePadProps) 
 
   return (
     <div className="space-y-2">
-      <div className="relative rounded-lg border-2 border-dashed border-zinc-300 bg-white">
+      <div className={cn('relative border-2 border-dashed bg-white transition-colors', empty ? 'border-[#DBD0BB]' : 'border-[#F97316]')}>
         <canvas
           ref={canvasRef}
           data-testid="signature-pad"
           aria-label={t('pad.aria')}
-          className={`h-40 w-full touch-none rounded-lg ${
+          className={`h-40 w-full touch-none ${
             disabled ? 'cursor-not-allowed opacity-60' : 'cursor-crosshair'
           }`}
           onPointerDown={start}
@@ -120,8 +127,8 @@ export function SignaturePad({ onChange, disabled = false }: SignaturePadProps) 
           onPointerCancel={end}
         />
         {empty && (
-          <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-zinc-400">
-            {t('pad.placeholder')}
+          <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <Mono className="text-[10.5px] tracking-[0.12em] text-[#A69C8D]">{t('pad.placeholder')}</Mono>
           </span>
         )}
       </div>
@@ -129,9 +136,12 @@ export function SignaturePad({ onChange, disabled = false }: SignaturePadProps) 
         type="button"
         onClick={clear}
         disabled={disabled || empty}
-        className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800 disabled:opacity-40"
+        className={cn(
+          'inline-flex items-center gap-1.5 font-bt-mono text-[10px] uppercase tracking-[0.09em] text-[#8A8175] transition-colors hover:text-[#0A0A0A] disabled:cursor-default disabled:opacity-40',
+          FOCUS_RING,
+        )}
       >
-        <Eraser className="h-4 w-4" />
+        <Eraser className="h-3.5 w-3.5" strokeWidth={2} />
         {t('pad.clear')}
       </button>
     </div>
