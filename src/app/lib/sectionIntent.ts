@@ -21,6 +21,8 @@
 export interface SectionIntents {
   /** Proyectos: open the list already narrowed to this client — and, if asked, straight into one of its fichas. */
   projects: { clientId: number; clientName: string; openProjectId?: number };
+  /** Presupuestos: the same hand-off for the panel without Proyectos (finance) — narrowed to this client, and, if asked, with that jobsite's detail open. */
+  budgets: { clientId: number; clientName: string; openProjectId?: number };
   /**
    * Cobros: open straight onto one document, or with the issue window open
    * (a jobsite's budget asking to bill it, a link or favorite that pointed at

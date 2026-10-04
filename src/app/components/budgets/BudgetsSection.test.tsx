@@ -47,6 +47,7 @@ import i18n from '../../../i18n';
 import { ApiError } from '../../lib/api';
 import type { ProjectResponse } from '../../services/projects';
 import { resetTourScope } from '../../lib/tourScope';
+import { peekSectionIntent, resetSectionIntents, setSectionIntent } from '../../lib/sectionIntent';
 import { BudgetsSection } from './BudgetsSection';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -124,6 +125,7 @@ describe('BudgetsSection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetTourScope();
+    resetSectionIntents();
     svc.listProjects.mockResolvedValue(page(PROJECTS));
     svc.listFinanceProjects.mockResolvedValue(page(PROJECTS));
     svc.updateProject.mockResolvedValue(PROJECTS[0]);
@@ -376,5 +378,56 @@ describe('BudgetsSection', () => {
         .find(b => b.textContent?.trim() === 'Guardar ajuste') as HTMLButtonElement;
       expect(save.disabled).toBe(true);
     });
+  });
+  // A client's ficha in the finance panel hands its client over through
+  // lib/sectionIntent (finance has no Proyectos, so the hand-off lands here).
+  describe('a client handed over from its ficha', () => {
+    it('opens filtered to that client and takes the hand-off only once', async () => {
+      setSectionIntent('budgets', { clientId: 2, clientName: 'Inmobiliaria Andes' });
+      await mount({ readOnly: true });
+      expect(selectFor('cliente').value).toBe('2');
+      expect(text()).toContain('Ampliación Zona 4');
+      expect(text()).not.toContain('Residencial Sur');
+      expect(peekSectionIntent('budgets')).toBeNull();
+      expect(svc.listFinanceProjects).toHaveBeenCalled();
+      expect(svc.listProjects).not.toHaveBeenCalled();
+      expect(document.querySelector('[role="dialog"]')).toBeNull();
+
+      // Leaving and coming back by hand finds the plain list.
+      await act(async () => { root.render(<div />); });
+      await mount({ readOnly: true });
+      expect(selectFor('cliente').value).toBe('all');
+    });
+
+    it('opens the detail of the jobsite that was asked for', async () => {
+      setSectionIntent('budgets', { clientId: 1, clientName: 'Grupo Marisol', openProjectId: 4801 });
+      await mount({ readOnly: true });
+      const drawer = document.querySelector('[role="dialog"]');
+      expect(drawer?.textContent).toContain('Torre Norte');
+      expect(drawer?.textContent).toContain('Ver historial');
+    });
+
+    it('does not open a jobsite of another client', async () => {
+      setSectionIntent('budgets', { clientId: 1, clientName: 'Grupo Marisol', openProjectId: 4816 });
+      await mount({ readOnly: true });
+      expect(selectFor('cliente').value).toBe('1');
+      expect(document.querySelector('[role="dialog"]')).toBeNull();
+    });
+
+    it('keeps the client selectable when none of its jobsites has a budget', async () => {
+      setSectionIntent('budgets', { clientId: 77, clientName: 'Constructora del Valle' });
+      await mount({ readOnly: true });
+      expect(selectFor('cliente').value).toBe('77');
+      expect(selectFor('cliente').selectedOptions[0]?.textContent).toBe('Constructora del Valle');
+      expect(text()).toContain('Ninguna obra coincide');
+    });
+  });
+
+  it('does not send finance to Proyectos from the load failure', async () => {
+    svc.listFinanceProjects.mockRejectedValueOnce(new ApiError(504, 'gateway timeout', undefined, 'TIMEOUT'));
+    await act(async () => { root.render(<BudgetsSection readOnly onNavigate={vi.fn()} />); });
+    await flush();
+    expect(text()).toContain('No se pudieron cargar los presupuestos');
+    expect(Array.from(container.querySelectorAll('button')).some(b => b.textContent?.trim() === 'Ir a Proyectos')).toBe(false);
   });
 });

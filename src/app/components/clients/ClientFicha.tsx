@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, ArrowRight, Check, Copy, Lock, Plus } from 'lucide-react';
 import { cn } from '../ui/utils';
@@ -33,7 +33,31 @@ const COPIED_MS = 1500;
 
 const OBRAS_GRID = 'grid grid-cols-1 md:grid-cols-[2.2fr_1.2fr_.9fr_1fr] gap-x-3 gap-y-1 items-center';
 
-export function ClientFicha({ client, onBack, onEdit, onToggleStatus, onOpenProjects, onOpenProject, onClientChanged, initialTab = 'resumen' }: {
+type FichaStopKey = 'bar' | 'tabs' | 'shortcuts';
+
+/**
+ * A block of the ficha that is also a tour stop — one set per role, because
+ * the copy differs: finance looks the client up and cannot edit it. Written
+ * out literally: the registry guardian (onboarding/sectionTourSteps.test.ts)
+ * greps for the attribute and cannot follow a template.
+ */
+function FichaStop({ readOnly, stop, className, children }: {
+  readOnly: boolean;
+  stop: FichaStopKey;
+  className?: string;
+  children: ReactNode;
+}) {
+  if (readOnly) {
+    if (stop === 'bar') return <div className={className} data-tour="sec.clients-ficha-finanzas.bar">{children}</div>;
+    if (stop === 'tabs') return <div className={className} data-tour="sec.clients-ficha-finanzas.tabs">{children}</div>;
+    return <div className={className} data-tour="sec.clients-ficha-finanzas.shortcuts">{children}</div>;
+  }
+  if (stop === 'bar') return <div className={className} data-tour="sec.clients-ficha.bar">{children}</div>;
+  if (stop === 'tabs') return <div className={className} data-tour="sec.clients-ficha.tabs">{children}</div>;
+  return <div className={className} data-tour="sec.clients-ficha.shortcuts">{children}</div>;
+}
+
+export function ClientFicha({ client, onBack, onEdit, onToggleStatus, onOpenProjects, onOpenProject, onClientChanged, initialTab = 'resumen', readOnly = false }: {
   client: ClientResponse;
   onBack: () => void;
   onEdit: () => void;
@@ -45,6 +69,12 @@ export function ClientFicha({ client, onBack, onEdit, onToggleStatus, onOpenProj
   /** A jobsite was created from here — the counts moved, re-read the client. */
   onClientChanged: () => void;
   initialTab?: ClientFichaTab;
+  /**
+   * Finance: the same record to look up, without "Editar", "Desactivar" or
+   * "Crear obra"; the jobsites lead to Presupuestos ("Ver presupuestos de
+   * sus obras") instead of Proyectos.
+   */
+  readOnly?: boolean;
 }) {
   const { t, i18n } = useTranslation(['admin', 'common']);
   const lang = i18n.language;
@@ -55,8 +85,9 @@ export function ClientFicha({ client, onBack, onEdit, onToggleStatus, onOpenProj
   const [createOpen, setCreateOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // The ficha owns the tour while it is on screen (lib/tourScope).
-  useTourScopeWhileMounted('clients-ficha', t('admin:clients.ficha.tourLabel'));
+  // The ficha owns the tour while it is on screen (lib/tourScope) — under a
+  // key of its own in finance, whose copy does not send anyone to edit it.
+  useTourScopeWhileMounted(readOnly ? 'clients-ficha-finanzas' : 'clients-ficha', t('admin:clients.ficha.tourLabel'));
 
   const loadProjects = useCallback(() => {
     let cancelled = false;
@@ -101,15 +132,15 @@ export function ClientFicha({ client, onBack, onEdit, onToggleStatus, onOpenProj
   ];
 
   const shortcuts = (
-    <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2.5 mt-5" data-tour="sec.clients-ficha.shortcuts">
+    <FichaStop readOnly={readOnly} stop="shortcuts" className="flex flex-col sm:flex-row sm:flex-wrap gap-2.5 mt-5">
       <SecondaryButton onClick={copyBilling} className="px-[15px] py-[10px] text-[10px] gap-1.5 bg-[#FAF7F0]" aria-live="polite">
         {copied ? <Check className="w-3.5 h-3.5" strokeWidth={2.2} /> : <Copy className="w-3.5 h-3.5" strokeWidth={2} />}
         {copied ? t('admin:clients.ficha.copied') : t('admin:clients.ficha.copyBilling')}
       </SecondaryButton>
-      <PrimaryButton onClick={() => setCreateOpen(true)} className="px-[15px] py-[10px] text-[10px] gap-1.5">
+      {!readOnly && <PrimaryButton onClick={() => setCreateOpen(true)} className="px-[15px] py-[10px] text-[10px] gap-1.5">
         <Plus className="w-3.5 h-3.5" strokeWidth={2.4} />{t('admin:clients.ficha.createProject')}
-      </PrimaryButton>
-    </div>
+      </PrimaryButton>}
+    </FichaStop>
   );
 
   const content = tab === 'resumen' ? (
@@ -166,7 +197,7 @@ export function ClientFicha({ client, onBack, onEdit, onToggleStatus, onOpenProj
       )}
       {projectsState === 'data' && projects.length === 0 && (
         <EmptyWord word={t('admin:clients.ficha.obras.empty.big')} title={t('admin:clients.ficha.obras.empty.title')} className="border-0 py-9"
-          action={<CreateButton onClick={() => setCreateOpen(true)}><Plus className="w-3.5 h-3.5" strokeWidth={2.4} />{t('admin:clients.ficha.obras.create')}</CreateButton>} />
+          action={!readOnly ? <CreateButton onClick={() => setCreateOpen(true)}><Plus className="w-3.5 h-3.5" strokeWidth={2.4} />{t('admin:clients.ficha.obras.create')}</CreateButton> : undefined} />
       )}
       {projectsState === 'data' && projects.length > 0 && (
         <div data-testid="client-projects">
@@ -195,7 +226,7 @@ export function ClientFicha({ client, onBack, onEdit, onToggleStatus, onOpenProj
               {t('admin:clients.ficha.obras.range', { start: 1, end: projects.length, total: projectsTotal ?? projects.length })}
             </Mono>
             <TertiaryButton onClick={onOpenProjects} className="inline-flex items-center gap-1.5">
-              {t('admin:clients.ficha.obras.viewAll')}<ArrowRight className="w-3 h-3" strokeWidth={2.2} />
+              {readOnly ? t('admin:clients.menu.budgets') : t('admin:clients.ficha.obras.viewAll')}<ArrowRight className="w-3 h-3" strokeWidth={2.2} />
             </TertiaryButton>
           </div>
         </div>
@@ -222,7 +253,7 @@ export function ClientFicha({ client, onBack, onEdit, onToggleStatus, onOpenProj
         </button>
       </nav>
 
-      <div data-tour="sec.clients-ficha.bar">
+      <FichaStop readOnly={readOnly} stop="bar">
         <InkBar grid={26} className="px-4 py-4 md:px-5 md:pt-4 md:pb-[18px]">
           <div className="relative flex flex-col md:flex-row md:items-start md:justify-between gap-4">
             <div className="min-w-0">
@@ -235,22 +266,22 @@ export function ClientFicha({ client, onBack, onEdit, onToggleStatus, onOpenProj
                 </Mono>
               </div>
             </div>
-            <div className="grid grid-cols-2 md:flex md:flex-wrap md:items-center gap-2 md:justify-end flex-shrink-0">
+            {!readOnly && <div className="grid grid-cols-2 md:flex md:flex-wrap md:items-center gap-2 md:justify-end flex-shrink-0">
               <DarkButton onClick={onToggleStatus} className="w-full md:w-auto">
                 {client.status === 'ACTIVE' ? t('admin:clients.menu.deactivate') : t('admin:clients.menu.reactivate')}
               </DarkButton>
               <PrimaryButton onClick={onEdit} className="w-full md:w-auto px-[15px] py-[10px] text-[10px]">{t('admin:clients.ficha.edit')}</PrimaryButton>
-            </div>
+            </div>}
           </div>
         </InkBar>
-      </div>
+      </FichaStop>
 
-      <div className="mt-4" data-tour="sec.clients-ficha.tabs">
+      <FichaStop readOnly={readOnly} stop="tabs" className="mt-4">
         <FichaTabs tabs={tabs} active={tab} onChange={setTab} />
-      </div>
+      </FichaStop>
       <div className="mt-px">{content}</div>
 
-      {createOpen && (
+      {!readOnly && createOpen && (
         <ProjectWindow
           initialClient={{ id: client.id, name: client.name }}
           onClose={() => setCreateOpen(false)}

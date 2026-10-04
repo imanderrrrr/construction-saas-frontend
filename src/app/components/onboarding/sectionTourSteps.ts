@@ -25,6 +25,15 @@ export const SECTION_TOUR_STEPS: Record<string, string[]> = {
   hours: ['kpis', 'filters', 'list'],
   'labor-cost': ['kpis', 'filters', 'list'],
   'labor-payroll': ['kpis', 'filters', 'list'],
+  // The finance panel mounts the same three screens, and each claims a key of
+  // its own while in finance mode (lib/tourScope): the copy is keyed, and the
+  // admin's sends people to Usuarios to set rates, or speaks of the workers'
+  // days — finance has neither. Paying stays (FINANCE confirms payroll), so
+  // Nómina gets one more stop, on the two exports in its header. The inbox's
+  // last stop is «Crear jornada», for a supervisor who could not punch at all.
+  'labor-cost-finanzas': ['kpis', 'filters', 'list'],
+  'labor-payroll-finanzas': ['kpis', 'filters', 'list', 'export'],
+  'supervisor-hours-finanzas': ['kpis', 'filters', 'queue', 'create-day'],
   projects: ['kpis', 'filters', 'table', 'menu'],
   // Screens inside Proyectos that claim the tour while on screen (see
   // lib/tourScope): the create/edit window and each tab of the ficha. Keyed
@@ -44,6 +53,11 @@ export const SECTION_TOUR_STEPS: Record<string, string[]> = {
   // The client ficha claims the tour while on screen (same mechanism as the
   // jobsite ficha): the ink bar, the three tabs and the two shortcuts.
   'clients-ficha': ['bar', 'tabs', 'shortcuts'],
+  // Finance looks clients up without editing them (ClientsSection readOnly),
+  // so the list and the ficha claim keys whose copy says so — and leads to
+  // Presupuestos, its way into a client's jobsites.
+  'clients-finanzas': ['figures', 'search', 'list'],
+  'clients-ficha-finanzas': ['bar', 'tabs', 'shortcuts'],
   // Subcontratistas is split in three, for the same reason Proyectos is:
   // `visibleSteps()` filters once at start-up, so a stop anchored in a tab
   // that is not mounted yet is dropped. With the section opening on the

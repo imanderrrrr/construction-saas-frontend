@@ -275,6 +275,7 @@
   "manualMarks.addSubmit": "Add marks",
   "manualMarks.createTitle": "Create day",
   "manualMarks.createSubtitle": "Register a full day on behalf of a worker or supervisor.",
+  "manualMarks.createSubtitle.supervisor": "Register a full day on behalf of a supervisor.",
   "manualMarks.createSubmit": "Create day",
   "manualMarks.userLabel": "Worker / Supervisor",
   "manualMarks.userPlaceholder": "Select a user",

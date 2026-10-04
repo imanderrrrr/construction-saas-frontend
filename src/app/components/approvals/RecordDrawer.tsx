@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, Check, Loader2, X } from 'lucide-react';
+import { AlertTriangle, Check, Loader2, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  approveEvent, approveRecord, correctEvent, correctRecord, editEventTime,
-  getTimeRecord, rejectRecord, resolveTransitDispute, type TimeRecordResponse,
+  addManualMarks, approveEvent, approveRecord, correctEvent, correctRecord, editEventTime,
+  getTimeRecord, rejectRecord, resolveTransitDispute, type ManualMarkInput, type TimeRecordResponse,
 } from '../../services/time';
+import { TIME_EVENT_SEQUENCE } from '../../types';
 import { fmtDateTime } from '../../helpers/dateTime';
+import { FOCUS_RING, SecondaryButton } from '../onboarding/chrome';
+import { PaperNote } from '../projects/bt';
+import { cn } from '../ui/utils';
+import { ModalAddMark } from '../phase2/ModalAddMark';
 import {
   Mono, alertsFor, dayHours, distanceState, hhmm, initials, payableAt,
   statusPillClass, uploadLagOf,
@@ -17,13 +22,21 @@ import {
  * time, its distance to the jobsite and its own review actions — because the
  * question an admin actually asks is "does this day make sense?", not "what
  * rows are in the table".
+ *
+ * ADMIN and FINANCE can also complete a day the worker could not punch in
+ * full: «Agregar marcas faltantes» opens the manual-marks window for the
+ * punches the day lacks. Supervisors review; they do not author records.
  */
-export function RecordDrawer({ recordId, onClose, onChanged }: {
+export function RecordDrawer({ recordId, onClose, onChanged, onUpdated, mode = 'admin' }: {
   recordId: number;
   onClose: () => void;
+  /** The day was decided (approved / observed / rejected): the drawer closes and the list reloads. */
   onChanged: () => void;
+  /** The day changed but stays open (marks were added): the list behind catches up. */
+  onUpdated?: () => void;
+  mode?: 'admin' | 'finance' | 'supervisor';
 }) {
-  const { t, i18n } = useTranslation(['admin', 'common']);
+  const { t, i18n } = useTranslation(['admin', 'common', 'time']);
   const lang = i18n.language;
 
   const [record, setRecord] = useState<TimeRecordResponse | null>(null);
@@ -33,18 +46,28 @@ export function RecordDrawer({ recordId, onClose, onChanged }: {
   const [editingEvent, setEditingEvent] = useState<number | null>(null);
   const [timeValue, setTimeValue] = useState('');
   const [disputeMinutes, setDisputeMinutes] = useState('');
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [addMarksOpen, setAddMarksOpen] = useState(false);
 
   const load = useCallback(() => {
-    getTimeRecord(recordId).then(setRecord).catch(() => setRecord(null));
+    getTimeRecord(recordId)
+      .then(r => { setRecord(r); setLoadFailed(false); })
+      // Said, with a retry: a spinner that never ends reads as "still loading".
+      .catch(() => { setRecord(null); setLoadFailed(true); });
   }, [recordId]);
 
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => {
+      // While the add-marks window is open, Escape is its own: it closes that
+      // window (and marks the key handled), not the drawer underneath.
+      if (e.key !== 'Escape' || e.defaultPrevented || addMarksOpen) return;
+      onClose();
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, addMarksOpen]);
 
   async function run(key: string, fn: () => Promise<unknown>, close = false) {
     setBusy(key);
@@ -59,12 +82,30 @@ export function RecordDrawer({ recordId, onClose, onChanged }: {
     finally { setBusy(null); }
   }
 
+  /** The marks go in; the window closes itself once this resolves, and its errors stay in it. */
+  async function addMarks(marks: ManualMarkInput[]) {
+    await addManualMarks(recordId, marks);
+    toast.success(t('admin:approvals.marksAdded'));
+    load();
+    onUpdated?.();
+  }
+
   if (!record) {
     return (
       <div className="fixed inset-0 z-[80]">
         <div onClick={onClose} className="absolute inset-0 bg-[#0B0A09]/40" />
-        <aside className="absolute top-0 right-0 bottom-0 w-[492px] max-w-[94%] bg-white border-l border-[#CDBFA6] flex items-center justify-center">
-          <Loader2 className="w-5 h-5 animate-spin text-[#A69C8D]" />
+        <aside className="absolute top-0 right-0 bottom-0 w-[492px] max-w-[94%] bg-white border-l border-[#CDBFA6] flex items-center justify-center p-6">
+          {loadFailed ? (
+            <div className="w-full" data-testid="record-load-failed">
+              <PaperNote tone="red">{t('admin:apr.d.loadError')}</PaperNote>
+              <div className="flex justify-end gap-2 mt-3">
+                <SecondaryButton onClick={onClose}>{t('common:buttons.close')}</SecondaryButton>
+                <SecondaryButton onClick={() => { setLoadFailed(false); load(); }} className="border-[#0A0A0A]">{t('common:buttons.retry')}</SecondaryButton>
+              </div>
+            </div>
+          ) : (
+            <Loader2 className="w-5 h-5 animate-spin text-[#A69C8D]" />
+          )}
         </aside>
       </div>
     );
@@ -75,6 +116,13 @@ export function RecordDrawer({ recordId, onClose, onChanged }: {
     new Date(payableAt(a)).getTime() - new Date(payableAt(b)).getTime());
   const disputeEvent = record.events.find(e => e.disputeStatus);
   const pending = record.approvalStatus === 'PENDING';
+  // The punches the day lacks. Not offered where the backend would refuse:
+  // a day a reviewer REJECTED stays rejected, and a pending transit dispute is
+  // resolved first. A paid day is explained inside the window itself.
+  const missingTypes = TIME_EVENT_SEQUENCE.filter(type => !record.events.some(e => e.type === type));
+  const transitDisputed = record.events.some(e => e.type === 'IN_TRANSIT' && e.disputeStatus === 'PENDING');
+  const canAddMarks = mode !== 'supervisor' && missingTypes.length > 0
+    && record.approvalStatus !== 'REJECTED' && !transitDisputed;
 
   return (
     <div className="fixed inset-0 z-[80]">
@@ -128,6 +176,16 @@ export function RecordDrawer({ recordId, onClose, onChanged }: {
           <div className="flex items-center gap-2.5 mt-6 mb-3">
             <span className="w-4 h-px bg-[#F97316] block" />
             <Mono className="text-[10px] tracking-[0.12em] text-[#8A8175]">{t('admin:apr.d.timeline')}</Mono>
+            {canAddMarks && (
+              <button
+                type="button"
+                onClick={() => setAddMarksOpen(true)}
+                data-testid="add-marks-button"
+                className={cn('ml-auto inline-flex items-center gap-1.5 border border-[#DBD0BB] bg-[#FAF7F0] px-2.5 py-1.5 font-bt-mono text-[9.5px] uppercase tracking-[0.05em] font-semibold text-[#C2410C] hover:border-[#F97316]', FOCUS_RING)}
+              >
+                <Plus className="w-3 h-3" strokeWidth={2.4} />{t('time:manualMarks.addTitle')}
+              </button>
+            )}
           </div>
           <div className="relative">
             {events.map((e, i) => {
@@ -183,7 +241,7 @@ export function RecordDrawer({ recordId, onClose, onChanged }: {
                             : t('admin:apr.d.inside', { meters: dist.meters })}
                         </Mono>
                       ) : (
-                        <Mono className="text-[9.5px] bg-[#F4F4F5] text-[#71717A] px-2 py-1">{t('admin:apr.d.noGps')}</Mono>
+                        <Mono className="text-[9.5px] bg-[#F3EEE4] text-[#8A8175] px-2 py-1">{t('admin:apr.d.noGps')}</Mono>
                       )}
                       {e.eventApprovalStatus !== 'PENDING' && (
                         <Mono className={`text-[9.5px] px-2 py-1 ${statusPillClass(e.eventApprovalStatus)}`}>
@@ -379,6 +437,23 @@ export function RecordDrawer({ recordId, onClose, onChanged }: {
           )}
         </div>
       </aside>
+
+      {addMarksOpen && (
+        <ModalAddMark
+          open
+          recordId={record.id}
+          workerId={record.workerId}
+          workerName={record.workerName || record.workerUsername}
+          projectName={record.projectName}
+          date={new Date(`${record.workDate}T00:00:00`).toLocaleDateString(lang.startsWith('es') ? 'es-GT' : 'en-US', {
+            weekday: 'short', day: '2-digit', month: 'short', year: 'numeric',
+          })}
+          workDate={record.workDate}
+          missingTypes={missingTypes}
+          onClose={() => setAddMarksOpen(false)}
+          onSubmit={addMarks}
+        />
+      )}
     </div>
   );
 }
