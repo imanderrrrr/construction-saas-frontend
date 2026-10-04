@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
-    "e2e:ui": "playwright test --ui"
+    "e2e:ui": "playwright test --ui",
+    "e2e:platform:prod": "playwright test --config playwright.platform-prod.config.ts"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",

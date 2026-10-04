@@ -14,6 +14,11 @@ export default defineConfig({
     port: Number(process.env.E2E_PORT ?? 5180),
     strictPort: true,
     proxy: {
+      '/api/platform': {
+        target: process.env.API_PROXY_TARGET ?? 'http://localhost:58080',
+        changeOrigin: true,
+        rewrite: (requestPath) => requestPath.replace(/^\/api\/platform(?=\/|$)/, '/platform'),
+      },
       '/api': {
         // Overridable so a second local backend (e.g. 58090 while another
         // checkout holds 58080) can sit behind the same relative /api calls —
