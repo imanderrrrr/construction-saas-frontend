@@ -10,6 +10,7 @@ import { fmtMoney } from '../invoices/bits';
 import { ApiError } from '../../lib/api';
 import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 import { businessToday } from '../../helpers/dateTime';
+import { newRequestKey } from '../../lib/requestKey';
 import {
   convertPayableToInvoice, createPayable, deletePayable, getPayable, markPayableUnpaid, reassignPayableProject,
   recordPayablePayment, updatePayableAmount, updatePayableDates, updatePayableInfo,
@@ -91,6 +92,9 @@ export function PayDialog({ bill, project, onClose, onPaid }: {
   const [method, setMethod] = useState('Bank transfer');
   const [methodOther, setMethodOther] = useState('');
   const [reference, setReference] = useState('');
+  // One key per payment meant (see lib/requestKey): created when the window
+  // opens on a bill, reused by every retry of the same submit.
+  const [requestKey, setRequestKey] = useState('');
   const [busy, setBusy] = useState(false);
 
   const balance = bill ? balanceOf(bill) : 0;
@@ -101,10 +105,19 @@ export function PayDialog({ bill, project, onClose, onPaid }: {
     setMethod('Bank transfer');
     setMethodOther('');
     setReference('');
+    setRequestKey(newRequestKey());
   }
   if (!bill) return null;
 
   const entered = parseFloat(amount) || 0;
+
+  // Closing forgets the bill, so the next payment of the SAME bill (a second
+  // partial one) is seeded afresh — balance and key — instead of replaying the
+  // last one under its old key.
+  function close() {
+    setSeeded(null);
+    onClose();
+  }
 
   async function submit() {
     if (!bill) return;
@@ -121,19 +134,21 @@ export function PayDialog({ bill, project, onClose, onPaid }: {
     try {
       const updated = await recordPayablePayment(bill.id, {
         amount: entered, date, method: resolved, reference: reference.trim() || undefined, approvedBy: 'finance',
+        requestKey,
       });
       toast.success(t('finance:payable.toast.paymentRecorded', { amount: fmtMoney(entered), bill: bill.billNumber }));
       onPaid(updated);
-      onClose();
+      close();
     } catch (err: unknown) {
-      if (paymentsNowInQuickBooks(err)) {
+      if (paymentsNowInQuickBooks(err) || isRequestConflict(err)) {
         // Sent to QuickBooks (or read from there) since the screen loaded: its
         // payments are registered there now. The screen shows the bill as it
         // is — «Pagar» off, with the reason — instead of inviting the same
-        // refused click again (audit B16).
+        // refused click again (audit B16). A key already used with other data
+        // means the first try did get through: show the bill as it is now.
         const fresh = await getPayable(bill.id).catch(() => null);
         if (fresh) onPaid(fresh);
-        onClose();
+        close();
       }
       toast.error(t('finance:payable.toast.paymentFailed'), { description: err instanceof Error ? err.message : undefined });
     } finally {
@@ -142,7 +157,7 @@ export function PayDialog({ bill, project, onClose, onPaid }: {
   }
 
   return (
-    <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
+    <Dialog open onOpenChange={open => { if (!open) close(); }}>
       <DialogContent className={WINDOW}>
         <Head kicker={t('finance:payable.eyebrow')} title={t('finance:payable.pay.title')} />
         <div className={SHEET}>
@@ -174,8 +189,8 @@ export function PayDialog({ bill, project, onClose, onPaid }: {
               <input id="ap-pay-date" type="date" value={date} onChange={e => setDate(e.target.value)} className={cn(INPUT, INPUT_MONO)} />
             </div>
             <div>
-              <FieldLabel>{t('finance:payable.pay.method')}</FieldLabel>
-              <PaymentMethodField method={method} otherText={methodOther} onMethodChange={setMethod} onOtherTextChange={setMethodOther} />
+              <FieldLabel htmlFor="ap-pay-method">{t('finance:payable.pay.method')}</FieldLabel>
+              <PaymentMethodField id="ap-pay-method" method={method} otherText={methodOther} onMethodChange={setMethod} onOtherTextChange={setMethodOther} />
             </div>
           </div>
           <div>
@@ -189,7 +204,7 @@ export function PayDialog({ bill, project, onClose, onPaid }: {
         <Foot
           confirm={t('finance:payable.pay.confirm', { amount: fmtMoney(entered || 0) })}
           onConfirm={() => void submit()}
-          onCancel={onClose}
+          onCancel={close}
           busy={busy}
           disabled={!entered}
           tone="ink"
@@ -201,7 +216,8 @@ export function PayDialog({ bill, project, onClose, onPaid }: {
 
 /* ── Pagar en lote ─────────────────────────────────────────────────────── */
 
-type BatchRow = { bill: VendorBill; amount: string; reference: string; error: string | null; done: boolean };
+/** `requestKey`: one per bill of the run, reused when a failed row is retried. */
+type BatchRow = { bill: VendorBill; amount: string; reference: string; error: string | null; done: boolean; requestKey: string };
 
 /**
  * The Friday payment run.
@@ -222,7 +238,7 @@ export function BatchPayDialog({ bills, projects, onClose, onFinished }: {
   const [method, setMethod] = useState('Bank transfer');
   const [methodOther, setMethodOther] = useState('');
   const [rows, setRows] = useState<BatchRow[]>(() =>
-    bills.map(bill => ({ bill, amount: balanceOf(bill).toFixed(2), reference: '', error: null, done: false })));
+    bills.map(bill => ({ bill, amount: balanceOf(bill).toFixed(2), reference: '', error: null, done: false, requestKey: newRequestKey() })));
   const [busy, setBusy] = useState(false);
 
   const pending = rows.filter(r => !r.done);
@@ -261,6 +277,7 @@ export function BatchPayDialog({ bills, projects, onClose, onFinished }: {
         const res = await recordPayablePayment(row.bill.id, {
           amount: parseFloat(row.amount), date, method: resolved,
           reference: row.reference.trim() || undefined, approvedBy: 'finance',
+          requestKey: row.requestKey,
         });
         updated.push(res);
         setRow(row.bill.id, { done: true, error: null });
@@ -292,8 +309,8 @@ export function BatchPayDialog({ bills, projects, onClose, onFinished }: {
               <input id="ap-batch-date" type="date" value={date} onChange={e => setDate(e.target.value)} className={cn(INPUT, INPUT_MONO)} />
             </div>
             <div>
-              <FieldLabel>{t('finance:payable.batch.method')}</FieldLabel>
-              <PaymentMethodField method={method} otherText={methodOther} onMethodChange={setMethod} onOtherTextChange={setMethodOther} />
+              <FieldLabel htmlFor="ap-batch-method">{t('finance:payable.batch.method')}</FieldLabel>
+              <PaymentMethodField id="ap-batch-method" method={method} otherText={methodOther} onMethodChange={setMethod} onOtherTextChange={setMethodOther} />
             </div>
           </div>
 
@@ -549,9 +566,12 @@ export function EditAmountDatesDialog({ bill, onClose, onSaved }: {
   }
   if (!bill) return null;
 
+  // The amount of a subcontractor's bill is its invoice's: only the dates move.
+  const amountLocked = bill.subcontractorInvoiceId != null;
+
   async function submit() {
     if (!bill) return;
-    const amt = parseFloat(amount);
+    const amt = amountLocked ? bill.amount : parseFloat(amount);
     if (!amt || amt <= 0) { toast.error(t('finance:payable.validation.amountPositive')); return; }
     if (amt < bill.paidAmount) { toast.error(t('finance:payable.edit.belowPaid', { paid: fmtMoney(bill.paidAmount) })); return; }
     if (!received || !due) { toast.error(t('finance:payable.validation.requiredFields')); return; }
@@ -580,12 +600,15 @@ export function EditAmountDatesDialog({ bill, onClose, onSaved }: {
   return (
     <Dialog open onOpenChange={o => { if (!o) onClose(); }}>
       <DialogContent className={WINDOW}>
-        <Head kicker={bill.billNumber} title={t('finance:payable.edit.title')} />
+        <Head kicker={bill.billNumber} title={t(amountLocked ? 'finance:payable.linked.datesTitle' : 'finance:payable.edit.title')} />
         <div className={SHEET}>
-          {bill.paidAmount > 0 && <PaperNote tone="orange">{t('finance:payable.edit.paidHint', { paid: fmtMoney(bill.paidAmount) })}</PaperNote>}
+          {amountLocked
+            ? <PaperNote tone="orange">{t('finance:payable.linked.amountHint')}</PaperNote>
+            : bill.paidAmount > 0 && <PaperNote tone="orange">{t('finance:payable.edit.paidHint', { paid: fmtMoney(bill.paidAmount) })}</PaperNote>}
           <div>
             <FieldLabel htmlFor="ap-edit-amount">{t('finance:payable.edit.newAmount')}</FieldLabel>
             <input id="ap-edit-amount" type="number" step="0.01" min="0.01" value={amount}
+              disabled={amountLocked}
               onChange={e => setAmount(e.target.value)} className={cn(INPUT, INPUT_MONO, 'text-right')} />
           </div>
           <div className="grid grid-cols-2 gap-2.5">
@@ -598,12 +621,14 @@ export function EditAmountDatesDialog({ bill, onClose, onSaved }: {
               <input id="ap-edit-due" type="date" value={due} onChange={e => setDue(e.target.value)} className={cn(INPUT, INPUT_MONO)} />
             </div>
           </div>
-          <div>
-            <FieldLabel htmlFor="ap-edit-reason">{t('finance:payable.edit.reason')}</FieldLabel>
-            <textarea id="ap-edit-reason" rows={2} value={reason} maxLength={FIELD_LIMITS.NOTE}
-              onChange={e => setReason(e.target.value)} placeholder={t('finance:payable.edit.reasonPlaceholder')}
-              className={cn(INPUT, 'h-auto py-2.5 resize-none')} />
-          </div>
+          {!amountLocked && (
+            <div>
+              <FieldLabel htmlFor="ap-edit-reason">{t('finance:payable.edit.reason')}</FieldLabel>
+              <textarea id="ap-edit-reason" rows={2} value={reason} maxLength={FIELD_LIMITS.NOTE}
+                onChange={e => setReason(e.target.value)} placeholder={t('finance:payable.edit.reasonPlaceholder')}
+                className={cn(INPUT, 'h-auto py-2.5 resize-none')} />
+            </div>
+          )}
         </div>
         <Foot confirm={t('common:buttons.save')} onConfirm={() => void submit()} onCancel={onClose} busy={busy} tone="ink" />
       </DialogContent>
@@ -633,18 +658,21 @@ export function EditBillInfoDialog({ bill, vendors, onClose, onSaved }: {
   }
   if (!bill) return null;
 
+  // A subcontractor's bill: supplier, category and number are its invoice's.
+  const linked = bill.subcontractorInvoiceId != null;
+
   async function submit() {
     if (!bill) return;
-    const who = vendor.trim();
+    const who = linked ? bill.vendor : vendor.trim();
     if (!who) { toast.error(t('finance:payable.info.vendorRequired')); return; }
     const payload: { vendor?: string; category?: string; description?: string | null; notes?: string | null; invoiceNumber?: string } = {};
-    if (who !== bill.vendor) payload.vendor = who;
-    if (category && category !== bill.category) payload.category = category;
+    if (!linked && who !== bill.vendor) payload.vendor = who;
+    if (!linked && category && category !== bill.category) payload.category = category;
     const d = description.trim();
     if (d !== (bill.description ?? '')) payload.description = d || null;
     const n = notes.trim();
     if (n !== (bill.notes ?? '')) payload.notes = n || null;
-    if (bill.documentType === 'INVOICE') {
+    if (bill.documentType === 'INVOICE' && !linked) {
       const inv = invoiceNumber.trim();
       if (inv && inv !== (bill.invoiceNumber ?? '')) payload.invoiceNumber = inv;
     }
@@ -674,15 +702,17 @@ export function EditBillInfoDialog({ bill, vendors, onClose, onSaved }: {
       <DialogContent className={WINDOW}>
         <Head kicker={bill.billNumber} title={t('finance:payable.info.title')} />
         <div className={SHEET}>
+          {linked && <PaperNote tone="orange">{t('finance:payable.linked.infoHint')}</PaperNote>}
           <div>
             <FieldLabel htmlFor="ap-info-vendor">{t('finance:payable.info.vendor')}</FieldLabel>
             <input id="ap-info-vendor" value={vendor} list="ap-info-vendors" maxLength={FIELD_LIMITS.SHORT_NAME}
+              disabled={linked}
               onChange={e => setVendor(e.target.value)} className={INPUT} />
             <datalist id="ap-info-vendors">{vendors.map(v => <option key={v} value={v} />)}</datalist>
           </div>
           <div>
             <FieldLabel htmlFor="ap-info-category">{t('finance:payable.info.category')}</FieldLabel>
-            <MonoSelect id="ap-info-category" value={category} onChange={e => setCategory(e.target.value)} className="w-full h-10">
+            <MonoSelect id="ap-info-category" value={category} disabled={linked} onChange={e => setCategory(e.target.value)} className="w-full h-10 disabled:cursor-not-allowed disabled:text-[#8A8175]">
               {(Object.keys(CATEGORY_KEY_MAP) as BillCategory[]).map(c => (
                 <option key={c} value={c}>{t(`finance:${CATEGORY_KEY_MAP[c]}`)}</option>
               ))}
@@ -701,6 +731,7 @@ export function EditBillInfoDialog({ bill, vendors, onClose, onSaved }: {
             <div>
               <FieldLabel htmlFor="ap-info-invoice">{t('finance:payable.info.invoiceNumber')}</FieldLabel>
               <input id="ap-info-invoice" value={invoiceNumber} maxLength={FIELD_LIMITS.DOCUMENT_NUMBER}
+                disabled={linked}
                 onChange={e => setInvoiceNumber(e.target.value)} className={cn(INPUT, INPUT_MONO)} />
             </div>
           ) : (
@@ -998,6 +1029,11 @@ export function EditPaymentDialog({ subject, onClose, onSaved }: {
 /** Void one payment — kept listed, struck through, with its reason. */
 export async function voidOnePayment(billId: number, paymentId: number): Promise<Payable> {
   return voidPayablePayment(billId, paymentId);
+}
+
+/** The payment's key was already used with other data: the first try got through. */
+function isRequestConflict(err: unknown): boolean {
+  return err instanceof ApiError && err.code === 'PAYMENT_REQUEST_CONFLICT';
 }
 
 /** 409 QUICKBOOKS_PAYMENTS_IN_QBO: this bill's payments are registered in QuickBooks now. */

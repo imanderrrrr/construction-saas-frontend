@@ -41,22 +41,22 @@ export function JobStatusChip({ status, onDark = false, className }: { status: J
  * which the system expects you to move money.
  *
  * An unknown status renders its raw wire value rather than a translation key.
- * PENDING_PAYMENT is the case that matters — nothing writes it, so the panel
- * dropped it from its interface and its copy went with it; if a row ever did
- * arrive in that state the reader should see PENDING_PAYMENT, not
- * `invoiceStatus.PENDING_PAYMENT`.
  */
 export function InvoiceStatusChip({ status, className }: { status: InvoiceStatus; className?: string }) {
   const { t, i18n } = useTranslation(['subcontractors']);
   const key = `subcontractors:invoiceStatus.${status}`;
   const label = i18n.exists(key) ? t(key) : status;
+  // Partially paid sits between approved (ink, waiting on money) and paid
+  // (sand, closed): ink outline on white — money still owed, some of it paid.
   const look = status === 'APPROVED'
     ? 'px-2 py-1 bg-[#0A0A0A] text-[#F5F1E8] font-semibold'
-    : status === 'OBSERVED'
-      ? 'px-2 py-1 bg-[#FBEDE0] text-[#C2410C] font-semibold'
-      : status === 'PAID'
-        ? 'px-2 py-1 bg-[#F3EEE4] text-[#5A5346]'
-        : 'border border-[#DBD0BB] px-[7px] py-[3px] text-[#5A5346]';
+    : status === 'PENDING_PAYMENT'
+      ? 'border border-[#0A0A0A] bg-white px-[7px] py-[3px] text-[#0A0A0A] font-semibold'
+      : status === 'OBSERVED'
+        ? 'px-2 py-1 bg-[#FBEDE0] text-[#C2410C] font-semibold'
+        : status === 'PAID'
+          ? 'px-2 py-1 bg-[#F3EEE4] text-[#5A5346]'
+          : 'border border-[#DBD0BB] px-[7px] py-[3px] text-[#5A5346]';
   return <span className={cn(CHIP, look, className)}>{label}</span>;
 }
 

@@ -1,8 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from './ui/select';
+import { cn } from './ui/utils';
+import { INPUT, MonoSelect } from './projects/bt';
 import type { Payable, PayablePayment as ApiPayablePayment } from '../services/finance';
 import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
@@ -38,6 +37,12 @@ export interface VendorBill {
   firstAttachmentId: number | null;
   /** Sent to the tenant's QuickBooks, whose payments are read from there (phase 4). */
   paymentsInQuickBooks: boolean;
+  /**
+   * The approved subcontractor invoice this bill belongs to, or null. Its
+   * amount, supplier, number, project and category are that invoice's; the
+   * panel offers only what the server still lets change (dates, text, payments).
+   */
+  subcontractorInvoiceId?: number | null;
 }
 
 export function toVendorBill(p: Payable): VendorBill {
@@ -63,6 +68,7 @@ export function toVendorBill(p: Payable): VendorBill {
     attachmentCount: p.attachmentCount ?? 0,
     firstAttachmentId: p.firstAttachmentId ?? null,
     paymentsInQuickBooks: p.paymentsInQuickBooks ?? false,
+    subcontractorInvoiceId: p.subcontractorInvoiceId ?? null,
   };
 }
 
@@ -78,26 +84,10 @@ export const CATEGORY_KEY_MAP: Record<BillCategory, string> = {
   other: 'payable.category.other',
 };
 
-export function StatusBadge({ status }: { status: VendorBill['status'] }) {
-  const { t } = useTranslation('common');
-  const map: Record<string, string> = {
-    paid:    'bg-emerald-50 text-emerald-700 border-emerald-200',
-    pending: 'bg-amber-50 text-amber-700 border-amber-200',
-    partial: 'bg-blue-50 text-blue-700 border-blue-200',
-    overdue: 'bg-red-50 text-red-700 border-red-200',
-  };
-  return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${map[status]}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${status === 'paid' ? 'bg-emerald-500' : status === 'partial' ? 'bg-blue-500' : status === 'pending' ? 'bg-amber-500' : 'bg-red-500'}`} />
-      {t('status.' + status)}
-    </span>
-  );
-}
-
 export function CategoryBadge({ category }: { category: BillCategory }) {
   const { t } = useTranslation('finance');
   return (
-    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#FAFAFA] text-[#0A0A0A] border border-[#D4D4D8]">
+    <span className="inline-flex items-center rounded-none border border-[#CDBFA6] bg-[#FAF7F0] px-1.5 py-[3px] font-bt-mono text-[9.5px] uppercase tracking-[0.09em] text-[#0A0A0A]">
       {t(CATEGORY_KEY_MAP[category])}
     </span>
   );
@@ -158,16 +148,23 @@ const QUICKBOOKS_METHOD_KEYS: Record<string, string> = {
 };
 
 export function paymentMethodLabel(method: string, t: TFunction): string {
-  const key = PRESET_LABEL_KEYS[method as (typeof PAYMENT_METHOD_PRESETS)[number]] ?? QUICKBOOKS_METHOD_KEYS[method];
+  const key = PRESET_LABEL_KEYS[method as (typeof PAYMENT_METHOD_PRESETS)[number]]
+    ?? QUICKBOOKS_METHOD_KEYS[method]
+    // The server's own default when a payment arrives without a method (an
+    // older panel paying a subcontractor invoice): name it, don't print it raw.
+    ?? (method === OTHER_METHOD ? 'finance:paymentMethod.other' : undefined);
   return key ? t(key, method) : method;
 }
 
 export function PaymentMethodField({
+  id,
   method,
   otherText,
   onMethodChange,
   onOtherTextChange,
 }: {
+  /** For a <label htmlFor> outside the field. */
+  id?: string;
   method: string;
   otherText: string;
   onMethodChange: (v: string) => void;
@@ -181,15 +178,20 @@ export function PaymentMethodField({
     { value: 'Wire transfer', label: t('paymentMethod.wireTransfer') },
     { value: 'Credit card', label: t('paymentMethod.creditCard') },
   ];
+  // The panel's own square select and input — this field sits inside every
+  // payment window (Cobrar, Pagar, subcontractors), so it wears their look.
   return (
     <>
-      <Select value={method} onValueChange={onMethodChange}>
-        <SelectTrigger className="h-9 text-sm border-[#D4D4D8]"><SelectValue /></SelectTrigger>
-        <SelectContent>
-          {presets.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
-          <SelectItem value={OTHER_METHOD}>{t('paymentMethod.other')}</SelectItem>
-        </SelectContent>
-      </Select>
+      <MonoSelect
+        id={id}
+        value={method}
+        onChange={e => onMethodChange(e.target.value)}
+        aria-label={t('paymentMethod.label')}
+        className="w-full h-10"
+      >
+        {presets.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+        <option value={OTHER_METHOD}>{t('paymentMethod.other')}</option>
+      </MonoSelect>
       {method === OTHER_METHOD && (
         <input
           type="text"
@@ -198,7 +200,7 @@ export function PaymentMethodField({
           maxLength={FIELD_LIMITS.SHORT_NAME}
           placeholder={t('paymentMethod.otherPlaceholder')}
           aria-label={t('paymentMethod.otherPlaceholder')}
-          className="mt-2 h-9 w-full rounded-md border border-[#D4D4D8] px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-purple-400"
+          className={cn(INPUT, 'mt-2')}
         />
       )}
     </>

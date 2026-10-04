@@ -25,6 +25,15 @@ export const SECTION_TOUR_STEPS: Record<string, string[]> = {
   hours: ['kpis', 'filters', 'list'],
   'labor-cost': ['kpis', 'filters', 'list'],
   'labor-payroll': ['kpis', 'filters', 'list'],
+  // The finance panel mounts the same three screens, and each claims a key of
+  // its own while in finance mode (lib/tourScope): the copy is keyed, and the
+  // admin's sends people to Usuarios to set rates, or speaks of the workers'
+  // days — finance has neither. Paying stays (FINANCE confirms payroll), so
+  // Nómina gets one more stop, on the two exports in its header. The inbox's
+  // last stop is «Crear jornada», for a supervisor who could not punch at all.
+  'labor-cost-finanzas': ['kpis', 'filters', 'list'],
+  'labor-payroll-finanzas': ['kpis', 'filters', 'list', 'export'],
+  'supervisor-hours-finanzas': ['kpis', 'filters', 'queue', 'create-day'],
   projects: ['kpis', 'filters', 'table', 'menu'],
   // Screens inside Proyectos that claim the tour while on screen (see
   // lib/tourScope): the create/edit window and each tab of the ficha. Keyed
@@ -44,6 +53,11 @@ export const SECTION_TOUR_STEPS: Record<string, string[]> = {
   // The client ficha claims the tour while on screen (same mechanism as the
   // jobsite ficha): the ink bar, the three tabs and the two shortcuts.
   'clients-ficha': ['bar', 'tabs', 'shortcuts'],
+  // Finance looks clients up without editing them (ClientsSection readOnly),
+  // so the list and the ficha claim keys whose copy says so — and leads to
+  // Presupuestos, its way into a client's jobsites.
+  'clients-finanzas': ['figures', 'search', 'list'],
+  'clients-ficha-finanzas': ['bar', 'tabs', 'shortcuts'],
   // Subcontratistas is split in three, for the same reason Proyectos is:
   // `visibleSteps()` filters once at start-up, so a stop anchored in a tab
   // that is not mounted yet is dropped. With the section opening on the
@@ -61,14 +75,10 @@ export const SECTION_TOUR_STEPS: Record<string, string[]> = {
   'schedules-semana': ['rows', 'nav', 'undated'],
   'tool-inventory': ['header', 'counts', 'filters', 'table'],
   'tool-report': ['state', 'missing', 'filters', 'export'],
-  // Facturas. The section key stays `invoices` (renaming it would reset every
-  // account's "seen it" flag). The four old stops all pointed inside the
-  // create form, which is now a window: with the section opening on the list,
-  // `visibleSteps()` would have dropped every one of them and announced
-  // "1 de 1". These four are containers the list renders in every state.
-  invoices: ['summary', 'filters', 'list', 'new'],
-  // The window claims the tour while it is on screen (lib/tourScope), with a
-  // hyphen like the other scoped keys.
+  // Facturas joined Cobros (2026-10): its list tour went with it, and «Emitir
+  // documento» is a stop of the Cobros tour. The issue window still claims its
+  // own tour while it is on screen (lib/tourScope), wherever it is opened
+  // from, with a hyphen like the other scoped keys.
   'invoices-emitir': ['type', 'number', 'client-project', 'line-items', 'totals'],
   'invoice-branding': ['logo', 'fields', 'save'],
   budgets: ['header', 'kpis'],
@@ -101,8 +111,11 @@ export const SECTION_TOUR_STEPS: Record<string, string[]> = {
   // with a document open it sits on the block itself, so «Ver cómo» on the
   // invoice-created notice — which opens the document first — rings the
   // real thing. One element carries the anchor at any time.
-  'accounts-receivable': ['header', 'overdue', 'rows', 'views', 'signature'],
+  'accounts-receivable': ['header', 'new', 'overdue', 'rows', 'views', 'signature'],
   'accounts-payable': ['header', 'week', 'lanes', 'new-bill'],
+  // The FINANCE home (components/finance/FinanceOverview). Its own key: the
+  // admin's `dashboard` is a different screen.
+  'finance-dashboard': ['figures', 'payments', 'expenses', 'shortcuts'],
   audit: ['kpis', 'filters', 'list'],
   // Tiempo y material. `tm-field` doubles as the supervisor panel's tour (its
   // nav key is `tm`, but it mounts the same screen the admin calls `tm-field`)

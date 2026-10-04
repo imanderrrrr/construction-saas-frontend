@@ -110,6 +110,14 @@ export interface Payable {
   firstAttachmentId?: number | null;
   /** Sent to the tenant's QuickBooks, whose payments are read from there: no "record payment" here. */
   paymentsInQuickBooks?: boolean;
+  /**
+   * Set when the bill is the obligation an approved subcontractor invoice
+   * created: its amount, supplier, number, project and category belong to that
+   * invoice, so the server refuses to change them here (409
+   * PAYABLE_LINKED_SUBCONTRACTOR) and refuses deleting it on its own. Dates,
+   * description, notes and payments stay editable. Absent on an older server.
+   */
+  subcontractorInvoiceId?: number | null;
 }
 
 const PAYABLES = '/api/v1/finance/payables';
@@ -176,6 +184,13 @@ export function recordPayablePayment(id: number, data: {
   method: string;
   reference?: string;
   approvedBy?: string;
+  /**
+   * One key per payment the person means to make, kept across retries of the
+   * same submit: a double click or a response lost on a bad connection books
+   * it once (the server answers the first payment again), and the same key
+   * with different data is a 409 PAYMENT_REQUEST_CONFLICT.
+   */
+  requestKey?: string;
 }): Promise<Payable> {
   const { amount, ...rest } = data;
   return api<Payable>(`${PAYABLES}/${id}/payments`, {
@@ -441,6 +456,38 @@ export function listAllReceivables(params?: {
 
 export function getReceivable(id: number): Promise<Receivable> {
   return api<Receivable>(`${RECEIVABLES}/${id}`);
+}
+
+/**
+ * Cobros' header, computed by the server over the whole company — never over
+ * the rows a screen happens to have loaded. Amounts are dollars, like the rest
+ * of this API.
+ *
+ * `collectedThisMonth`, `pending` and their counts came with the Finance
+ * integration (2026-10): a server without them leaves them out, and the screen
+ * then falls back to the figures it computes from the rows. Collections count
+ * with the panel's own rule — not voided, not replaced by a QuickBooks read,
+ * and only the copies read from QuickBooks on a document managed there.
+ */
+export interface ReceivableSummary {
+  issuedThisMonth: number;
+  issuedThisMonthCount: number;
+  outstanding: number;
+  overdue: number;
+  overdueCount: number;
+  /** yyyy-MM, in the tenant's timezone. */
+  month: string;
+  /** The day "overdue" was measured against, in the tenant's timezone. */
+  asOf: string;
+  collectedThisMonth?: number;
+  collectedThisMonthCount?: number;
+  /** Open balance not yet due (partially collected documents included). */
+  pending?: number;
+  pendingCount?: number;
+}
+
+export function getReceivableSummary(): Promise<ReceivableSummary> {
+  return api<ReceivableSummary>(`${RECEIVABLES}/summary`);
 }
 
 export function createReceivable(data: {

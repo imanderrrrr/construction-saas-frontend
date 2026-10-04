@@ -219,6 +219,24 @@ export const routes = [
       </GuardedPage>
     ),
   },
+  // The rest of the finance sections, so a reload (or a shared link) lands
+  // on the same screen. Facturas joined Cobros: its old address opens Cobros.
+  ...([
+    ['/finance/clients', 'clients'],
+    ['/finance/receivables', 'accounts-receivable'],
+    ['/finance/invoices', 'accounts-receivable'],
+    ['/finance/payables', 'accounts-payable'],
+    ['/finance/labor-cost', 'labor-cost'],
+    ['/finance/payroll', 'labor-payroll'],
+    ['/finance/supervisor-hours', 'supervisor-hours'],
+  ] as const).map(([path, section]) => ({
+    path,
+    element: (
+      <GuardedPage allowedRoles={['FINANCE']}>
+        <FinanceDashboard initialSection={section} />
+      </GuardedPage>
+    ),
+  })),
 
   // WAREHOUSE
   {

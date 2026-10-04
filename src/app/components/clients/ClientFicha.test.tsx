@@ -155,4 +155,37 @@ describe('ClientFicha', () => {
     click(buttonByText(container, 'Desactivar'));
     expect(handlers.onToggleStatus).toHaveBeenCalledTimes(1);
   });
+  // Finance: the same record to look up. Nothing that writes, and the
+  // jobsites lead to Presupuestos instead of Proyectos.
+  it('finance sees the billing details and the jobsites, without editing or creating anything', async () => {
+    act(() => root.render(<><ClientFicha client={ANDES} {...handlers} readOnly /><ScopeProbe /></>));
+    await flush();
+    // Its own tour: the admin's tells you to edit and to create jobsites.
+    expect(container.querySelector('[data-testid="scope"]')?.textContent).toBe('clients-ficha-finanzas');
+    for (const stop of ['bar', 'tabs', 'shortcuts']) {
+      expect(container.querySelector(`[data-tour="sec.clients-ficha-finanzas.${stop}"]`), stop).not.toBeNull();
+    }
+    expect(container.querySelector('[data-tour^="sec.clients-ficha."]')).toBeNull();
+    const buttons = Array.from(container.querySelectorAll('button')).map(button => button.textContent);
+    expect(buttons.some(label => label?.includes('Desactivar') || label?.includes('Editar') || label?.includes('Crear obra'))).toBe(false);
+    expect(container.textContent).toContain(ANDES.rfc);
+    expect(buttonByText(container, 'Copiar datos de facturación')).toBeTruthy();
+    click(tab('Obras'));
+    await flush();
+    expect(container.textContent).not.toContain('Ver todas en Proyectos');
+    click(buttonByText(container, 'Ver presupuestos de sus obras'));
+    expect(handlers.onOpenProjects).toHaveBeenCalledOnce();
+    click(Array.from(container.querySelectorAll('[role="button"]')).find(row => row.textContent?.includes('Torre Vista Hermosa')));
+    expect(handlers.onOpenProject).toHaveBeenCalledWith(1);
+  });
+
+  it('finance with no jobsites to show is not offered to create one', async () => {
+    svc.listProjects.mockResolvedValue(page([], 0));
+    act(() => root.render(<ClientFicha client={MAJADAS} {...handlers} readOnly />));
+    await flush();
+    click(tab('Obras'));
+    expect(container.textContent).toContain('Sin obras');
+    expect(buttonByText(container, /Crear obra$/)).toBeFalsy();
+    expect(container.querySelector('[data-testid="project-window"]')).toBeNull();
+  });
 });

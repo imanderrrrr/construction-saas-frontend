@@ -9,7 +9,7 @@
 // into the next one. Only Date is faked — the helpers use no timers.
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { currentMonth, currentMonthLabel } from './dateTime';
+import { addCalendarDays, businessDateOf, currentMonth, currentMonthLabel } from './dateTime';
 
 // dateTime.getBusinessTz() reads localStorage, which jsdom does not back here.
 // Stub a Map-backed one so tests can configure the business timezone.
@@ -52,5 +52,24 @@ describe('currentMonthLabel', () => {
     freezeAt('2026-07-31T16:00:00Z'); // already 2026-08-01 01:00 in Tokyo
     expect(currentMonth()).toBe('2026-08');
     expect(currentMonthLabel()).toBe('Aug 2026');
+  });
+});
+
+describe('businessDateOf', () => {
+  afterEach(() => { store.clear(); });
+
+  it('is the business-timezone day of an instant, not the UTC one', () => {
+    // 03:30 UTC on the 1st is still the evening of the 31st in Panama.
+    expect(businessDateOf('2026-08-01T03:30:00Z')).toBe('2026-07-31');
+    localStorage.setItem('ofjr_business_timezone', 'Asia/Tokyo');
+    expect(businessDateOf('2026-07-31T16:00:00Z')).toBe('2026-08-01');
+  });
+});
+
+describe('addCalendarDays', () => {
+  it('walks calendar days across months and years', () => {
+    expect(addCalendarDays('2026-10-03', 30)).toBe('2026-11-02');
+    expect(addCalendarDays('2026-12-20', 15)).toBe('2027-01-04');
+    expect(addCalendarDays('2026-03-01', -1)).toBe('2026-02-28');
   });
 });

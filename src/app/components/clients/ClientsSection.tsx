@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowRight, ChevronLeft, ChevronRight, Mail, MoreVertical, Phone, Plus, RefreshCw, Search } from 'lucide-react';
 import {
@@ -7,6 +7,7 @@ import {
 import { cn } from '../ui/utils';
 import { businessToday } from '../../helpers/dateTime';
 import { setSectionIntent } from '../../lib/sectionIntent';
+import { useTourScopeWhileMounted } from '../../lib/tourScope';
 import { ApiError } from '../../lib/api';
 import {
   getClient, getClientsSummary, listClients,
@@ -39,11 +40,31 @@ import { ClientStatusModal } from './ClientStatusModal';
 
 const PAGE_SIZES = [20, 50, 100] as const;
 const ROW_GRID = 'grid grid-cols-[2.2fr_1.1fr_1fr_1.5fr_.9fr_.8fr_40px] gap-4 items-center';
+const SEARCH_BOX = 'relative flex-1 min-w-[200px] md:max-w-[320px]';
 /** 01B: the new row's paper background and orange edge fade out in 2 s (tailwind.css `.bt-row-flash`). */
 const FLASH_MS = 2200;
 /** The largest page the backend serves — what `rankOf` walks to find where a new client landed. */
 const LOCATE_PAGE = 100;
 const LOCATE_MAX_PAGES = 20;
+
+/**
+ * A block of the list that is also a stop of the finance tour
+ * (`clients-finanzas`, claimed while the list is read-only). Written out
+ * literally: the registry guardian (onboarding/sectionTourSteps.test.ts) greps
+ * for the attribute and cannot follow a template. The admin list renders the
+ * same block without it — its tour stops are elsewhere.
+ */
+function ListBlock({ readOnly, stop, className, testId, children }: {
+  readOnly: boolean;
+  stop: 'figures' | 'list';
+  className: string;
+  testId: string;
+  children: ReactNode;
+}) {
+  if (readOnly && stop === 'figures') return <div className={className} data-testid={testId} data-tour="sec.clients-finanzas.figures">{children}</div>;
+  if (readOnly) return <div className={className} data-testid={testId} data-tour="sec.clients-finanzas.list">{children}</div>;
+  return <div className={className} data-testid={testId}>{children}</div>;
+}
 
 /** Where `id` sits in the unfiltered list (sorted by name on the server); null if it cannot be found. */
 async function rankOf(id: number): Promise<number | null> {
@@ -56,9 +77,24 @@ async function rankOf(id: number): Promise<number | null> {
   return null;
 }
 
-export function ClientsSection({ onNavigate }: { onNavigate?: (section: 'projects') => void } = {}) {
+export function ClientsSection({ onNavigate, readOnly = false, projectSection = readOnly ? 'budgets' : 'projects' }: {
+  onNavigate?: (section: 'projects' | 'budgets') => void;
+  /**
+   * Finance: the same list and ficha to look clients up, without creating,
+   * editing or (de)activating them — the backend opens only the reads.
+   */
+  readOnly?: boolean;
+  /**
+   * Where "see this client's jobsites" leads: Proyectos on the admin panel,
+   * Presupuestos on the one that has no Proyectos (the default when readOnly).
+   */
+  projectSection?: 'projects' | 'budgets';
+} = {}) {
   const { t, i18n } = useTranslation(['admin', 'common']);
   const lang = i18n.language;
+  // Finance tours the list under its own key: the admin's copy talks about
+  // creating clients (lib/tourScope; the ficha claims its own on top).
+  useTourScopeWhileMounted(readOnly ? 'clients-finanzas' : null, t('admin:clients.title'));
   const [view, setView] = useState<'list' | 'ficha'>('list');
   const [selected, setSelected] = useState<ClientResponse | null>(null);
 
@@ -140,14 +176,18 @@ export function ClientsSection({ onNavigate }: { onNavigate?: (section: 'project
 
   const openFicha = (client: ClientResponse) => { setSelected(client); setView('ficha'); };
   const backToList = () => { setView('list'); setSelected(null); };
-  const openForm = useCallback((client: ClientResponse | null) => { setFormClient(client); setFormOpen(true); }, []);
-  const openStatus = useCallback((client: ClientResponse) => { setStatusClient(client); setStatusOpen(true); }, []);
+  const openForm = useCallback((client: ClientResponse | null) => { if (!readOnly) { setFormClient(client); setFormOpen(true); } }, [readOnly]);
+  const openStatus = useCallback((client: ClientResponse) => { if (!readOnly) { setStatusClient(client); setStatusOpen(true); } }, [readOnly]);
 
-  /** "Ver sus obras" / "Ver todas en Proyectos →": Proyectos opens already narrowed to this client. */
+  /**
+   * "Ver sus obras" / "Ver todas en Proyectos →": Proyectos opens already
+   * narrowed to this client. Finance has no Proyectos, so the same hand-off
+   * lands on Presupuestos ("Ver presupuestos de sus obras").
+   */
   const goToProjects = useCallback((client: ClientResponse, openProjectId?: number) => {
-    setSectionIntent('projects', { clientId: client.id, clientName: client.name, openProjectId });
-    onNavigate?.('projects');
-  }, [onNavigate]);
+    setSectionIntent(projectSection, { clientId: client.id, clientName: client.name, openProjectId });
+    onNavigate?.(projectSection);
+  }, [onNavigate, projectSection]);
 
   const handleSaved = useCallback(async (client: ClientResponse, mode: ClientFormMode) => {
     if (mode === 'edit') {
@@ -201,6 +241,7 @@ export function ClientsSection({ onNavigate }: { onNavigate?: (section: 'project
       <>
         <ClientFicha
           client={selected}
+          readOnly={readOnly}
           onBack={backToList}
           onEdit={() => openForm(selected)}
           onToggleStatus={() => openStatus(selected)}
@@ -208,8 +249,8 @@ export function ClientsSection({ onNavigate }: { onNavigate?: (section: 'project
           onOpenProject={id => goToProjects(selected, id)}
           onClientChanged={() => refreshSelected(selected.id)}
         />
-        <ClientFormModal open={formOpen} onOpenChange={setFormOpen} client={formClient} onSaved={handleSaved} />
-        <ClientStatusModal open={statusOpen} onOpenChange={setStatusOpen} client={statusClient} onConfirmed={handleStatusChanged} />
+        {!readOnly && <ClientFormModal open={formOpen} onOpenChange={setFormOpen} client={formClient} onSaved={handleSaved} />}
+        {!readOnly && <ClientStatusModal open={statusOpen} onOpenChange={setStatusOpen} client={statusClient} onConfirmed={handleStatusChanged} />}
       </>
     );
   }
@@ -234,11 +275,11 @@ export function ClientsSection({ onNavigate }: { onNavigate?: (section: 'project
         </DropdownMenuLabel>
         {[
           { key: 'view', label: t('admin:clients.menu.view'), onClick: () => openFicha(client) },
-          { key: 'edit', label: t('admin:clients.menu.edit'), onClick: () => openForm(client) },
-          { key: 'projects', label: t('admin:clients.menu.projects'), onClick: () => goToProjects(client) },
-          client.status === 'ACTIVE'
+          ...(!readOnly ? [{ key: 'edit', label: t('admin:clients.menu.edit'), onClick: () => openForm(client) }] : []),
+          ...(onNavigate ? [{ key: 'projects', label: projectSection === 'budgets' ? t('admin:clients.menu.budgets') : t('admin:clients.menu.projects'), onClick: () => goToProjects(client) }] : []),
+          ...(!readOnly ? [client.status === 'ACTIVE'
             ? { key: 'off', danger: true, sep: true, label: t('admin:clients.menu.deactivate'), onClick: () => openStatus(client) }
-            : { key: 'on', sep: true, label: t('admin:clients.menu.reactivate'), onClick: () => openStatus(client) },
+            : { key: 'on', sep: true, label: t('admin:clients.menu.reactivate'), onClick: () => openStatus(client) }] : []),
         ].map(it => (
           <DropdownMenuItem
             key={it.key}
@@ -254,6 +295,20 @@ export function ClientsSection({ onNavigate }: { onNavigate?: (section: 'project
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+
+  const searchField = (
+    <>
+      <Search className="w-3.5 h-3.5 text-[#A69C8D] absolute left-[11px] top-1/2 -translate-y-1/2" />
+      <input
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        placeholder={t('admin:clients.searchPlaceholder')}
+        maxLength={FIELD_LIMITS.SEARCH}
+        aria-label={t('admin:clients.searchPlaceholder')}
+        className={cn('w-full border border-[#DBD0BB] bg-[#FAF7F0] py-[9px] pl-8 pr-3 text-[13px] text-[#0A0A0A] outline-none focus:border-[#F97316]', FOCUS_RING)}
+      />
+    </>
   );
 
   const figureValue = (n: number | undefined) => (summary ? n : summaryFailed ? <span className="text-[#CDBFA6]">—</span> : <Bone className="w-10 h-8" />);
@@ -283,16 +338,16 @@ export function ClientsSection({ onNavigate }: { onNavigate?: (section: 'project
           <div className="flex items-center gap-3.5 flex-shrink-0 w-full md:w-auto">
             <div className="text-right hidden md:block">
               <Mono className="block text-[12px] tracking-[0.08em] text-[#0A0A0A]">{t('admin:dash.todayStamp', { date: today })}</Mono>
-              <Mono className="block text-[10px] tracking-[0.1em] text-[#A69C8D] mt-[3px]">{t('admin:clients.stamp')}</Mono>
+              <Mono className="block text-[10px] tracking-[0.1em] text-[#A69C8D] mt-[3px]">{t(readOnly ? 'admin:clients.stamp.finance' : 'admin:clients.stamp')}</Mono>
             </div>
-            <CreateButton onClick={() => openForm(null)} className="w-full md:w-auto py-3.5 md:py-3" data-tour="sec.clients.add-client">
+            {!readOnly && <CreateButton onClick={() => openForm(null)} className="w-full md:w-auto py-3.5 md:py-3" data-tour="sec.clients.add-client">
               <Plus className="w-3.5 h-3.5" strokeWidth={2.4} />{t('admin:clients.create')}
-            </CreateButton>
+            </CreateButton>}
           </div>
         </div>
 
         {/* ── The three numbers ──────────────────────────────────────── */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 bg-white border border-[#E7E1D5]" data-testid="clients-figures">
+        <ListBlock readOnly={readOnly} stop="figures" className="grid grid-cols-1 sm:grid-cols-3 bg-white border border-[#E7E1D5]" testId="clients-figures">
           <div className="px-[22px] py-4 border-b sm:border-b-0 sm:border-r border-[#EDE7DB]">
             <div className="font-bt-display font-extrabold text-[40px] leading-[0.85] text-[#0A0A0A]">{figureValue(summary?.total)}</div>
             <Mono className="block text-[10.5px] tracking-[0.1em] text-[#5A5346] mt-[5px]">{t('admin:clients.kpi.total')}</Mono>
@@ -305,7 +360,7 @@ export function ClientsSection({ onNavigate }: { onNavigate?: (section: 'project
             className={cn(figureButton(statusFilter === 'ACTIVE'), 'border-b sm:border-b-0 sm:border-r border-[#EDE7DB]')}
           >
             <div className="font-bt-display font-extrabold text-[40px] leading-[0.85] text-[#0A0A0A]">{figureValue(summary?.active)}</div>
-            <Mono className="block text-[10.5px] tracking-[0.1em] text-[#5A5346] mt-[5px]">{t('admin:clients.kpi.active')}</Mono>
+            <Mono className="block text-[10.5px] tracking-[0.1em] text-[#5A5346] mt-[5px]">{t(readOnly ? 'admin:clients.kpi.active.finance' : 'admin:clients.kpi.active')}</Mono>
           </button>
           <button
             type="button"
@@ -315,24 +370,16 @@ export function ClientsSection({ onNavigate }: { onNavigate?: (section: 'project
             className={figureButton(projectsFilter === 'WITH_ACTIVE')}
           >
             <div className="font-bt-display font-extrabold text-[40px] leading-[0.85] text-[#0A0A0A]">{figureValue(summary?.withActiveProjects)}</div>
-            <Mono className="block text-[10.5px] tracking-[0.1em] text-[#5A5346] mt-[5px]">{t('admin:clients.kpi.withProjects')}</Mono>
+            <Mono className="block text-[10.5px] tracking-[0.1em] text-[#5A5346] mt-[5px]">{t(readOnly ? 'admin:clients.kpi.withProjects.finance' : 'admin:clients.kpi.withProjects')}</Mono>
           </button>
-        </div>
+        </ListBlock>
 
         {/* ── Filters ────────────────────────────────────────────────── */}
         <div className="bg-white border border-[#E7E1D5] p-3.5 md:px-4">
           <div className="flex flex-wrap items-center gap-2.5">
-            <div className="relative flex-1 min-w-[200px] md:max-w-[320px]" data-tour="sec.clients.search">
-              <Search className="w-3.5 h-3.5 text-[#A69C8D] absolute left-[11px] top-1/2 -translate-y-1/2" />
-              <input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder={t('admin:clients.searchPlaceholder')}
-                maxLength={FIELD_LIMITS.SEARCH}
-                aria-label={t('admin:clients.searchPlaceholder')}
-                className={cn('w-full border border-[#DBD0BB] bg-[#FAF7F0] py-[9px] pl-8 pr-3 text-[13px] text-[#0A0A0A] outline-none focus:border-[#F97316]', FOCUS_RING)}
-              />
-            </div>
+            {readOnly
+              ? <div className={SEARCH_BOX} data-tour="sec.clients-finanzas.search">{searchField}</div>
+              : <div className={SEARCH_BOX} data-tour="sec.clients.search">{searchField}</div>}
             <MonoSelect value={statusFilter} onChange={e => { setStatusFilter(e.target.value as '' | ClientStatus); setCurrentPage(0); }} className="hidden md:block" aria-label={t('admin:clients.filter.status')}>
               <option value="">{t('admin:clients.filter.status')}</option>
               <option value="ACTIVE">{t('common:status.active')}</option>
@@ -371,14 +418,14 @@ export function ClientsSection({ onNavigate }: { onNavigate?: (section: 'project
         </div>
 
         {/* ── Table / cards ──────────────────────────────────────────── */}
-        <div className="bg-white border border-[#E7E1D5]" data-testid="clients-list">
+        <ListBlock readOnly={readOnly} stop="list" className="bg-white border border-[#E7E1D5]" testId="clients-list">
           {listState === 'error' && (
             <EmptyWord tone="red" word={t('admin:clients.error.big')} title={t('admin:clients.error.title')} hint={t('admin:clients.error.hint')} className="border-0"
               action={<SecondaryButton onClick={() => setReloadNonce(n => n + 1)} className="bg-[#FAF7F0]">{t('common:buttons.retry')}</SecondaryButton>} />
           )}
           {listState === 'empty' && (
-            <EmptyWord word={t('admin:clients.empty.big')} title={t('admin:clients.empty.title')} hint={t('admin:clients.empty.hint')} className="border-0 py-[76px]"
-              action={<CreateButton onClick={() => openForm(null)}><Plus className="w-3.5 h-3.5" strokeWidth={2.4} />{t('admin:clients.create')}</CreateButton>} />
+            <EmptyWord word={t('admin:clients.empty.big')} title={t('admin:clients.empty.title')} hint={t(readOnly ? 'admin:clients.empty.hint.finance' : 'admin:clients.empty.hint')} className="border-0 py-[76px]"
+              action={!readOnly ? <CreateButton onClick={() => openForm(null)}><Plus className="w-3.5 h-3.5" strokeWidth={2.4} />{t('admin:clients.create')}</CreateButton> : undefined} />
           )}
           {listState === 'noMatch' && (
             <EmptyWord word={t('admin:clients.noMatch.big')} title={t('admin:clients.noMatch.title')} hint={t('admin:clients.noMatch.hint')} className="border-0"
@@ -475,9 +522,11 @@ export function ClientsSection({ onNavigate }: { onNavigate?: (section: 'project
                           <PaperNote tone="none" className="mt-2.5 text-[12.5px]">
                             {closed > 0 ? t('admin:clients.row.inactiveNote', { count: closed }) : t('admin:clients.row.inactiveNoteNone')}
                           </PaperNote>
-                          <div className="flex justify-end mt-2.5">
-                            <TertiaryButton onClick={e => { e.stopPropagation(); openStatus(client); }} className="text-[10px]">{t('admin:clients.menu.reactivate')}</TertiaryButton>
-                          </div>
+                          {!readOnly && (
+                            <div className="flex justify-end mt-2.5">
+                              <TertiaryButton onClick={e => { e.stopPropagation(); openStatus(client); }} className="text-[10px]">{t('admin:clients.menu.reactivate')}</TertiaryButton>
+                            </div>
+                          )}
                         </>
                       ) : (
                         <>
@@ -507,7 +556,7 @@ export function ClientsSection({ onNavigate }: { onNavigate?: (section: 'project
               </div>
             </>
           )}
-        </div>
+        </ListBlock>
 
         {/* ── Pagination ─────────────────────────────────────────────── */}
         {listState === 'data' && (
@@ -536,8 +585,8 @@ export function ClientsSection({ onNavigate }: { onNavigate?: (section: 'project
         )}
       </div>
 
-      <ClientFormModal open={formOpen} onOpenChange={setFormOpen} client={formClient} onSaved={handleSaved} />
-      <ClientStatusModal open={statusOpen} onOpenChange={setStatusOpen} client={statusClient} onConfirmed={handleStatusChanged} />
+      {!readOnly && <ClientFormModal open={formOpen} onOpenChange={setFormOpen} client={formClient} onSaved={handleSaved} />}
+      {!readOnly && <ClientStatusModal open={statusOpen} onOpenChange={setStatusOpen} client={statusClient} onConfirmed={handleStatusChanged} />}
     </>
   );
 }

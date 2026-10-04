@@ -275,6 +275,7 @@
   "manualMarks.addSubmit": "Agregar marcas",
   "manualMarks.createTitle": "Crear jornada",
   "manualMarks.createSubtitle": "Registra una jornada completa en nombre de un trabajador o supervisor.",
+  "manualMarks.createSubtitle.supervisor": "Registra una jornada completa en nombre de un supervisor.",
   "manualMarks.createSubmit": "Crear jornada",
   "manualMarks.userLabel": "Trabajador / Supervisor",
   "manualMarks.userPlaceholder": "Selecciona un usuario",

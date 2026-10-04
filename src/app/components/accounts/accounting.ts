@@ -1,4 +1,4 @@
-import { paymentCounts, type Payable, type PayableSummary, type Receivable } from '../../services/finance';
+import { paymentCounts, type Payable, type PayableSummary, type Receivable, type ReceivableSummary } from '../../services/finance';
 
 /**
  * The arithmetic behind Cobrar and Pagar — all of it, and nothing else.
@@ -338,6 +338,27 @@ export function payableFiguresFromSummary(summary: PayableSummary, fromRows: Pay
     oldestOverdueDays: fromRows.oldestOverdueDays,
     outstanding: { amount: cents(summary.outstandingCents), count: summary.outstandingCount },
     paid: { amount: cents(summary.paidThisMonthCents), count: summary.paidThisMonthCount },
+  };
+}
+
+/**
+ * Cobros' figures as the server counted them over the whole company, falling
+ * back field by field to the rows for what an older server does not send: the
+ * not-yet-due and collected figures arrived with the Finance integration
+ * (2026-10). The age of the oldest overdue document is a row matter only.
+ * Amounts already come in dollars.
+ */
+export function receivableFiguresFromSummary(summary: ReceivableSummary, fromRows: ReceivableFigures): ReceivableFigures {
+  return {
+    overdue: { amount: round2(summary.overdue), count: summary.overdueCount },
+    oldestOverdueDays: fromRows.oldestOverdueDays,
+    notYetDue: summary.pending != null && summary.pendingCount != null
+      ? { amount: round2(summary.pending), count: summary.pendingCount }
+      : fromRows.notYetDue,
+    collected: summary.collectedThisMonth != null && summary.collectedThisMonthCount != null
+      ? { amount: round2(summary.collectedThisMonth), count: summary.collectedThisMonthCount }
+      : fromRows.collected,
+    total: round2(summary.outstanding),
   };
 }
 

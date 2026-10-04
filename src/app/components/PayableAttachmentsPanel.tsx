@@ -4,6 +4,8 @@ import { Upload, ImageIcon, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { AuthImage } from './sitelog/AuthImage';
 import { Lightbox, type LightboxImage } from './sitelog/Lightbox';
+import { cn } from './ui/utils';
+import { FOCUS_RING } from './onboarding/chrome';
 import {
   listPayableAttachments, uploadPayableAttachment, deletePayableAttachment,
   payableAttachmentUrl, type PayableAttachmentResponse,
@@ -99,10 +101,10 @@ export function PayableAttachmentsPanel({
 
   return (
     <div className="space-y-2">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t('payable.attachments.title')}</p>
+      <p className="font-bt-mono text-[9.5px] uppercase tracking-[0.13em] text-[#8A8175]">{t('payable.attachments.title')}</p>
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">{t('payable.attachments.loading')}</p>
+        <p className="text-[12.5px] text-[#8A8175]">{t('payable.attachments.loading')}</p>
       ) : (
         <div className="flex flex-wrap gap-2">
           {items.map((a, i) => (
@@ -110,7 +112,7 @@ export function PayableAttachmentsPanel({
               <button
                 type="button"
                 onClick={() => setLightboxIndex(i)}
-                className="block h-20 w-20 overflow-hidden rounded-lg border border-border bg-muted hover:ring-2 hover:ring-purple-400 transition"
+                className={cn('block h-20 w-20 overflow-hidden border border-[#DBD0BB] bg-[#F3EEE4] transition-colors hover:border-[#F97316]', FOCUS_RING)}
                 title={a.originalName ?? `#${a.id}`}
               >
                 <AuthImage src={payableAttachmentUrl(payableId, a.id)} alt={a.originalName ?? `attachment ${a.id}`} className="h-full w-full object-cover" />
@@ -120,7 +122,7 @@ export function PayableAttachmentsPanel({
                   type="button"
                   disabled={busy}
                   onClick={() => handleDelete(a.id)}
-                  className="absolute -top-1.5 -right-1.5 hidden group-hover:flex items-center justify-center h-5 w-5 rounded-full bg-red-500 text-white shadow disabled:opacity-40"
+                  className={cn('absolute -top-1.5 -right-1.5 hidden group-hover:flex group-focus-within:flex items-center justify-center h-5 w-5 bg-[#B3402A] text-[#F5F1E8] disabled:opacity-40', FOCUS_RING)}
                   aria-label={t('payable.attachments.remove')}
                 >
                   <Trash2 className="h-3 w-3" />
@@ -131,12 +133,12 @@ export function PayableAttachmentsPanel({
 
           {canManage && items.length < MAX_COUNT && (
             <label
-              className="flex h-20 w-20 flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-border bg-muted/50 cursor-pointer hover:border-purple-400 hover:bg-purple-50/30 transition-colors"
+              className="flex h-20 w-20 flex-col items-center justify-center gap-1 border-2 border-dashed border-[#CDBFA6] bg-[#FAF7F0] cursor-pointer transition-colors hover:border-[#F97316] hover:bg-[#FBEDE0] focus-within:border-[#F97316]"
               onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
               onDrop={e => { e.preventDefault(); e.stopPropagation(); handleFiles(Array.from(e.dataTransfer.files)); }}
             >
-              <Upload className="h-4 w-4 text-muted-foreground" />
-              <span className="text-[9px] text-muted-foreground text-center px-1">{t('payable.attachments.add')}</span>
+              <Upload className="h-4 w-4 text-[#8A8175]" />
+              <span className="font-bt-mono text-[8.5px] uppercase tracking-[0.06em] text-[#5A5346] text-center px-1">{t('payable.attachments.add')}</span>
               <input
                 type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif" className="hidden"
                 disabled={busy}
@@ -146,7 +148,7 @@ export function PayableAttachmentsPanel({
           )}
 
           {items.length === 0 && !canManage && (
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <div className="flex items-center gap-1.5 text-[12.5px] text-[#8A8175]">
               <ImageIcon className="h-4 w-4" /> {t('payable.attachments.none')}
             </div>
           )}
@@ -171,7 +173,7 @@ export function PayableAttachmentsPanel({
                     type="button"
                     onClick={() => handleDelete(Number(img.id))}
                     title={t('payable.attachments.remove')}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg text-white/80 transition-colors hover:bg-red-500/20 hover:text-red-300"
+                    className={cn('flex h-9 w-9 items-center justify-center text-[#F5F1E8] transition-colors hover:bg-[#B3402A]', FOCUS_RING)}
                   >
                     <Trash2 className="h-5 w-5" />
                   </button>

@@ -3,13 +3,15 @@ import { useTranslation } from 'react-i18next';
 import { Download } from 'lucide-react';
 import { cn } from '../ui/utils';
 import { FIELD_LIMITS } from '../../../shared/fieldLimits';
+import { ApiError } from '../../lib/api';
+import { addCalendarDays, businessDateOf, businessToday } from '../../helpers/dateTime';
 import {
   getInvoiceFileUrl, isPayable, isReviewable, reviewInvoice,
   type SubcontractorInvoiceDTO,
 } from '../../services/subcontractors';
 import { BtModal } from '../bt/windows';
 import { FOCUS_RING, PrimaryButton, SecondaryButton } from '../onboarding/chrome';
-import { EmptyWord, FieldError, FieldHint, FieldLabel, INPUT, INPUT_ERROR, Mono, PaperNote } from '../projects/bt';
+import { EmptyWord, FieldError, FieldHint, FieldLabel, INPUT, INPUT_ERROR, INPUT_MONO, Mono, PaperNote } from '../projects/bt';
 import { fmtMoney, InvoiceStatusChip, softDate, stampDateTime } from './bits';
 
 /**
@@ -22,7 +24,15 @@ import { fmtMoney, InvoiceStatusChip, softDate, stampDateTime } from './bits';
  *
  * An invoice already reviewed loses both actions (the server refuses a second
  * review) and offers the next step instead, which is payment.
+ *
+ * Approving creates the invoice's bill in Cuentas por pagar (2026-10), so the
+ * approval asks the one thing that bill needs and the invoice does not carry:
+ * when it falls due. It cannot fall due before the day the invoice came in —
+ * that day is the bill's received date.
  */
+
+/** Days to pay a subcontractor's invoice, offered by default on approval. */
+const DEFAULT_TERM_DAYS = 30;
 
 const MAX_COMMENT = FIELD_LIMITS.NOTE;
 
@@ -39,6 +49,7 @@ export function ReviewInvoiceModal({ open, onOpenChange, invoice, agreedAmountCe
   const lang = i18n.language;
   const [decision, setDecision] = useState<'APPROVE' | 'OBSERVE' | null>(null);
   const [comment, setComment] = useState('');
+  const [dueDate, setDueDate] = useState('');
   const [saving, setSaving] = useState(false);
   const [commentError, setCommentError] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +58,7 @@ export function ReviewInvoiceModal({ open, onOpenChange, invoice, agreedAmountCe
     if (!open) return;
     setDecision(null);
     setComment('');
+    setDueDate(addCalendarDays(businessToday(), DEFAULT_TERM_DAYS));
     setSaving(false);
     setCommentError(false);
     setError(null);
@@ -55,6 +67,9 @@ export function ReviewInvoiceModal({ open, onOpenChange, invoice, agreedAmountCe
   if (!invoice) return null;
 
   const canReview = isReviewable(invoice.status);
+  // The bill's received date is the day the invoice came in: its due date can't be earlier.
+  const receivedOn = businessDateOf(invoice.createdAt);
+  const dueInvalid = !dueDate || dueDate < receivedOn;
   const fileUrl = getInvoiceFileUrl(invoice.id);
   const isPdf = invoice.fileContentType === 'application/pdf';
   const isImage = invoice.fileContentType?.startsWith('image/') ?? false;
@@ -63,14 +78,23 @@ export function ReviewInvoiceModal({ open, onOpenChange, invoice, agreedAmountCe
     if (!decision) return;
     // The server requires it; saying so before the round trip is the point.
     if (decision === 'OBSERVE' && !comment.trim()) { setCommentError(true); return; }
+    if (decision === 'APPROVE' && dueInvalid) return;
     setSaving(true);
     setError(null);
     try {
-      const updated = await reviewInvoice(invoice.id, { action: decision, comment: comment.trim() || null });
+      const updated = await reviewInvoice(invoice.id, {
+        action: decision,
+        comment: comment.trim() || null,
+        dueDate: decision === 'APPROVE' ? dueDate : undefined,
+      });
       onReviewed(updated);
       onOpenChange(false);
-    } catch {
-      setError(t('subcontractors:rev.error.server'));
+    } catch (err) {
+      // The one refusal worth its own sentence: the same supplier and number
+      // already typed into Cuentas por pagar by hand — approving would make two.
+      setError(err instanceof ApiError && err.code === 'SUBCONTRACTOR_INVOICE_IN_PAYABLES'
+        ? t('subcontractors:pay.refusal.inPayables.body')
+        : t('subcontractors:rev.error.server'));
     } finally {
       setSaving(false);
     }
@@ -105,7 +129,7 @@ export function ReviewInvoiceModal({ open, onOpenChange, invoice, agreedAmountCe
         canReview ? (
           <>
             <SecondaryButton onClick={() => onOpenChange(false)} disabled={saving}>{t('common:buttons.cancel')}</SecondaryButton>
-            <PrimaryButton onClick={submit} disabled={saving || !decision}>
+            <PrimaryButton onClick={submit} disabled={saving || !decision || (decision === 'APPROVE' && dueInvalid)}>
               {saving
                 ? t('subcontractors:rev.submitting')
                 : decision === 'OBSERVE' ? t('subcontractors:rev.submitObserve') : t('subcontractors:rev.submitApprove')}
@@ -114,7 +138,8 @@ export function ReviewInvoiceModal({ open, onOpenChange, invoice, agreedAmountCe
         ) : (
           <>
             <SecondaryButton onClick={() => onOpenChange(false)}>{t('common:buttons.close')}</SecondaryButton>
-            {isPayable(invoice.status) && (
+            {/* Paid in QuickBooks when its bill lives there: no button to be refused. */}
+            {isPayable(invoice.status) && !invoice.paymentsInQuickBooks && (
               <PrimaryButton onClick={() => { onOpenChange(false); onPay(invoice); }}>{t('subcontractors:inv.action.pay')}</PrimaryButton>
             )}
           </>
@@ -216,6 +241,21 @@ export function ReviewInvoiceModal({ open, onOpenChange, invoice, agreedAmountCe
                 ))}
               </div>
               <FieldHint>{t('subcontractors:rev.decisionHint')}</FieldHint>
+
+              {decision === 'APPROVE' && (
+                <div className="mt-4">
+                  <FieldLabel htmlFor={`rev-due-${invoice.id}`} required>{t('subcontractors:rev.dueDate')}</FieldLabel>
+                  <input
+                    id={`rev-due-${invoice.id}`}
+                    type="date"
+                    value={dueDate}
+                    min={receivedOn}
+                    onChange={e => setDueDate(e.target.value)}
+                    className={cn(INPUT, INPUT_MONO, dueInvalid && INPUT_ERROR)}
+                  />
+                  <FieldHint>{t('subcontractors:rev.payableHint')}</FieldHint>
+                </div>
+              )}
 
               {decision === 'OBSERVE' && (
                 <div className="mt-4">

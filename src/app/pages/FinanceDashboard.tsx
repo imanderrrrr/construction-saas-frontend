@@ -1,26 +1,29 @@
-import { useState, useMemo, useEffect, useCallback, lazy, Suspense } from 'react';
+import { useState, useMemo, lazy, Suspense } from 'react';
 import { useMarkDashboardReady } from '../lib/dashboardReady';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { AuthService } from '../services/auth';
 import {
-  LayoutDashboard, CheckCircle, FileBarChart, DollarSign, Clock,
-  Wallet, ArrowDownToLine, ArrowUpFromLine, BarChart3,
-  TrendingUp, TrendingDown, AlertTriangle, Receipt, Banknote, HardHat, Loader2, FileText,
+  LayoutDashboard, CheckCircle, FileBarChart, Clock,
+  Wallet, ArrowDownToLine, ArrowUpFromLine, Banknote, HardHat, UserRound,
   FileSignature, HelpCircle,
 } from 'lucide-react';
 import { AppShell, type AppShellNavItem } from '../components/AppShell';
 import { SectionTour } from '../components/onboarding/SectionTour';
-import { StatCard } from '../components/StatCard';
-import { ErrorBanner } from '../components/ErrorBanner';
+import { FOCUS_RING } from '../components/onboarding/chrome';
+import { FinanceOverview } from '../components/finance/FinanceOverview';
 import { Toaster } from '../components/ui/sonner';
-import {
-  getFinanceExpenses, getFinanceExpenseReport,
-  type ExpenseResponse, type ExpenseReportResponse,
-} from '../services/expenses';
+import { cn } from '../components/ui/utils';
+import { setSectionIntent } from '../lib/sectionIntent';
 
-// Lazy-loaded sections
+// Lazy-loaded sections. FINANCE gets the same screens as Administration —
+// the admin panel's design and components — and what this role may not do is
+// decided by the components (read-only clients and budgets, finance modes of
+// labor and approvals), never by a second, older copy of each screen.
 
+const ClientsSection = lazy(() =>
+  import('../components/clients/ClientsSection').then(m => ({ default: m.ClientsSection }))
+);
 const FinanceExpenses = lazy(() =>
   import('../components/expenses/ExpensesSection').then(m => ({ default: () => <m.ExpensesSection readOnly /> }))
 );
@@ -38,41 +41,35 @@ const AccountsPayable = lazy(() =>
 const TmOffice = lazy(() =>
   import('../components/tm/TmOfficeSection').then(m => ({ default: m.TmOfficeSection }))
 );
-const InvoiceManager = lazy(() =>
-  import('../components/InvoiceManager').then(m => ({ default: m.InvoiceManager }))
-);
-const ProjectFinancials = lazy(() =>
-  import('../components/ProjectFinancials').then(m => ({ default: m.ProjectFinancials }))
-);
 // Presupuestos: the same screen the admin panel mounts, read-only. It carries
-// its own Obras | Reporte switcher, so `budget-report` is no longer a section.
+// its own Obras | Reporte switcher, so `budget-report` is no longer a section,
+// and it answers what `project-financials` used to (that section is retired).
 const BudgetsSection = lazy(() =>
   import('../components/budgets/BudgetsSection').then(m => ({ default: m.BudgetsSection }))
 );
-const LaborCostReport = lazy(() =>
-  import('../components/LaborCostReport').then(m => ({ default: m.LaborCostReport }))
+const LaborCostScreen = lazy(() =>
+  import('../components/labor/LaborCostScreen').then(m => ({ default: m.LaborCostScreen }))
 );
-const LaborPayrollReport = lazy(() =>
-  import('../components/LaborPayrollReport').then(m => ({ default: m.LaborPayrollReport }))
+const LaborPayrollScreen = lazy(() =>
+  import('../components/labor/LaborPayrollScreen').then(m => ({ default: m.LaborPayrollScreen }))
 );
 // Product decision 2026-07-01: finance approves SUPERVISOR hours (workers
-// stay with admins/assigned supervisors). Same shared approvals window; the
-// 'finance' mode scopes the list to supervisor-owned records server-side.
-const SupervisorApprovals = lazy(() =>
-  import('../components/SupervisorApprovals').then(m => ({ default: m.SupervisorApprovals }))
+// stay with admins/assigned supervisors). The admin's approvals inbox in its
+// finance mode, scoped to supervisor-owned records server-side.
+const ApprovalsInbox = lazy(() =>
+  import('../components/approvals/ApprovalsInbox').then(m => ({ default: m.ApprovalsInbox }))
 );
 
 // Types & config
 
-type ActiveSection =
+export type FinanceSection =
   | 'dashboard'
-  | 'invoices'
+  | 'clients'
   | 'approved-expenses'
   | 'expense-report'
   | 'accounts-receivable'
   | 'accounts-payable'
   | 'budgets'
-  | 'project-financials'
   | 'labor-cost'
   | 'labor-payroll'
   | 'supervisor-hours'
@@ -80,207 +77,77 @@ type ActiveSection =
 
 /**
  * Which onboarding key (SECTION_TOUR_STEPS / INTRO_SECTIONS) each section of
- * THIS panel tours under. The registries are keyed by ADMIN nav keys; most
- * finance sections collide with admin ones whose copy was written for the
- * admin panel, so only what is explicitly mapped gets a tour here. `tm-office`
- * is the same screen under the same key on both panels.
+ * THIS panel tours under. Where the admin's copy fits this role word for word
+ * (Cobros, Pagar, T&M) it is the same key; where it talks about what only an
+ * admin does, the section has its own `-finanzas` key — and those screens
+ * also claim it themselves while they are in their finance mode
+ * (lib/tourScope), so the right copy wins even through a shared component.
+ * Presupuestos claims `budgets-reporte-finanzas` for its report view.
  */
-const ONBOARDING_KEY: Partial<Record<ActiveSection, string>> = {
+const ONBOARDING_KEY: Partial<Record<FinanceSection, string>> = {
+  'dashboard': 'finance-dashboard',
+  'clients': 'clients-finanzas',
+  'accounts-receivable': 'accounts-receivable',
+  'accounts-payable': 'accounts-payable',
+  'budgets': 'budgets',
+  'labor-cost': 'labor-cost-finanzas',
+  'labor-payroll': 'labor-payroll-finanzas',
+  'supervisor-hours': 'supervisor-hours-finanzas',
   'tm-office': 'tm-office',
 };
-// Presupuestos is the exception the comment above describes in reverse: the
-// screen itself claims the tour with `pushTourScope`, under a finance-only key
-// (`budgets-reporte-finanzas`), so the accountant gets copy written for that
-// role instead of the admin's word for word.
 
-const SECTION_META_KEYS: Record<ActiveSection, { titleKey: string; subtitleKey: string }> = {
+const SECTION_META_KEYS: Record<FinanceSection, { titleKey: string; subtitleKey: string }> = {
   'dashboard':            { titleKey: 'finance:section.dashboard.title',            subtitleKey: 'finance:section.dashboard.subtitle'            },
+  'clients':              { titleKey: 'finance:section.clients.title',              subtitleKey: 'finance:section.clients.subtitle'              },
   'tm-office':            { titleKey: 'tm:section.office.title',                    subtitleKey: 'tm:section.office.subtitle'                    },
-  'invoices':             { titleKey: 'finance:section.invoices.title',             subtitleKey: 'finance:section.invoices.subtitle'             },
   'accounts-receivable':  { titleKey: 'finance:section.accountsReceivable.title',   subtitleKey: 'finance:section.accountsReceivable.subtitle'   },
   'accounts-payable':     { titleKey: 'finance:section.accountsPayable.title',      subtitleKey: 'finance:section.accountsPayable.subtitle'      },
   'approved-expenses':    { titleKey: 'finance:section.approvedExpenses.title',     subtitleKey: 'finance:section.approvedExpenses.subtitle'     },
   'expense-report':       { titleKey: 'finance:section.expenseReport.title',        subtitleKey: 'finance:section.expenseReport.subtitle'        },
   'budgets':              { titleKey: 'finance:section.budgets.title',              subtitleKey: 'finance:section.budgets.subtitle'              },
-  'project-financials':   { titleKey: 'finance:section.projectFinancials.title',    subtitleKey: 'finance:section.projectFinancials.subtitle'    },
   'labor-cost':           { titleKey: 'finance:section.laborCost.title',            subtitleKey: 'finance:section.laborCost.subtitle'            },
   'labor-payroll':        { titleKey: 'finance:section.laborPayroll.title',         subtitleKey: 'finance:section.laborPayroll.subtitle'         },
   'supervisor-hours':     { titleKey: 'finance:section.supervisorHours.title',      subtitleKey: 'finance:section.supervisorHours.subtitle'      },
 };
 
-// Helpers
+/** The address of each section that has one (routes.tsx), so a reload stays put. */
+const SECTION_PATH: Partial<Record<FinanceSection, string>> = {
+  'dashboard': '/finance/dashboard',
+  'clients': '/finance/clients',
+  'accounts-receivable': '/finance/receivables',
+  'accounts-payable': '/finance/payables',
+  'budgets': '/finance/budgets',
+  'approved-expenses': '/finance/expenses',
+  'labor-cost': '/finance/labor-cost',
+  'labor-payroll': '/finance/payroll',
+  'supervisor-hours': '/finance/supervisor-hours',
+};
 
-function fmtDate(iso: string) {
-  return new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+/**
+ * Section names other screens still use for what is now another section:
+ * Facturas joined Cobros, and the old budget screens joined Presupuestos.
+ */
+function resolveSection(section: string): FinanceSection | null {
+  if (section === 'invoices') return 'accounts-receivable';
+  if (section === 'project-financials' || section === 'budget-report' || section === 'projects') return 'budgets';
+  return section in SECTION_META_KEYS ? section as FinanceSection : null;
 }
-function fmtAmount(n: number) {
-  return `$${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
-}
-function fmtCents(c: number) {
-  return fmtAmount(c / 100);
-}
-
-// Loading skeleton
 
 function LoadingSkeleton() {
-  return <div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />;
-}
-
-// Dashboard view
-
-function DashboardView({ username, onNavigate }: { username: string; onNavigate: (s: string) => void }) {
-  const { t } = useTranslation('finance');
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
-  const [recentExpenses, setRecentExpenses] = useState<ExpenseResponse[]>([]);
-  const [report, setReport] = useState<ExpenseReportResponse | null>(null);
-
-  const fetchDashboard = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [expensesRes, reportRes] = await Promise.all([
-        getFinanceExpenses({ size: 5, page: 0 }),
-        getFinanceExpenseReport({}),
-      ]);
-      setRecentExpenses(expensesRes.content);
-      setReport(reportRes);
-      setLoadError(false);
-    } catch {
-      // Cards still degrade to "—", but say WHY and offer a retry — a silent
-      // dashboard of dashes is indistinguishable from "no data yet".
-      setLoadError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
-
-  const totalApproved = report ? fmtCents(report.kpis.totalApprovedCents) : '—';
-  const avgPerWorker = report?.kpis.avgPerWorkerCents != null ? fmtCents(report.kpis.avgPerWorkerCents) : '—';
-  const expenseCount = report ? String(report.kpis.expenseCount) : '—';
-  const topCategory = report?.kpis.topCategory
-    ? t(`type.${report.kpis.topCategory}`, { defaultValue: report.kpis.topCategory })
-    : '—';
-  const recentTotal = recentExpenses.reduce((s, e) => s + e.amountCents, 0) / 100;
-
-  const tableHeaders = [
-    t('dash.table.date'), t('dash.table.worker'), t('dash.table.type'),
-    t('dash.table.amount'), t('dash.table.project'),
-  ];
-
-  return (
-    <div className="space-y-6 max-w-5xl">
-      {/* Welcome header */}
-      <div>
-        <h2 className="text-2xl font-bold text-[#0A0A0A]">{t('dash.welcome', { username })}</h2>
-        <p className="text-sm text-[#71717A] mt-1">{t('dash.financialOverview')}</p>
-      </div>
-
-      {loadError && (
-        <div data-testid="finance-dash-load-error">
-          <ErrorBanner message={t('dash.loadFailed')} onRetry={fetchDashboard} />
-        </div>
-      )}
-
-      {/* KPI cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={DollarSign}   title={t('dash.totalApproved')}  value={loading ? '...' : totalApproved}  subtitle={t('dash.allApprovedExpenses')}   iconBgColor="bg-purple-50"  iconColor="text-purple-600"  />
-        <StatCard icon={TrendingDown} title={t('dash.avgPerWorker')}   value={loading ? '...' : avgPerWorker}   subtitle={t('dash.perActiveWorker')}       iconBgColor="bg-amber-50"   iconColor="text-amber-600"   />
-        <StatCard icon={TrendingUp}   title={t('dash.topCategory')}    value={loading ? '...' : topCategory}    subtitle={t('dash.byTotalAmount')}         iconBgColor="bg-emerald-50" iconColor="text-emerald-600" />
-        <StatCard icon={Receipt}      title={t('dash.expenseCount')}   value={loading ? '...' : expenseCount}   subtitle={t('dash.totalRecords')}          iconBgColor="bg-purple-50"  iconColor="text-purple-600"  />
-      </div>
-
-      {/* Recent approved expenses */}
-      <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#D4D4D8]">
-          <div className="flex items-center gap-2">
-            <CheckCircle className="w-4 h-4 text-[#71717A]" />
-            <span className="text-sm font-semibold text-[#0A0A0A]">{t('dash.recentApprovedExpenses')}</span>
-            <span className="text-xs text-[#71717A]">· {t('dash.last5')}</span>
-          </div>
-          <button onClick={() => onNavigate('approved-expenses')}
-            className="text-xs font-medium text-purple-600 hover:text-purple-800 transition-colors">
-            {t('dash.viewAll')}
-          </button>
-        </div>
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-5 h-5 animate-spin text-purple-500" />
-          </div>
-        ) : loadError ? (
-          // The banner above already explains; never show the innocent
-          // "no approved expenses" empty state for a failed load.
-          null
-        ) : recentExpenses.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center px-4">
-            <CheckCircle className="w-8 h-8 text-[#D4D4D8] mb-2" />
-            <p className="text-sm font-medium text-[#71717A]">{t('dash.noApprovedExpenses')}</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-[#FAFAFA]">
-                  {tableHeaders.map(h => (
-                    <th key={h} className="text-left text-[11px] font-semibold text-[#71717A] uppercase tracking-wider px-4 py-2.5">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {recentExpenses.map(exp => (
-                  <tr key={exp.id} className="border-t border-[#D4D4D8]/50 hover:bg-[#FAFAFA]/50 transition-colors">
-                    <td className="px-4 py-3 text-sm text-[#0A0A0A] whitespace-nowrap">{fmtDate(exp.expenseDate)}</td>
-                    <td className="px-4 py-3 text-sm text-[#0A0A0A]">{exp.workerName ?? exp.workerUsername}</td>
-                    <td className="px-4 py-3 text-sm text-[#71717A]">{t(`type.${exp.expenseType}`, { defaultValue: exp.expenseType })}</td>
-                    <td className="px-4 py-3 font-mono font-semibold text-sm text-[#0A0A0A]">{fmtAmount(exp.amountCents / 100)}</td>
-                    <td className="px-4 py-3 text-sm text-[#71717A]">{exp.projectName}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        {!loading && recentExpenses.length > 0 && (
-          <div className="px-6 py-3 border-t border-[#D4D4D8]/50 bg-[#FAFAFA]/50 flex items-center justify-between">
-            <p className="text-[11px] text-[#71717A]">{t('dash.showingRecent', { count: recentExpenses.length })}</p>
-            <p className="text-[11px] font-medium text-[#0A0A0A]">
-              {t('dash.total')} <span className="font-mono">{fmtAmount(recentTotal)}</span>
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Quick access cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {[
-          { key: 'invoices',             icon: FileText,        label: t('dash.card.invoices'),            desc: t('dash.card.invoicesDesc')            },
-          { key: 'accounts-receivable', icon: ArrowDownToLine, label: t('dash.card.accountsReceivable'), desc: t('dash.card.accountsReceivableDesc') },
-          { key: 'accounts-payable',    icon: ArrowUpFromLine, label: t('dash.card.accountsPayable'),    desc: t('dash.card.accountsPayableDesc')    },
-          { key: 'approved-expenses',   icon: CheckCircle,     label: t('dash.card.approvedExpenses'),   desc: t('dash.card.approvedExpensesDesc')   },
-          { key: 'expense-report',      icon: FileBarChart,    label: t('dash.card.expenseReport'),      desc: t('dash.card.expenseReportDesc')      },
-          { key: 'budgets',             icon: Wallet,          label: t('dash.card.projectBudgets'),     desc: t('dash.card.projectBudgetsDesc')     },
-          { key: 'project-financials',  icon: BarChart3,       label: t('dash.card.projectFinancials'),  desc: t('dash.card.projectFinancialsDesc')  },
-          { key: 'labor-cost',          icon: HardHat,         label: t('dash.card.laborCost'),           desc: t('dash.card.laborCostDesc')          },
-          { key: 'labor-payroll',       icon: Banknote,        label: t('dash.card.laborPayroll'),        desc: t('dash.card.laborPayrollDesc')       },
-        ].map(card => (
-          <button key={card.key} onClick={() => onNavigate(card.key)}
-            className="bg-white rounded-xl border border-[#D4D4D8] p-5 text-left hover:border-purple-400 hover:shadow-sm transition-all group">
-            <div className="w-9 h-9 bg-purple-50 rounded-lg flex items-center justify-center mb-3">
-              <card.icon className="text-purple-600" style={{ width: 18, height: 18 }} />
-            </div>
-            <p className="text-sm font-semibold text-[#0A0A0A] mb-0.5 group-hover:text-purple-600 transition-colors">{card.label}</p>
-            <p className="text-xs text-[#71717A]">{card.desc}</p>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
+  return <div role="status" className="animate-pulse h-64 bg-[#FAF7F0] border border-[#E7E1D5]" />;
 }
 
 // Main component
 
-export function FinanceDashboard({ initialSection }: { initialSection?: ActiveSection } = {}) {
+/**
+ * Remounted per route: each finance address is its own entry, so going back
+ * and forth in the browser lands on the screen the address names.
+ */
+export function FinanceDashboard({ initialSection }: { initialSection?: FinanceSection } = {}) {
+  return <FinancePanel key={initialSection ?? 'dashboard'} initialSection={initialSection} />;
+}
+
+function FinancePanel({ initialSection }: { initialSection?: FinanceSection }) {
   // The welcome overlay fades once this page is on screen (lib/dashboardReady).
   useMarkDashboardReady();
   const navigate    = useNavigate();
@@ -292,21 +159,31 @@ export function FinanceDashboard({ initialSection }: { initialSection?: ActiveSe
   const [introReplay, setIntroReplay] = useState(0);
   // `initialSection` lets a deep-link route (e.g. /finance/expenses) open the
   // dashboard straight on a section while keeping the full shell + sidebar.
-  const [activeSection, setActiveSection] = useState<ActiveSection>(initialSection ?? 'dashboard');
+  const [activeSection, setActiveSection] = useState<FinanceSection>(initialSection ?? 'dashboard');
 
   const handleLogout   = () => { document.cookie = 'ofjr_session=; Path=/; Max-Age=0'; navigate('/'); AuthService.logout(); };
-  const handleNavigate = (section: string) => setActiveSection(section as ActiveSection);
+  const handleNavigate = (section: string) => {
+    const resolved = resolveSection(section);
+    if (!resolved) return;
+    // A screen that asks for Facturas means "issue a document".
+    if (section === 'invoices') setSectionIntent('accounts-receivable', { openIssue: true });
+    const path = SECTION_PATH[resolved];
+    if (!path) { setActiveSection(resolved); return; }
+    // The route remounts the panel on its section; the same address does not
+    // remount, so the section is also set here.
+    if (resolved === (initialSection ?? 'dashboard')) setActiveSection(resolved);
+    navigate(path);
+  };
 
   const navItems: AppShellNavItem[] = useMemo(() => [
     { key: 'dashboard',            label: t('finance:nav.dashboard'),            icon: LayoutDashboard },
-    { key: 'invoices',              label: t('finance:nav.invoices'),              icon: FileText,        group: 'accounting' },
+    { key: 'clients',              label: t('finance:nav.clients'),              icon: UserRound,       group: 'accounting' },
     { key: 'accounts-receivable',  label: t('finance:nav.accountsReceivable'),   icon: ArrowDownToLine, group: 'accounting' },
     { key: 'accounts-payable',     label: t('finance:nav.accountsPayable'),      icon: ArrowUpFromLine, group: 'accounting' },
     { key: 'tm-office',            label: t('tm:nav.office'),                     icon: FileSignature,   group: 'accounting' },
     { key: 'approved-expenses',    label: t('finance:nav.approvedExpenses'),     icon: CheckCircle,     group: 'expenses'   },
     { key: 'expense-report',       label: t('finance:nav.expenseReport'),        icon: FileBarChart,    group: 'expenses'   },
     { key: 'budgets',              label: t('finance:nav.budgets'),              icon: Wallet,          group: 'budgets'    },
-    { key: 'project-financials',   label: t('finance:nav.projectFinancials'),    icon: BarChart3,       group: 'budgets'    },
     { key: 'labor-cost',           label: t('finance:nav.laborCost'),            icon: HardHat,         group: 'labor'      },
     { key: 'labor-payroll',        label: t('finance:nav.laborPayroll'),         icon: Banknote,        group: 'labor'      },
     { key: 'supervisor-hours',     label: t('finance:nav.supervisorHours'),      icon: Clock,           group: 'labor'      },
@@ -340,9 +217,11 @@ export function FinanceDashboard({ initialSection }: { initialSection?: ActiveSe
              admin topbar's. */
           onboardingKey ? (
             <button
+              type="button"
               onClick={() => setIntroReplay(n => n + 1)}
               title={t('admin:tour.helpButton')}
-              className="w-9 h-9 flex items-center justify-center rounded-lg text-[#71717A] hover:text-[#F97316] hover:bg-[#FAFAFA] transition-colors"
+              aria-label={t('admin:tour.helpButton')}
+              className={cn('w-9 h-9 flex items-center justify-center text-[#8A8175] hover:text-[#C2410C] hover:bg-[#F3EEE4] transition-colors', FOCUS_RING)}
             >
               <HelpCircle className="w-4 h-4" />
             </button>
@@ -353,16 +232,16 @@ export function FinanceDashboard({ initialSection }: { initialSection?: ActiveSe
           <SectionTour section={onboardingKey} username={username} replayNonce={introReplay} sectionLabel={t(metaKeys.titleKey)} />
         )}
         {activeSection === 'dashboard' && (
-          <DashboardView username={username} onNavigate={handleNavigate} />
+          <FinanceOverview username={username} onNavigate={handleNavigate} />
+        )}
+        {activeSection === 'clients' && (
+          <Suspense fallback={<LoadingSkeleton />}>
+            <ClientsSection readOnly projectSection="budgets" onNavigate={handleNavigate} />
+          </Suspense>
         )}
         {activeSection === 'tm-office' && (
           <Suspense fallback={<LoadingSkeleton />}>
             <TmOffice />
-          </Suspense>
-        )}
-        {activeSection === 'invoices' && (
-          <Suspense fallback={<LoadingSkeleton />}>
-            <InvoiceManager />
           </Suspense>
         )}
         {activeSection === 'accounts-receivable' && (
@@ -390,24 +269,19 @@ export function FinanceDashboard({ initialSection }: { initialSection?: ActiveSe
             <BudgetsSection readOnly onNavigate={handleNavigate} />
           </Suspense>
         )}
-        {activeSection === 'project-financials' && (
-          <Suspense fallback={<LoadingSkeleton />}>
-            <ProjectFinancials />
-          </Suspense>
-        )}
         {activeSection === 'labor-cost' && (
           <Suspense fallback={<LoadingSkeleton />}>
-            <LaborCostReport />
+            <LaborCostScreen mode="finance" onNavigate={handleNavigate} />
           </Suspense>
         )}
         {activeSection === 'labor-payroll' && (
           <Suspense fallback={<LoadingSkeleton />}>
-            <LaborPayrollReport />
+            <LaborPayrollScreen mode="finance" onNavigate={handleNavigate} />
           </Suspense>
         )}
         {activeSection === 'supervisor-hours' && (
           <Suspense fallback={<LoadingSkeleton />}>
-            <SupervisorApprovals mode="finance" />
+            <ApprovalsInbox mode="finance" />
           </Suspense>
         )}
       </AppShell>

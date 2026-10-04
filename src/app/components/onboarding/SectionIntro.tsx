@@ -28,16 +28,20 @@ const seenKey = (username: string | null, section: string) =>
 /** Sections with authored copy. Kept explicit so a typo'd key fails loudly in review. */
 export const INTRO_SECTIONS = new Set([
   'users', 'time-approvals', 'hours', 'labor-cost', 'labor-payroll',
+  // The same screens on the finance panel, under their own keys (lib/tourScope).
+  'labor-cost-finanzas', 'labor-payroll-finanzas', 'supervisor-hours-finanzas',
   'projects', 'clients', 'subcontractors', 'schedules', 'schedules-semana', 'tool-inventory', 'tool-report',
   // The screens inside Proyectos that claim the tour (lib/tourScope) — the
   // banner is their voice on phones and on a tab with nothing to point at.
   'projects-crear', 'projects-ficha-resumen', 'projects-ficha-dinero', 'projects-ficha-equipo',
   'projects-ficha-pendientes', 'projects-ficha-consultas', 'projects-ficha-portal',
   'clients-ficha',
+  // Clientes read-only on the finance panel: the list and the ficha.
+  'clients-finanzas', 'clients-ficha-finanzas',
   // The Trabajos tab and the job ficha claim the tour (lib/tourScope); the
   // banner is their voice on phones.
   'subcontractors-jobs', 'subcontractors-ficha',
-  'invoices', 'invoice-branding', 'quickbooks',
+  'invoice-branding', 'quickbooks',
   // The window that issues a document claims the tour (lib/tourScope).
   'invoices-emitir',
   'budgets',
@@ -46,6 +50,8 @@ export const INTRO_SECTIONS = new Set([
   'budgets-reporte', 'budgets-reporte-finanzas',
   'expenses', 'expense-report', 'office-expenses',
   'accounts-receivable', 'accounts-payable', 'audit',
+  // The FINANCE home.
+  'finance-dashboard',
   // The two halves of T&M — the banner is their mobile/fallback voice; the
   // desktop tour lives in SECTION_TOUR_STEPS under the same keys.
   'tm-field', 'tm-office',

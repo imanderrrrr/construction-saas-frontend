@@ -147,15 +147,50 @@ export interface SubcontractorInvoiceDTO {
   paymentReference: string | null;
   createdAt: string;
   updatedAt: string;
+  /**
+   * The bill in Cuentas por pagar that approving this invoice created — one per
+   * invoice. Null on invoices approved before that link existed (2026-10) and
+   * on any not yet approved. Absent on an older server.
+   */
+  payableId?: number | null;
+  /** Paid so far, from the linked bill's payments that still count. */
+  paidAmountCents?: number;
+  /** What is still owed on it: amount minus paid. */
+  outstandingCents?: number;
+  /**
+   * The linked bill was sent to the company's QuickBooks, which is where its
+   * payments are registered: "Registrar pago" gives way to a note, and the
+   * invoice moves on its own when the payment is read from there.
+   */
+  paymentsInQuickBooks?: boolean;
+  /**
+   * Approved before the link existed, so it has no bill yet: paying it creates
+   * one. The payment window warns to check it was not already typed into
+   * Cuentas por pagar by hand.
+   */
+  legacyUnlinked?: boolean;
 }
 
 export interface ReviewInvoicePayload {
   action: 'APPROVE' | 'OBSERVE';
   comment?: string | null;
+  /** On approve: when the bill it creates falls due (yyyy-MM-dd). */
+  dueDate?: string;
 }
 
+/**
+ * One payment, full or partial, of an approved invoice. Without an amount the
+ * server pays what is still owed.
+ */
 export interface RegisterPaymentPayload {
   paymentReference?: string | null;
+  amountCents?: number;
+  /** yyyy-MM-dd */
+  date?: string;
+  /** A PAYMENT_METHOD_PRESETS value, or the person's own words for "Other". */
+  method?: string;
+  /** Kept across retries of the same submit, so it is booked once. */
+  requestKey?: string;
 }
 
 // Status transitions
@@ -177,27 +212,21 @@ export const ADMIN_JOB_TRANSITIONS: Record<JobStatus, JobStatus[]> = {
 };
 
 /**
- * The five invoice states the panel shows, in flow order.
+ * The invoice states the panel shows, in flow order.
  *
- * PENDING_PAYMENT is deliberately absent. Nothing in the backend writes it —
- * `reviewInvoice` only ever produces APPROVED or OBSERVED — so the state was
- * unreachable, while the panel hung "Registrar pago" off it alone: an approved
- * invoice could not be paid from the panel at all, and the "Revisar" it
- * offered instead came back 409. APPROVED is the state that waits for money,
- * and `APPROVED → PAID` is a transition the server already accepts.
+ * PENDING_PAYMENT means "partially paid": since approving an invoice creates
+ * its bill in Cuentas por pagar (2026-10), the server writes it when a payment
+ * covers only part of the amount, and moves it back to APPROVED if that payment
+ * is voided. (Before that link nothing wrote it.)
  */
-export const INVOICE_STATUS_FLOW: InvoiceStatus[] = ['SUBMITTED', 'IN_REVIEW', 'OBSERVED', 'APPROVED', 'PAID'];
+export const INVOICE_STATUS_FLOW: InvoiceStatus[] = ['SUBMITTED', 'IN_REVIEW', 'OBSERVED', 'APPROVED', 'PENDING_PAYMENT', 'PAID'];
 
 /** An invoice waiting on a decision from the admin. */
 export function isReviewable(status: InvoiceStatus): boolean {
   return status === 'SUBMITTED' || status === 'IN_REVIEW';
 }
 
-/**
- * An invoice waiting on money. PENDING_PAYMENT is accepted here even though
- * nothing writes it: were a row ever to land there, `PENDING_PAYMENT → PAID`
- * is legal on the server and the panel should not be the reason it is stuck.
- */
+/** An invoice waiting on money: approved, or partially paid. */
 export function isPayable(status: InvoiceStatus): boolean {
   return status === 'APPROVED' || status === 'PENDING_PAYMENT';
 }
