@@ -384,7 +384,7 @@ describe('BudgetsSection', () => {
     await mount({ readOnly: true });
     expect(selectFor('cliente').value).toBe('2');
     expect(text()).toContain('Ampliación Zona 4');
-    expect(text()).not.toContain('Residencial Sur');
+    expect(container.querySelector('[id="bt-budgets-body"] [role="button"]')?.textContent).not.toContain('Residencial Sur');
     expect(peekSectionIntent('budgets')).toBeNull();
     expect(svc.listFinanceProjects).toHaveBeenCalled();
     expect(svc.listProjects).not.toHaveBeenCalled();

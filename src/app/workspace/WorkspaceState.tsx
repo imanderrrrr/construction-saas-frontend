@@ -24,7 +24,7 @@ export function WorkspaceStateProvider({ role, children }: { role: WorkspaceRole
   const location = useLocation();
   const navigate = useNavigate();
   const section = resolveSection(role, sectionForPath(role, location.pathname)
-    ?? (role === 'FINANCE' && location.pathname === '/finance/invoices' ? 'accounts-receivable' : 'dashboard'));
+    ?? (role === 'FINANCE' && location.pathname === '/finance/invoices' ? 'invoices' : 'dashboard'));
   const storage = workspaceStorageKey(role, AuthService.getUsername() ?? 'anon', 'screens');
   const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
   // Setters in the same click can update several filters. Each sees the latest
@@ -58,12 +58,11 @@ export function WorkspaceStateProvider({ role, children }: { role: WorkspaceRole
     if (!path) return;
     if (target === section && !values) return;
     const next = new URLSearchParams(target === section ? pending.current.params : storedParams(storage, target));
-    // A single explicitly selected worksite accompanies every cross-module jump.
-    const project = pending.current.params.get('obra');
-    if (next.get('obra') !== project) {
+    // Each section restores its own filters. Only an explicit link can send
+    // a project to another screen (for example, opening a project's invoice).
+    if (values && 'obra' in values && next.get('obra') !== String(values.obra ?? '')) {
       ['registro', 'historial', 'pagina'].forEach(key => next.delete(key));
     }
-    if (project) next.set('obra', project); else next.delete('obra');
     Object.entries(values ?? {}).forEach(([key, value]) => {
       if (value == null || value === '') next.delete(key); else next.set(key, String(value));
     });
@@ -134,7 +133,7 @@ export function useScreenState<T>(key: string, initial: T | (() => T), history: 
   return [value, set];
 }
 
-/** Worksite filters share one value; the empty value preserves each control's contract. */
+/** A screen's project filter; the empty value preserves each control's contract. */
 export function useProjectFilter<T extends string | number | null>(empty: T, numeric = false): [T, Dispatch<SetStateAction<T>>] {
   const context = useWorkspace();
   const [fallback, setFallback] = useState(empty);
@@ -149,7 +148,7 @@ export function useProjectFilter<T extends string | number | null>(empty: T, num
   return [value, set];
 }
 
-/** Object-shaped filters keep their worksite in the shared selector. */
+/** Object-shaped filters keep their project in the screen's URL. */
 export function useWorksiteFilters<T extends { projectId: string }>(initial: T | (() => T)): [T, Dispatch<SetStateAction<T>>] {
   const workspace = useWorkspace();
   const hasWorkspace = workspace !== null;

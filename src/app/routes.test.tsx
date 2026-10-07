@@ -130,7 +130,7 @@ describe('routes – formerly ComingSoon, now real modules', () => {
   });
   it.each([
     ['/finance/clients', 'clients'], ['/finance/receivables', 'accounts-receivable'],
-    ['/finance/payables', 'accounts-payable'], ['/finance/invoices', 'accounts-receivable'],
+    ['/finance/payables', 'accounts-payable'], ['/finance/invoices', 'invoices'],
     ['/finance/labor-cost', 'labor-cost'], ['/finance/payroll', 'labor-payroll'], ['/finance/supervisor-hours', 'supervisor-hours'],
   ])('%s opens the financial section for FINANCE', async (path, section) => {
     await renderPath(root, path);

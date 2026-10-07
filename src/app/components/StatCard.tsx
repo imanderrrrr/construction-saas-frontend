@@ -1,6 +1,7 @@
 import { LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Skeleton } from './ui/skeleton';
+import { SectionFigure } from './workspace/SectionChrome';
 
 interface StatCardProps {
   icon: LucideIcon;
@@ -12,6 +13,7 @@ interface StatCardProps {
   isLoading?: boolean;
   isError?: boolean;
   trend?: { value: string; positive: boolean };
+  appearance?: 'classic' | 'workspace';
 }
 
 export function StatCard({
@@ -24,8 +26,15 @@ export function StatCard({
   isLoading = false,
   isError = false,
   trend,
+  appearance = 'classic',
 }: StatCardProps) {
   const { t } = useTranslation('common');
+  if (appearance === 'workspace') {
+    return <div className="bg-white border border-[#E7E1D5]" data-testid="workspace-figure">
+      <SectionFigure title={title} value={value} subtitle={subtitle} isLoading={isLoading} isError={isError}
+        tone={iconColor.includes('red') ? 'red' : iconColor.includes('emerald') ? 'green' : iconColor.includes('orange') || iconColor.includes('amber') ? 'orange' : 'ink'} />
+    </div>;
+  }
   if (isLoading) {
     return (
       <div className="bg-white rounded-xl p-4 sm:p-6 border border-[#D4D4D8]">

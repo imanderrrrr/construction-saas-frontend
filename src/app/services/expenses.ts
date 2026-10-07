@@ -1,6 +1,7 @@
 // OFJR Construction — Expense API Service
 
 import { api, apiMultipart, getBaseUrl } from '../lib/api';
+import { drainPages } from '../lib/paging';
 import type { BudgetWarning } from '../types';
 
 // ── Types ─────────────────────────────────────────────
@@ -282,6 +283,28 @@ export function getSupervisorExpenses(params?: {
 
 export function getSupervisorSummary(): Promise<ExpenseSummaryResponse> {
   return api<ExpenseSummaryResponse>('/api/v1/supervisor/expenses/summary');
+}
+
+/** Complete assigned-worksite scope; the supervisor API has no project filter. */
+export async function getSupervisorInboxExpenses(scope: ExpenseScope = {}): Promise<ExpenseResponse[]> {
+  const { projectId, ...params } = scope;
+  const rows = await drainPages((page, size) => getSupervisorExpenses({ ...params, page, size }));
+  return rows.filter(e => projectId == null || e.projectId === projectId);
+}
+
+/** Totals over the complete scope, never just the visible page. */
+export function summarizeExpenses(rows: ExpenseResponse[]): ExpenseSummaryResponse {
+  return {
+    totalSubmitted: rows.length,
+    approvedCount: rows.filter(e => e.status === 'APPROVED').length,
+    totalApprovedCents: rows.filter(e => e.status === 'APPROVED').reduce((sum, e) => sum + e.amountCents, 0),
+    pendingCount: rows.filter(e => e.status === 'PENDING').length,
+    pendingCents: rows.filter(e => e.status === 'PENDING').reduce((sum, e) => sum + e.amountCents, 0),
+    observedCount: rows.filter(e => e.status === 'OBSERVED').length,
+    observedCents: rows.filter(e => e.status === 'OBSERVED').reduce((sum, e) => sum + e.amountCents, 0),
+    rejectedCount: rows.filter(e => e.status === 'REJECTED').length,
+    rejectedCents: rows.filter(e => e.status === 'REJECTED').reduce((sum, e) => sum + e.amountCents, 0),
+  };
 }
 
 export function supervisorBatchApprove(): Promise<BatchApproveResponse> {

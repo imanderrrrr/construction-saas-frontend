@@ -3063,5 +3063,17 @@
   "hrs.daysWorked": "{{worked}} de {{total}} días trabajados",
   "hrs.rowPending": "{{hours}} h por aprobar",
   "hrs.legendLate": "Llegó tarde",
-  "usr.inviteQr": "Invitar por QR"
+  "usr.inviteQr": "Invitar por QR",
+  "sec.finance-overview.title": "Finanzas — qué atender y cómo va el mes",
+  "sec.finance-overview.body": "Primero revisa los saldos pendientes; después, los cobros vencidos y los pagos próximos. El bloque del mes compara movimientos registrados.",
+  "sec.finance-overview.b1": "Abre cualquier documento de los avisos para ver su detalle. Los importes pendientes descuentan los pagos parciales.",
+  "sec.finance-overview.b2": "El neto mensual es cobrado menos pagado a proveedores. No es utilidad ni saldo bancario; no incluye nómina ni gastos de oficina.",
+  "sec.finance-overview.step.position.title": "Lo que falta cobrar y pagar",
+  "sec.finance-overview.step.position.body": "Estos dos saldos reúnen todas las obras y fechas. Muestran lo pendiente después de descontar los pagos parciales. Pulsa un saldo para abrir Cobros o Cuentas por pagar.",
+  "sec.finance-overview.step.overdue.title": "Empieza por los cobros vencidos",
+  "sec.finance-overview.step.overdue.body": "Aquí están los documentos cuya fecha de pago ya pasó y que aún tienen saldo. Se muestran primero las más antiguas. Pulsa una para abrirla; Ver todos reúne los cobros vencidos. Las órdenes de cambio por aprobar no cuentan.",
+  "sec.finance-overview.step.payments.title": "Prepara los próximos pagos",
+  "sec.finance-overview.step.payments.body": "Este bloque muestra saldos por pagar desde hoy hasta la fecha indicada, siete días después. Pulsa un documento para verlo. Si ya tienes pagos vencidos, aparecen en un aviso aparte, sin sumarlos al importe de los próximos días.",
+  "sec.finance-overview.step.month.title": "Cómo se compara el mes",
+  "sec.finance-overview.step.month.body": "Las barras comparan cobros de clientes y pagos a proveedores registrados desde el primer día del mes hasta hoy. Excluyen movimientos anulados. El neto es cobrado menos pagado: no es utilidad ni saldo bancario y no incluye nómina ni gastos de oficina."
 }

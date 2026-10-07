@@ -35,7 +35,7 @@ vi.mock('../services/expenses', () => ({
 }));
 
 vi.mock('../services/finance', () => ({
-  getReceivableSummary: () => Promise.resolve({ outstanding: 9500, overdue: 6000, overdueCount: 1, collectedThisMonth: 9000, month: '2026-10' }),
+  listAllReceivables: () => Promise.resolve([]),
   listAllPayables: () => Promise.resolve([]),
 }));
 

@@ -423,7 +423,7 @@ export interface ReceivableSummary {
   outstanding: number;
   overdue: number;
   overdueCount: number;
-  collectedThisMonth: number;
+  collectedThisMonth?: number;
   pending: number;
   pendingCount: number;
   month: string;

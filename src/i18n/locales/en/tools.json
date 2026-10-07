@@ -227,5 +227,7 @@
   "minimum.effect.line": "With a minimum of {{minimum}} and {{stock}} in the warehouse, this supply becomes {{light}}. Nothing is dispatched or deducted: only when it warns you changes.",
   "minimum.submit": "Save minimum",
 
-  "readOnly": "To assign or return, talk to the warehouse"
+  "readOnly": "To assign or return, talk to the warehouse",
+  "action.assignReturn": "Assignments and returns",
+  "action.dispatch": "Dispatch supplies"
 }

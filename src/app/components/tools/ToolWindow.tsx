@@ -21,7 +21,7 @@ import { actionName, categoryName, CellEmpty, Code, daysSince, isOut, stampDay, 
  * The history, the details and the "who has it now" panel are identical.
  */
 
-export function ToolWindow({ open, onOpenChange, tool, lang, keepers, onGoUsers, onEdit, onFixStatus }: {
+export function ToolWindow({ open, onOpenChange, tool, lang, keepers, onGoUsers, onEdit, onFixStatus, onAssignment }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   tool: ToolResponse | null;
@@ -32,6 +32,7 @@ export function ToolWindow({ open, onOpenChange, tool, lang, keepers, onGoUsers,
   onGoUsers?: () => void;
   onEdit: () => void;
   onFixStatus: () => void;
+  onAssignment?: () => void;
 }) {
   const { t } = useTranslation(['tools', 'common']);
   const [history, setHistory] = useState<ToolHistoryEntry[] | null>(null);
@@ -77,6 +78,7 @@ export function ToolWindow({ open, onOpenChange, tool, lang, keepers, onGoUsers,
           </div>
           <SecondaryButton onClick={onEdit}>{t('tools:action.edit')}</SecondaryButton>
           <PrimaryButton onClick={onFixStatus}>{t('tools:action.fixStatus')}</PrimaryButton>
+          {onAssignment && <PrimaryButton onClick={onAssignment}>{t('tools:action.assignReturn')}</PrimaryButton>}
         </>
       }
     >
@@ -164,7 +166,7 @@ export function ToolWindow({ open, onOpenChange, tool, lang, keepers, onGoUsers,
             )}
           </section>
 
-          {out && (
+          {out && !onAssignment && (
             // The tool is on site, not at the counter: this is not cancelled
             // from here, and the window says who can.
             <PaperNote>

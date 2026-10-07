@@ -164,6 +164,7 @@ export function Spotlight({
       // Above the full-screen project window (z-90): its tour runs on top of it.
       className="fixed inset-0 z-[100]"
       role="dialog"
+      aria-label={title}
       aria-modal="true"
       data-first-run={firstRunId}
     >
