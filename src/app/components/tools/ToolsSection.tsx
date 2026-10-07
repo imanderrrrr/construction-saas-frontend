@@ -7,7 +7,7 @@ import { ApiError } from '../../lib/api';
 import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 import { listUsers, type UserDTO } from '../../services/users';
 import {
-  getAdminTools, getAdminToolSummary, getConsumableSummary, searchConsumables,
+  getAdminTools, getAdminToolSummary, listTools, getToolSummary, getConsumableSummary, searchConsumables,
   type ConsumableResponse, type ConsumableSummary, type StockLight,
   type ToolResponse, type ToolSummary,
 } from '../../services/warehouse';
@@ -20,6 +20,7 @@ import { ToolWindow } from './ToolWindow';
 import { ToolFormModal } from './ToolFormModal';
 import { FixStatusModal } from './FixStatusModal';
 import { ConsumableFormModal, MinimumStockModal } from './ConsumableModals';
+import { ConsumableWarehouseWindow } from './ConsumableWarehouseWindow';
 
 /**
  * Herramientas — the section (Claude Design "Herramientas BuildTrack", 2026-09).
@@ -40,10 +41,19 @@ const PAGE_SIZES = [20, 50, 100] as const;
 
 type Tab = 'returnable' | 'consumable';
 
-export function ToolsSection({ onNavigate }: { onNavigate?: (section: string) => void } = {}) {
+export function ToolsSection({ onNavigate, mode = 'admin', view }: {
+  onNavigate?: (section: string) => void;
+  mode?: 'admin' | 'warehouse';
+  view?: Tab;
+} = {}) {
   const { t, i18n } = useTranslation(['tools', 'common']);
   const lang = i18n.language;
-  const [tab, setTab] = useScreenState<Tab>('pestana', 'returnable', 'replace', ['returnable', 'consumable']);
+  const [storedTab, setStoredTab] = useScreenState<Tab>('pestana', 'returnable', 'replace', ['returnable', 'consumable']);
+  const tab = view ?? storedTab;
+  const setTab = (next: Tab) => {
+    if (mode === 'warehouse' && onNavigate) onNavigate(next === 'returnable' ? 'tool-inventory' : 'consumables');
+    else setStoredTab(next);
+  };
 
   // Returnables
   const [tools, setTools] = useState<ToolResponse[]>([]);
@@ -85,6 +95,8 @@ export function ToolsSection({ onNavigate }: { onNavigate?: (section: string) =>
   const [fixTool, setFixTool] = useState<ToolResponse | null>(null);
   const [consumableFormOpen, setConsumableFormOpen] = useState(false);
   const [minimumTarget, setMinimumTarget] = useState<ConsumableResponse | null>(null);
+  const [warehouseConsumable, setWarehouseConsumable] = useState<ConsumableResponse | null>(null);
+  const [editConsumable, setEditConsumable] = useState<ConsumableResponse | null>(null);
 
   const searchTimer = useRef<ReturnType<typeof setTimeout>>();
   useEffect(() => {
@@ -97,7 +109,7 @@ export function ToolsSection({ onNavigate }: { onNavigate?: (section: string) =>
   const fetchTools = useCallback(async () => {
     setToolsState('loading');
     try {
-      const page = await getAdminTools({
+      const page = await (mode === 'warehouse' ? listTools : getAdminTools)({
         status: status || undefined,
         category: category || undefined,
         search: debouncedSearch || undefined,
@@ -113,7 +125,7 @@ export function ToolsSection({ onNavigate }: { onNavigate?: (section: string) =>
     } catch (err) {
       setToolsState(err instanceof ApiError && err.status === 403 ? 'forbidden' : 'error');
     }
-  }, [status, category, debouncedSearch, worker, toolsPage, pageSize, reloadNonce]); // eslint-disable-line react-hooks/exhaustive-deps -- reloadNonce forces a refetch with unchanged filters
+  }, [status, category, debouncedSearch, worker, toolsPage, pageSize, reloadNonce, mode]); // eslint-disable-line react-hooks/exhaustive-deps -- reloadNonce forces a refetch with unchanged filters
 
   const fetchConsumables = useCallback(async () => {
     setConsumablesState('loading');
@@ -140,10 +152,10 @@ export function ToolsSection({ onNavigate }: { onNavigate?: (section: string) =>
 
   const fetchSummaries = useCallback(() => {
     setSummaryFailed(false);
-    Promise.all([getAdminToolSummary(), getConsumableSummary()])
+    Promise.all([mode === 'warehouse' ? getToolSummary() : getAdminToolSummary(), getConsumableSummary()])
       .then(([tools_, consumables_]) => { setToolSummary(tools_); setConsumableSummary(consumables_); })
       .catch(() => setSummaryFailed(true));
-  }, []);
+  }, [mode]);
   useEffect(() => { fetchSummaries(); }, [fetchSummaries]);
 
   // Workers, for the filter of the day somebody leaves the company; and the
@@ -253,7 +265,7 @@ export function ToolsSection({ onNavigate }: { onNavigate?: (section: string) =>
             </div>
             <div className="flex items-center gap-2.5 flex-wrap">
               <CreateButton
-                onClick={() => { if (returnable) { setFormTool(null); setFormOpen(true); } else setConsumableFormOpen(true); }}
+                onClick={() => { if (returnable) { setFormTool(null); setFormOpen(true); } else { setEditConsumable(null); setConsumableFormOpen(true); } }}
                 className="py-2.5 px-3.5 text-[10.5px]"
               >
                 <Plus className="w-3.5 h-3.5" strokeWidth={2.4} />
@@ -289,9 +301,11 @@ export function ToolsSection({ onNavigate }: { onNavigate?: (section: string) =>
                 );
               })}
             </div>
-            <Mono className="text-[9.5px] tracking-[0.08em] text-[#A69C8D]">
+            {mode === 'warehouse' ? <SecondaryButton onClick={() => onNavigate?.(returnable ? 'assignments' : 'consumable-dispatch')}>
+              {t(returnable ? 'tools:action.assignReturn' : 'tools:action.dispatch')}
+            </SecondaryButton> : <Mono className="text-[9.5px] tracking-[0.08em] text-[#A69C8D]">
               {returnable ? t('tools:warehouseDoes') : t('tools:warehouseDoes.consumables')}
-            </Mono>
+            </Mono>}
           </div>
         </div>
 
@@ -407,8 +421,8 @@ export function ToolsSection({ onNavigate }: { onNavigate?: (section: string) =>
             filterCount={consumableFilterCount}
             total={consumableSummary?.total ?? null}
             flashId={flashId}
-            onAdjust={setMinimumTarget}
-            onRegister={() => setConsumableFormOpen(true)}
+            onAdjust={mode === 'warehouse' ? setWarehouseConsumable : setMinimumTarget}
+            onRegister={() => { setEditConsumable(null); setConsumableFormOpen(true); }}
             onRetry={() => { setReloadNonce(n => n + 1); fetchSummaries(); }}
             onClearFilters={clearConsumableFilters}
           />
@@ -453,7 +467,8 @@ export function ToolsSection({ onNavigate }: { onNavigate?: (section: string) =>
         tool={openTool}
         lang={lang}
         keepers={keepers}
-        onGoUsers={() => onNavigate?.('users')}
+        onGoUsers={mode === 'admin' ? () => onNavigate?.('users') : undefined}
+        onAssignment={mode === 'warehouse' ? () => { setOpenTool(null); onNavigate?.('assignments'); } : undefined}
         onEdit={() => { if (openTool) { setFormTool(openTool); setOpenTool(null); setFormOpen(true); } }}
         onFixStatus={() => { if (openTool) { setFixTool(openTool); setOpenTool(null); } }}
       />
@@ -475,14 +490,28 @@ export function ToolsSection({ onNavigate }: { onNavigate?: (section: string) =>
         tool={fixTool}
         lang={lang}
         keepers={keepers}
-        onGoUsers={() => onNavigate?.('users')}
+        onGoUsers={mode === 'admin' ? () => onNavigate?.('users') : undefined}
         onFixed={afterToolChange}
       />
       <ConsumableFormModal
         open={consumableFormOpen}
+        consumable={editConsumable}
+        warehouse={mode === 'warehouse'}
         onOpenChange={setConsumableFormOpen}
         onSaved={() => { setTab('consumable'); clearConsumableFilters(); setReloadNonce(n => n + 1); fetchSummaries(); }}
       />
+      {warehouseConsumable && <ConsumableWarehouseWindow
+        key={warehouseConsumable.id}
+        consumable={warehouseConsumable}
+        onClose={() => setWarehouseConsumable(null)}
+        onSaved={saved => {
+          setWarehouseConsumable(saved);
+          setConsumables(prev => prev.map(c => c.id === saved.id ? saved : c));
+          setFlashId(saved.id); fetchSummaries();
+        }}
+        onEdit={() => { setEditConsumable(warehouseConsumable); setWarehouseConsumable(null); setConsumableFormOpen(true); }}
+        onMinimum={() => { setMinimumTarget(warehouseConsumable); setWarehouseConsumable(null); }}
+      />}
       <MinimumStockModal
         open={minimumTarget != null}
         onOpenChange={open => { if (!open) setMinimumTarget(null); }}

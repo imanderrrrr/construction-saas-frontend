@@ -209,6 +209,7 @@ export async function listTools(params?: {
   status?: string;
   category?: string;
   search?: string;
+  assignedToId?: number;
   page?: number;
   size?: number;
 }): Promise<PageResponse<ToolResponse>> {
@@ -216,6 +217,7 @@ export async function listTools(params?: {
   if (params?.status) q.set('status', params.status);
   if (params?.category) q.set('category', params.category);
   if (params?.search) q.set('search', params.search);
+  if (params?.assignedToId) q.set('assignedToId', String(params.assignedToId));
   q.set('page', String(params?.page ?? 0));
   q.set('size', String(params?.size ?? 50));
   return api<PageResponse<ToolResponse>>(`/api/v1/warehouse/tools?${q}`);

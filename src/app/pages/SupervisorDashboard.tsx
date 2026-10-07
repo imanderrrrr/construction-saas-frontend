@@ -8,11 +8,14 @@ import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, FolderKanban, ClipboardCheck,
   ReceiptText, Wrench, CalendarClock,
-  Clock, Receipt, Users, Bell, Activity,
+  Clock, Bell, Activity,
   Building2, Loader2,
   MapPin, ChevronRight, AlertCircle, RefreshCw, NotebookPen, ClipboardList,
   HelpCircle, FileSignature,
 } from 'lucide-react';
+import { SectionHeader, SectionFigure } from '../components/workspace/SectionChrome';
+import { StatusBadge as ProjectStatusBadge } from '../components/projects/badges';
+import { FOCUS_RING } from '../components/onboarding/chrome';
 import { AppShell, AppShellNavItem } from '../components/AppShell';
 import { SectionTour } from '../components/onboarding/SectionTour';
 import { AuthService } from '../services/auth';
@@ -29,10 +32,10 @@ const SupervisorProjects = lazy(() =>
   import('../components/SupervisorProjects').then(m => ({ default: m.SupervisorProjects }))
 );
 const SupervisorApprovals = lazy(() =>
-  import('../components/SupervisorApprovals').then(m => ({ default: m.SupervisorApprovals }))
+  import('../components/approvals/ApprovalsInbox').then(m => ({ default: m.ApprovalsInbox }))
 );
 const ExpenseReviews = lazy(() =>
-  import('../components/ExpenseReviews').then(m => ({ default: m.ExpenseReviews }))
+  import('../components/expenses/ExpensesSection').then(m => ({ default: () => <m.ExpensesSection mode="supervisor" /> }))
 );
 const SupervisorTaskBoard = lazy(() =>
   // The supervisor reads the admin's list with the admin's permissions removed:
@@ -180,7 +183,7 @@ export function SupervisorDashboard({ initialSection = 'dashboard' }: { initialS
             <button
               onClick={() => setIntroReplay(n => n + 1)}
               title={t('admin:tour.helpButton')}
-              className="w-9 h-9 flex items-center justify-center rounded-lg text-[#71717A] hover:text-[#F97316] hover:bg-[#FAFAFA] transition-colors"
+              className="w-9 h-9 flex items-center justify-center text-[#8A8175] hover:text-[#F97316] hover:bg-[#FAF7F0] transition-colors"
             >
               <HelpCircle className="w-4 h-4" />
             </button>
@@ -203,7 +206,7 @@ export function SupervisorDashboard({ initialSection = 'dashboard' }: { initialS
           {active === 'punch-list'      && siteLogEnabled && <SupervisorPunchList />}
           {active === 'rfi'             && siteLogEnabled && <SupervisorRfi />}
           {active === 'tm'              && <SupervisorTm />}
-          {active === 'my-time'         && <WorkerTime username={username} />}
+          {active === 'my-time'         && <WorkerTime username={username} appearance="workspace" />}
           {active === 'time-approvals'  && <SupervisorApprovals mode="supervisor" />}
           {active === 'expense-reviews' && <ExpenseReviews />}
           {active === 'team-tools'      && <TeamTools />}
@@ -322,12 +325,9 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
   useEffect(() => { loadActivity(); }, [loadActivity]);
 
   function StatusBadge({ status }: { status: string }) {
-    if (status === 'ACTIVE') return <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-emerald-50 text-emerald-700">{t('dash.statusActive')}</span>;
-    if (status === 'CLOSED') return <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-600">{t('dash.statusClosed')}</span>;
-    return <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-amber-50 text-amber-600">{t('dash.statusInactive')}</span>;
+    return <ProjectStatusBadge status={status === 'ACTIVE' || status === 'CLOSED' ? status : 'INACTIVE'} />;
   }
 
-  /** Format a relative time string */
   function relativeTime(iso: string): string {
     const diffMs  = Date.now() - new Date(iso).getTime();
     const diffMin = Math.max(0, Math.floor(diffMs / 60_000));
@@ -345,8 +345,8 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
           <AlertCircle className="w-5 h-5 text-red-500" />
         </div>
         <p className="text-sm font-medium text-red-900">{t('supervisor:dash.panelError', 'Something went wrong')}</p>
-        <p className="text-[11px] text-[#71717A] mt-0.5">{message}</p>
-        <button onClick={onRetry} className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-[#F97316] hover:text-[#C2410C] transition-colors">
+        <p className="text-[11px] text-[#8A8175] mt-0.5">{message}</p>
+        <button onClick={onRetry} className="mt-3 inline-flex items-center gap-1.5 font-bt-mono text-xs font-medium text-[#F97316] hover:text-[#C2410C] transition-colors">
           <RefreshCw className="w-3.5 h-3.5" />{t('common:buttons.retry')}
         </button>
       </div>
@@ -356,16 +356,13 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
   return (
     <div className="space-y-6 max-w-6xl">
       {/* Welcome */}
-      <div>
-        <h2 className="text-xl sm:text-2xl font-bold text-[#0A0A0A]">{t('dash.welcome', { username })}</h2>
-        <p className="text-sm text-[#71717A] mt-1">{t('dash.overview')}</p>
-      </div>
+      <SectionHeader kicker={t('supervisor:panelLabel')} title={t('dash.welcome', { username })} description={t('dash.overview')} />
 
       {/* Error banner — a "—" in a card means the value is unavailable, not a real zero */}
       {(dashError || expenseError || alertsError) && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between gap-4">
+        <div className="bg-red-50 border border-red-200 p-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
+            <div className="w-9 h-9 bg-red-100 flex items-center justify-center flex-shrink-0">
               <AlertCircle className="w-5 h-5 text-red-600" />
             </div>
             <div>
@@ -373,96 +370,36 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
               <p className="text-xs text-red-600 mt-0.5">{t('supervisor:dash.errorDesc', 'Some sections failed to load. A “—” means the value is unavailable, not zero.')}</p>
             </div>
           </div>
-          <button onClick={loadCards} className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-red-200 text-red-700 hover:bg-red-100/50 transition-colors shrink-0">
+          <button onClick={loadCards} className="inline-flex items-center gap-1.5 font-bt-mono text-xs font-medium px-3 py-1.5 border border-red-200 text-red-700 hover:bg-red-100/50 transition-colors shrink-0">
             <RefreshCw className="w-3.5 h-3.5" />{t('common:buttons.retry')}
           </button>
         </div>
       )}
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="rounded-xl border border-[#D4D4D8] bg-white p-4 sm:p-5 relative overflow-hidden">
-          <div className="w-9 h-9 sm:w-10 sm:h-10 bg-[#F97316]/10 rounded-lg flex items-center justify-center mb-2 sm:mb-3">
-            <FolderKanban className="w-4 h-4 sm:w-5 sm:h-5 text-[#F97316]" />
-          </div>
-          {dashLoading ? (
-            <div className="h-7 w-12 bg-slate-100 rounded animate-pulse" />
-          ) : (
-            <p className="text-xl sm:text-2xl font-bold text-[#0A0A0A]">{dashError ? '—' : (dashboard?.assignedProjects ?? 0)}</p>
-          )}
-          <p className="text-xs sm:text-sm text-[#71717A] truncate">{t('dash.assignedProjects')}</p>
-          <p className="text-[10px] sm:text-xs text-[#71717A] mt-1 truncate">
-            {dashboard ? t('dash.activeClosedCount', { active: dashboard.activeProjects, closed: dashboard.closedProjects }) : '—'}
-          </p>
-        </div>
-        <div className="rounded-xl border border-[#D4D4D8] bg-white p-4 sm:p-5 relative overflow-hidden">
-          {!dashLoading && (dashboard?.pendingApprovals ?? 0) > 0 && (
-            <span className="absolute top-3 right-3 w-2.5 h-2.5 rounded-full bg-amber-500" />
-          )}
-          <div className="w-9 h-9 sm:w-10 sm:h-10 bg-amber-50 rounded-lg flex items-center justify-center mb-2 sm:mb-3">
-            <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600" />
-          </div>
-          {dashLoading ? (
-            <div className="h-7 w-12 bg-slate-100 rounded animate-pulse" />
-          ) : (
-            <p className="text-xl sm:text-2xl font-bold text-[#0A0A0A]">{dashError ? '—' : (dashboard?.pendingApprovals ?? 0)}</p>
-          )}
-          <p className="text-xs sm:text-sm text-[#71717A] truncate">{t('dash.pendingApprovals')}</p>
-          <p className="text-[10px] sm:text-xs text-[#71717A] mt-1 truncate">
-            {dashboard ? t('dash.fromToday', { count: dashboard.pendingApprovalsToday }) : '—'}
-          </p>
-        </div>
-        <button
-          onClick={() => onNavigate('expense-reviews')}
-          className="rounded-xl border border-[#D4D4D8] bg-white p-4 sm:p-5 relative text-left group cursor-pointer hover:border-orange-400/60 hover:shadow-sm transition-all overflow-hidden"
-        >
-          {(expenseSummary?.pendingCount ?? 0) > 0 && (
-            <span className="absolute top-3 right-3 w-2.5 h-2.5 rounded-full bg-orange-500" />
-          )}
-          <div className="w-9 h-9 sm:w-10 sm:h-10 bg-orange-50 rounded-lg flex items-center justify-center mb-2 sm:mb-3">
-            <Receipt className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600" />
-          </div>
-          {dashLoading ? (
-            <div className="h-7 w-12 bg-slate-100 rounded animate-pulse" />
-          ) : (
-            <p className="text-xl sm:text-2xl font-bold text-[#0A0A0A]">{expenseError ? '—' : (expenseSummary?.pendingCount ?? 0)}</p>
-          )}
-          <p className="text-xs sm:text-sm text-[#71717A] truncate">{t('dash.expenseReviews')}</p>
-          <p className="text-[10px] sm:text-xs text-[#71717A] mt-1 truncate">
-            {expenseSummary ? t('dash.approved', { amount: fmtCurrency(expenseSummary.totalApprovedCents / 100) }) : '—'}
-          </p>
-          <p className="text-[10px] text-[#F97316] font-medium mt-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            {t('dash.viewDetails')} <ChevronRight className="w-3 h-3" />
-          </p>
+      <div className="grid grid-cols-2 lg:grid-cols-4 bg-white border border-[#E7E1D5]">
+        <button onClick={() => onNavigate('projects')} className={`text-left hover:bg-[#FAF7F0] ${FOCUS_RING}`}>
+          <SectionFigure title={t('dash.assignedProjects')} value={dashboard?.assignedProjects ?? 0} isLoading={dashLoading} isError={dashError}
+            subtitle={dashboard ? t('dash.activeClosedCount', { active: dashboard.activeProjects, closed: dashboard.closedProjects }) : '—'} />
         </button>
-        <div className="rounded-xl border border-[#D4D4D8] bg-white p-4 sm:p-5 relative overflow-hidden">
-          <div className="w-9 h-9 sm:w-10 sm:h-10 bg-emerald-50 rounded-lg flex items-center justify-center mb-2 sm:mb-3">
-            <Users className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
-          </div>
-          {dashLoading ? (
-            <div className="h-7 w-12 bg-slate-100 rounded animate-pulse" />
-          ) : (
-            <p className="text-xl sm:text-2xl font-bold text-[#0A0A0A]">
-              {dashError ? '—' : (dashboard?.projects.reduce((s, p) => s + p.members, 0) ?? 0)}
-            </p>
-          )}
-          <p className="text-xs sm:text-sm text-[#71717A] truncate">{t('dash.teamMembers')}</p>
-          <p className="text-[10px] sm:text-xs text-[#71717A] mt-1 truncate">
-            {dashboard ? (dashboard.projects.length !== 1
-              ? t('dash.acrossProjectsPlural', { count: dashboard.projects.length })
-              : t('dash.acrossProjects', { count: dashboard.projects.length })
-            ) : '—'}
-          </p>
-        </div>
+        <button onClick={() => onNavigate('time-approvals')} className={`text-left hover:bg-[#FAF7F0] ${FOCUS_RING}`}>
+          <SectionFigure title={t('dash.pendingApprovals')} value={dashboard?.pendingApprovals ?? 0} isLoading={dashLoading} isError={dashError} tone="orange"
+            subtitle={dashboard ? t('dash.fromToday', { count: dashboard.pendingApprovalsToday }) : '—'} />
+        </button>
+        <button onClick={() => onNavigate('expense-reviews')} className={`text-left hover:bg-[#FAF7F0] ${FOCUS_RING}`}>
+          <SectionFigure title={t('dash.expenseReviews')} value={expenseSummary?.pendingCount ?? 0} isLoading={dashLoading} isError={expenseError} tone="orange"
+            subtitle={expenseSummary ? t('dash.approved', { amount: fmtCurrency(expenseSummary.totalApprovedCents / 100) }) : '—'} />
+        </button>
+        <SectionFigure title={t('dash.teamMembers')} value={dashboard?.projects.reduce((sum, p) => sum + p.members, 0) ?? 0} isLoading={dashLoading} isError={dashError}
+          subtitle={dashboard ? t(dashboard.projects.length === 1 ? 'dash.acrossProjects' : 'dash.acrossProjectsPlural', { count: dashboard.projects.length }) : '—'} />
       </div>
 
       {/* Projects Overview + Alerts */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
-        <div className="lg:col-span-3 rounded-xl border border-[#D4D4D8] bg-white p-4 sm:p-6">
+        <div className="lg:col-span-3 border border-[#DBD0BB] bg-white p-4 sm:p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Building2 className="w-5 h-5 text-[#F97316]" />
-              <h3 className="text-base font-semibold text-[#0A0A0A]">{t('dash.projectsOverview')}</h3>
+              <h3 className="font-bt-mono uppercase tracking-[0.1em] text-xs font-semibold text-[#0A0A0A]">{t('dash.projectsOverview')}</h3>
             </div>
             <span className="text-xs bg-[#F97316]/10 text-[#F97316] px-2 py-0.5 rounded-full font-medium">
               {t('dash.projectsCount', { count: dashboard?.projects.length ?? 0 })}
@@ -471,19 +408,19 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
           {dashLoading ? (
             <div className="space-y-4 py-2">
               {[1, 2, 3].map(i => (
-                <div key={i} className="py-3 border-b border-[#D4D4D8]/50 last:border-b-0">
-                  <div className="h-4 w-48 bg-slate-100 rounded animate-pulse mb-2" />
-                  <div className="h-3 w-24 bg-slate-100 rounded animate-pulse" />
+                <div key={i} className="py-3 border-b border-[#DBD0BB]/50 last:border-b-0">
+                  <div className="h-4 w-48 bg-[#EEE7DA] rounded animate-pulse mb-2" />
+                  <div className="h-3 w-24 bg-[#EEE7DA] rounded animate-pulse" />
                 </div>
               ))}
             </div>
           ) : (dashboard?.projects.length ?? 0) === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
-              <div className="w-10 h-10 bg-[#FAFAFA] rounded-full flex items-center justify-center mb-3">
-                <Building2 className="w-5 h-5 text-[#D4D4D8]" />
+              <div className="w-10 h-10 bg-[#FAF7F0] rounded-full flex items-center justify-center mb-3">
+                <Building2 className="w-5 h-5 text-[#DBD0BB]" />
               </div>
-              <p className="text-sm font-medium text-[#71717A]">{t('dash.noProjectsAssigned')}</p>
-              <p className="text-[11px] text-[#71717A] mt-0.5">{t('dash.notAssignedToProjects')}</p>
+              <p className="text-sm font-medium text-[#8A8175]">{t('dash.noProjectsAssigned')}</p>
+              <p className="text-[11px] text-[#8A8175] mt-0.5">{t('dash.notAssignedToProjects')}</p>
             </div>
           ) : (
             dashboard!.projects.map(proj => {
@@ -499,7 +436,7 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
               }
 
               return (
-                <div key={proj.id} className="py-3 border-b border-[#D4D4D8]/50 last:border-b-0">
+                <div key={proj.id} className="py-3 border-b border-[#DBD0BB]/50 last:border-b-0">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-medium text-[#0A0A0A]">{proj.name}</span>
                     <StatusBadge status={proj.status} />
@@ -510,17 +447,17 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
                         <div
                           key={u.id}
                           title={u.fullName ?? undefined}
-                          className="w-7 h-7 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-[10px] font-medium text-slate-600"
-                          style={{ marginLeft: i > 0 ? -8 : 0, zIndex: MAX_AVATARS - i }}
+                          className="w-7 h-7 bg-[#0A0A0A] border border-white flex items-center justify-center font-bt-mono text-[10px] text-[#F5F1E8]"
+                          style={{ marginLeft: i > 0 ? 3 : 0 }}
                         >
                           {initials(u.fullName)}
                         </div>
                       ))}
                       {overflow > 0 && (
-                        <span className="text-[11px] text-[#71717A] ml-1.5">{t('dash.more', { count: overflow })}</span>
+                        <span className="text-[11px] text-[#8A8175] ml-1.5">{t('dash.more', { count: overflow })}</span>
                       )}
                     </div>
-                    <span className="text-xs text-[#71717A]">{t('dash.members', { count: proj.members })}</span>
+                    <span className="text-xs text-[#8A8175]">{t('dash.members', { count: proj.members })}</span>
                   </div>
                 </div>
               );
@@ -531,11 +468,11 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
           </button>
         </div>
 
-        <div className="lg:col-span-2 rounded-xl border border-[#D4D4D8] bg-white p-4 sm:p-6">
+        <div className="lg:col-span-2 border border-[#DBD0BB] bg-white p-4 sm:p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Bell className="w-5 h-5 text-[#F97316]" />
-              <h3 className="text-base font-semibold text-[#0A0A0A]">{t('dash.alertsNotifications')}</h3>
+              <h3 className="font-bt-mono uppercase tracking-[0.1em] text-xs font-semibold text-[#0A0A0A]">{t('dash.alertsNotifications')}</h3>
             </div>
             {oorAlerts.length > 0 && (
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200">
@@ -549,11 +486,11 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
             <PanelError message={t('supervisor:dash.alertsError', "We couldn't load location alerts. They may be out of date.")} onRetry={loadCards} />
           ) : oorAlerts.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
-              <div className="w-10 h-10 bg-[#FAFAFA] rounded-full flex items-center justify-center mb-3">
-                <Bell className="w-5 h-5 text-[#D4D4D8]" />
+              <div className="w-10 h-10 bg-[#FAF7F0] rounded-full flex items-center justify-center mb-3">
+                <Bell className="w-5 h-5 text-[#DBD0BB]" />
               </div>
-              <p className="text-sm font-medium text-[#71717A]">{t('dash.noAlerts')}</p>
-              <p className="text-[11px] text-[#71717A] mt-0.5">{t('dash.allWithinArea')}</p>
+              <p className="text-sm font-medium text-[#8A8175]">{t('dash.noAlerts')}</p>
+              <p className="text-[11px] text-[#8A8175] mt-0.5">{t('dash.allWithinArea')}</p>
             </div>
           ) : (
             oorAlerts.map((alert) => {
@@ -569,11 +506,11 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
               return (
               <div
                 key={`oor-${alert.workerId}-${alert.projectId}`}
-                className={`flex gap-3 py-2.5 border-b border-[#D4D4D8]/50 last:border-b-0 cursor-pointer ${tone.hover} rounded-lg px-1 -mx-1 transition-colors`}
+                className={`flex gap-3 py-2.5 border-b border-[#DBD0BB]/50 last:border-b-0 cursor-pointer ${tone.hover} px-1 -mx-1 transition-colors`}
                 onClick={() => onNavigate('time-approvals')}
                 title={t('supervisor:section.timeApprovals.title')}
               >
-                <div className={`${tone.chipBg} rounded-lg w-7 h-7 flex items-center justify-center flex-shrink-0 mt-0.5`}>
+                <div className={`${tone.chipBg} w-7 h-7 flex items-center justify-center flex-shrink-0 mt-0.5`}>
                   <MapPin className={`w-4 h-4 ${tone.icon}`} />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -587,7 +524,7 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
                           : t('dash.punchedWithoutGps')}
                     </span>
                   </p>
-                  <p className="text-[11px] text-[#71717A] truncate">{alert.projectName}</p>
+                  <p className="text-[11px] text-[#8A8175] truncate">{alert.projectName}</p>
                   <p className={`text-[11px] ${tone.meta} font-medium`}>
                     {t('dash.firstReported', { time: relativeTime(alert.firstOccurredAt) })}
                     {alert.eventCount > 1 && ` ${t('dash.eventCount', { count: alert.eventCount })}`}
@@ -595,7 +532,7 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
                     {alert.noGeofenceCount > 0 && ` ${t('dash.noGeofenceCount', { count: alert.noGeofenceCount })}`}
                   </p>
                   {setupOnly && (
-                    <p className="text-[11px] text-[#71717A] mt-0.5">{t('dash.setUpProjectArea')}</p>
+                    <p className="text-[11px] text-[#8A8175] mt-0.5">{t('dash.setUpProjectArea')}</p>
                   )}
                   {/* Exact punch locations — one Google Maps deep-link per flagged mark */}
                   {(alert.events ?? []).some(ev => ev.lat != null && ev.lng != null) && (
@@ -610,7 +547,7 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
                             rel="noopener noreferrer"
                             onClick={e => e.stopPropagation()}
                             title={t('dash.viewInMaps')}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg border border-red-200 bg-white text-[10px] font-semibold text-red-600 hover:bg-red-50"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 border border-red-200 bg-white text-[10px] font-semibold text-red-600 hover:bg-red-50"
                           >
                             <MapPin className="w-3 h-3" />
                             {new Date(ev.capturedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -632,10 +569,10 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
       <NotificationInbox role="SUPERVISOR" />
 
       {/* Recent Team Activity */}
-      <div className="rounded-xl border border-[#D4D4D8] bg-white p-4 sm:p-6">
+      <div className="border border-[#DBD0BB] bg-white p-4 sm:p-6">
         <div className="flex items-center gap-2 mb-4">
           <Activity className="w-5 h-5 text-[#F97316]" />
-          <h3 className="text-base font-semibold text-[#0A0A0A]">{t('dash.recentTeamActivity')}</h3>
+          <h3 className="font-bt-mono uppercase tracking-[0.1em] text-xs font-semibold text-[#0A0A0A]">{t('dash.recentTeamActivity')}</h3>
         </div>
 
         {activityLoading ? (
@@ -646,34 +583,34 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
           <PanelError message={t('supervisor:dash.activityError', "We couldn't load recent team activity.")} onRetry={loadActivity} />
         ) : recentActivity.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 text-center">
-            <Activity className="w-8 h-8 text-[#D4D4D8] mb-2" />
-            <p className="text-sm font-medium text-[#71717A]">{t('dash.noRecentActivity')}</p>
-            <p className="text-xs text-[#71717A] mt-0.5">{t('dash.timeEventsWillAppear')}</p>
+            <Activity className="w-8 h-8 text-[#DBD0BB] mb-2" />
+            <p className="text-sm font-medium text-[#8A8175]">{t('dash.noRecentActivity')}</p>
+            <p className="text-xs text-[#8A8175] mt-0.5">{t('dash.timeEventsWillAppear')}</p>
           </div>
         ) : (
           <>
             <div className="hidden md:block">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-[#D4D4D8]">
-                    <th className="text-left text-xs text-[#71717A] uppercase tracking-wider py-2">{t('dash.table.teamMember')}</th>
-                    <th className="text-left text-xs text-[#71717A] uppercase tracking-wider py-2">{t('dash.table.action')}</th>
-                    <th className="text-left text-xs text-[#71717A] uppercase tracking-wider py-2">{t('dash.table.project')}</th>
-                    <th className="text-left text-xs text-[#71717A] uppercase tracking-wider py-2">{t('dash.table.time')}</th>
+                  <tr className="border-b border-[#DBD0BB]">
+                    <th className="text-left text-xs text-[#8A8175] uppercase tracking-wider py-2">{t('dash.table.teamMember')}</th>
+                    <th className="text-left text-xs text-[#8A8175] uppercase tracking-wider py-2">{t('dash.table.action')}</th>
+                    <th className="text-left text-xs text-[#8A8175] uppercase tracking-wider py-2">{t('dash.table.project')}</th>
+                    <th className="text-left text-xs text-[#8A8175] uppercase tracking-wider py-2">{t('dash.table.time')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {recentActivity.map((r, i) => (
-                    <tr key={i} className="border-b border-[#D4D4D8]/50 last:border-b-0">
+                    <tr key={i} className="border-b border-[#DBD0BB]/50 last:border-b-0">
                       <td className="py-3">
                         <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-xs font-medium text-slate-600">{r.ini}</div>
+                          <div className="w-8 h-8 bg-[#EEE7DA] flex items-center justify-center font-bt-mono text-xs font-medium text-[#5A5346]">{r.ini}</div>
                           <span className="text-sm text-[#0A0A0A] font-medium">{r.name}</span>
                         </div>
                       </td>
                       <td className="py-3 text-sm text-[#0A0A0A]">{r.action}</td>
-                      <td className="py-3 text-sm text-[#71717A]">{r.project}</td>
-                      <td className="py-3 text-xs text-[#71717A] whitespace-nowrap">{relativeTime(r.time)}</td>
+                      <td className="py-3 text-sm text-[#8A8175]">{r.project}</td>
+                      <td className="py-3 text-xs text-[#8A8175] whitespace-nowrap">{relativeTime(r.time)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -682,13 +619,13 @@ function SupervisorDashboardContent({ username, onNavigate }: { username: string
 
             <div className="md:hidden">
               {recentActivity.map((r, i) => (
-                <div key={i} className="py-3 border-b border-[#D4D4D8]/50 last:border-b-0">
+                <div key={i} className="py-3 border-b border-[#DBD0BB]/50 last:border-b-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-xs font-medium text-slate-600">{r.ini}</div>
+                    <div className="w-8 h-8 bg-[#EEE7DA] flex items-center justify-center font-bt-mono text-xs font-medium text-[#5A5346]">{r.ini}</div>
                     <span className="text-sm font-medium text-[#0A0A0A]">{r.name}</span>
                   </div>
                   <p className="text-sm text-[#0A0A0A] ml-10">{r.action}</p>
-                  <p className="text-xs text-[#71717A] ml-10">{r.project} &middot; {relativeTime(r.time)}</p>
+                  <p className="text-xs text-[#8A8175] ml-10">{r.project} &middot; {relativeTime(r.time)}</p>
                 </div>
               ))}
             </div>

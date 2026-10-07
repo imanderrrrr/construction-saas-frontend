@@ -3063,5 +3063,17 @@
   "hrs.daysWorked": "{{worked}} of {{total}} days worked",
   "hrs.rowPending": "{{hours}} h to approve",
   "hrs.legendLate": "Arrived late",
-  "usr.inviteQr": "Invitar por QR"
+  "usr.inviteQr": "Invitar por QR",
+  "sec.finance-overview.title": "Finance — what needs attention and how the month is going",
+  "sec.finance-overview.body": "Review outstanding balances first, then overdue collections and upcoming payments. The monthly block compares recorded movements.",
+  "sec.finance-overview.b1": "Open any document in the alerts to view its details. Outstanding amounts deduct partial payments.",
+  "sec.finance-overview.b2": "The monthly net is collections minus vendor payments. It is not profit or a bank balance; payroll and office expenses are excluded.",
+  "sec.finance-overview.step.position.title": "What remains to collect and pay",
+  "sec.finance-overview.step.position.body": "These balances cover every jobsite and date. They show what remains after partial payments. Select a balance to open Collections or Accounts payable.",
+  "sec.finance-overview.step.overdue.title": "Start with overdue collections",
+  "sec.finance-overview.step.overdue.body": "These documents are past their due date and still have a balance. The oldest appear first. Select one to open it, or View all for every overdue collection. Change orders awaiting approval do not count.",
+  "sec.finance-overview.step.payments.title": "Prepare upcoming payments",
+  "sec.finance-overview.step.payments.body": "This block shows balances due from today through the displayed date, seven days later. Select a document to view it. Already overdue payments appear in a separate notice and are not added to the upcoming amount.",
+  "sec.finance-overview.step.month.title": "How the monthly comparison works",
+  "sec.finance-overview.step.month.body": "The bars compare recorded client collections and vendor payments from the first day of this month through today. Voided movements are excluded. Net is collected minus paid: it is not profit or a bank balance, and excludes payroll and office expenses."
 }

@@ -22,6 +22,7 @@ function Probe() {
     <button onClick={() => setRecord(7)}>Open</button>
     <button onClick={() => navigate(-1)}>Back</button>
     <button onClick={() => workspace.navigateSection('budgets')}>Budgets</button>
+    <button onClick={() => workspace.navigateSection('budgets', { obra: 13 })}>Project budgets</button>
     <button onClick={() => workspace.navigateSection('schedules')}>Tasks</button>
     <button onClick={() => workspace.navigateSection('budget-report')}>Alias</button>
     <button onClick={() => workspace.navigateSection('unavailable')}>Unavailable</button>
@@ -62,14 +63,20 @@ describe('recoverable web workspaces', () => {
     expect(state().record).toBe(7); await click('Back');
     expect(state()).toMatchObject({ record: null, q: 'escuela', project: 13 });
   });
-  it('carries the worksite across modules, restoring each module’s filters', async () => {
+  it('keeps project filters within each module and restores them on return', async () => {
     await mount('/admin/tareas?q=escuela&obra=13'); await click('Budgets');
-    expect(state()).toMatchObject({ section: 'budgets', project: 13, q: '' });
+    expect(state()).toMatchObject({ section: 'budgets', project: null, q: '' });
     await click('Tasks'); expect(state()).toMatchObject({ section: 'schedules', q: 'escuela', project: 13 });
   });
-  it('does not reopen a cached record from a different worksite', async () => {
+  it('restores the destination project and record independently of the previous screen', async () => {
     sessionStorage.setItem(`${workspaceStorageKey('ADMIN', 'alice', 'screens')}.budgets`, '?obra=22&registro=4&historial=5&pagina=3');
     await mount('/admin/tareas?obra=13'); await click('Budgets');
+    expect(state()).toMatchObject({ project: 22, record: 4 });
+    expect(new URLSearchParams(state().query).get('historial')).toBe('5');
+  });
+  it('clears cached records when an explicit link changes the destination project', async () => {
+    sessionStorage.setItem(`${workspaceStorageKey('ADMIN', 'alice', 'screens')}.budgets`, '?obra=22&registro=4&historial=5&pagina=3');
+    await mount('/admin/tareas'); await click('Project budgets');
     expect(state()).toMatchObject({ project: 13, record: null });
     expect(new URLSearchParams(state().query).has('historial')).toBe(false);
   });

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   getAdminExpenses, getAdminSummary, getFinanceExpenses, getFinanceSummary,
+  getSupervisorInboxExpenses, summarizeExpenses,
   type ExpenseResponse, type ExpenseScope, type ExpenseSummaryResponse,
 } from '../../services/expenses';
 import { businessToday, nDaysAgo } from '../../helpers/dateTime';
@@ -71,7 +72,7 @@ export interface InboxState {
   reloadSummary: () => void;
 }
 
-export function useExpenseInbox(tab: Tab, filters: Filters, readOnly: boolean): InboxState {
+export function useExpenseInbox(tab: Tab, filters: Filters, readOnly: boolean, supervisor = false): InboxState {
   const [rows, setRows] = useState<ExpenseResponse[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -85,6 +86,18 @@ export function useExpenseInbox(tab: Tab, filters: Filters, readOnly: boolean): 
 
   const scope = useMemo(() => toScope(filters), [filters]);
   const scopeKey = JSON.stringify(scope);
+
+  const rememberSummary = useCallback((next: ExpenseSummaryResponse) => {
+    setSummary(before => {
+      if (before) {
+        setPrevious(before);
+        if (previousTimer.current) window.clearTimeout(previousTimer.current);
+        previousTimer.current = window.setTimeout(() => setPrevious(null), 4000);
+      }
+      return next;
+    });
+    setSummaryError(false);
+  }, []);
 
   // La lista. En «Por revisar» son los dos estados que esperan a alguien, así
   // que se piden los dos y se juntan; en Historial, lo ya revisado.
@@ -102,6 +115,24 @@ export function useExpenseInbox(tab: Tab, filters: Filters, readOnly: boolean): 
       ? () => getFinanceExpenses({ ...scope, page: 0, size: PAGE_SIZE })
       : (status: string) => getAdminExpenses({ ...scope, status, page: 0, size: PAGE_SIZE });
 
+    if (supervisor) {
+      // One complete, server-authorized scope supplies both the list and its
+      // totals. The API has no scoped summary or project filter for this role.
+      getSupervisorInboxExpenses(scope)
+        .then(all => {
+          if (cancelled) return;
+          const visible = all.filter(e => statuses.includes(e.status));
+          setRows(visible); setTotal(visible.length); setListError(null);
+          rememberSummary(summarizeExpenses(all));
+        })
+        .catch((err: unknown) => {
+          if (cancelled) return;
+          setListError(err instanceof Error ? err.message : 'ERROR');
+          setSummaryError(true);
+        })
+        .finally(() => { if (!cancelled) setLoading(false); });
+      return () => { cancelled = true; };
+    }
     Promise.all(statuses.map(fetcher))
       .then(pages => {
         if (cancelled) return;
@@ -122,27 +153,17 @@ export function useExpenseInbox(tab: Tab, filters: Filters, readOnly: boolean): 
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [tab, scopeKey, filters.status, readOnly, nonce]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tab, scopeKey, filters.status, readOnly, supervisor, nonce, summaryNonce, rememberSummary]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // El resumen: los cuatro estados del rango, siempre del servidor.
+  // Administrator and finance summaries remain independent server requests.
   useEffect(() => {
+    if (supervisor) return;
     let cancelled = false;
     (readOnly ? getFinanceSummary(scope) : getAdminSummary(scope))
-      .then(s => {
-        if (cancelled) return;
-        setSummary(before => {
-          if (before) {
-            setPrevious(before);
-            if (previousTimer.current) window.clearTimeout(previousTimer.current);
-            previousTimer.current = window.setTimeout(() => setPrevious(null), 4000);
-          }
-          return s;
-        });
-        setSummaryError(false);
-      })
+      .then(s => { if (!cancelled) rememberSummary(s); })
       .catch(() => { if (!cancelled) setSummaryError(true); });
     return () => { cancelled = true; };
-  }, [scopeKey, summaryNonce, readOnly]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [scopeKey, summaryNonce, readOnly, supervisor, rememberSummary]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => () => { if (previousTimer.current) window.clearTimeout(previousTimer.current); }, []);
 

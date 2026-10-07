@@ -51,8 +51,8 @@ vi.mock('../services/warehouse', () => ({
     kpis: { totalTools: 0, availableTools: 0, assignedTools: 0, needsAttention: 0, consumableItems: 0, lowStockAlerts: 0 },
   }),
 }));
-vi.mock('../components/ToolInventory', () => ({
-  ToolInventory: () => <div data-testid="section-tool-inventory">TOOLS</div>,
+vi.mock('../components/tools/ToolsSection', () => ({
+  ToolsSection: ({ mode, view }: { mode: string; view: string }) => <div data-testid="section-tool-inventory" data-mode={mode} data-view={view}>TOOLS</div>,
 }));
 // The real notifications module is only reached for its role → endpoint
 // registry, which is what says WAREHOUSE has an inbox at all; its network
@@ -99,6 +99,7 @@ describe('WarehouseDashboard – initialSection deep-linking', () => {
     await flush();
 
     expect(container.querySelector('[data-testid="section-tool-inventory"]')).toBeTruthy();
+    expect(container.querySelector('[data-mode="warehouse"][data-view="returnable"]')).toBeTruthy();
   });
 
   it('defaults to the dashboard home (no deep-linked section) when no prop is given', async () => {

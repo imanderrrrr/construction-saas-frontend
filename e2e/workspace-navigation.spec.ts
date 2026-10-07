@@ -16,6 +16,7 @@ test.describe('Web navigation by role', () => {
       await page.goto(screen.path);
       await expect(page.getByRole('navigation', { name: 'Work areas', exact: true }).getByRole('button')).toHaveCount(screen.areas);
       await expect(page.locator('#workspace-content')).toBeVisible();
+      await expect(page.locator('header select')).toHaveCount(0);
       await page.reload();
       await expect(page).toHaveURL(new RegExp(`${screen.path}$`));
       await expect(page.getByRole('navigation', { name: 'Work areas', exact: true }).getByRole('button')).toHaveCount(screen.areas);
@@ -35,18 +36,19 @@ test.describe('Web navigation by role', () => {
     await page.goBack();
     await expect(page).toHaveURL(/\/admin\/obras\?q=escuela$/);
   });
-  test('Admin retains task filters on reload and carries the chosen worksite into budgets', async ({ page, context }) => {
+  test('Admin retains local task filters without filtering other modules', async ({ page, context }) => {
     await setSession(context, 'ADMIN'); await installHermeticBase(page, { role: 'ADMIN', username: 'tester' });
     await page.route('**/api/v1/admin/projects?*', json({ content: [{ id: 13, name: 'Escuela Central' }], totalPages: 1, totalElements: 1 }));
     await page.route('**/api/v1/admin/tasks?*', json({ content: [], totalPages: 1, totalElements: 0 }));
+    await page.setViewportSize({ width: 1100, height: 900 });
     await page.goto('/admin/tareas?obra=13&q=escuela');
-    await expect(page.getByRole('combobox', { name: 'Worksite', exact: true })).toHaveValue('13');
+    await expect(page.getByRole('combobox', { name: 'Projects · open only', exact: true })).toHaveValue('13');
     await page.reload();
-    await expect(page.getByRole('combobox', { name: 'Worksite', exact: true })).toHaveValue('13');
+    await expect(page.getByRole('combobox', { name: 'Projects · open only', exact: true })).toHaveValue('13');
     await page.getByRole('navigation', { name: 'Work areas' }).getByRole('button', { name: 'Finance', exact: true }).click();
-    await expect(page).toHaveURL(/\/admin\/cobros\?obra=13$/);
+    await expect(page).toHaveURL(/\/admin\/cobros$/);
     await page.getByRole('navigation', { name: 'Area sections' }).getByRole('button', { name: 'Budgets', exact: true }).click();
-    await expect(page).toHaveURL(/\/admin\/presupuestos\?obra=13$/);
+    await expect(page).toHaveURL(/\/admin\/presupuestos$/);
   });
   test('A worker cannot use an admin deep link to get an admin workspace', async ({ page, context }) => {
     await setSession(context, 'WORKER'); await installHermeticBase(page, { role: 'WORKER', username: 'tester' });
@@ -96,12 +98,12 @@ test.describe('Web navigation by role', () => {
     await page.reload();
     await expect(page.getByTestId('quickbooks-outcome')).toHaveCount(0);
   });
-  test('Issuing a document stays within collections and carries the chosen worksite', async ({ page, context }) => {
+  test('Issuing a document stays within collections without a global worksite filter', async ({ page, context }) => {
     await setSession(context, 'ADMIN'); await installHermeticBase(page, { role: 'ADMIN', username: 'tester' });
     await page.route('**/api/v1/finance/receivables?*', json({ content: [], totalPages: 1, totalElements: 0 }));
     await page.goto('/admin/cobros?obra=13');
     await page.locator('#workspace-content button').filter({ hasText: /Issue invoice/ }).first().click();
-    await expect(page).toHaveURL(/\/admin\/documentos\?obra=13$/);
+    await expect(page).toHaveURL(/\/admin\/documentos$/);
     await expect(page.locator('[data-tour="sec.invoices.new"]')).toBeEnabled();
     await expect(page.getByRole('navigation', { name: 'Work areas' }).getByRole('button')).toHaveCount(6);
   });
