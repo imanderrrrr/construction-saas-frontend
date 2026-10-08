@@ -29,9 +29,9 @@ import { DetailDrawer } from './DetailDrawer';
 import { HistoryView } from './HistoryView';
 import { ReportView } from './ReportView';
 import { useConsumption } from './useConsumption';
+import { exportBudgetReport } from '../../services/budgets';
 import { Figure, FigureStrip, LoadFailure, ReadOnlyNote, TourAnchor, ViewSwitcher, type View } from './ui';
 import { WorksView } from './WorksView';
-import { exportLegacyBudgetDocument } from './legacyExport';
 
 /**
  * Presupuestos — one screen, two views, one set of permissions.
@@ -190,11 +190,11 @@ export function BudgetsSection({ readOnly = false, onNavigate }: {
     return pushTourScope({ key: tourKey, label: t('admin:budgets.title') });
   }, [view, screen.kind, tourKey, t]);
 
-  // The breakdown is a separate pair of requests and only the report needs it.
+  // The breakdown is a separate ledger request and only the report needs it.
   const loadSplit = consumption.load;
   useEffect(() => {
-    if (view === 'report' && !loading && failure == null) loadSplit(consumedByProject);
-  }, [view, loading, failure, loadSplit, consumedByProject]);
+    if ((view === 'report' || detailId != null) && !loading && failure == null) loadSplit(consumedByProject);
+  }, [view, detailId, loading, failure, loadSplit, consumedByProject]);
 
   const filtered = useMemo(() => applyFilters(projectId == null ? rows : rows.filter(row => row.id === projectId), workspace && clientId !== 'all' ? { ...filters, clientId } : filters), [rows, filters, projectId, clientId, workspace]);
   const worksRows = useMemo(() => sortWorks(filtered, worksSort), [filtered, worksSort]);
@@ -255,13 +255,7 @@ export function BudgetsSection({ readOnly = false, onNavigate }: {
   async function runExport(format: 'pdf' | 'excel') {
     setExporting(true);
     try {
-      await exportLegacyBudgetDocument({
-        format,
-        rows: reportRows,
-        expenseRows: consumption.expenseRows,
-        companyName: tenant,
-        t,
-      });
+      await exportBudgetReport({ format, lang, readOnly, projectIds: reportRows.map(row => row.id) });
     } catch {
       toast.error(t('admin:budgets.export.error'));
     } finally {

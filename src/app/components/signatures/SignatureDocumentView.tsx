@@ -12,9 +12,14 @@
 // ink rule, mono figures with tabular numerals, the total in display type, and
 // the notes on the paper note every screen uses for a remark.
 
+import { useState } from 'react';
+import { AuthImage } from '../sitelog/AuthImage';
+import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
+import { signAuthHeaders, signatureEvidenceUrl } from '../../services/signatures';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../ui/utils';
 import { Mono, PaperNote } from '../projects/bt';
+import { FOCUS_RING } from '../onboarding/chrome';
 import type { SignatureDocument } from '../../services/signatures';
 
 /**
@@ -89,7 +94,7 @@ export function Row({ label, value, numeric }: { label: string; value: string; n
 const TH = 'py-2 font-bt-mono text-[10px] font-normal uppercase tracking-[0.12em] text-[#8A8175]';
 const NUM = 'py-2 pl-3 text-right font-bt-mono text-[12.5px] tabular-nums whitespace-nowrap';
 
-export function SignatureDocumentView({ doc }: { doc: SignatureDocument }) {
+export function SignatureDocumentView({ doc, sessionToken }: { doc: SignatureDocument; sessionToken?: string }) {
   const { t, i18n } = useTranslation('signatures');
   const docDate = (value: string) => formatDocumentDate(value, i18n.language);
 
@@ -162,10 +167,45 @@ export function SignatureDocumentView({ doc }: { doc: SignatureDocument }) {
           </div>
         </dl>
 
+        {sessionToken && doc.photos && doc.photos.length > 0 && (
+          <SignatureEvidence photos={doc.photos} sessionToken={sessionToken} />
+        )}
+
         {doc.notes && (
           <PaperNote tone="none" className="text-[12.5px]">{doc.notes}</PaperNote>
         )}
       </section>
     </>
+  );
+}
+
+function SignatureEvidence({ photos, sessionToken }: {
+  photos: NonNullable<SignatureDocument['photos']>;
+  sessionToken: string;
+}) {
+  const { t } = useTranslation('signatures');
+  const [selected, setSelected] = useState<number | null>(null);
+  const photo = photos.find(p => p.id === selected);
+  return (
+    <section aria-label={t('doc.evidence')} className="space-y-3">
+      <Mono className="text-[11px] font-semibold text-[#5A5346]">{t('doc.evidence')}</Mono>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {photos.map(p => (
+          <button key={p.id} type="button" onClick={() => setSelected(p.id)}
+            aria-label={t('doc.viewPhoto', { name: p.fileName })}
+            className={cn('border border-[#CDBFA6]', FOCUS_RING)}>
+            <AuthImage src={signatureEvidenceUrl(p.id)} headers={signAuthHeaders(sessionToken)}
+              alt={p.fileName} className="w-full h-40 object-cover" />
+          </button>
+        ))}
+      </div>
+      <Dialog open={Boolean(photo)} onOpenChange={open => { if (!open) setSelected(null); }}>
+        <DialogContent className="max-w-4xl bg-[#F5F1E8] border-[#CDBFA6]">
+          <DialogTitle>{photo?.fileName ?? t('doc.evidence')}</DialogTitle>
+          {photo && <AuthImage src={signatureEvidenceUrl(photo.id)} headers={signAuthHeaders(sessionToken)}
+            alt={photo.fileName} className="w-full max-h-[75vh] object-contain" />}
+        </DialogContent>
+      </Dialog>
+    </section>
   );
 }

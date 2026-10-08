@@ -25,10 +25,12 @@ vi.mock('../../services/projects', async (importOriginal) => ({
 
 const rest = vi.hoisted(() => ({
   getBranding: vi.fn(),
+  getBudgetConsumption: vi.fn(),
   getExpenseReport: vi.fn(),
   getFinanceExpenseReport: vi.fn(),
   listAllPayables: vi.fn(),
 }));
+vi.mock('../../services/budgets', () => ({ getBudgetConsumption: rest.getBudgetConsumption, exportBudgetReport: vi.fn() }));
 vi.mock('../../services/branding', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../services/branding')>()),
   getBranding: rest.getBranding,
@@ -130,6 +132,7 @@ describe('BudgetsSection', () => {
     svc.listFinanceProjects.mockResolvedValue(page(PROJECTS));
     svc.updateProject.mockResolvedValue(PROJECTS[0]);
     rest.getBranding.mockResolvedValue({ organizationName: 'Constructora Peña S.A.', hasLogo: false });
+    rest.getBudgetConsumption.mockResolvedValue({ projects: PROJECTS.map(p => ({ projectId: p.id, payrollCents: 0, subcontractorCents: 0, supplierCents: p.totalConsumedCents, warehouseCents: 0, expenseCents: 0, totalConsumedCents: p.totalConsumedCents })) });
     rest.getExpenseReport.mockResolvedValue({ kpis: {}, byProject: [], byWorker: [] });
     rest.getFinanceExpenseReport.mockResolvedValue({ kpis: {}, byProject: [], byWorker: [] });
     rest.listAllPayables.mockResolvedValue([]);

@@ -66,6 +66,14 @@ export interface SignatureLineItem {
 }
 
 /** The frozen document as the signer sees it. */
+export interface SignatureEvidencePhoto {
+  id: number;
+  url: string;
+  fileName: string;
+  byteSize: number;
+  createdAt: string;
+}
+
 export interface SignatureDocument {
   documentKind: string;
   documentNumber: string;
@@ -83,6 +91,7 @@ export interface SignatureDocument {
   totalCents: number;
   currency: string;
   notes: string | null;
+  photos?: SignatureEvidencePhoto[];
   documentHash: string;
   expiresAt: string;
 }
@@ -226,4 +235,9 @@ export function declineSignature(
 /** Authorization header carrying the signing session token. */
 export function signAuthHeaders(sessionToken: string): Record<string, string> {
   return { Authorization: `Bearer ${sessionToken}` };
+}
+
+/** Fixed signing endpoint: evidence is authorized by the signing session. */
+export function signatureEvidenceUrl(photoId: number): string {
+  return `${getBaseUrl()}/api/v1/sign/photos/${photoId}`;
 }

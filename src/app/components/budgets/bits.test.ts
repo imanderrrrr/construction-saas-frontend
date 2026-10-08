@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 import type { ProjectResponse } from '../../services/projects';
 import {
   applyFilters, EMPTY_FILTERS, execPct, gaugeTone, isBudgeted, money, moneyRound,
-  reportTotals, sharePct, sortReport, sortWorks, splitConsumption, toRow,
+  reportTotals, sharePct, sortReport, sortWorks, ledgerConsumption, toRow,
   urgentRows, worksTotals,
 } from './bits';
 
@@ -241,28 +241,17 @@ describe('what is running out of budget', () => {
   });
 });
 
-describe('where the spend went — provisional until the server splits it', () => {
-  it('deduces payroll as the residual, suppliers by what was PAID', () => {
-    const split = splitConsumption(69_100, 4_837, [{ paidAmount: 21_421 }]);
-    expect(split.suppliers).toBe(21_421);
-    expect(split.payroll).toBe(42_842);
+describe('ledger consumption', () => {
+  it('uses all five measured sources without assigning their difference to payroll', () => {
+    const split = ledgerConsumption({ payrollCents: 101, subcontractorCents: 202, supplierCents: 303, warehouseCents: 404, expenseCents: 505, totalConsumedCents: 1515 });
+    expect(split).toEqual({ payroll: 1.01, subcontractors: 2.02, suppliers: 3.03, warehouse: 4.04, expenses: 5.05, payrollImputed: true });
+    expect(sharePct(split.warehouse, 15.15)).toBe(26.7);
+  });
+  it('zero payroll is measured, and reversals retain their sign', () => {
+    const split = ledgerConsumption({ payrollCents: 0, subcontractorCents: -50, supplierCents: 100, warehouseCents: 0, expenseCents: 0, totalConsumedCents: 50 });
+    expect(split.payroll).toBe(0);
     expect(split.payrollImputed).toBe(true);
-    expect(sharePct(split.payroll, 69_100)).toBe(62);
-    expect(sharePct(split.suppliers, 69_100)).toBe(31);
-    expect(sharePct(split.expenses, 69_100)).toBe(7);
-  });
-
-  // A 0 % would read as a measurement. It is an absence of data.
-  it('says nothing is imputed rather than drawing a zero', () => {
-    const split = splitConsumption(40_000, 0, [{ paidAmount: 40_000 }]);
-    expect(split.payroll).toBe(0);
-    expect(split.payrollImputed).toBe(false);
-  });
-
-  it('floors a negative residual instead of showing money that went nowhere', () => {
-    const split = splitConsumption(100, 60, [{ paidAmount: 60 }]);
-    expect(split.payroll).toBe(0);
-    expect(split.payrollImputed).toBe(false);
+    expect(split.subcontractors).toBe(-0.5);
   });
 });
 

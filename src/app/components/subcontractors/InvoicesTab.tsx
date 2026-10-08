@@ -257,6 +257,7 @@ export function InvoicesTab({ summary, summaryState, refData, onReview, onPay, f
                     <InvoiceStatusChip status={inv.status} className="flex-shrink-0" />
                   </div>
                   <div className="text-[13.5px] text-[#0A0A0A] mt-1.5 leading-[1.35]">{inv.jobTitle}</div>
+                  <InvoicePayable invoice={inv} />
                   <Mono className="block text-[10px] tracking-[0.04em] text-[#5A5346] mt-1 truncate">
                     {(inv.subcontractorName ?? '').toUpperCase()}{inv.projectName ? ` · ${inv.projectName.toUpperCase()}` : ''}
                   </Mono>
@@ -299,6 +300,7 @@ function InvoiceAction({ invoice, lead, onReview, onPay, lang }: {
       ? <PrimaryButton onClick={onReview} className="w-full px-3 py-[9px] text-[10px]">{t('subcontractors:inv.action.review')}</PrimaryButton>
       : <SecondaryButton onClick={onReview} className="w-full px-3 py-[9px] text-[10px] bg-[#FAF7F0]">{t('subcontractors:inv.action.review')}</SecondaryButton>;
   }
+  if (invoice.paymentsInQuickBooks && isPayable(invoice.status)) return <Mono className="text-[10px] text-[#C2410C] normal-case">{t('subcontractors:pay.inQuickBooks')}</Mono>;
   if (isPayable(invoice.status)) {
     return <SecondaryButton onClick={onPay} className="w-full px-3 py-[9px] text-[10px] bg-[#FAF7F0]">{t('subcontractors:inv.action.pay')}</SecondaryButton>;
   }
@@ -338,6 +340,7 @@ function InvoiceRow({ invoice, lang, lead, flash, onReview, onPay }: {
       </Mono>
       <div className="min-w-0">
         <div className="text-[13px] text-[#0A0A0A] truncate">{invoice.jobTitle}</div>
+        <InvoicePayable invoice={invoice} />
         {invoice.status === 'OBSERVED' && (
           <Mono className="block text-[9.5px] tracking-[0.06em] text-[#C2410C] mt-[3px] truncate">{t('subcontractors:inv.row.waitingSub')}</Mono>
         )}
@@ -355,4 +358,12 @@ function InvoiceRow({ invoice, lang, lead, flash, onReview, onPay }: {
       <InvoiceAction invoice={invoice} lead={lead} onReview={onReview} onPay={onPay} lang={lang} />
     </div>
   );
+}
+
+function InvoicePayable({ invoice }: { invoice: SubcontractorInvoiceDTO }) {
+  const { t } = useTranslation(['subcontractors', 'common']);
+  if (!invoice.payableId) return null;
+  return <Mono className="block text-[10px] text-violet-700 mt-1 normal-case">
+    {t('subcontractors:inv.row.payable', { number: invoice.payableBillNumber ?? invoice.payableId, status: t(`common:status.${(invoice.payableStatus ?? 'PENDING').toLowerCase()}`) })}
+  </Mono>;
 }

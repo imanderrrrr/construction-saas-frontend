@@ -843,5 +843,6 @@
   "overview.paymentsRegistered_other": "{{count}} recorded movements",
   "overview.netMovement": "Net of these movements",
   "overview.netFormula": "Collected − paid",
-  "overview.guideFinance": "Finance guide"
+  "overview.guideFinance": "Finance guide",
+  "payable.subcontractorInvoice": "Subcontractor invoice #{{number}}"
 }

@@ -1,3 +1,4 @@
+import { addDays } from '../accounts/accounting';
 import { businessToday } from '../../helpers/dateTime';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -12,6 +13,7 @@ import { BtModal } from '../bt/windows';
 import { FOCUS_RING, PrimaryButton, SecondaryButton } from '../onboarding/chrome';
 import { EmptyWord, FieldError, FieldHint, FieldLabel, INPUT, INPUT_ERROR, Mono, PaperNote } from '../projects/bt';
 import { fmtMoney, InvoiceStatusChip, softDate, stampDateTime } from './bits';
+import { BudgetLineItemSelector } from '../budgets/wbs/BudgetLineItemSelector';
 
 /**
  * 08 — review an invoice.
@@ -41,6 +43,7 @@ export function ReviewInvoiceModal({ open, onOpenChange, invoice, agreedAmountCe
   const [decision, setDecision] = useState<'APPROVE' | 'OBSERVE' | null>(null);
   const [comment, setComment] = useState('');
   const [dueDate, setDueDate] = useState(businessToday());
+  const [budgetLineItemId, setBudgetLineItemId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [commentError, setCommentError] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +52,8 @@ export function ReviewInvoiceModal({ open, onOpenChange, invoice, agreedAmountCe
     if (!open) return;
     setDecision(null);
     setComment('');
-    setDueDate(businessToday());
+    setDueDate(addDays(businessToday(), 15));
+    setBudgetLineItemId(invoice?.budgetLineItemId ?? null);
     setSaving(false);
     setCommentError(false);
     setError(null);
@@ -69,7 +73,7 @@ export function ReviewInvoiceModal({ open, onOpenChange, invoice, agreedAmountCe
     setSaving(true);
     setError(null);
     try {
-      const updated = await reviewInvoice(invoice.id, { action: decision, comment: comment.trim() || null, dueDate: decision === 'APPROVE' ? dueDate : undefined });
+      const updated = await reviewInvoice(invoice.id, { action: decision, comment: comment.trim() || null, dueDate: decision === 'APPROVE' ? dueDate : undefined, ...(decision === 'APPROVE' && budgetLineItemId != null ? { budgetLineItemId } : {}) });
       onReviewed(updated);
       onOpenChange(false);
     } catch {
@@ -224,6 +228,8 @@ export function ReviewInvoiceModal({ open, onOpenChange, invoice, agreedAmountCe
                 <FieldLabel htmlFor={`rev-due-${invoice.id}`} required>{t('subcontractors:rev.dueDate')}</FieldLabel>
                 <input id={`rev-due-${invoice.id}`} type="date" value={dueDate} min={businessToday()} onChange={e => setDueDate(e.target.value)} className={INPUT} />
                 <FieldHint>{t('subcontractors:rev.payableHint')}</FieldHint>
+                <div className="mt-3"><BudgetLineItemSelector projectId={invoice.projectId} value={budgetLineItemId} onChange={setBudgetLineItemId} disabled={saving}
+                  allowGeneral={invoice.budgetLineItemId == null} selectedLabel={budgetLineItemId === invoice.budgetLineItemId ? [invoice.budgetLineItemCode, invoice.budgetLineItemName].filter(Boolean).join(' · ') : undefined} /></div>
               </div>}
 
               {decision === 'OBSERVE' && (

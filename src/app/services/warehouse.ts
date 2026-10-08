@@ -178,6 +178,7 @@ export interface ConsumableResponse {
   unit: string;
   currentStock: number;
   minimumStock: number;
+  unitCostCents?: number;
   status: string;
   lastRestocked: string | null;
   notes: string | null;
@@ -189,8 +190,11 @@ export interface DispatchResponse {
   consumableName: string;
   unit: string;
   quantity: number;
+  unitCostCents?: number;
+  totalCostCents?: number;
   project: string;
   projectId: number;
+  budgetLineItemId?: number | null;
   requestedBy: string;
   requestedById: number;
   date: string;
@@ -359,6 +363,7 @@ export async function createConsumable(payload: {
   unit: string;
   currentStock: number;
   minimumStock: number;
+  unitCostCents?: number;
   notes?: string;
 }): Promise<ConsumableResponse> {
   return api<ConsumableResponse>('/api/v1/warehouse/consumables', {
@@ -373,6 +378,7 @@ export async function updateConsumable(id: number, payload: {
   unit?: string;
   currentStock?: number;
   minimumStock?: number;
+  unitCostCents?: number;
   notes?: string;
 }): Promise<ConsumableResponse> {
   return api<ConsumableResponse>(`/api/v1/warehouse/consumables/${id}`, {
@@ -396,10 +402,12 @@ export async function getAllDispatches(params?: {
 }
 
 export async function dispatchConsumable(payload: {
+  budgetLineItemId?: number | null;
   consumableCode: string;
   consumableName?: string;
   unit?: string;
   quantity: number;
+  unitCostCentsOverride?: number;
   project?: string;
   projectId?: number;
   requestedBy?: string;

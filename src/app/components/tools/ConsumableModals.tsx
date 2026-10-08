@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../ui/utils';
+import { moneyInputCents } from '../../lib/moneyInput';
 import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 import { createConsumable, updateConsumable, type ConsumableResponse } from '../../services/warehouse';
 import { BtModal } from '../bt/windows';
@@ -38,6 +39,7 @@ export function ConsumableFormModal({ open, onOpenChange, onSaved, consumable = 
   const [name, setName] = useState('');
   const [unit, setUnit] = useState('');
   const [stock, setStock] = useState('0');
+  const [unitCost, setUnitCost] = useState('0.00');
   const [minimum, setMinimum] = useState('0');
   const [errors, setErrors] = useState<{ name?: string; unit?: string; numbers?: string; server?: string }>({});
   const [saving, setSaving] = useState(false);
@@ -50,6 +52,7 @@ export function ConsumableFormModal({ open, onOpenChange, onSaved, consumable = 
     setStock(String(consumable?.currentStock ?? 0)); setMinimum(String(consumable?.minimumStock ?? 0));
     setCategory(consumable?.category ?? 'General'); setErrors({}); setSaving(false);
     setNotes(consumable?.notes ?? '');
+    setUnitCost(((consumable?.unitCostCents ?? 0) / 100).toFixed(2));
   }, [open, consumable]);
 
   const stockNumber = Number(stock) || 0;
@@ -59,6 +62,7 @@ export function ConsumableFormModal({ open, onOpenChange, onSaved, consumable = 
     const next: typeof errors = {};
     if (!name.trim()) next.name = t('tools:consumable.err.name');
     if (!unit.trim()) next.unit = t('tools:consumable.err.unit');
+    if (moneyInputCents(unitCost) == null) next.numbers = t('inventory:consumables.dialog.invalidCost');
     if (stockNumber < 0 || minimumNumber < 0) next.numbers = t('tools:consumable.err.negative');
     setErrors(next);
     if (Object.keys(next).length > 0) return;
@@ -71,6 +75,7 @@ export function ConsumableFormModal({ open, onOpenChange, onSaved, consumable = 
         category: category.trim() || 'General',
         unit: unit.trim(),
         minimumStock: minimumNumber,
+        unitCostCents: moneyInputCents(unitCost)!,
         ...(warehouse ? { notes: notes.trim() } : {}),
       };
       const saved = consumable
@@ -148,6 +153,11 @@ export function ConsumableFormModal({ open, onOpenChange, onSaved, consumable = 
           <input id="cs-min" type="number" min="0" value={minimum} onChange={e => setMinimum(e.target.value)} className={cn(INPUT, 'bg-[#FAF7F0] tabular-nums', errors.numbers && INPUT_ERROR)} />
           <FieldHint>{t('tools:consumable.minimum.hint')}</FieldHint>
         </div>
+      </div>
+      <div className="mt-[14px]">
+        <FieldLabel htmlFor="cs-unit-cost">{t('inventory:consumables.dialog.unitCost')}</FieldLabel>
+        <input id="cs-unit-cost" type="number" min="0" step="0.01" value={unitCost} onChange={e => setUnitCost(e.target.value)} className={cn(INPUT, 'tabular-nums')} />
+        <FieldHint>{t('inventory:consumables.dialog.costSnapshotHint')}</FieldHint>
       </div>
       {errors.numbers && <FieldError>{errors.numbers}</FieldError>}
 

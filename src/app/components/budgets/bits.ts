@@ -279,40 +279,23 @@ export function urgentRows(rows: BudgetRow[]): BudgetRow[] {
 // ── Where the money went ───────────────────────────────────────────────────
 
 export interface ConsumptionSplit {
-  /** Payroll. See the note below: it is a residual, not a reported figure. */
   payroll: number;
+  subcontractors: number;
   suppliers: number;
+  warehouse: number;
   expenses: number;
-  /** False when the residual came out at or below zero — nothing is imputed. */
+  /** All five sources are measured in the project ledger, including zero payroll. */
   payrollImputed: boolean;
 }
 
-/**
- * The spend of one jobsite, split by source.
- *
- * PROVISIONAL, and the sheet says so: the split does not exist in any response
- * today — spend arrives already summed — so payroll is deduced as what is left
- * after approved expenses and supplier payments. If one source is misreported
- * the error hides inside another. `GET /budgets/consumption-breakdown` is the
- * backend row that removes this; until it lands, a residual at or below zero
- * is drawn as "not imputed" rather than as a 0 % that would read like a fact.
- *
- * Suppliers must use what has been PAID, not the outstanding balance: the
- * balance is 0 for a settled bill, which used to collapse AP to nothing and
- * make payroll swallow the whole of a materials jobsite.
- */
-export function splitConsumption(
-  consumed: number,
-  expenses: number,
-  payables: ReadonlyArray<{ paidAmount: number }>,
-): ConsumptionSplit {
-  const suppliers = payables.reduce((total, p) => total + p.paidAmount, 0);
-  const residual = consumed - expenses - suppliers;
+export function ledgerConsumption(row: import('../../services/budgets').ConsumptionAmounts): ConsumptionSplit {
   return {
-    payroll: Math.max(residual, 0),
-    suppliers,
-    expenses,
-    payrollImputed: residual > 0,
+    payroll: row.payrollCents / 100,
+    subcontractors: row.subcontractorCents / 100,
+    suppliers: row.supplierCents / 100,
+    warehouse: row.warehouseCents / 100,
+    expenses: row.expenseCents / 100,
+    payrollImputed: true,
   };
 }
 

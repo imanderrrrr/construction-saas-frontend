@@ -86,6 +86,7 @@ export interface Payable {
   category: string;
   project: string;
   projectId: number;
+  budgetLineItemId?: number | null;
   description: string | null;
   /** AP Block 2 — "BILL" (cuenta) or "INVOICE" (factura). */
   documentType: PayableDocumentType;
@@ -110,6 +111,8 @@ export interface Payable {
   firstAttachmentId?: number | null;
   /** Sent to the tenant's QuickBooks, whose payments are read from there: no "record payment" here. */
   paymentsInQuickBooks?: boolean;
+  subcontractorInvoiceId?: number | null;
+  subcontractorInvoiceNumber?: string | null;
 }
 
 const PAYABLES = '/api/v1/finance/payables';
@@ -157,6 +160,7 @@ export function createPayable(data: {
   vendor: string;
   category: string;
   projectId: number;
+  budgetLineItemId?: number | null;
   description?: string;
   receivedDate: string;
   dueDate: string;
@@ -171,6 +175,7 @@ export function createPayable(data: {
 }
 
 export function recordPayablePayment(id: number, data: {
+  budgetLineItemId?: number | null;
   requestKey?: string;
   amount: number;
   date: string;
@@ -413,6 +418,8 @@ export interface Receivable {
   signatureStatus?: 'PENDING' | 'SIGNED' | 'DECLINED' | 'REVOKED' | null;
   /** Sent to the tenant's QuickBooks, whose payments are read from there: no "record payment" here. */
   paymentsInQuickBooks?: boolean;
+  subcontractorInvoiceId?: number | null;
+  subcontractorInvoiceNumber?: string | null;
 }
 
 const RECEIVABLES = '/api/v1/finance/receivables';

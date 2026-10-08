@@ -15,6 +15,8 @@ export type BillCategory = 'materials' | 'equipment-rental' | 'subcontractor' | 
 
 export interface VendorBill {
   id: number;
+  subcontractorInvoiceId?: number | null;
+  subcontractorInvoiceNumber?: string | null;
   billNumber: string;
   vendor: string;
   category: BillCategory;
@@ -43,6 +45,8 @@ export interface VendorBill {
 export function toVendorBill(p: Payable): VendorBill {
   return {
     id: p.id,
+    subcontractorInvoiceId: p.subcontractorInvoiceId,
+    subcontractorInvoiceNumber: p.subcontractorInvoiceNumber,
     billNumber: p.billNumber,
     vendor: p.vendor,
     category: p.category as BillCategory,
@@ -97,7 +101,7 @@ export function StatusBadge({ status }: { status: VendorBill['status'] }) {
 export function CategoryBadge({ category }: { category: BillCategory }) {
   const { t } = useTranslation('finance');
   return (
-    <span className="inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-semibold bg-[#FAF7F0] text-[#0A0A0A] border border-[#E7E1D5]">
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-none text-[10px] font-semibold border ${category === 'subcontractor' ? 'bg-violet-50 text-violet-700 border-violet-200' : 'bg-[#FAF7F0] text-[#0A0A0A] border-[#E7E1D5]'}`}>
       {t(CATEGORY_KEY_MAP[category])}
     </span>
   );

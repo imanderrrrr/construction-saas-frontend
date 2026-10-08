@@ -1,4 +1,5 @@
 import { useScreenState } from '../workspace/WorkspaceState';
+import { money } from './budgets/bits';
 // ConsumableDispatch.tsx — Dispatch consumable supplies to projects
 
 import { useState, useEffect, useCallback } from 'react';
@@ -24,6 +25,7 @@ import {
 } from '../services/warehouse';
 import { listActiveUsers, type UserDTO } from '../services/users';
 import { FIELD_LIMITS } from '../../shared/fieldLimits';
+import { BudgetLineItemSelector } from './budgets/wbs/BudgetLineItemSelector';
 
 // Types
 
@@ -33,6 +35,7 @@ interface DispatchItem {
   consumableName: string;
   unit: string;
   quantity: number;
+  totalCostCents: number;
   project: string;
   requestedBy: string;
   date: string;
@@ -52,6 +55,7 @@ function mapDispatchResponse(d: DispatchResponse): DispatchItem {
     consumableName: d.consumableName,
     unit: d.unit,
     quantity: d.quantity,
+    totalCostCents: d.totalCostCents ?? 0,
     project: d.project,
     requestedBy: d.requestedBy,
     date: d.date,
@@ -114,6 +118,7 @@ export function ConsumableDispatch() {
     requestedById: number,
     requestedByName: string,
     notes: string,
+    budgetLineItemId?: number | null,
   ) => {
     dispatchConsumable({
       consumableCode,
@@ -125,6 +130,7 @@ export function ConsumableDispatch() {
       requestedById,
       requestedBy: requestedByName,
       notes: notes || undefined,
+      ...(budgetLineItemId != null ? { budgetLineItemId } : {}),
     })
       .then(res => {
         setModalOpen(false);
@@ -174,7 +180,7 @@ export function ConsumableDispatch() {
                         <p className="text-sm font-medium text-[#0A0A0A]">{d.consumableName}</p>
                         <p className="text-[11px] text-[#8A8175] font-bt-mono">{d.consumableCode}</p>
                       </td>
-                      <td className="px-4 py-3 text-sm font-semibold text-[#0A0A0A]">{d.quantity}</td>
+                      <td className="px-4 py-3 text-sm font-semibold text-[#0A0A0A]">{d.quantity}<span className="block text-xs text-[#8A8175]">{money(d.totalCostCents / 100)}</span></td>
                       <td className="px-4 py-3 text-sm text-[#8A8175]">{d.unit}</td>
                       <td className="px-4 py-3 text-sm text-[#0A0A0A]">{d.project}</td>
                       <td className="px-4 py-3 text-sm text-[#8A8175]">{d.requestedBy}</td>
@@ -199,7 +205,7 @@ export function ConsumableDispatch() {
                 <div key={d.id} className="p-4">
                   <div className="flex items-center justify-between mb-1">
                     <p className="text-sm font-medium text-[#0A0A0A]">{d.consumableName}</p>
-                    <span className="text-sm font-semibold text-[#0A0A0A]">{d.quantity} {d.unit}</span>
+                    <span className="text-sm font-semibold text-[#0A0A0A]">{d.quantity} {d.unit} · {money(d.totalCostCents / 100)}</span>
                   </div>
                   <p className="text-[11px] font-bt-mono text-[#8A8175]">{d.consumableCode}</p>
                   <p className="text-xs text-[#8A8175] mt-1">{d.project} &middot; {d.requestedBy}</p>
@@ -281,12 +287,14 @@ function DispatchModal({
     requestedById: number,
     requestedByName: string,
     notes: string,
+    budgetLineItemId?: number | null,
   ) => void;
 }) {
   const { t } = useTranslation('inventory');
   const [selectedConsumableId, setSelectedConsumableId] = useState('');
   const [qty, setQty] = useState('');
   const [projectId, setProjectId] = useState('');
+  const [budgetLineItemId, setBudgetLineItemId] = useState<number | null>(null);
   const [workerId, setWorkerId] = useState('');
   const [notes, setNotes] = useState('');
 
@@ -311,13 +319,15 @@ function DispatchModal({
       selectedWorker.id,
       selectedWorker.fullName ?? selectedWorker.username,
       notes.trim(),
+      budgetLineItemId,
     );
     setSelectedConsumableId(''); setQty(''); setProjectId(''); setWorkerId(''); setNotes('');
+    setBudgetLineItemId(null);
   };
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="rounded-none sm:max-w-md" aria-describedby="dispatch-desc">
+      <DialogContent className="rounded-none sm:max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto" aria-describedby="dispatch-desc">
         <DialogHeader>
           <DialogTitle className="font-bt-display uppercase text-2xl">{t('dispatch.dialog.title')}</DialogTitle>
           <DialogDescription id="dispatch-desc">{t('dispatch.dialog.description')}</DialogDescription>
@@ -358,10 +368,15 @@ function DispatchModal({
             )}
           </div>
 
+          {selected && <div className="border border-[#E7E1D5] bg-[#FBF8F2] p-3" aria-live="polite">
+            <p className="text-sm font-semibold">{t('dispatch.dialog.estimatedCost', { quantity: qtyNum || 0, unitCost: money((selected.unitCostCents ?? 0) / 100), total: money((qtyNum || 0) * (selected.unitCostCents ?? 0) / 100) })}</p>
+            <p className="text-xs text-[#8A8175] mt-1">{t('dispatch.dialog.budgetCostNote')}</p>
+          </div>}
+
           {/* Project */}
           <div>
             <label className="font-bt-mono text-[11px] font-semibold text-[#8A8175] uppercase tracking-wide">{`${t('dispatch.dialog.project')} *`}</label>
-            <Select value={projectId} onValueChange={setProjectId}>
+            <Select value={projectId} onValueChange={value => { setProjectId(value); setBudgetLineItemId(null); }}>
               <SelectTrigger className="rounded-none mt-1 h-9 border-[#DBD0BB] text-sm"><SelectValue placeholder={t('dispatch.dialog.projectPlaceholder')} /></SelectTrigger>
               <SelectContent>
                 {projects.map(p => (
@@ -376,6 +391,8 @@ function DispatchModal({
               <p className="text-[11px] text-red-600 mt-1">{t('dispatch.dialog.closedProject')}</p>
             )}
           </div>
+
+          <BudgetLineItemSelector projectId={projectId ? Number(projectId) : null} value={budgetLineItemId} onChange={setBudgetLineItemId} />
 
           {/* Requested by */}
           <div>

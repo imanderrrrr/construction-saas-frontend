@@ -16,6 +16,7 @@ import { getMyProjects } from '../services/time';
 import { createExpense } from '../services/expenses';
 import { businessToday } from '../helpers/dateTime';
 import { FIELD_LIMITS } from '../../shared/fieldLimits';
+import { BudgetLineItemSelector } from './budgets/wbs/BudgetLineItemSelector';
 
 // Constants
 
@@ -106,6 +107,7 @@ export function NewExpense({ onSubmitSuccess }: NewExpenseProps) {
   const [expenseType,  setExpenseType]  = useState('');
   const [amount,       setAmount]       = useState('');
   const [project,      setProject]      = useState('');
+  const [budgetLineItemId, setBudgetLineItemId] = useState<number | null>(null);
   const [date,         setDate]         = useState(getTodayISO);
   const [receiptFile,  setReceiptFile]  = useState<File | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
@@ -197,6 +199,7 @@ export function NewExpense({ onSubmitSuccess }: NewExpenseProps) {
       await createExpense(
         {
           projectId: proj!.id,
+          ...(budgetLineItemId != null ? { budgetLineItemId } : {}),
           expenseType: expenseType.toUpperCase().replace(/-/g, '_'),
           amountCents: Math.round(Number(amount) * 100),
           expenseDate: date,
@@ -222,6 +225,7 @@ export function NewExpense({ onSubmitSuccess }: NewExpenseProps) {
     setExpenseType('');
     setAmount('');
     setProject('');
+    setBudgetLineItemId(null);
     setDate(getTodayISO());
     handleRemoveFile();
     setComment('');
@@ -306,7 +310,7 @@ export function NewExpense({ onSubmitSuccess }: NewExpenseProps) {
             ) : (
               <Select
                 value={project}
-                onValueChange={v => { setProject(v); touch('project'); }}
+                onValueChange={v => { setProject(v); setBudgetLineItemId(null); touch('project'); }}
               >
                 <SelectTrigger className="h-10 border-[#D4D4D8] text-sm">
                   <SelectValue placeholder={t('new.project.placeholder')} />
@@ -322,6 +326,8 @@ export function NewExpense({ onSubmitSuccess }: NewExpenseProps) {
               </Select>
             )}
           </Field>
+
+          <BudgetLineItemSelector projectId={project ? Number(project) : null} value={budgetLineItemId} onChange={setBudgetLineItemId} disabled={isSubmitting} />
 
           {/* 4. Date */}
           <Field label={t('new.date.label')} required error={errors.date} touched={touched.date}>

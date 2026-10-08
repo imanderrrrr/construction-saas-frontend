@@ -235,6 +235,7 @@ function ReportRow({ row, lang, expanded, onToggle, split, splitLoading, onOpenW
                       imputed={split.payrollImputed}
                       color="bg-[#0B0A09]"
                     />
+                    <SourceLine label={t('admin:budgets.source.subcontractors')} amount={split.subcontractors} share={sharePct(split.subcontractors, row.consumed)} lang={lang} imputed color="bg-violet-500" />
                     <SourceLine
                       label={t('admin:budgets.source.suppliers')}
                       amount={split.suppliers}
@@ -243,6 +244,7 @@ function ReportRow({ row, lang, expanded, onToggle, split, splitLoading, onOpenW
                       imputed
                       color="bg-[#F97316]"
                     />
+                    <SourceLine label={t('admin:budgets.source.warehouse')} amount={split.warehouse} share={sharePct(split.warehouse, row.consumed)} lang={lang} imputed color="bg-emerald-600" />
                     <SourceLine
                       label={t('admin:budgets.source.expenses')}
                       amount={split.expenses}
@@ -347,16 +349,18 @@ function Comparator({ rows, consumption, onRetrySplit, lang, loading }: {
     [rows],
   );
   const totals = useMemo(() => {
-    let payroll = 0, suppliers = 0, expenses = 0, consumed = 0;
+    let payroll = 0, subcontractors = 0, warehouse = 0, suppliers = 0, expenses = 0, consumed = 0;
     spent.forEach(row => {
       const split = consumption.splits.get(row.id);
       if (!split) return;
       payroll += split.payroll;
+      subcontractors += split.subcontractors;
+      warehouse += split.warehouse;
       suppliers += split.suppliers;
       expenses += split.expenses;
       consumed += row.consumed;
     });
-    return { payroll, suppliers, expenses, consumed };
+    return { payroll, subcontractors, suppliers, warehouse, expenses, consumed };
   }, [spent, consumption.splits]);
 
   return (
@@ -372,7 +376,9 @@ function Comparator({ rows, consumption, onRetrySplit, lang, loading }: {
         </div>
         <div className="flex items-center gap-3.5 flex-wrap">
           <Legend color="bg-[#0B0A09]" label={t('admin:budgets.source.payroll')} />
+          <Legend color="bg-violet-500" label={t('admin:budgets.source.subcontractors')} />
           <Legend color="bg-[#F97316]" label={t('admin:budgets.source.suppliers')} />
+          <Legend color="bg-emerald-600" label={t('admin:budgets.source.warehouse')} />
           <Legend color="bg-[#B4A992]" label={t('admin:budgets.source.expenses')} />
           <div className="flex border border-[#DBD0BB]">
             {(['share', 'amount'] as const).map((key, i) => (
@@ -450,7 +456,7 @@ function Comparator({ rows, consumption, onRetrySplit, lang, loading }: {
             </Mono>
             <SplitBar
               row={{ consumed: totals.consumed } as BudgetRow}
-              split={{ payroll: totals.payroll, suppliers: totals.suppliers, expenses: totals.expenses, payrollImputed: totals.payroll > 0 }}
+              split={{ payroll: totals.payroll, subcontractors: totals.subcontractors, warehouse: totals.warehouse, suppliers: totals.suppliers, expenses: totals.expenses, payrollImputed: true }}
               lang={lang}
               mode={mode}
             />
@@ -483,7 +489,9 @@ function SplitBar({ row, split, lang, mode }: {
   const { t } = useTranslation('admin');
   const segments = [
     { key: 'payroll', value: split.payroll, bg: 'bg-[#0B0A09]', fg: 'text-[#F5F1E8]', shown: split.payrollImputed },
+    { key: 'subcontractors', value: split.subcontractors, bg: 'bg-violet-500', fg: 'text-white', shown: true },
     { key: 'suppliers', value: split.suppliers, bg: 'bg-[#F97316]', fg: 'text-[#43301F]', shown: true },
+    { key: 'warehouse', value: split.warehouse, bg: 'bg-emerald-600', fg: 'text-white', shown: true },
     { key: 'expenses', value: split.expenses, bg: 'bg-[#B4A992]', fg: 'text-[#43301F]', shown: true },
   ].filter(seg => seg.value > 0 && seg.shown);
 

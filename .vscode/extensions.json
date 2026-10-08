@@ -1,0 +1,8 @@
+{
+  "recommendations": [
+    // ESLint: marca en el editor los mismos hallazgos que `npm run lint`.
+    "dbaeumer.vscode-eslint",
+    // EditorConfig: indentacion de 2, LF y salto de linea final.
+    "editorconfig.editorconfig"
+  ]
+}

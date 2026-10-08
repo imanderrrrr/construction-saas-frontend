@@ -9,6 +9,7 @@ import {
   execPct, money, pct as fmtPct, sharePct, type BudgetRow, type ConsumptionSplit,
 } from './bits';
 import { Gauge } from './ui';
+import { BudgetWbsGrid } from './wbs/BudgetWbsGrid';
 
 /**
  * El detalle de la obra (Claude Design "Presupuestos BuildTrack", board 04).
@@ -19,11 +20,7 @@ import { Gauge } from './ui';
  * against the cost, finance saw another against the contract, and the
  * dashboard printed the cost budget under the label "CONTRATO".
  *
- * There is no spending-pace card. The one the sheet draws needs
- * `GET /budgets/consumption-breakdown`, which does not exist; the "estimated
- * days remaining" it replaces extrapolated from the day the jobsite was
- * created with a floor of one day, so two jobsites created five minutes
- * earlier read "2 days" and "4 days" in red. Nothing is better than that.
+ * Sources come from the project consumption ledger.
  */
 export function DetailDrawer({ row, open, onOpenChange, split, splitLoading, readOnly, onAdjust, onHistory, onClose }: {
   row: BudgetRow | null;
@@ -40,7 +37,12 @@ export function DetailDrawer({ row, open, onOpenChange, split, splitLoading, rea
   const lang = i18n.language;
   const [bills, setBills] = useState<Payable[] | null>(null);
   const [billsFailed, setBillsFailed] = useState(false);
+  const [tab, setTab] = useState<'overview' | 'wbs'>('overview');
   const projectId = row?.id ?? null;
+
+  useEffect(() => {
+    setTab('overview');
+  }, [projectId, open]);
 
   useEffect(() => {
     if (projectId == null || !open) return;
@@ -61,6 +63,7 @@ export function DetailDrawer({ row, open, onOpenChange, split, splitLoading, rea
   return (
     <BtDrawer
       open={open}
+      width={tab === 'wbs' ? 1100 : 492}
       onOpenChange={onOpenChange}
       kicker={[row.clientName, row.costCode].filter(Boolean).join(' · ') || t('admin:budgets.detail.noClient')}
       title={row.name}
@@ -78,6 +81,10 @@ export function DetailDrawer({ row, open, onOpenChange, split, splitLoading, rea
         </>
       }
     >
+      <div role="tablist" aria-label={t('admin:wbs.detailTabs')} className="flex border-b border-[#E7E1D5] mb-5 gap-5">
+        {(['overview', 'wbs'] as const).map(value => <button key={value} type="button" role="tab" aria-selected={tab === value} aria-controls={`budget-${value}`} id={`budget-tab-${value}`} onClick={() => setTab(value)} className={cn('text-sm py-2 border-b-2', tab === value ? 'border-[#F97316] text-[#0B0A09] font-semibold' : 'border-transparent text-[#8A8175]')}>{t(value === 'wbs' ? 'admin:wbs.title' : 'admin:wbs.overview')}</button>)}
+      </div>
+      {tab === 'wbs' ? <div id="budget-wbs" role="tabpanel" aria-labelledby="budget-tab-wbs"><BudgetWbsGrid projectId={row.id} readOnly={readOnly} /></div> : <div id="budget-overview" role="tabpanel" aria-labelledby="budget-tab-overview">
       <div className="space-y-5">
         <div className="grid grid-cols-2 gap-4">
           <Figure
@@ -139,14 +146,15 @@ export function DetailDrawer({ row, open, onOpenChange, split, splitLoading, rea
           ) : (
             <div className="space-y-2">
               <SourceBar label={t('admin:budgets.source.payroll')} amount={split.payroll} share={sharePct(split.payroll, row.consumed)} lang={lang} imputed={split.payrollImputed} color="bg-[#0B0A09]" />
+              <SourceBar label={t('admin:budgets.source.subcontractors')} amount={split.subcontractors} share={sharePct(split.subcontractors, row.consumed)} lang={lang} imputed color="bg-violet-500" />
               <SourceBar label={t('admin:budgets.source.suppliers')} amount={split.suppliers} share={sharePct(split.suppliers, row.consumed)} lang={lang} imputed color="bg-[#F97316]" />
+              <SourceBar label={t('admin:budgets.source.warehouse')} amount={split.warehouse} share={sharePct(split.warehouse, row.consumed)} lang={lang} imputed color="bg-emerald-600" />
               <SourceBar label={t('admin:budgets.source.expenses')} amount={split.expenses} share={sharePct(split.expenses, row.consumed)} lang={lang} imputed color="bg-[#B4A992]" />
             </div>
           )}
-          {/* Provisional, and it says so on the screen as well as in the code:
-              payroll is the residual until consumption-breakdown exists. */}
+
           <Mono className="block text-[9px] tracking-[0.06em] text-[#A69C8D] mt-2 leading-[1.5]">
-            {t('admin:budgets.source.provisional')}
+            {t('admin:budgets.source.ledger')}
           </Mono>
         </section>
 
@@ -183,6 +191,7 @@ export function DetailDrawer({ row, open, onOpenChange, split, splitLoading, rea
           )}
         </section>
       </div>
+      </div>}
     </BtDrawer>
   );
 }

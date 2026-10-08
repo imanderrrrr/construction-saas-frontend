@@ -1,6 +1,7 @@
 import { useScreenState } from '../workspace/WorkspaceState';
 // ConsumableInventory.tsx — Consumable supplies inventory management
 
+import { moneyInputCents } from '../lib/moneyInput';
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -39,6 +40,7 @@ interface ConsumableItem {
   unit: string;
   currentStock: number;
   minimumStock: number;
+  unitCostCents: number;
   lastRestocked: string | null;
   notes?: string;
 }
@@ -60,6 +62,7 @@ function mapConsumableResponse(c: ConsumableResponse): ConsumableItem {
     unit: c.unit,
     currentStock: c.currentStock,
     minimumStock: c.minimumStock,
+    unitCostCents: c.unitCostCents ?? 0,
     lastRestocked: c.lastRestocked ?? null,
     notes: c.notes ?? undefined,
   };
@@ -152,6 +155,7 @@ export function ConsumableInventory({ onNavigate }: { onNavigate?: (section: str
       name:         payload.name,
       category:     payload.category,
       unit:         payload.unit,
+      unitCostCents: payload.unitCostCents,
       currentStock: payload.currentStock,
       minimumStock: payload.minimumStock,
       notes:        payload.notes || undefined,
@@ -169,6 +173,7 @@ export function ConsumableInventory({ onNavigate }: { onNavigate?: (section: str
       name:         updated.name,
       category:     updated.category,
       unit:         updated.unit,
+      unitCostCents: updated.unitCostCents,
       minimumStock: updated.minimumStock,
       notes:        updated.notes || undefined,
     })
@@ -416,10 +421,11 @@ function AddConsumableModal({ open, onClose, onAdd }: {
   const [category, setCategory] = useState('');
   const [unit, setUnit] = useState('');
   const [stock, setStock] = useState('');
+  const [unitCost, setUnitCost] = useState('0.00');
   const [minStock, setMinStock] = useState('');
   const [notes, setNotes] = useState('');
 
-  const canSubmit = name.trim() && category && unit && Number(stock) >= 0 && Number(minStock) >= 0;
+  const canSubmit = moneyInputCents(unitCost) != null && name.trim() && category && unit && Number(stock) >= 0 && Number(minStock) >= 0;
 
   const handleSubmit = () => {
     if (!canSubmit) return;
@@ -429,9 +435,10 @@ function AddConsumableModal({ open, onClose, onAdd }: {
       unit,
       currentStock: Number(stock),
       minimumStock: Number(minStock),
+      unitCostCents: moneyInputCents(unitCost)!,
       notes: notes.trim() || undefined,
     });
-    setName(''); setCategory(''); setUnit(''); setStock(''); setMinStock(''); setNotes('');
+    setName(''); setCategory(''); setUnit(''); setStock(''); setMinStock(''); setUnitCost('0.00'); setNotes('');
   };
 
   return (
@@ -477,6 +484,10 @@ function AddConsumableModal({ open, onClose, onAdd }: {
             </div>
           </div>
           <div>
+            <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide">{t('consumables.dialog.unitCost')}</label>
+            <Input type="number" min={0} step="0.01" value={unitCost} onChange={e => setUnitCost(e.target.value)} className="mt-1 h-9 border-[#D4D4D8] text-sm" />
+          </div>
+          <div>
             <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide">{t('consumables.dialog.notes')}</label>
             <textarea
               value={notes} onChange={e => setNotes(e.target.value)}
@@ -506,13 +517,14 @@ function EditConsumableModal({ item, onClose, onSave }: {
   const [category, setCategory] = useState(item.category);
   const [unit, setUnit] = useState(item.unit);
   const [minStock, setMinStock] = useState(String(item.minimumStock));
+  const [unitCost, setUnitCost] = useState((item.unitCostCents / 100).toFixed(2));
   const [notes, setNotes] = useState(item.notes ?? '');
 
-  const canSubmit = name.trim() && category && unit && Number(minStock) >= 0;
+  const canSubmit = moneyInputCents(unitCost) != null && name.trim() && category && unit && Number(minStock) >= 0;
 
   const handleSubmit = () => {
     if (!canSubmit) return;
-    onSave({ ...item, name: name.trim(), category, unit, minimumStock: Number(minStock), notes: notes.trim() || undefined });
+    onSave({ ...item, name: name.trim(), category, unit, minimumStock: Number(minStock), unitCostCents: moneyInputCents(unitCost)!, notes: notes.trim() || undefined });
   };
 
   return (
@@ -554,6 +566,10 @@ function EditConsumableModal({ item, onClose, onSave }: {
           <div>
             <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide">{t('consumables.dialog.minimumStock')} *</label>
             <Input type="number" min={0} value={minStock} onChange={e => setMinStock(e.target.value)} className="mt-1 h-9 border-[#D4D4D8] text-sm" />
+          </div>
+          <div>
+            <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide">{t('consumables.dialog.unitCost')}</label>
+            <Input type="number" min={0} step="0.01" value={unitCost} onChange={e => setUnitCost(e.target.value)} className="mt-1 h-9 border-[#D4D4D8] text-sm" />
           </div>
           <div>
             <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide">{t('consumables.dialog.notes')}</label>

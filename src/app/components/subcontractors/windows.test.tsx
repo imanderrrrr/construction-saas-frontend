@@ -13,6 +13,11 @@ const svc = vi.hoisted(() => ({
   registerPayment: vi.fn(),
   getJobObservations: vi.fn(),
   addJobObservation: vi.fn(),
+  listLineItemOptions: vi.fn(),
+}));
+vi.mock('../../services/budgetLineItems', async importOriginal => ({
+  ...(await importOriginal<typeof import('../../services/budgetLineItems')>()),
+  listLineItemOptions: svc.listLineItemOptions,
 }));
 vi.mock('../../services/subcontractors', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../services/subcontractors')>()),
@@ -49,6 +54,7 @@ describe('subcontractor windows', () => {
     svc.reviewInvoice.mockReset();
     svc.getJobObservations.mockReset().mockResolvedValue([]);
     svc.addJobObservation.mockReset();
+    svc.listLineItemOptions.mockReset().mockResolvedValue([{ id: 9, code: '01.01', name: 'Cimentación' }]);
   });
 
   afterEach(async () => {
@@ -127,6 +133,17 @@ describe('subcontractor windows', () => {
       expect(buttonByText(doc(), 'Observar')).toBeUndefined();
       expect(doc().textContent).toContain('Ya revisaste esta factura.');
       expect(buttonByText(doc(), 'Registrar pago')).toBeTruthy();
+    });
+    it('preserves a preassigned line item in the approval payload and disables the general option', async () => {
+      const inv = invoice({ id: 418, projectId: 7, status: 'IN_REVIEW', budgetLineItemId: 9, budgetLineItemCode: '01.01', budgetLineItemName: 'Cimentación' });
+      await render(inv);
+      click(buttonByText(doc(), 'Aprobar')); await flush();
+      const select = doc().querySelector('[data-testid="budget-line-item-select"]') as HTMLSelectElement;
+      expect(select.value).toBe('9'); expect(select.options[0].disabled).toBe(true);
+      expect(doc().textContent).toContain('Se conserva la partida existente');
+      svc.reviewInvoice.mockResolvedValue(invoice({ ...inv, status: 'APPROVED' }));
+      click(buttonByText(doc(), 'Aprobar factura')); await flush();
+      expect(svc.reviewInvoice).toHaveBeenCalledWith(418, expect.objectContaining({ budgetLineItemId: 9, action: 'APPROVE' }));
     });
 
     it('says an invoice with no file can still be approved', async () => {

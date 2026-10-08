@@ -382,7 +382,7 @@
   "payable.table.dueDate": "Fecha de vencimiento",
   "payable.category.materials": "Materiales",
   "payable.category.equipmentRental": "Alquiler de Equipos",
-  "payable.category.subcontractor": "Subcontratista",
+  "payable.category.subcontractor": "Subcontrato",
   "payable.category.services": "Servicios",
   "payable.category.other": "Otro",
   "payable.edit.action": "Editar cuenta / factura",
@@ -843,5 +843,6 @@
   "overview.paymentsRegistered_other": "{{count}} movimientos registrados",
   "overview.netMovement": "Neto de estos movimientos",
   "overview.netFormula": "Cobrado − pagado",
-  "overview.guideFinance": "Guía de Finanzas"
+  "overview.guideFinance": "Guía de Finanzas",
+  "payable.subcontractorInvoice": "Factura de subcontratista #{{number}}"
 }

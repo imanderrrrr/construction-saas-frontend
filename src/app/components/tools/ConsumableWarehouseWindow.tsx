@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { money } from '../budgets/bits';
 import { useTranslation } from 'react-i18next';
 import { getConsumableDispatches, updateConsumable, type ConsumableResponse, type DispatchResponse } from '../../services/warehouse';
 import { BtModal } from '../bt/windows';
@@ -63,7 +64,7 @@ export function ConsumableWarehouseWindow({ consumable, onClose, onSaved, onEdit
         : history.length === 0 ? <p className="text-sm text-[#8A8175]">{t('consumables.dialog.noDispatchRecords')}</p>
         : <ul className="divide-y divide-[#E7E1D5]">{history.map(row => <li key={row.id} className="py-3 flex items-start justify-between gap-3">
           <div className="min-w-0"><p className="text-sm font-semibold">{row.project}</p><Mono className="block text-[10px] text-[#8A8175] mt-1">{row.date} · {row.requestedBy}</Mono>{row.notes && <p className="text-sm text-[#5A5346] mt-1">{row.notes}</p>}</div>
-          <Mono className="text-sm shrink-0">{row.quantity} {row.unit}</Mono>
+          <Mono className="text-sm shrink-0">{row.quantity} {row.unit}<span className="block text-xs text-[#8A8175] mt-1">{money((row.totalCostCents ?? 0) / 100)}</span></Mono>
         </li>)}</ul>}
     </section>
   </BtModal>;

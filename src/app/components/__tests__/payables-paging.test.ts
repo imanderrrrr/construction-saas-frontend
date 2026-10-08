@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { drainPages } from '../../lib/paging';
-import { splitConsumption } from '../budgets/bits';
 
 // ════════════════════════════════════════════════════════════════════════
 // Paged finance lists must be drained, not sampled.
@@ -24,7 +23,6 @@ import { splitConsumption } from '../budgets/bits';
 // and the phantom labor collapses to zero.
 // ════════════════════════════════════════════════════════════════════════
 
-interface Row { id: number; projectId: number; paidAmount: number }
 
 /** A fake paged endpoint over a fixed row set, mirroring the server contract. */
 function pagedSource<T>(rows: T[]) {
@@ -74,53 +72,5 @@ describe('drainPages', () => {
     });
 
     expect(await drainPages(fetchPage)).toHaveLength(1);
-  });
-});
-
-describe('the Clara Reynolds phantom-labor regression', () => {
-  const PROJECT = 29;
-  const CONSUMED = 18776.21; // from the backend budget ledger
-  const EXPENSES = 0;        // this project has no expenses and no payroll
-
-  // The 7 real invoices that fell outside the 200-row window — 6 weekly
-  // "General Labor" bills plus one Freeman materials bill.
-  const BEYOND_WINDOW = [579.20, 1685, 644, 406, 520, 479, 432];
-  // The 33 that did load, summing to the $14,031.01 the screen showed.
-  const WITHIN_WINDOW = [...Array.from({ length: 32 }, () => 425), 431.01];
-
-  const projectBills: Row[] = [...WITHIN_WINDOW, ...BEYOND_WINDOW]
-    .map((paidAmount, id) => ({ id, projectId: PROJECT, paidAmount }));
-
-  /** The tenant's 271 bills, with this project's oldest 7 past position 200. */
-  const tenantBills: Row[] = [
-    ...projectBills.slice(0, 33),
-    ...Array.from({ length: 167 }, (_, i) => ({ id: 1000 + i, projectId: 7, paidAmount: 100 })),
-    ...projectBills.slice(33),
-    ...Array.from({ length: 64 }, (_, i) => ({ id: 2000 + i, projectId: 7, paidAmount: 100 })),
-  ];
-
-  it('reproduces the bug: one page + browser-side filter invents labor', async () => {
-    const { fetchPage } = pagedSource(tenantBills);
-    const firstPageOnly = (await fetchPage(0, 200)).content;
-
-    const seen = firstPageOnly.filter(p => p.projectId === PROJECT);
-    const { suppliers, payroll } = splitConsumption(CONSUMED, EXPENSES, seen);
-
-    expect(seen).toHaveLength(33);
-    expect(suppliers).toBeCloseTo(14031.01, 2);
-    expect(payroll).toBeCloseTo(4745.20, 2); // the phantom
-  });
-
-  it('fixes it: draining the project-scoped list leaves no phantom labor', async () => {
-    // What the fixed screen does — the server filters by project, the client
-    // drains every page of that filtered list.
-    const { fetchPage } = pagedSource(projectBills);
-
-    const bills = await drainPages(fetchPage);
-    const { suppliers, payroll } = splitConsumption(CONSUMED, EXPENSES, bills);
-
-    expect(bills).toHaveLength(40);
-    expect(suppliers).toBeCloseTo(18776.21, 2);
-    expect(payroll).toBeCloseTo(0, 2); // no labor on this project, and none invented
   });
 });

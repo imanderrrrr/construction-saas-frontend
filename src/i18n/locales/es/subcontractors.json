@@ -344,5 +344,8 @@
   "page": "Página {{current}} de {{total}}",
   "noPermission.big": "Solo administradores",
   "noPermission.title": "Esta sección la ve solo quien administra la cuenta.",
-  "rateLimited": "Demasiadas consultas seguidas. Espera unos segundos."
+  "rateLimited": "Demasiadas consultas seguidas. Espera unos segundos.",
+  "inv.row.payable": "Cuenta por pagar: {{number}} · {{status}}",
+  "tl.action.PAYMENT_VOIDED": "Pago anulado",
+  "pay.inQuickBooks": "Registrar pago en QuickBooks"
 }

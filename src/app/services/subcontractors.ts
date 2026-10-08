@@ -129,6 +129,10 @@ export type InvoiceStatus = 'SUBMITTED' | 'IN_REVIEW' | 'OBSERVED' | 'APPROVED' 
 export interface SubcontractorInvoiceDTO {
   id: number;
   jobId: number;
+  projectId?: number;
+  budgetLineItemId?: number | null;
+  budgetLineItemCode?: string | null;
+  budgetLineItemName?: string | null;
   jobTitle: string;
   projectName: string | null;
   subcontractorId: number;
@@ -144,6 +148,9 @@ export interface SubcontractorInvoiceDTO {
   reviewerComment: string | null;
   reviewedAt: string | null;
   payableId?: number | null;
+  payableBillNumber?: string | null;
+  paymentsInQuickBooks?: boolean;
+  payableStatus?: 'PENDING' | 'PARTIAL' | 'PAID' | 'OVERDUE' | null;
   paidAmountCents?: number;
   outstandingCents?: number;
   paidAt: string | null;
@@ -153,6 +160,7 @@ export interface SubcontractorInvoiceDTO {
 }
 
 export interface ReviewInvoicePayload {
+  budgetLineItemId?: number | null;
   action: 'APPROVE' | 'OBSERVE';
   comment?: string | null;
   dueDate?: string;

@@ -12,6 +12,7 @@ export interface ExpenseResponse {
   workerName: string | null;
   workerUsername: string;
   projectId: number;
+  budgetLineItemId?: number | null;
   projectName: string;
   expenseType: string;
   amountCents: number;
@@ -207,6 +208,7 @@ function qs(params: Record<string, string | number | null | undefined>): string 
 
 export async function createExpense(
   data: {
+    budgetLineItemId?: number | null;
     projectId: number;
     expenseType: string;
     amountCents: number;
@@ -247,6 +249,7 @@ export function getMySummary(): Promise<ExpenseSummaryResponse> {
 export async function resubmitExpense(
   id: number,
   data: {
+    budgetLineItemId?: number | null;
     projectId: number;
     expenseType: string;
     amountCents: number;

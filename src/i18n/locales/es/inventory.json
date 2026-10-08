@@ -310,5 +310,10 @@
   "toast.returnError": "No se pudo registrar la devolución. Inténtalo de nuevo.",
   "toast.loadDispatchError": "No se pudieron cargar los datos de despacho",
   "toast.dispatched": "Despachado {{quantity}} {{unit}} de {{name}} → {{project}}",
-  "toast.dispatchError": "No se pudo despachar el insumo. Verifica el stock e inténtalo de nuevo."
+  "toast.dispatchError": "No se pudo despachar el insumo. Verifica el stock e inténtalo de nuevo.",
+  "consumables.dialog.unitCost": "Costo unitario ($)",
+  "consumables.dialog.invalidCost": "Indica un costo positivo o cero, con hasta dos decimales.",
+  "consumables.dialog.costSnapshotHint": "Cada despacho conserva el costo vigente al salir de bodega.",
+  "dispatch.dialog.estimatedCost": "Costo estimado: {{quantity}} × {{unitCost}} = {{total}}",
+  "dispatch.dialog.budgetCostNote": "Este valor se imputará automáticamente al consumo presupuestario de la obra seleccionada."
 }
