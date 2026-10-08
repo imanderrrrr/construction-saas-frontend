@@ -97,6 +97,7 @@ export const TITLE_KEYS: readonly string[] = [
   'notifPunchRejectedTitle',
   'notifPunchCommentedTitle',
   'notifPunchAssignedTitle',
+  'notifPunchReadyTitle',
   'notifJobAssignedTitle',
   'notifJobStatusUpdatedTitle',
   'notifJobObservationTitle',
@@ -117,6 +118,8 @@ export const TITLE_KEYS: readonly string[] = [
   'notifExpenseApprovedTitle',
   'notifExpenseObservedTitle',
   'notifExpenseRejectedTitle',
+  'notifBudgetLineItemWarningTitle',
+  'notifBudgetLineItemOverrunTitle',
   // Normally intercepted by resolveByType (the type is what both backends
   // share); resolved here too so the key alone is enough.
   'notifPwSetupTitle',
@@ -142,6 +145,13 @@ function resolveBody(key: string, p: Params, t: Translate, lang: string): string
   const expenseType = expenseTypeName(str(p, 'expenseType'), tr);
 
   switch (key) {
+    case 'notifBudgetLineItemWarningBody':
+    case 'notifBudgetLineItemOverrunBody':
+      return tr(key, {
+        project, code: str(p, 'code'), name: str(p, 'name'),
+        consumptionPct: new Intl.NumberFormat(intlLocale(lang), { maximumFractionDigits: 1 }).format(typeof p.consumptionPct === 'number' ? p.consumptionPct : 0),
+        spent: formatCents(int(p, 'spentCents')), revised: formatCents(int(p, 'revisedBudgetCents')),
+      });
     case 'notifEventApprovedBody':
       return withComment(tr('notifEventApprovedBody', { reviewer, event, date, project }), p, tr);
     case 'notifEventCorrectedBody':
@@ -213,6 +223,8 @@ function resolveBody(key: string, p: Params, t: Translate, lang: string): string
       return withReason(tr('notifPunchRejectedBody', { item: punchItem(p, tr), project }), p, tr);
     case 'notifPunchCommentedBody':
       return tr('notifPunchCommentedBody', { item: punchItem(p, tr), project, comment: str(p, 'comment') });
+    case 'notifPunchReadyBody':
+      return tr('notifPunchReadyBody', { actor: str(p, 'actor'), item: punchItem(p, tr), project });
     case 'notifPunchAssignedBody':
       return tr('notifPunchAssignedBody', { actor: str(p, 'actor'), item: punchItem(p, tr), project });
 

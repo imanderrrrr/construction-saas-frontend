@@ -1,4 +1,4 @@
-import { useScreenState, useProjectFilter, useWorkspace } from '../../workspace/WorkspaceState';
+import { useScreenState, useProjectFilter } from '../../workspace/WorkspaceState';
 import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight, Pencil, RefreshCw, Trash2 } from 'lucide-react';
@@ -59,7 +59,6 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
   const month = currentMonth();
   const isAdmin = AuthService.getCanonicalRole() === 'ADMIN';
   const bodyId = useId();
-  const workspace = useWorkspace();
 
   const [rows, setRows] = useState<Receivable[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -400,10 +399,10 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
           <option value="">{t('finance:receivable.filter.allClients')}</option>
           {clients.map(c => <option key={c} value={c}>{c}</option>)}
         </MonoSelect>
-        {!workspace && <MonoSelect value={projectId} onChange={e => setProjectId(e.target.value)} aria-label={t('common:labels.project')} className="text-[10px] py-2">
+        <MonoSelect value={projectId} onChange={e => setProjectId(e.target.value)} aria-label={t('common:labels.project')} className="text-[10px] py-2">
           <option value="">{t('common:labels.allProjects')}</option>
           {projects.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
-        </MonoSelect>}
+        </MonoSelect>
         <MonoSelect
           value={status}
           onChange={e => { setStatus(e.target.value); if (e.target.value === 'paid') setView('docs'); }}

@@ -1,6 +1,6 @@
 // BuildTrack — the notifications catalogue.
 //
-// Ported from the mobile app's app_en.arb / app_es.arb: the 116 `notif*` keys
+// Ported from the mobile app's app_en.arb / app_es.arb: the 118 `notif*` keys
 // the backend may name in `notifications.i18n`, plus the web inbox's own
 // chrome. Beyond the usual EN/ES parity, this pins the two things a port can
 // get wrong silently — a key the resolver composes but the catalogue lacks
@@ -23,8 +23,8 @@ describe('notifications locale coverage', () => {
     expect(Object.keys(esMap).sort()).toEqual(Object.keys(enMap).sort());
   });
 
-  it('carries the 116 notif* keys of the mobile catalogue and the inbox chrome', () => {
-    expect(Object.keys(enMap).filter(k => k.startsWith('notif'))).toHaveLength(116);
+  it('carries the mobile catalogue, WBS alerts and the inbox chrome', () => {
+    expect(Object.keys(enMap).filter(k => k.startsWith('notif'))).toHaveLength(122);
     expect(Object.keys(enMap).filter(k => k.startsWith('inbox.')).length).toBeGreaterThan(0);
   });
 
@@ -62,6 +62,7 @@ describe('every body key the server may send composes with no hole left', () => 
     tool: 'Taladro', code: 'T-01', deliveredBy: 'bodega1', receivedBy: 'luis',
     rfiNumber: 7, subject: 'Anclaje', dueDate: '2026-10-01',
     expenseType: 'PER_DIEM',
+    name: 'Cimentación', consumptionPct: 85, spentCents: 850000, revisedBudgetCents: 1000000,
   };
 
   // The one body key that is a variant, not a server key: the resolver reaches

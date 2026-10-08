@@ -77,7 +77,7 @@ function todayYMD() {
 
 // --- Main Component ------------------------------------------------------
 
-export function WorkerTime({ username }: { username: string }) {
+export function WorkerTime({ username, appearance = 'classic' }: { username: string; appearance?: 'classic' | 'workspace' }) {
   const { t, i18n } = useTranslation('time');
   // -- Projects & selection
   const [projects, setProjects]             = useState<WorkerProject[]>([]);
@@ -690,7 +690,9 @@ export function WorkerTime({ username }: { username: string }) {
 
   // === Render ============================================================
   return (
-    <div className="space-y-6 max-w-2xl mx-auto">
+    <div className={appearance === 'workspace'
+      ? 'space-y-6 max-w-2xl mx-auto [&_.rounded-xl]:rounded-none [&_.rounded-lg]:rounded-none [&_.rounded-2xl]:rounded-none [&_.font-mono]:font-bt-mono [&_h2]:font-bt-display [&_h2]:uppercase [&_h2]:text-4xl [&_label]:font-bt-mono [&_label]:uppercase [&_button]:shadow-none'
+      : 'space-y-6 max-w-2xl mx-auto'}>
 
       {/* Page header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -702,7 +704,7 @@ export function WorkerTime({ username }: { username: string }) {
           </div>
         </div>
         <span className="text-[11px] font-semibold font-mono px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full self-start">
-          {t('punch.workerLabel')} &middot; {username}
+          {appearance === 'workspace' ? t('common:roles.SUPERVISOR') : t('punch.workerLabel')} &middot; {username}
         </span>
       </div>
 

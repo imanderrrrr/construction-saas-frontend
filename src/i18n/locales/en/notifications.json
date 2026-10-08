@@ -9,7 +9,6 @@
   "inbox.empty": "No notifications",
   "inbox.emptyHint": "Updates from your team and projects will appear here.",
   "inbox.justNow": "just now",
-
   "notifEventCheckIn": "check-in",
   "notifEventCheckOut": "check-out",
   "notifEventLunchStart": "lunch start",
@@ -125,5 +124,11 @@
   "notifExpenseObservedTitle": "Expense observed",
   "notifExpenseObservedBody": "{{reviewer}} observed your expense ({{type}}) of {{amount}} on {{date}} for “{{project}}”.",
   "notifExpenseRejectedTitle": "Expense rejected",
-  "notifExpenseRejectedBody": "{{reviewer}} rejected your expense ({{type}}) of {{amount}} on {{date}} for “{{project}}”."
+  "notifExpenseRejectedBody": "{{reviewer}} rejected your expense ({{type}}) of {{amount}} on {{date}} for “{{project}}”.",
+  "notifPunchReadyTitle": "Punch item ready for review",
+  "notifPunchReadyBody": "{{actor}} completed {{item}} on “{{project}}”.",
+  "notifBudgetLineItemWarningTitle": "Budget line item warning",
+  "notifBudgetLineItemOverrunTitle": "Budget line item overrun",
+  "notifBudgetLineItemWarningBody": "{{code}} · {{name}} in {{project}} has consumed {{consumptionPct}}% of its budget ({{spent}} of {{revised}}).",
+  "notifBudgetLineItemOverrunBody": "{{code}} · {{name}} in {{project}} has reached {{consumptionPct}}% of its budget ({{spent}} of {{revised}}). Review the cost overrun."
 }

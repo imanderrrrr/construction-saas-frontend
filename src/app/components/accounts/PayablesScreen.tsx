@@ -1,4 +1,4 @@
-import { useScreenState, useProjectFilter, useWorkspace } from '../../workspace/WorkspaceState';
+import { useScreenState, useProjectFilter } from '../../workspace/WorkspaceState';
 import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus } from 'lucide-react';
@@ -66,7 +66,6 @@ export function PayablesScreen({ onNavigate }: { onNavigate?: (section: string) 
   const month = currentMonth();
   const canManage = ['ADMIN', 'FINANCE'].includes(AuthService.getCanonicalRole() ?? '');
   const bodyId = useId();
-  const workspace = useWorkspace();
 
   const [bills, setBills] = useState<VendorBill[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -351,10 +350,10 @@ export function PayablesScreen({ onNavigate }: { onNavigate?: (section: string) 
           <option value="">{t('finance:payable.filters.allVendors')}</option>
           {vendorOptions.map(v => <option key={v} value={v}>{v}</option>)}
         </MonoSelect>
-        {!workspace && <MonoSelect value={projectId} onChange={e => setProjectId(e.target.value)} aria-label={t('common:labels.project')} className="text-[10px] py-2">
+        <MonoSelect value={projectId} onChange={e => setProjectId(e.target.value)} aria-label={t('common:labels.project')} className="text-[10px] py-2">
           <option value="">{t('common:labels.allProjects')}</option>
           {projects.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
-        </MonoSelect>}
+        </MonoSelect>
         <MonoSelect value={category} onChange={e => setCategory(e.target.value)} aria-label={t('common:labels.category')} className="text-[10px] py-2">
           <option value="">{t('common:labels.allCategories')}</option>
           {Object.entries(CATEGORY_KEY_MAP).map(([k, key]) => <option key={k} value={k}>{t(`finance:${key}`)}</option>)}
@@ -703,7 +702,7 @@ function BillRow({ bill, today, dateLocale, selected, onSelect, onOpen, onPay }:
             {bill.billNumber}{bill.status === 'partial' ? ` · ${t('common:status.partial')}` : ''}
           </Mono>
         </div>
-        <Tag>{t(`finance:${CATEGORY_KEY_MAP[bill.category]}`)}</Tag>
+        <Tag className={bill.category === 'subcontractor' ? 'bg-violet-50 text-violet-700 border border-violet-200' : undefined}>{t(`finance:${CATEGORY_KEY_MAP[bill.category]}`)}</Tag>
         <Mono className="text-[10.5px] text-[#5A5346] truncate normal-case">{bill.project}</Mono>
         {dueBlock}
         <div className="text-right">
@@ -717,6 +716,7 @@ function BillRow({ bill, today, dateLocale, selected, onSelect, onOpen, onPay }:
           <Mono className={cn('block text-[10px] tracking-[0.07em]', bill.documentType === 'INVOICE' ? 'text-[#0A0A0A] font-semibold' : 'text-[#5A5346]')}>
             {bill.documentType === 'INVOICE' ? t('finance:payable.detail.docType.invoice') : t('finance:payable.detail.docType.bill')}
           </Mono>
+          {bill.subcontractorInvoiceId && <Mono className="block text-[9.5px] text-violet-700 mt-1 normal-case">{t('finance:payable.subcontractorInvoice', { number: bill.subcontractorInvoiceNumber ?? bill.subcontractorInvoiceId })}</Mono>}
           {bill.invoiceNumber && <Mono className="block text-[9.5px] text-[#A69C8D] mt-0.5 normal-case truncate">{bill.invoiceNumber}</Mono>}
         </div>
         <div className="justify-self-end" {...stop}>{payButton}</div>
@@ -736,8 +736,9 @@ function BillRow({ bill, today, dateLocale, selected, onSelect, onOpen, onPay }:
               {bill.billNumber} · {bill.project}
               {bill.invoiceNumber ? ` · ${bill.invoiceNumber}` : ''}
             </Mono>
+            {bill.subcontractorInvoiceId && <Mono className="block text-[9.5px] text-violet-700 mt-1 normal-case whitespace-normal break-words">{t('finance:payable.subcontractorInvoice', { number: bill.subcontractorInvoiceNumber ?? bill.subcontractorInvoiceId })}</Mono>}
           </div>
-          <Tag className="flex-shrink-0">{t(`finance:${CATEGORY_KEY_MAP[bill.category]}`)}</Tag>
+          <Tag className={cn('flex-shrink-0', bill.category === 'subcontractor' && 'bg-violet-50 text-violet-700 border border-violet-200')}>{t(`finance:${CATEGORY_KEY_MAP[bill.category]}`)}</Tag>
         </div>
         <div className="flex items-end justify-between gap-3 mt-2.5 pt-2.5 border-t border-[#F0EBE1]">
           <div className="min-w-0">

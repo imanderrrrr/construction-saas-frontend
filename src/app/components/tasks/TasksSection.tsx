@@ -1,3 +1,4 @@
+import { ScreenProjectFilter } from '../workspace/ScreenProjectFilter';
 import { useScreenState, useProjectFilter, useWorkspace } from '../../workspace/WorkspaceState';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -398,11 +399,9 @@ export function TasksSection({ supervisor = false }: { supervisor?: boolean } = 
               />
             </div>
             {supervisor ? (
-              <Mono className="text-[9.5px] tracking-[0.08em] text-[#A69C8D]">{t('tasks:filter.supervisorNote')}</Mono>
+              <><ScreenProjectFilter role="SUPERVISOR" value={projectId} onChange={value => setProjectId(value ? Number(value) : '')} /><Mono className="text-[9.5px] tracking-[0.08em] text-[#A69C8D]">{t('tasks:filter.supervisorNote')}</Mono></>
             ) : (
               <>
-                {!hasWorkspace && <>
-                {/* Standalone fallback; workspaces use the shared header picker. */}
                 <div className="hidden xl:flex items-center gap-[7px] flex-wrap">
                   <ProjectChip
                     active={projectId === ''}
@@ -427,7 +426,6 @@ export function TasksSection({ supervisor = false }: { supervisor?: boolean } = 
                   <option value="">{t('tasks:filter.projects')}</option>
                   {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </MonoSelect>
-                </>}
                 <MonoSelect
                   value={assigneeId}
                   onChange={e => setAssigneeId(e.target.value === 'none' ? 'none' : e.target.value ? Number(e.target.value) : '')}

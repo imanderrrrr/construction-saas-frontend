@@ -344,5 +344,8 @@
   "page": "Page {{current}} of {{total}}",
   "noPermission.big": "Admins only",
   "noPermission.title": "This section is only visible to whoever administers the account.",
-  "rateLimited": "Too many requests in a row. Wait a few seconds."
+  "rateLimited": "Too many requests in a row. Wait a few seconds.",
+  "inv.row.payable": "Payable: {{number}} · {{status}}",
+  "tl.action.PAYMENT_VOIDED": "Payment voided",
+  "pay.inQuickBooks": "Register payment in QuickBooks"
 }

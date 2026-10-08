@@ -307,7 +307,7 @@ export function TmSignatureHandoff({ ticket, onFinished, onCancel }: Props) {
                 left alone — what the signer puts their name to must not depend
                 on which surface opened it. Only the frame around it is ours. */}
             <div className="p-6 sm:p-8">
-              <SignatureDocumentView doc={doc} />
+              <SignatureDocumentView doc={doc} sessionToken={sessionToken ?? undefined} />
             </div>
 
             <section className="border-t border-[#E4E4E7] bg-[#FBF8F2] p-6 sm:p-8">

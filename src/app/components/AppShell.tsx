@@ -6,7 +6,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { AccountDrawer } from './account/AccountDrawer';
-import { WorkspaceProjectPicker } from './workspace/WorkspaceProjectPicker';
 import { isFieldRole } from './users/shared';
 import { workspaceStorageKey } from '../workspace/paths';
 import type { CanonicalRole } from '../types';
@@ -124,7 +123,7 @@ export function AppShell({ role, username, panelLabel, navItems, navGroups = [],
     <div className="flex-1 flex flex-col min-w-0">
       <header className="min-h-16 bg-[#FAF7F0] border-b border-[#DBD0BB] flex flex-wrap items-center justify-between gap-3 px-4 md:px-6 py-3 sticky top-0 z-30">
         <div className="flex items-center gap-3 min-w-0"><button type="button" aria-label={t('workspace.openNavigation')} onClick={() => setSidebarOpen(true)} className={`md:hidden p-2 border border-[#DBD0BB] ${FOCUS}`}><Menu className="size-5" /></button><nav aria-label={t('workspace.location')} className="flex items-center gap-2 text-sm min-w-0">{activeGroup && <><span className="text-[#8A8175]">{activeGroup.label}</span><span aria-hidden="true" className="text-[#B4A992]">/</span></>}<h2 className="truncate font-semibold text-[#0A0A0A]">{pageTitle}</h2></nav></div>
-        <div className="flex items-center gap-2">{['ADMIN', 'FINANCE', 'SUPERVISOR'].includes(role) && ['schedules', 'task-board', 'budgets', 'invoices', 'accounts-receivable', 'accounts-payable', 'expenses', 'approved-expenses', 'hours', 'labor-cost', 'labor-payroll', 'tm-field', 'tm', 'tm-office', 'punch-list', 'rfi', 'time-approvals', 'supervisor-hours'].includes(activeSection) && <WorkspaceProjectPicker role={role} />}
+        <div className="flex items-center gap-2">
           <button type="button" aria-label={t('workspace.findSection')} title={`${t('workspace.findSection')} (Ctrl/⌘ K)`} onClick={() => setSearchOpen(true)} className={`size-9 flex items-center justify-center text-[#5A5346] hover:bg-[#EEE7DA] ${FOCUS}`}><Search className="size-[18px]" /></button>
           {topbarExtra}<LanguageSwitcher variant="shell" />
           <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="sm" aria-label={t('account')} className="h-9 px-2 rounded-none"><span className="size-8 flex items-center justify-center bg-[#0A0A0A] text-[#F97316] text-xs font-semibold">{initials}</span></Button></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-56 rounded-none border-[#DBD0BB]"><DropdownMenuLabel>{t('signedInAs', { username })}</DropdownMenuLabel><DropdownMenuSeparator />{!isFieldRole(role) && <DropdownMenuItem onClick={() => setAccountOpen(true)}><UserRound className="size-4 mr-2" />{t('account')}</DropdownMenuItem>}{role === 'ADMIN' && <DropdownMenuItem onClick={() => go('billing')}><Settings className="size-4 mr-2" />{navItems.find(i => i.key === 'billing')?.label}</DropdownMenuItem>}<DropdownMenuItem onClick={onLogout} className="text-[#C2410C]"><LogOut className="size-4 mr-2" />{t('signOut')}</DropdownMenuItem></DropdownMenuContent></DropdownMenu>

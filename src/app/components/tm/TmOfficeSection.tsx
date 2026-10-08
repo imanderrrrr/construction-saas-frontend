@@ -1,3 +1,4 @@
+import { ScreenProjectFilter } from '../workspace/ScreenProjectFilter';
 import { useScreenState, useProjectFilter } from '../../workspace/WorkspaceState';
 // BuildTrack — The office side of T&M: what is waiting, and turning a signed
 // ticket into a change order.
@@ -66,7 +67,7 @@ export function TmOfficeSection() {
   const [failed, setFailed] = useState(false);
 
   const [statusFilter, setStatusFilter] = useScreenState<'' | TmTicketStatus>('estado', '');
-  const [projectFilter] = useProjectFilter<string>('');
+  const [projectFilter, setProjectFilter] = useProjectFilter<string>('');
   const [expanded, setExpanded] = useScreenState<number | null>('registro', null, 'push');
 
   const [converting, setConverting] = useState<TmTicket | null>(null);
@@ -182,6 +183,7 @@ export function TmOfficeSection() {
 
       <div className="bg-white border border-[#E4E4E7] p-3.5">
         <div className="flex flex-wrap items-center gap-2.5">
+          <ScreenProjectFilter value={projectFilter} onChange={setProjectFilter} />
           <select
             aria-label={t('filter.status')}
             value={statusFilter}

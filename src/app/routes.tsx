@@ -230,7 +230,7 @@ export const routes = [
     ['/finance/clients', 'clients'],
     ['/finance/receivables', 'accounts-receivable'],
     ['/finance/payables', 'accounts-payable'],
-    ['/finance/invoices', 'accounts-receivable'],
+    ['/finance/invoices', 'invoices'],
     ['/finance/labor-cost', 'labor-cost'],
     ['/finance/payroll', 'labor-payroll'],
     ['/finance/supervisor-hours', 'supervisor-hours'],

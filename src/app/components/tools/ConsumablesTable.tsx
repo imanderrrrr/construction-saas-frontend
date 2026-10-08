@@ -17,8 +17,8 @@ import type { TableState } from './ToolsTable';
  * disagree.
  */
 
-const GRID = 'grid grid-cols-[96px_1fr_300px_140px_168px_132px] gap-3 items-center';
-const GRID_MD = 'grid grid-cols-[88px_1fr_240px_132px_96px] gap-3 items-center';
+const GRID = 'grid grid-cols-[96px_minmax(140px,1fr)_minmax(160px,240px)_112px_120px_64px] gap-3 items-center';
+const GRID_MD = 'grid grid-cols-[76px_minmax(120px,1fr)_160px_100px_60px] gap-3 items-center';
 
 export function ConsumablesTable({ state, consumables, lang, filterCount, total, flashId, onAdjust, onRegister, onRetry, onClearFilters }: {
   state: TableState;
@@ -141,7 +141,7 @@ function Row({ consumable, lang, flash, onAdjust }: { consumable: ConsumableResp
         <Mono className={cn('text-[12px] tabular-nums text-right', low ? 'text-[#C2410C] font-semibold' : 'text-[#0B0A09]')}>{consumable.minimumStock}</Mono>
       </div>
 
-      <div className={cn(GRID_MD, 'hidden md:grid xl:hidden')}>
+      <div className={cn(GRID_MD, 'hidden lg:grid xl:hidden')}>
         <Code className="text-[11px] truncate">{consumable.code}</Code>
         <div className="min-w-0">
           <div className="text-[13.5px] font-semibold text-[#0B0A09] truncate">{consumable.name}</div>
@@ -155,7 +155,7 @@ function Row({ consumable, lang, flash, onAdjust }: { consumable: ConsumableResp
         <Mono className={cn('text-[12px] tabular-nums text-right', low ? 'text-[#C2410C] font-semibold' : 'text-[#0B0A09]')}>{consumable.minimumStock}</Mono>
       </div>
 
-      <div className="md:hidden">
+      <div className="lg:hidden">
         <div className="flex items-center justify-between gap-2">
           <Code className="text-[11px]">{consumable.code}</Code>
           <LightChip light={consumable.status} />

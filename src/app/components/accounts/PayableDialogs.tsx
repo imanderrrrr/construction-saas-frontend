@@ -10,6 +10,7 @@ import { fmtMoney } from '../invoices/bits';
 import { ApiError } from '../../lib/api';
 import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 import { businessToday } from '../../helpers/dateTime';
+import { BudgetLineItemSelector } from '../budgets/wbs/BudgetLineItemSelector';
 import {
   convertPayableToInvoice, createPayable, deletePayable, getPayable, markPayableUnpaid, reassignPayableProject,
   recordPayablePayment, updatePayableAmount, updatePayableDates, updatePayableInfo,
@@ -367,6 +368,7 @@ export function CreateBillDialog({ open, vendors, projects, suggestedNumber, onC
   const [vendorOther, setVendorOther] = useState('');
   const [category, setCategory] = useState('');
   const [projectId, setProjectId] = useState('');
+  const [budgetLineItemId, setBudgetLineItemId] = useState<number | null>(null);
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [receivedDate, setReceivedDate] = useState(businessToday());
@@ -379,6 +381,7 @@ export function CreateBillDialog({ open, vendors, projects, suggestedNumber, onC
     setSeeded(true);
     setNumber(suggestedNumber);
     setVendor(''); setVendorOther(''); setCategory(''); setProjectId('');
+    setBudgetLineItemId(null);
     setDescription(''); setAmount(''); setReceivedDate(businessToday()); setDueDate('');
     setNotes(''); setFiles([]);
   }
@@ -410,6 +413,7 @@ export function CreateBillDialog({ open, vendors, projects, suggestedNumber, onC
     try {
       const created = await createPayable({
         billNumber: number || undefined, vendor: who, category, projectId: project.id,
+        ...(budgetLineItemId != null ? { budgetLineItemId } : {}),
         description: description.trim(), receivedDate, dueDate, amount: amt,
         notes: notes.trim() || undefined,
       });
@@ -463,13 +467,14 @@ export function CreateBillDialog({ open, vendors, projects, suggestedNumber, onC
             </div>
             <div>
               <FieldLabel htmlFor="ap-new-project">{t('common:labels.project')}</FieldLabel>
-              <MonoSelect id="ap-new-project" value={projectId} onChange={e => setProjectId(e.target.value)} className="w-full h-10 normal-case">
+              <MonoSelect id="ap-new-project" value={projectId} onChange={e => { setProjectId(e.target.value); setBudgetLineItemId(null); }} className="w-full h-10 normal-case">
                 <option value="">{t('finance:payable.create.projectPlaceholder')}</option>
                 {projects.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
               </MonoSelect>
             </div>
           </div>
           <div>
+            <BudgetLineItemSelector projectId={projectId ? Number(projectId) : null} value={budgetLineItemId} onChange={setBudgetLineItemId} disabled={busy} />
             <FieldLabel htmlFor="ap-new-desc">{t('finance:payable.create.description')}</FieldLabel>
             <input id="ap-new-desc" value={description} maxLength={FIELD_LIMITS.NOTE}
               onChange={e => setDescription(e.target.value)} placeholder={t('finance:payable.create.descriptionPlaceholder')} className={INPUT} />

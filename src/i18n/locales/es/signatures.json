@@ -67,5 +67,7 @@
   "panel.documentChanged": "Ojo: la factura cambió después de mandar el enlace.",
   "panel.documentChangedHint": "El cliente ve y firma la versión que se le mandó. Si quieres que firme la nueva, pide la firma otra vez.",
   "panel.signedDocumentChanged": "Ojo: la factura cambió después de que la firmaron. La firma es de la versión anterior.",
-  "panel.signedDocumentChangedHint": "El PDF ya no imprime esa firma. Si quieres que firmen la versión nueva, pide la firma de nuevo."
+  "panel.signedDocumentChangedHint": "El PDF ya no imprime esa firma. Si quieres que firmen la versión nueva, pide la firma de nuevo.",
+  "doc.evidence": "Fotos de evidencia",
+  "doc.viewPhoto": "Ver foto: {{name}}"
 }

@@ -10,8 +10,11 @@ import { fmtUSD } from '../projects/helpers';
 import { tenantCompanyName } from '../../services/branding';
 import { listActiveUsers, type UserDTO } from '../../services/users';
 import { listProjects, type ProjectResponse } from '../../services/projects';
+import { getSupervisorProjects } from '../../services/time';
+import { ApiError } from '../../lib/api';
 import {
   adminBatchApprove, approveExpense, observeExpense, rejectExpense,
+  getSupervisorSummary,
   type BatchApproveResponse, type ExpenseResponse,
 } from '../../services/expenses';
 import { nDaysAgo, businessToday } from '../../helpers/dateTime';
@@ -28,8 +31,8 @@ import {
 /**
  * Gastos — la bandeja donde se aprueba el dinero de campo.
  *
- * Una pantalla para los dos roles: el administrador revisa y aprueba, finanzas
- * consulta el historial de lo aprobado. Sustituye a `ExpenseManagement` y a
+ * Una pantalla para los roles web: administración y supervisión revisan su
+ * ámbito autorizado, finanzas consulta el historial de lo aprobado. Sustituye a `ExpenseManagement` y a
  * `FinanceExpenses`, que eran ~1.700 líneas dibujando la misma tabla.
  *
  * Tres cosas que aquí no se hacen, y que son la razón del rediseño:
@@ -40,7 +43,7 @@ import {
  *   · no hay toasts de éxito: aprobar, devolver y rechazar se acusan en la
  *     fila y en la cabecera, que es donde ocurrieron.
  */
-export function ExpensesSection({ readOnly = false }: { readOnly?: boolean }) {
+export function ExpensesSection({ readOnly = false, mode = 'admin' }: { readOnly?: boolean; mode?: 'admin' | 'supervisor' }) {
   const { t, i18n } = useTranslation(['admin', 'common']);
   // El recorte con el que llega quien pulsó una cifra del Reporte de gastos.
   // Se lee UNA vez —`takeInboxPreset` lo borra al leerlo— porque volver aquí
@@ -67,17 +70,18 @@ export function ExpensesSection({ readOnly = false }: { readOnly?: boolean }) {
   const [group, setGroup] = useScreenState<GroupKey>('grupo', readOnly ? 'project' : 'status', 'replace', ['none', 'status', 'project', 'worker']);
 
   const { rows, loading, listError, summary, summaryError, previous, reload, reloadSummary } =
-    useExpenseInbox(tab, filters, readOnly);
+    useExpenseInbox(tab, filters, readOnly, mode === 'supervisor');
 
   const [tenant, setTenant] = useState<string | null>(null);
   const [workers, setWorkers] = useState<UserDTO[]>([]);
-  const [projects, setProjects] = useState<ProjectResponse[]>([]);
+  const [projects, setProjects] = useState<Pick<ProjectResponse, 'id' | 'name'>[]>([]);
   useEffect(() => {
     // Degrada en silencio: sin el nombre, el antetítulo simplemente no lo dice.
     tenantCompanyName().then(setTenant).catch(() => { /* sin nombre */ });
     listActiveUsers().then(setWorkers).catch(() => { /* el filtro se queda en «todos» */ });
-    listProjects({ size: 200 }).then(r => setProjects(r.content)).catch(() => { /* idem */ });
-  }, []);
+    (mode === 'supervisor' ? getSupervisorProjects() : listProjects({ size: 200 }).then(r => r.content))
+      .then(setProjects).catch(() => { /* the scoped list still loads */ });
+  }, [mode]);
 
   // Revisión
   const [target, setTarget] = useState<ReviewTarget | null>(null);
@@ -92,6 +96,7 @@ export function ExpensesSection({ readOnly = false }: { readOnly?: boolean }) {
   const [batchOpen, setBatchOpen] = useState(false);
   const [batchResult, setBatchResult] = useState<BatchApproveResponse | null>(null);
   const [batchError, setBatchError] = useState<string | null>(null);
+  const [batchPending, setBatchPending] = useState<ExpenseResponse[]>([]);
 
   const [receipt, setReceipt] = useState<ExpenseResponse | null>(null);
 
@@ -118,9 +123,9 @@ export function ExpensesSection({ readOnly = false }: { readOnly?: boolean }) {
     const { kind, expense } = target;
     setBusy(true); setWindowError(null);
     try {
-      if (kind === 'approve') await approveExpense(expense.id, 'admin', comment || undefined);
-      else if (kind === 'observe') await observeExpense(expense.id, comment, 'admin');
-      else await rejectExpense(expense.id, comment, 'admin');
+      if (kind === 'approve') await approveExpense(expense.id, mode, comment || undefined);
+      else if (kind === 'observe') await observeExpense(expense.id, comment, mode);
+      else await rejectExpense(expense.id, comment, mode);
       setTarget(null);
       setRowErrors(e => { const next = { ...e }; delete next[expense.id]; return next; });
       // Sin toast: el acuse es la propia fila, que se queda donde estaba con
@@ -139,7 +144,20 @@ export function ExpensesSection({ readOnly = false }: { readOnly?: boolean }) {
   const runBatch = async () => {
     setBusy(true); setBatchError(null);
     try {
-      const res = await adminBatchApprove(toScope(filters));
+      // The supervisor batch endpoint ignores filters. Review exactly the
+      // rows shown in the confirmation, using its authorized per-row API.
+      let res: BatchApproveResponse;
+      if (mode === 'supervisor') {
+        const results = await Promise.allSettled(batchPending.map(e => approveExpense(e.id, 'supervisor')));
+        res = { approvedCount: results.filter(r => r.status === 'fulfilled').length, skipped: [] };
+        results.forEach((result, index) => {
+          if (result.status === 'rejected') res.skipped!.push({
+            expenseId: batchPending[index].id,
+            code: result.reason instanceof ApiError ? result.reason.code ?? 'ERROR' : 'ERROR',
+            reason: result.reason instanceof Error ? result.reason.message : null,
+          });
+        });
+      } else res = await adminBatchApprove(toScope(filters));
       setBatchResult(res);
       reload();
     } catch (err: unknown) {
@@ -203,7 +221,7 @@ export function ExpensesSection({ readOnly = false }: { readOnly?: boolean }) {
         {/* Barra de acciones — ancla 4 del recorrido, en la barra, no en el botón */}
         <div className="flex items-center gap-2.5" data-tour="sec.expenses.acciones">
           {!readOnly && pending.length > 0 && (
-            <PrimaryButton onClick={() => { setBatchResult(null); setBatchError(null); setBatchOpen(true); }}>
+            <PrimaryButton onClick={() => { setBatchPending(pending); setBatchResult(null); setBatchError(null); setBatchOpen(true); }}>
               {t('expenses.batch.cta', { count: pending.length, amount: fmtUSD(pending.reduce((s, e) => s + e.amountCents, 0)) })}
             </PrimaryButton>
           )}
@@ -390,7 +408,8 @@ export function ExpensesSection({ readOnly = false }: { readOnly?: boolean }) {
       )}
       {batchOpen && (
         <BatchWindow
-          pending={pending}
+          pending={batchPending}
+          loadScopeSummary={mode === 'supervisor' ? getSupervisorSummary : undefined}
           filters={filters}
           filterChips={filterChips}
           busy={busy}

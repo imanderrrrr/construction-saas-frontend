@@ -33,7 +33,7 @@ interface ProjectSlice {
   after: number | null;
 }
 
-export function BatchWindow({ pending, filters, filterChips, busy, error, result, onClose, onConfirm }: {
+export function BatchWindow({ pending, filters, filterChips, busy, error, result, onClose, onConfirm, loadScopeSummary = getAdminSummary }: {
   pending: ExpenseResponse[];
   filters: Filters;
   filterChips: string[];
@@ -42,6 +42,7 @@ export function BatchWindow({ pending, filters, filterChips, busy, error, result
   result: BatchApproveResponse | null;
   onClose: () => void;
   onConfirm: () => void;
+  loadScopeSummary?: () => Promise<ExpenseSummaryResponse>;
 }) {
   const { t } = useTranslation(['admin', 'common']);
   const [understood, setUnderstood] = useState(false);
@@ -51,9 +52,9 @@ export function BatchWindow({ pending, filters, filterChips, busy, error, result
   // fuera este filtro. Una llamada, y solo mientras la ventana está abierta.
   useEffect(() => {
     let cancelled = false;
-    getAdminSummary().then(s => { if (!cancelled) setCompany(s); }).catch(() => { /* la ventana funciona sin este dato */ });
+    loadScopeSummary().then(s => { if (!cancelled) setCompany(s); }).catch(() => { /* optional total */ });
     return () => { cancelled = true; };
-  }, []);
+  }, [loadScopeSummary]);
 
   const slices = useMemo<ProjectSlice[]>(() => {
     const byProject = new Map<number, ProjectSlice>();
@@ -116,7 +117,7 @@ export function BatchWindow({ pending, filters, filterChips, busy, error, result
                     <span className="block text-[#5A5346]">
                       {s.code === 'PROJECT_CLOSED'
                         ? t('expenses.batch.skipped.projectClosed')
-                        : t('expenses.batch.skipped.notPending')}
+                        : s.code === 'EXPENSE_NOT_PENDING' ? t('expenses.batch.skipped.notPending') : s.reason ?? s.code}
                     </span>
                     <Mono className="block text-[9px] tracking-[0.1em] text-[#A69C8D] mt-0.5">{s.code}</Mono>
                   </li>

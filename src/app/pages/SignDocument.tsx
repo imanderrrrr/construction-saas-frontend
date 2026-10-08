@@ -197,7 +197,7 @@ export function SignDocument() {
   return (
     <Shell>
       <div className="p-5 sm:p-8">
-        <SignatureDocumentView doc={doc} />
+        <SignatureDocumentView doc={doc} sessionToken={sessionToken ?? undefined} />
       </div>
 
       <section className="border-t border-[#E7E1D5] bg-[#FBF8F2] p-5 sm:p-8" aria-labelledby={formId}>

@@ -101,7 +101,10 @@ function toPdfData(r: Receivable): InvoicePdfData {
   };
 }
 
-export function InvoiceManager({ onNavigate }: { onNavigate?: (section: string) => void } = {}) {
+export function InvoiceManager({ onNavigate, canManageBranding = true }: {
+  onNavigate?: (section: string) => void;
+  canManageBranding?: boolean;
+} = {}) {
   const { t, i18n } = useTranslation(['finance', 'common']);
   const lang = i18n.language;
 
@@ -271,7 +274,7 @@ export function InvoiceManager({ onNavigate }: { onNavigate?: (section: string) 
       <InvoiceWindow
         onClose={() => { setWindowOpen(false); focusCreate(); }}
         onCreated={handleCreated}
-        onOpenBranding={onNavigate ? () => onNavigate('invoice-branding') : undefined}
+        onOpenBranding={canManageBranding && onNavigate ? () => onNavigate('invoice-branding') : undefined}
       />
     );
   }
@@ -373,10 +376,10 @@ export function InvoiceManager({ onNavigate }: { onNavigate?: (section: string) 
       {/* ── Filters ──────────────────────────────────────────────────── */}
       <div className="bg-white border border-[#E7E1D5] p-3.5 md:px-4" data-tour="sec.invoices.filters">
         <div className="flex flex-wrap items-center gap-2.5">
-          {!workspace && <MonoSelect value={projectId} onChange={e => { setProjectId(e.target.value); setCurrent(0); }} aria-label={t('finance:invoice.filter.project')}>
+          <MonoSelect value={projectId} onChange={e => { setProjectId(e.target.value); setCurrent(0); }} aria-label={t('finance:invoice.filter.project')}>
             <option value="">{t('finance:invoice.filter.allProjects')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </MonoSelect>}
+          </MonoSelect>
           <MonoSelect value={docType} onChange={e => { setDocType(e.target.value); setCurrent(0); }} aria-label={t('finance:invoice.filter.type')}>
             <option value="">{t('finance:invoice.filter.allTypes')}</option>
             <option value="INVOICE">{t('finance:invoice.type.invoice')}</option>

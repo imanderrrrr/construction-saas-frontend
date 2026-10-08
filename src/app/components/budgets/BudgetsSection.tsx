@@ -1,4 +1,5 @@
 import { useScreenState, useProjectFilter, useWorkspace } from '../../workspace/WorkspaceState';
+import { ScreenProjectFilter } from '../workspace/ScreenProjectFilter';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -28,9 +29,9 @@ import { DetailDrawer } from './DetailDrawer';
 import { HistoryView } from './HistoryView';
 import { ReportView } from './ReportView';
 import { useConsumption } from './useConsumption';
+import { exportBudgetReport } from '../../services/budgets';
 import { Figure, FigureStrip, LoadFailure, ReadOnlyNote, TourAnchor, ViewSwitcher, type View } from './ui';
 import { WorksView } from './WorksView';
-import { exportLegacyBudgetDocument } from './legacyExport';
 
 /**
  * Presupuestos — one screen, two views, one set of permissions.
@@ -86,8 +87,8 @@ export function BudgetsSection({ readOnly = false, onNavigate }: {
   const { t, i18n } = useTranslation(['admin', 'common']);
   const lang = i18n.language;
   const workspace = useWorkspace();
-  const [projectId] = useProjectFilter<number | null>(null, true);
-  const [clientId] = useScreenState<number | 'all'>('cliente', 'all');
+  const [projectId, setProjectId] = useProjectFilter<number | null>(null, true);
+  const [clientId, setClientId] = useScreenState<number | 'all'>('cliente', 'all');
   const [initialIntent] = useState(() => peekSectionIntent('budgets'));
   useEffect(() => { clearSectionIntent('budgets'); }, []);
 
@@ -189,21 +190,21 @@ export function BudgetsSection({ readOnly = false, onNavigate }: {
     return pushTourScope({ key: tourKey, label: t('admin:budgets.title') });
   }, [view, screen.kind, tourKey, t]);
 
-  // The breakdown is a separate pair of requests and only the report needs it.
+  // The breakdown is a separate ledger request and only the report needs it.
   const loadSplit = consumption.load;
   useEffect(() => {
-    if (view === 'report' && !loading && failure == null) loadSplit(consumedByProject);
-  }, [view, loading, failure, loadSplit, consumedByProject]);
+    if ((view === 'report' || detailId != null) && !loading && failure == null) loadSplit(consumedByProject);
+  }, [view, detailId, loading, failure, loadSplit, consumedByProject]);
 
   const filtered = useMemo(() => applyFilters(projectId == null ? rows : rows.filter(row => row.id === projectId), workspace && clientId !== 'all' ? { ...filters, clientId } : filters), [rows, filters, projectId, clientId, workspace]);
   const worksRows = useMemo(() => sortWorks(filtered, worksSort), [filtered, worksSort]);
   const reportRows = useMemo(() => sortReport(filtered, reportSort), [filtered, reportSort]);
   const works = useMemo(() => worksTotals(filtered), [filtered]);
   const report = useMemo(() => reportTotals(filtered), [filtered]);
-  const filterCount = activeFilterCount(filters);
+  const filterCount = activeFilterCount(filters) + (projectId == null ? 0 : 1) + (clientId === 'all' ? 0 : 1);
   const hasFilters = filterCount > 0;
 
-  const resetFilters = () => setFilters(EMPTY_FILTERS);
+  const resetFilters = () => { setFilters(EMPTY_FILTERS); setProjectId(null); setClientId('all'); };
   const openDetail = (row: BudgetRow) => setDetail(row);
   const refresh = () => { void load(); };
 
@@ -254,13 +255,7 @@ export function BudgetsSection({ readOnly = false, onNavigate }: {
   async function runExport(format: 'pdf' | 'excel') {
     setExporting(true);
     try {
-      await exportLegacyBudgetDocument({
-        format,
-        rows: reportRows,
-        expenseRows: consumption.expenseRows,
-        companyName: tenant,
-        t,
-      });
+      await exportBudgetReport({ format, lang, readOnly, projectIds: reportRows.map(row => row.id) });
     } catch {
       toast.error(t('admin:budgets.export.error'));
     } finally {
@@ -370,9 +365,10 @@ export function BudgetsSection({ readOnly = false, onNavigate }: {
           </FigureStrip>
         </FiguresAnchor>
 
-        {/* ── The filters: four controls, shared, plus each view's sort ──── */}
+        {/* ── Screen filters, plus each view's sort ──── */}
         <div className="bg-white border border-[#E7E1D5] px-4 py-[11px]">
           <div className="flex flex-wrap items-center gap-2.5">
+            <ScreenProjectFilter projects={rows} value={projectId} onChange={value => setProjectId(value ? Number(value) : null)} />
             <div className="relative flex-1 min-w-[220px] max-w-[300px]">
               <Search className="w-3.5 h-3.5 text-[#A69C8D] absolute left-[11px] top-1/2 -translate-y-1/2" />
               <input
@@ -388,8 +384,8 @@ export function BudgetsSection({ readOnly = false, onNavigate }: {
             </div>
 
             <MonoSelect
-              value={filters.clientId === 'all' ? 'all' : String(filters.clientId)}
-              onChange={e => setFilters(f => ({ ...f, clientId: e.target.value === 'all' ? 'all' : Number(e.target.value) }))}
+              value={clientId !== 'all' ? String(clientId) : filters.clientId === 'all' ? 'all' : String(filters.clientId)}
+              onChange={e => { setClientId('all'); setFilters(f => ({ ...f, clientId: e.target.value === 'all' ? 'all' : Number(e.target.value) })); }}
               aria-label={t('admin:budgets.filter.client')}
               className={cn('py-2', filters.clientId !== 'all' && 'border-[#F97316] bg-[#FBEDE0] text-[#C2410C]')}
             >
@@ -575,10 +571,12 @@ export function BudgetsSection({ readOnly = false, onNavigate }: {
       all: t('admin:budgets.status.all.short'),
       closed: t('admin:budgets.status.closed.short'),
     };
-    const client = filters.clientId !== 'all'
-      ? clients.find(c => c.id === filters.clientId)?.name ?? null
+    const effectiveClient = clientId !== 'all' ? clientId : filters.clientId;
+    const client = effectiveClient !== 'all'
+      ? clients.find(c => c.id === effectiveClient)?.name ?? null
       : null;
     return [
+      projectId == null ? null : rows.find(row => row.id === projectId)?.name ?? t('common:workspace.worksiteId', { id: projectId }),
       client ? t('admin:budgets.universe.client', { name: client }) : null,
       status[filters.status],
       filters.risk !== 'all' ? risk[filters.risk] : null,

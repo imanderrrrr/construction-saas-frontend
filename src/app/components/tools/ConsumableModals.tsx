@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../ui/utils';
+import { moneyInputCents } from '../../lib/moneyInput';
 import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 import { createConsumable, updateConsumable, type ConsumableResponse } from '../../services/warehouse';
 import { BtModal } from '../bt/windows';
@@ -27,23 +28,32 @@ export function lightFor(stock: number, minimum: number): string {
   return stock <= minimum ? 'Low Stock' : 'In Stock';
 }
 
-export function ConsumableFormModal({ open, onOpenChange, onSaved }: {
+export function ConsumableFormModal({ open, onOpenChange, onSaved, consumable = null, warehouse = false }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved: (consumable: ConsumableResponse) => void;
+  consumable?: ConsumableResponse | null;
+  warehouse?: boolean;
 }) {
-  const { t } = useTranslation(['tools', 'common']);
+  const { t } = useTranslation(['tools', 'common', 'inventory']);
   const [name, setName] = useState('');
   const [unit, setUnit] = useState('');
   const [stock, setStock] = useState('0');
+  const [unitCost, setUnitCost] = useState('0.00');
   const [minimum, setMinimum] = useState('0');
   const [errors, setErrors] = useState<{ name?: string; unit?: string; numbers?: string; server?: string }>({});
   const [saving, setSaving] = useState(false);
+  const [category, setCategory] = useState('General');
+  const [notes, setNotes] = useState('');
 
   useEffect(() => {
     if (!open) return;
-    setName(''); setUnit(''); setStock('0'); setMinimum('0'); setErrors({}); setSaving(false);
-  }, [open]);
+    setName(consumable?.name ?? ''); setUnit(consumable?.unit ?? '');
+    setStock(String(consumable?.currentStock ?? 0)); setMinimum(String(consumable?.minimumStock ?? 0));
+    setCategory(consumable?.category ?? 'General'); setErrors({}); setSaving(false);
+    setNotes(consumable?.notes ?? '');
+    setUnitCost(((consumable?.unitCostCents ?? 0) / 100).toFixed(2));
+  }, [open, consumable]);
 
   const stockNumber = Number(stock) || 0;
   const minimumNumber = Number(minimum) || 0;
@@ -52,6 +62,7 @@ export function ConsumableFormModal({ open, onOpenChange, onSaved }: {
     const next: typeof errors = {};
     if (!name.trim()) next.name = t('tools:consumable.err.name');
     if (!unit.trim()) next.unit = t('tools:consumable.err.unit');
+    if (moneyInputCents(unitCost) == null) next.numbers = t('inventory:consumables.dialog.invalidCost');
     if (stockNumber < 0 || minimumNumber < 0) next.numbers = t('tools:consumable.err.negative');
     setErrors(next);
     if (Object.keys(next).length > 0) return;
@@ -59,13 +70,17 @@ export function ConsumableFormModal({ open, onOpenChange, onSaved }: {
     setSaving(true);
     try {
       // The code is the server's: CS-00x, never typed.
-      const saved = await createConsumable({
+      const details = {
         name: name.trim(),
-        category: 'General',
+        category: category.trim() || 'General',
         unit: unit.trim(),
-        currentStock: stockNumber,
         minimumStock: minimumNumber,
-      });
+        unitCostCents: moneyInputCents(unitCost)!,
+        ...(warehouse ? { notes: notes.trim() } : {}),
+      };
+      const saved = consumable
+        ? await updateConsumable(consumable.id, details)
+        : await createConsumable({ ...details, currentStock: stockNumber });
       onSaved(saved);
       onOpenChange(false);
     } catch {
@@ -85,13 +100,13 @@ export function ConsumableFormModal({ open, onOpenChange, onSaved }: {
       dismissible={false}
       closeDisabled={saving}
       kicker={t('tools:consumable.kicker')}
-      title={t('tools:consumable.title')}
+      title={consumable ? t('inventory:consumables.dialog.editTitle', { code: consumable.code }) : t('tools:consumable.title')}
       footer={
         <>
           <Mono className="text-[9px] tracking-[0.08em] text-[#A69C8D] md:mr-auto">{t('tools:consumable.footer')}</Mono>
           <SecondaryButton onClick={() => onOpenChange(false)} disabled={saving}>{t('common:buttons.cancel')}</SecondaryButton>
           <PrimaryButton onClick={submit} disabled={saving}>
-            {saving ? t('tools:form.submitting.new') : t('tools:form.submit.new')}
+            {saving ? t('tools:form.submitting.new') : consumable ? t('inventory:consumables.dialog.saveChanges') : t('tools:form.submit.new')}
           </PrimaryButton>
         </>
       }
@@ -100,10 +115,10 @@ export function ConsumableFormModal({ open, onOpenChange, onSaved }: {
         <div>
           <FieldLabel>{t('tools:form.code')}</FieldLabel>
           <div className="w-full h-10 border border-[#DBD0BB] bg-[#F3EEE4] px-3 flex items-center justify-between gap-2">
-            <Mono className="text-[13px] font-semibold tracking-[0.05em] text-[#8A8175]">CS-…</Mono>
-            <Mono className="text-[9px] tracking-[0.1em] text-[#A69C8D]">{t('tools:consumable.code.auto')}</Mono>
+            <Mono className="text-[13px] font-semibold tracking-[0.05em] text-[#8A8175]">{consumable?.code ?? 'CS-…'}</Mono>
+            {!consumable && <Mono className="text-[9px] tracking-[0.1em] text-[#A69C8D]">{t('tools:consumable.code.auto')}</Mono>}
           </div>
-          <FieldHint>{t('tools:consumable.code.hint')}</FieldHint>
+          {!consumable && <FieldHint>{t('tools:consumable.code.hint')}</FieldHint>}
         </div>
         <div>
           <FieldLabel htmlFor="cs-name" required>{t('tools:consumable.name')}</FieldLabel>
@@ -111,6 +126,15 @@ export function ConsumableFormModal({ open, onOpenChange, onSaved }: {
           {errors.name && <FieldError>{errors.name}</FieldError>}
         </div>
       </div>
+
+      {(warehouse || consumable) && <div className="mt-[14px]">
+        <FieldLabel htmlFor="cs-category">{t('inventory:consumables.dialog.category')}</FieldLabel>
+        <input id="cs-category" value={category} onChange={e => setCategory(e.target.value)} maxLength={FIELD_LIMITS.ENUM_TOKEN} className={INPUT} />
+      </div>}
+      {warehouse && <div className="mt-[14px]">
+        <FieldLabel htmlFor="cs-notes">{t('inventory:consumables.dialog.notes')}</FieldLabel>
+        <textarea id="cs-notes" value={notes} onChange={e => setNotes(e.target.value)} maxLength={FIELD_LIMITS.NOTE} className={cn(INPUT, 'h-20 py-2')} />
+      </div>}
 
       <div className="mt-[14px]">
         <FieldLabel htmlFor="cs-unit" required>{t('tools:consumable.unit')}</FieldLabel>
@@ -121,14 +145,19 @@ export function ConsumableFormModal({ open, onOpenChange, onSaved }: {
       <div className="grid grid-cols-2 gap-[14px] mt-[14px]">
         <div>
           <FieldLabel htmlFor="cs-stock" required>{t('tools:consumable.stock')}</FieldLabel>
-          <input id="cs-stock" type="number" min="0" value={stock} onChange={e => setStock(e.target.value)} className={cn(INPUT, 'bg-[#FAF7F0] tabular-nums', errors.numbers && INPUT_ERROR)} />
-          <FieldHint>{t('tools:consumable.stock.hint')}</FieldHint>
+          <input id="cs-stock" type="number" min="0" value={stock} disabled={consumable != null} onChange={e => setStock(e.target.value)} className={cn(INPUT, 'bg-[#FAF7F0] tabular-nums', errors.numbers && INPUT_ERROR)} />
+          <FieldHint>{t(consumable ? 'inventory:consumables.dialog.editDescription' : 'tools:consumable.stock.hint')}</FieldHint>
         </div>
         <div>
           <FieldLabel htmlFor="cs-min" required>{t('tools:consumable.minimum')}</FieldLabel>
           <input id="cs-min" type="number" min="0" value={minimum} onChange={e => setMinimum(e.target.value)} className={cn(INPUT, 'bg-[#FAF7F0] tabular-nums', errors.numbers && INPUT_ERROR)} />
           <FieldHint>{t('tools:consumable.minimum.hint')}</FieldHint>
         </div>
+      </div>
+      <div className="mt-[14px]">
+        <FieldLabel htmlFor="cs-unit-cost">{t('inventory:consumables.dialog.unitCost')}</FieldLabel>
+        <input id="cs-unit-cost" type="number" min="0" step="0.01" value={unitCost} onChange={e => setUnitCost(e.target.value)} className={cn(INPUT, 'tabular-nums')} />
+        <FieldHint>{t('inventory:consumables.dialog.costSnapshotHint')}</FieldHint>
       </div>
       {errors.numbers && <FieldError>{errors.numbers}</FieldError>}
 

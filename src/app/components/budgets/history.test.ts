@@ -40,9 +40,9 @@ describe('the balance before a movement', () => {
   });
 });
 
-describe('the nine movements', () => {
+describe('the consumption and contract movements', () => {
   it('names every type the backend writes', () => {
-    expect(Object.keys(MOVEMENTS)).toHaveLength(9);
+    expect(Object.keys(MOVEMENTS)).toHaveLength(12);
     expect(MOVEMENTS.LABOR_PAYMENT.key).toBe('laborPayment');
     expect(MOVEMENTS.PAYABLE_PAYMENT_VOID.sign).toBe('up');
   });

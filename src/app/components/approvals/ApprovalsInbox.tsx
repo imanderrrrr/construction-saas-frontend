@@ -1,10 +1,11 @@
+import { ScreenProjectFilter } from '../workspace/ScreenProjectFilter';
 import { useScreenState, useProjectFilter } from '../../workspace/WorkspaceState';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, CalendarPlus, Check, ChevronRight, Loader2, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  approveRecord, getAllTimeRecords, type TimeRecordResponse,
+  approveRecord, getAllTimeRecords, getAllSupervisorTimeRecords, type TimeRecordResponse,
 } from '../../services/time';
 import { ApiError } from '../../lib/api';
 import { businessToday } from '../../helpers/dateTime';
@@ -46,7 +47,7 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
   const lang = i18n.language;
 
   const [filters, setFilters] = useScreenState<Filters>('filtros', EMPTY);
-  const [projectId] = useProjectFilter<number | null>(null, true);
+  const [projectId, setProjectId] = useProjectFilter<number | null>(null, true);
   const [records, setRecords] = useState<TimeRecordResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -64,14 +65,19 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
       // browser over whatever landed here, so one page would quietly drop
       // records from the search — and from the counts built off this list.
       // The range (today / this week) is what bounds the sweep.
-      const rows = await getAllTimeRecords({
+      const scope = {
         projectId: projectId ?? undefined,
         status: filters.status || undefined,
-        role: mode === 'finance' ? 'SUPERVISOR' : filters.role || undefined,
+        role: mode === 'finance' ? 'SUPERVISOR' as const : filters.role || undefined,
         dateFrom: filters.range === 'today' ? today() : mondayOfWeek(),
         dateTo: today(),
-      });
-      setRecords(rows);
+      };
+      const rows = mode === 'supervisor'
+        ? await getAllSupervisorTimeRecords(scope)
+        : await getAllTimeRecords(scope);
+      // The supervisor endpoint scopes assigned worksites server-side; its
+      // contract has no project filter, so narrow the complete result here.
+      setRecords(projectId == null ? rows : rows.filter(r => r.projectId === projectId));
     } catch {
       setError(true); setRecords([]);
     } finally {
@@ -278,6 +284,7 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
       {/* Filters */}
       <div className="bg-white border border-[#E4E4E7] p-3.5" data-tour="sec.time-approvals.filters">
         <div className="flex flex-wrap items-center gap-2.5">
+          <ScreenProjectFilter role={mode === 'supervisor' ? 'SUPERVISOR' : mode === 'finance' ? 'FINANCE' : 'ADMIN'} value={projectId} onChange={value => setProjectId(value ? Number(value) : null)} />
           <div className="relative flex-1 min-w-[190px] max-w-[280px]">
             <Search className="w-3.5 h-3.5 text-[#A69C8D] absolute left-3 top-1/2 -translate-y-1/2" />
             <input value={filters.q} onChange={e => setF('q', e.target.value)}

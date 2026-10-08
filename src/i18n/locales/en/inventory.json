@@ -310,5 +310,10 @@
   "toast.returnError": "Failed to return tool. Please try again.",
   "toast.loadDispatchError": "Failed to load dispatch data",
   "toast.dispatched": "Dispatched {{quantity}} {{unit}} of {{name}} → {{project}}",
-  "toast.dispatchError": "Failed to dispatch supply. Check stock and try again."
+  "toast.dispatchError": "Failed to dispatch supply. Check stock and try again.",
+  "consumables.dialog.unitCost": "Unit cost ($)",
+  "consumables.dialog.invalidCost": "Enter a nonnegative cost with up to two decimals.",
+  "consumables.dialog.costSnapshotHint": "Each dispatch preserves the cost at the time it leaves the warehouse.",
+  "dispatch.dialog.estimatedCost": "Estimated cost: {{quantity}} × {{unitCost}} = {{total}}",
+  "dispatch.dialog.budgetCostNote": "This value will automatically be charged to the selected project’s budget consumption."
 }

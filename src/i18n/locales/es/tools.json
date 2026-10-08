@@ -227,5 +227,7 @@
   "minimum.effect.line": "Con {{minimum}} de mínimo y {{stock}} en bodega, este insumo pasa a {{light}}. Nada se despacha ni se descuenta: solo cambia cuándo avisa.",
   "minimum.submit": "Guardar mínimo",
 
-  "readOnly": "Para asignar o devolver, habla con Bodega"
+  "readOnly": "Para asignar o devolver, habla con Bodega",
+  "action.assignReturn": "Asignaciones y devoluciones",
+  "action.dispatch": "Despachar materiales"
 }

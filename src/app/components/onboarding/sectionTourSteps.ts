@@ -20,6 +20,7 @@
  * describe what appears inside it instead.
  */
 export const SECTION_TOUR_STEPS: Record<string, string[]> = {
+  'finance-overview': ['position', 'overdue', 'payments', 'month'],
   users: ['new-user', 'kpis', 'filters', 'roster'],
   'time-approvals': ['kpis', 'filters', 'queue'],
   hours: ['kpis', 'filters', 'list'],

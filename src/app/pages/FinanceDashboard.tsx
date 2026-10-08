@@ -80,6 +80,7 @@ type ActiveSection =
  * is the same screen under the same key on both panels.
  */
 const ONBOARDING_KEY: Partial<Record<ActiveSection, string>> = {
+  dashboard: 'finance-overview',
   'tm-office': 'tm-office',
 };
 // Presupuestos is the exception the comment above describes in reverse: the
@@ -128,10 +129,10 @@ function FinancePanel({ initialSection }: { initialSection?: ActiveSection }) {
   const [activeSection, navigateSection] = useSectionNavigation<ActiveSection>('FINANCE', initialSection === 'project-financials' ? 'budgets' : initialSection ?? 'dashboard');
 
   const handleLogout   = () => { document.cookie = 'ofjr_session=; Path=/; Max-Age=0'; navigate('/'); AuthService.logout(); };
-  const handleNavigate = (section: string) => {
+  const handleNavigate = (section: string, values?: Record<string, string | number | null>) => {
     const resolved = resolveSection('FINANCE', section);
     if (!(resolved in SECTION_META_KEYS)) return;
-    navigateSection(resolved);
+    navigateSection(resolved, values);
   };
 
   const navItems: AppShellNavItem[] = [
@@ -178,7 +179,7 @@ function FinancePanel({ initialSection }: { initialSection?: ActiveSection }) {
           onboardingKey ? (
             <button
               onClick={() => setIntroReplay(n => n + 1)}
-              title={t('admin:tour.helpButton')}
+              title={t(activeSection === 'dashboard' ? 'finance:overview.guideFinance' : 'admin:tour.helpButton')}
               className="w-9 h-9 flex items-center justify-center rounded-lg text-[#71717A] hover:text-[#F97316] hover:bg-[#FAFAFA] transition-colors"
             >
               <HelpCircle className="w-4 h-4" />
@@ -187,12 +188,12 @@ function FinancePanel({ initialSection }: { initialSection?: ActiveSection }) {
         }
       >
         {onboardingKey && (
-          <SectionTour autoStart={false} section={onboardingKey} username={username} replayNonce={introReplay} sectionLabel={t(metaKeys.titleKey)} />
+          <SectionTour autoStart={activeSection === 'dashboard'} section={onboardingKey} username={username} replayNonce={introReplay} sectionLabel={t(metaKeys.titleKey)} />
         )}
         {activeSection === 'dashboard' && (
-          <FinanceOverview username={username} onNavigate={handleNavigate} />
+          <FinanceOverview username={username} onNavigate={handleNavigate} onStartTutorial={() => setIntroReplay(n => n + 1)} />
         )}
-        {activeSection === 'invoices' && <Suspense fallback={<LoadingSkeleton />}><InvoiceManager onNavigate={handleNavigate} /></Suspense>}
+        {activeSection === 'invoices' && <Suspense fallback={<LoadingSkeleton />}><InvoiceManager onNavigate={handleNavigate} canManageBranding={false} /></Suspense>}
         {activeSection === 'clients' && (
           <Suspense fallback={<LoadingSkeleton />}>
             <ClientsSection readOnly projectSection="budgets" onNavigate={handleNavigate} />

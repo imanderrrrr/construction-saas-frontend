@@ -19,6 +19,12 @@ export default tseslint.config(
       'node_modules/**',
       'playwright-report/**',
       'test-results/**',
+      // Worktrees de trabajo: son una COPIA completa del repo dentro del repo.
+      // Sin esta exclusion `eslint .` analiza el arbol dos veces (372 de las
+      // 626 advertencias del 2026-09-18 salian de aqui) y, como ESLint 10
+      // resuelve el config mas cercano al archivo, aplica ademas las reglas
+      // del eslint.config.js que vive dentro del worktree.
+      '.claude/**',
       // Dead scaffolding, already excluded from tsconfig (see its comment).
       'src/imports/**',
       // Generated/vendored shadcn primitives — not hand-maintained style.

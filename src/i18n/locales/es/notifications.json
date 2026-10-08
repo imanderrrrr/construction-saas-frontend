@@ -9,7 +9,6 @@
   "inbox.empty": "Sin notificaciones",
   "inbox.emptyHint": "Las novedades de tu equipo y tus proyectos aparecerán aquí.",
   "inbox.justNow": "justo ahora",
-
   "notifEventCheckIn": "entrada",
   "notifEventCheckOut": "salida",
   "notifEventLunchStart": "inicio de almuerzo",
@@ -125,5 +124,11 @@
   "notifExpenseObservedTitle": "Gasto observado",
   "notifExpenseObservedBody": "{{reviewer}} observó tu gasto ({{type}}) por {{amount}} del {{date}} en “{{project}}”.",
   "notifExpenseRejectedTitle": "Gasto rechazado",
-  "notifExpenseRejectedBody": "{{reviewer}} rechazó tu gasto ({{type}}) por {{amount}} del {{date}} en “{{project}}”."
+  "notifExpenseRejectedBody": "{{reviewer}} rechazó tu gasto ({{type}}) por {{amount}} del {{date}} en “{{project}}”.",
+  "notifPunchReadyTitle": "Pendiente listo para revisión",
+  "notifPunchReadyBody": "{{actor}} completó {{item}} en “{{project}}”.",
+  "notifBudgetLineItemWarningTitle": "Alerta preventiva de partida",
+  "notifBudgetLineItemOverrunTitle": "Sobrecosto en partida",
+  "notifBudgetLineItemWarningBody": "{{code}} · {{name}} en {{project}} ha consumido el {{consumptionPct}}% de su presupuesto ({{spent}} de {{revised}}).",
+  "notifBudgetLineItemOverrunBody": "{{code}} · {{name}} en {{project}} llegó al {{consumptionPct}}% de su presupuesto ({{spent}} de {{revised}}). Revisa la fuga de costos."
 }

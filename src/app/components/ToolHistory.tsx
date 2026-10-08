@@ -1,4 +1,5 @@
 import { useScreenState } from '../workspace/WorkspaceState';
+import { SectionHeader } from './workspace/SectionChrome';
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -44,7 +45,7 @@ function getDotColor(action: HistoryAction): string {
     'Status Changed': 'bg-slate-400',
     'Reported':       'bg-red-500',
   };
-  return colors[action] ?? 'bg-[#71717A]';
+  return colors[action] ?? 'bg-[#8A8175]';
 }
 
 function getLineColor(action: HistoryAction): string {
@@ -52,10 +53,10 @@ function getLineColor(action: HistoryAction): string {
     'Registered':     'bg-emerald-200',
     'Assigned':       'bg-[#F97316]/30',
     'Returned':       'bg-amber-200',
-    'Status Changed': 'bg-slate-200',
+    'Status Changed': 'bg-[#DBD0BB]',
     'Reported':       'bg-red-200',
   };
-  return colors[action] ?? 'bg-[#D4D4D8]';
+  return colors[action] ?? 'bg-[#DBD0BB]';
 }
 
 // Sub-components
@@ -74,11 +75,11 @@ function ActionBadge({ action }: { action: HistoryAction }) {
     'Registered':     'bg-emerald-50 text-emerald-700 border-emerald-200',
     'Assigned':       'bg-[#F97316]/10 text-[#F97316] border-[#F97316]/20',
     'Returned':       'bg-amber-50 text-amber-700 border-amber-200',
-    'Status Changed': 'bg-slate-50 text-slate-600 border-slate-200',
+    'Status Changed': 'bg-slate-50 text-[#5A5346] border-slate-200',
     'Reported':       'bg-red-50 text-red-600 border-red-200',
   };
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border whitespace-nowrap ${cfg[action] ?? 'bg-[#FAFAFA] text-[#71717A] border-[#D4D4D8]'}`}>
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full font-bt-mono text-[11px] font-semibold border whitespace-nowrap ${cfg[action] ?? 'bg-[#FAF7F0] text-[#8A8175] border-[#DBD0BB]'}`}>
       {/* The row's action is cast from the server string (see the mapper): an
           unmapped one would hand `t` an undefined key and leave the badge blank. */}
       {ACTION_KEYS[action] ? t(ACTION_KEYS[action]) : action}
@@ -92,13 +93,13 @@ function Pagination({ current, total, onPage }: { current: number; total: number
   return (
     <div className="flex items-center justify-center gap-1 py-6">
       <button onClick={() => onPage(current - 1)} disabled={current === 1}
-        className="h-8 px-3 rounded-lg text-xs font-medium text-[#71717A] hover:text-amber-700 hover:bg-amber-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">{t('buttons.prev')}</button>
+        className="h-8 px-3 font-bt-mono text-xs font-medium text-[#8A8175] hover:text-amber-700 hover:bg-amber-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">{t('buttons.prev')}</button>
       {Array.from({ length: total }, (_, i) => i + 1).map(p => (
         <button key={p} onClick={() => onPage(p)}
-          className={`h-8 w-8 rounded-lg text-xs font-semibold transition-colors ${p === current ? 'bg-amber-500 text-white' : 'text-[#71717A] hover:bg-amber-50 hover:text-amber-700'}`}>{p}</button>
+          className={`h-8 w-8 text-xs font-semibold transition-colors ${p === current ? 'bg-amber-500 text-white' : 'text-[#8A8175] hover:bg-amber-50 hover:text-amber-700'}`}>{p}</button>
       ))}
       <button onClick={() => onPage(current + 1)} disabled={current === total}
-        className="h-8 px-3 rounded-lg text-xs font-medium text-[#71717A] hover:text-amber-700 hover:bg-amber-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">{t('buttons.next')}</button>
+        className="h-8 px-3 font-bt-mono text-xs font-medium text-[#8A8175] hover:text-amber-700 hover:bg-amber-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">{t('buttons.next')}</button>
     </div>
   );
 }
@@ -181,28 +182,25 @@ export function ToolHistory() {
     <div className="space-y-6 max-w-4xl">
 
       {/* Header */}
-      <div>
-        <h2 className="text-sm font-semibold text-[#0A0A0A]">{t('tools.history.title')}</h2>
-        <p className="text-[11px] text-[#71717A] mt-0.5">{t('tools.history.fullSubtitle')}</p>
-      </div>
+      <SectionHeader kicker={t('warehouse.panelLabel')} title={t('tools.history.title')} description={t('tools.history.fullSubtitle')} />
 
       {/* Filter bar */}
-      <div className="bg-white rounded-xl border border-[#D4D4D8] p-5">
+      <div className="bg-white border border-[#DBD0BB] p-5">
         <div className="flex items-center gap-2 mb-4">
-          <FilterIcon className="w-4 h-4 text-[#71717A]" />
+          <FilterIcon className="w-4 h-4 text-[#8A8175]" />
           <span className="text-sm font-semibold text-[#0A0A0A]">{t('tools.history.filters')}</span>
         </div>
         <div className="flex flex-wrap items-end gap-3">
           {/* Tool */}
           <div className="flex flex-col gap-1.5 min-w-[180px]">
-            <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide">{t('assignment.table.tool')}</label>
+            <label className="font-bt-mono text-[11px] font-semibold text-[#8A8175] uppercase tracking-wide">{t('assignment.table.tool')}</label>
             <Select value={toolFilter} onValueChange={setToolFilter}>
-              <SelectTrigger className="h-9 border-[#D4D4D8] text-sm"><SelectValue placeholder={t('tools.history.allTools')} /></SelectTrigger>
+              <SelectTrigger className="rounded-none h-9 border-[#DBD0BB] text-sm"><SelectValue placeholder={t('tools.history.allTools')} /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t('tools.history.allTools')}</SelectItem>
                 {toolOptions.map(t => (
                   <SelectItem key={t.code} value={t.code}>
-                    <span className="font-mono text-xs mr-1 text-[#71717A]">{t.code}</span>{t.name}
+                    <span className="font-bt-mono text-xs mr-1 text-[#8A8175]">{t.code}</span>{t.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -210,9 +208,9 @@ export function ToolHistory() {
           </div>
           {/* Action */}
           <div className="flex flex-col gap-1.5 min-w-[155px]">
-            <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide">{t('tools.history.action')}</label>
+            <label className="font-bt-mono text-[11px] font-semibold text-[#8A8175] uppercase tracking-wide">{t('tools.history.action')}</label>
             <Select value={actionFilter} onValueChange={setActionFilter}>
-              <SelectTrigger className="h-9 border-[#D4D4D8] text-sm"><SelectValue placeholder={t('tools.history.allActions')} /></SelectTrigger>
+              <SelectTrigger className="rounded-none h-9 border-[#DBD0BB] text-sm"><SelectValue placeholder={t('tools.history.allActions')} /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t('tools.history.allActions')}</SelectItem>
                 {ACTIONS.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
@@ -221,9 +219,9 @@ export function ToolHistory() {
           </div>
           {/* Worker */}
           <div className="flex flex-col gap-1.5 min-w-[155px]">
-            <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide">{t('tools.history.worker')}</label>
+            <label className="font-bt-mono text-[11px] font-semibold text-[#8A8175] uppercase tracking-wide">{t('tools.history.worker')}</label>
             <Select value={workerFilter} onValueChange={setWorkerFilter}>
-              <SelectTrigger className="h-9 border-[#D4D4D8] text-sm"><SelectValue placeholder={t('tools.history.allWorkers')} /></SelectTrigger>
+              <SelectTrigger className="rounded-none h-9 border-[#DBD0BB] text-sm"><SelectValue placeholder={t('tools.history.allWorkers')} /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t('tools.history.allWorkers')}</SelectItem>
                 {workers.map(w => <SelectItem key={w} value={w}>{w}</SelectItem>)}
@@ -232,23 +230,23 @@ export function ToolHistory() {
           </div>
           {/* Date range */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide">{t('labels.from', { ns: 'common' })}</label>
+            <label className="font-bt-mono text-[11px] font-semibold text-[#8A8175] uppercase tracking-wide">{t('labels.from', { ns: 'common' })}</label>
             <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)}
-              className="h-9 rounded-md border border-[#D4D4D8] bg-white px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-amber-400" />
+              className="h-9 rounded-md border border-[#DBD0BB] bg-white px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-amber-400" />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide">{t('labels.to', { ns: 'common' })}</label>
+            <label className="font-bt-mono text-[11px] font-semibold text-[#8A8175] uppercase tracking-wide">{t('labels.to', { ns: 'common' })}</label>
             <input type="date" value={toDate} onChange={e => setToDate(e.target.value)}
-              className="h-9 rounded-md border border-[#D4D4D8] bg-white px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-amber-400" />
+              className="h-9 rounded-md border border-[#DBD0BB] bg-white px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-amber-400" />
           </div>
           <div className="flex items-center gap-2 mt-auto">
             <Button variant="outline" size="sm" onClick={handleReset}
-              className="h-9 px-4 text-xs border-[#D4D4D8] text-[#71717A] hover:text-[#0A0A0A]">{t('buttons.reset', { ns: 'common' })}</Button>
+              className="rounded-none h-9 px-4 text-xs border-[#DBD0BB] text-[#8A8175] hover:text-[#0A0A0A]">{t('buttons.reset', { ns: 'common' })}</Button>
             <Button size="sm" onClick={handleApply}
-              className="h-9 px-4 text-xs bg-amber-500 hover:bg-amber-600 text-white">{t('buttons.apply', { ns: 'common' })}</Button>
+              className="rounded-none h-9 px-4 text-xs bg-[#0A0A0A] hover:bg-[#F97316] text-[#F5F1E8] hover:text-[#0A0A0A]">{t('buttons.apply', { ns: 'common' })}</Button>
           </div>
         </div>
-        <p className="text-[11px] text-[#71717A] mt-3 pt-3 border-t border-[#FAFAFA]">
+        <p className="text-[11px] text-[#8A8175] mt-3 pt-3 border-t border-[#FAF7F0]">
           {t('labels.showing', { ns: 'common' })} <span className="font-medium text-[#0A0A0A]">{entries.length}</span> {t('labels.of', { ns: 'common', defaultValue: 'of' })} {totalElements} {t('tools.history.entries', { defaultValue: 'entries' })}
         </p>
       </div>
@@ -261,12 +259,12 @@ export function ToolHistory() {
           </div>
         )}
         {!loading && entries.length === 0 && (
-          <div className="bg-white rounded-xl border border-[#D4D4D8] flex flex-col items-center justify-center py-16 text-center">
-            <div className="w-14 h-14 bg-[#FAFAFA] rounded-full flex items-center justify-center mb-3">
-              <History className="w-7 h-7 text-[#D4D4D8]" />
+          <div className="bg-white border border-[#DBD0BB] flex flex-col items-center justify-center py-16 text-center">
+            <div className="w-14 h-14 bg-[#FAF7F0] rounded-full flex items-center justify-center mb-3">
+              <History className="w-7 h-7 text-[#DBD0BB]" />
             </div>
             <p className="text-sm font-semibold text-[#0A0A0A] mb-1">{t('tools.history.noEntries')}</p>
-            <p className="text-xs text-[#71717A]">{t('tools.history.noEntriesHint')}</p>
+            <p className="text-xs text-[#8A8175]">{t('tools.history.noEntriesHint')}</p>
           </div>
         )}
 
@@ -284,17 +282,17 @@ export function ToolHistory() {
 
               {/* Content card */}
               <div className="flex-1 pb-3">
-                <div className="bg-white rounded-xl border border-[#D4D4D8] p-4 hover:border-amber-200 hover:shadow-sm transition-all">
+                <div className="bg-white border border-[#DBD0BB] p-4 hover:border-amber-200 hover:shadow-sm transition-all">
 
                   {/* Top row: badge + tool + time */}
                   <div className="flex items-start justify-between gap-3 flex-wrap mb-2">
                     <div className="flex items-center gap-2 flex-wrap">
                       <ActionBadge action={entry.action} />
-                      <span className="font-mono text-xs font-bold text-[#0A0A0A]">{entry.toolCode}</span>
-                      <span className="text-xs text-[#71717A]">—</span>
-                      <span className="text-xs font-medium text-[#0A0A0A]">{entry.toolName}</span>
+                      <span className="font-bt-mono text-xs font-bold text-[#0A0A0A]">{entry.toolCode}</span>
+                      <span className="text-xs text-[#8A8175]">—</span>
+                      <span className="font-bt-mono text-xs font-medium text-[#0A0A0A]">{entry.toolName}</span>
                     </div>
-                    <span className="text-[11px] text-[#71717A] flex-shrink-0 whitespace-nowrap">
+                    <span className="text-[11px] text-[#8A8175] flex-shrink-0 whitespace-nowrap">
                       {fmtDate(entry.date)} · {entry.time}
                     </span>
                   </div>
@@ -310,8 +308,8 @@ export function ToolHistory() {
                       <span className="font-medium text-[#0A0A0A]">{entry.worker}</span>
                       {entry.project && (
                         <>
-                          <span className="text-[#D4D4D8]">→</span>
-                          <span className="text-[#71717A]">{entry.project}</span>
+                          <span className="text-[#DBD0BB]">→</span>
+                          <span className="text-[#8A8175]">{entry.project}</span>
                         </>
                       )}
                     </div>
@@ -319,7 +317,7 @@ export function ToolHistory() {
 
                   {/* Notes */}
                   {entry.notes && (
-                    <p className="text-xs text-[#71717A] italic">"{entry.notes}"</p>
+                    <p className="text-xs text-[#8A8175] italic">"{entry.notes}"</p>
                   )}
                 </div>
               </div>

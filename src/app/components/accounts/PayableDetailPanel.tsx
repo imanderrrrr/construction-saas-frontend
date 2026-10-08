@@ -229,10 +229,10 @@ export function PayableDetailPanel({ bill, project, canManage, today, dateLocale
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className={MENU_CONTENT}>
                 <DropdownMenuLabel className={MENU_LABEL}>{bill.billNumber} · {fmtMoney(bill.amount)}</DropdownMenuLabel>
-                <DropdownMenuItem className={MENU_ITEM} onClick={() => onEditAmounts(bill)}>
+                <DropdownMenuItem disabled={!!bill.subcontractorInvoiceId} className={MENU_ITEM} onClick={() => onEditAmounts(bill)}>
                   <Pencil className="w-3 h-3 mr-2" />{t('finance:payable.edit.action')}
                 </DropdownMenuItem>
-                <DropdownMenuItem className={MENU_ITEM} onClick={() => onEditInfo(bill)}>
+                <DropdownMenuItem disabled={!!bill.subcontractorInvoiceId} className={MENU_ITEM} onClick={() => onEditInfo(bill)}>
                   <FileText className="w-3 h-3 mr-2" />{t('finance:payable.info.action')}
                 </DropdownMenuItem>
                 {bill.documentType === 'BILL' && (
@@ -240,7 +240,7 @@ export function PayableDetailPanel({ bill, project, canManage, today, dateLocale
                     <Receipt className="w-3 h-3 mr-2" />{t('finance:payable.convert.action')}
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem className={MENU_ITEM} onClick={() => onReassign(bill)}>
+                <DropdownMenuItem disabled={!!bill.subcontractorInvoiceId} className={MENU_ITEM} onClick={() => onReassign(bill)}>
                   <ArrowRightLeft className="w-3 h-3 mr-2" />{t('finance:payable.reassign.action')}
                 </DropdownMenuItem>
                 {hasActivePayments && !inQuickBooks && (
@@ -248,7 +248,7 @@ export function PayableDetailPanel({ bill, project, canManage, today, dateLocale
                     <RotateCcw className="w-3 h-3 mr-2" />{t('finance:payable.unpay.action')}
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem className={cn(MENU_ITEM_DANGER, 'border-t border-t-[#EDE7DB]')} onClick={() => onDelete(bill)}>
+                <DropdownMenuItem disabled={!!bill.subcontractorInvoiceId} className={cn(MENU_ITEM_DANGER, 'border-t border-t-[#EDE7DB]')} onClick={() => onDelete(bill)}>
                   <Trash2 className="w-3 h-3 mr-2" />{t('finance:payable.delete.action')}
                 </DropdownMenuItem>
               </DropdownMenuContent>

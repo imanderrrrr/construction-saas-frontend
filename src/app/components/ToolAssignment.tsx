@@ -8,6 +8,7 @@ import {
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { StatCard } from './StatCard';
+import { SectionHeader } from './workspace/SectionChrome';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from './ui/table';
@@ -91,9 +92,9 @@ function getDaysOutColor(days: number): string {
 function ActionBadge({ action }: { action: 'Assigned' | 'Returned' }) {
   const { t } = useTranslation('inventory');
   return action === 'Assigned' ? (
-    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border bg-[#F97316]/10 text-[#F97316] border-[#F97316]/20">{t('assignment.action.assigned')}</span>
+    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full font-bt-mono text-[11px] font-semibold border bg-[#F97316]/10 text-[#F97316] border-[#F97316]/20">{t('assignment.action.assigned')}</span>
   ) : (
-    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border bg-amber-50 text-amber-700 border-amber-200">{t('assignment.action.returned')}</span>
+    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full font-bt-mono text-[11px] font-semibold border bg-amber-50 text-amber-700 border-amber-200">{t('assignment.action.returned')}</span>
   );
 }
 
@@ -101,15 +102,15 @@ function Pagination({ current, total, onPage }: { current: number; total: number
   const { t } = useTranslation('common');
   if (total <= 1) return null;
   return (
-    <div className="flex items-center justify-center gap-1 py-4 border-t border-[#D4D4D8]">
+    <div className="flex items-center justify-center gap-1 py-4 border-t border-[#DBD0BB]">
       <button onClick={() => onPage(current - 1)} disabled={current === 1}
-        className="h-8 px-3 rounded-lg text-xs font-medium text-[#71717A] hover:text-amber-700 hover:bg-amber-50 disabled:opacity-30 disabled:cursor-not-allowed">{t('buttons.prev')}</button>
+        className="h-8 px-3 font-bt-mono text-xs font-medium text-[#8A8175] hover:text-amber-700 hover:bg-amber-50 disabled:opacity-30 disabled:cursor-not-allowed">{t('buttons.prev')}</button>
       {Array.from({ length: total }, (_, i) => i + 1).map(p => (
         <button key={p} onClick={() => onPage(p)}
-          className={`h-8 w-8 rounded-lg text-xs font-semibold transition-colors ${p === current ? 'bg-amber-500 text-white' : 'text-[#71717A] hover:bg-amber-50 hover:text-amber-700'}`}>{p}</button>
+          className={`h-8 w-8 text-xs font-semibold transition-colors ${p === current ? 'bg-amber-500 text-white' : 'text-[#8A8175] hover:bg-amber-50 hover:text-amber-700'}`}>{p}</button>
       ))}
       <button onClick={() => onPage(current + 1)} disabled={current === total}
-        className="h-8 px-3 rounded-lg text-xs font-medium text-[#71717A] hover:text-amber-700 hover:bg-amber-50 disabled:opacity-30 disabled:cursor-not-allowed">{t('buttons.next')}</button>
+        className="h-8 px-3 font-bt-mono text-xs font-medium text-[#8A8175] hover:text-amber-700 hover:bg-amber-50 disabled:opacity-30 disabled:cursor-not-allowed">{t('buttons.next')}</button>
     </div>
   );
 }
@@ -151,21 +152,21 @@ function AssignModal({ open, availableTools, workers, onClose, onAssign }: {
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader><DialogTitle>{t('assignment.dialog.assign')}</DialogTitle></DialogHeader>
+      <DialogContent className="rounded-none sm:max-w-lg">
+        <DialogHeader><DialogTitle className="font-bt-display uppercase text-2xl">{t('assignment.dialog.assign')}</DialogTitle></DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-[#71717A] uppercase tracking-wide">{t('assignment.dialog.tool')} *</label>
+            <label className="text-xs font-semibold text-[#8A8175] uppercase tracking-wide">{t('assignment.dialog.tool')} *</label>
             {availableTools.length === 0 ? (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-700">{t('assignment.dialog.noTools')}</div>
+              <div className="bg-amber-50 border border-amber-200 p-3 text-sm text-amber-700">{t('assignment.dialog.noTools')}</div>
             ) : (
               <Select value={toolCode} onValueChange={setToolCode}>
-                <SelectTrigger className="border-[#D4D4D8] text-sm"><SelectValue placeholder={t('assignment.dialog.toolPlaceholder')} /></SelectTrigger>
+                <SelectTrigger className="rounded-none border-[#DBD0BB] text-sm"><SelectValue placeholder={t('assignment.dialog.toolPlaceholder')} /></SelectTrigger>
                 <SelectContent>
                   {availableTools.map(t => (
                     <SelectItem key={t.code} value={t.code}>
-                      <span className="font-mono text-xs mr-2 text-[#71717A]">{t.code}</span>{t.name}
+                      <span className="font-bt-mono text-xs mr-2 text-[#8A8175]">{t.code}</span>{t.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -174,9 +175,9 @@ function AssignModal({ open, availableTools, workers, onClose, onAssign }: {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-[#71717A] uppercase tracking-wide">{t('assignment.dialog.worker')} *</label>
+              <label className="text-xs font-semibold text-[#8A8175] uppercase tracking-wide">{t('assignment.dialog.worker')} *</label>
               <Select value={workerId} onValueChange={setWorkerId}>
-                <SelectTrigger className="border-[#D4D4D8] text-sm"><SelectValue placeholder={t('assignment.dialog.workerPlaceholder')} /></SelectTrigger>
+                <SelectTrigger className="rounded-none border-[#DBD0BB] text-sm"><SelectValue placeholder={t('assignment.dialog.workerPlaceholder')} /></SelectTrigger>
                 <SelectContent>
                   {workers.map(w => (
                     <SelectItem key={w.id} value={String(w.id)}>
@@ -187,9 +188,9 @@ function AssignModal({ open, availableTools, workers, onClose, onAssign }: {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-[#71717A] uppercase tracking-wide">{t('assignment.dialog.project')} *</label>
+              <label className="text-xs font-semibold text-[#8A8175] uppercase tracking-wide">{t('assignment.dialog.project')} *</label>
               <Select value={projectId} onValueChange={setProjectId} disabled={!workerId || loadingProjects}>
-                <SelectTrigger className="border-[#D4D4D8] text-sm">
+                <SelectTrigger className="rounded-none border-[#DBD0BB] text-sm">
                   <SelectValue placeholder={loadingProjects ? t('assignment.dialog.loadingProjects') : t('assignment.dialog.projectPlaceholder')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -206,21 +207,21 @@ function AssignModal({ open, availableTools, workers, onClose, onAssign }: {
             </div>
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-[#71717A] uppercase tracking-wide">{t('assignment.dialog.notes')}</label>
+            <label className="text-xs font-semibold text-[#8A8175] uppercase tracking-wide">{t('assignment.dialog.notes')}</label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
               maxLength={FIELD_LIMITS.LONG_TEXT}
               placeholder={t('assignment.dialog.assignmentNotes')}
-              className="w-full rounded-md border border-[#D4D4D8] bg-white px-3 py-2 text-sm placeholder:text-[#71717A] focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none" />
+              className="w-full rounded-md border border-[#DBD0BB] bg-white px-3 py-2 text-sm placeholder:text-[#8A8175] focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none" />
           </div>
         </div>
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={onClose} className="border-[#D4D4D8] text-[#71717A]">{t('buttons.cancel', { ns: 'common' })}</Button>
+          <Button variant="outline" onClick={onClose} className="rounded-none border-[#DBD0BB] text-[#8A8175]">{t('buttons.cancel', { ns: 'common' })}</Button>
           <Button
             onClick={() => valid && selectedWorker && selectedProject &&
               onAssign(toolCode, selectedTool?.name ?? '', selectedWorker.id, selectedWorker.fullName ?? selectedWorker.username, selectedProject.id, selectedProject.name, notes)
             }
             disabled={!valid || availableTools.length === 0}
-            className="bg-amber-500 hover:bg-amber-600 text-white disabled:opacity-50">
+            className="bg-[#0A0A0A] hover:bg-[#F97316] text-[#F5F1E8] hover:text-[#0A0A0A] disabled:opacity-50">
             {t('assignment.assignTool')}
           </Button>
         </DialogFooter>
@@ -246,23 +247,23 @@ function ReturnModal({ open, activeAssignments, onClose, onReturn }: {
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader><DialogTitle>{t('assignment.dialog.return')}</DialogTitle></DialogHeader>
+      <DialogContent className="rounded-none sm:max-w-lg">
+        <DialogHeader><DialogTitle className="font-bt-display uppercase text-2xl">{t('assignment.dialog.return')}</DialogTitle></DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-[#71717A] uppercase tracking-wide">{t('assignment.dialog.tool')} *</label>
+            <label className="text-xs font-semibold text-[#8A8175] uppercase tracking-wide">{t('assignment.dialog.tool')} *</label>
             {activeAssignments.length === 0 ? (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-700">{t('assignment.dialog.noAssigned')}</div>
+              <div className="bg-amber-50 border border-amber-200 p-3 text-sm text-amber-700">{t('assignment.dialog.noAssigned')}</div>
             ) : (
               <Select value={assignId} onValueChange={setAssignId}>
-                <SelectTrigger className="border-[#D4D4D8] text-sm"><SelectValue placeholder={t('assignment.dialog.selectAssignedTool')} /></SelectTrigger>
+                <SelectTrigger className="rounded-none border-[#DBD0BB] text-sm"><SelectValue placeholder={t('assignment.dialog.selectAssignedTool')} /></SelectTrigger>
                 <SelectContent>
                   {activeAssignments.map(a => (
                     <SelectItem key={a.id} value={a.id}>
-                      <span className="font-mono text-xs mr-1 text-[#71717A]">{a.toolCode}</span>
+                      <span className="font-bt-mono text-xs mr-1 text-[#8A8175]">{a.toolCode}</span>
                       {a.toolName}
-                      <span className="text-[#71717A] ml-1">({t('assignment.dialog.assignedTo', { worker: a.worker })})</span>
+                      <span className="text-[#8A8175] ml-1">({t('assignment.dialog.assignedTo', { worker: a.worker })})</span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -270,22 +271,22 @@ function ReturnModal({ open, activeAssignments, onClose, onReturn }: {
             )}
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-[#71717A] uppercase tracking-wide">{t('assignment.dialog.conditionOnReturn')} *</label>
+            <label className="text-xs font-semibold text-[#8A8175] uppercase tracking-wide">{t('assignment.dialog.conditionOnReturn')} *</label>
             <Select value={condition} onValueChange={setCondition}>
-              <SelectTrigger className="border-[#D4D4D8] text-sm"><SelectValue placeholder={t('assignment.dialog.selectCondition')} /></SelectTrigger>
+              <SelectTrigger className="rounded-none border-[#DBD0BB] text-sm"><SelectValue placeholder={t('assignment.dialog.selectCondition')} /></SelectTrigger>
               <SelectContent>{CONDITIONS.map(c => <SelectItem key={c} value={c}>{t(CONDITION_KEYS[c])}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-[#71717A] uppercase tracking-wide">{t('assignment.dialog.notes')}</label>
+            <label className="text-xs font-semibold text-[#8A8175] uppercase tracking-wide">{t('assignment.dialog.notes')}</label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
               maxLength={FIELD_LIMITS.LONG_TEXT}
               placeholder={t('assignment.dialog.returnObservations')}
-              className="w-full rounded-md border border-[#D4D4D8] bg-white px-3 py-2 text-sm placeholder:text-[#71717A] focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none" />
+              className="w-full rounded-md border border-[#DBD0BB] bg-white px-3 py-2 text-sm placeholder:text-[#8A8175] focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none" />
           </div>
           {/* Photo evidence placeholder */}
           {/* TODO: Implement photo upload */}
-          <div className="flex items-center gap-3 bg-amber-50 border border-dashed border-amber-300 rounded-xl p-3 opacity-60 cursor-not-allowed select-none">
+          <div className="flex items-center gap-3 bg-amber-50 border border-dashed border-amber-300 p-3 opacity-60 cursor-not-allowed select-none">
             <Camera className="w-5 h-5 text-amber-600 flex-shrink-0" />
             <div>
               <p className="text-xs font-semibold text-amber-700">{t('assignment.dialog.photoEvidence')}</p>
@@ -294,10 +295,10 @@ function ReturnModal({ open, activeAssignments, onClose, onReturn }: {
           </div>
         </div>
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={onClose} className="border-[#D4D4D8] text-[#71717A]">{t('buttons.cancel', { ns: 'common' })}</Button>
+          <Button variant="outline" onClick={onClose} className="rounded-none border-[#DBD0BB] text-[#8A8175]">{t('buttons.cancel', { ns: 'common' })}</Button>
           <Button onClick={() => valid && onReturn(assignId, condition, notes)}
             disabled={!valid || activeAssignments.length === 0}
-            className="bg-amber-500 hover:bg-amber-600 text-white disabled:opacity-50">
+            className="bg-[#0A0A0A] hover:bg-[#F97316] text-[#F5F1E8] hover:text-[#0A0A0A] disabled:opacity-50">
             {t('assignment.dialog.confirmReturn')}
           </Button>
         </DialogFooter>
@@ -411,39 +412,33 @@ export function ToolAssignment() {
     <div className="space-y-6 max-w-6xl">
 
       {/* Header */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h2 className="text-sm font-semibold text-[#0A0A0A]">{t('assignment.title')}</h2>
-          <p className="text-[11px] text-[#71717A] mt-0.5">{t('assignment.subtitle')}</p>
-        </div>
-        <div className="flex items-center gap-2">
+      <SectionHeader kicker={t('warehouse.panelLabel')} title={t('assignment.title')} description={t('assignment.subtitle')} action={<div className="flex items-center gap-2">
           <Button onClick={() => setShowReturn(true)}
             variant="outline" className="border-amber-500 text-amber-600 hover:bg-amber-50 gap-2 h-9 text-xs">
             <ArrowLeft className="w-4 h-4" />{t('assignment.returnTool')}
           </Button>
           <Button onClick={() => setShowAssign(true)}
-            className="bg-amber-500 hover:bg-amber-600 text-white gap-2 h-9 text-xs">
+            className="bg-[#0A0A0A] hover:bg-[#F97316] text-[#F5F1E8] hover:text-[#0A0A0A] gap-2 h-9 text-xs">
             <ArrowRight className="w-4 h-4" />{t('assignment.assignTool')}
           </Button>
-        </div>
-      </div>
+        </div>} />
 
       {/* KPI cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard icon={ArrowLeftRight}title={t('assignment.kpi.currentlyAssigned')}  value={summaryData.activeAssignments.toString()} subtitle={t('assignment.kpi.outWithWorkers')}  iconBgColor="bg-amber-50"     iconColor="text-amber-600"   />
-        <StatCard icon={Calendar}      title={t('assignment.kpi.assignedToday')}      value={assignedToday.toString()}            subtitle={t('assignment.kpi.newToday')}         iconBgColor="bg-emerald-50"   iconColor="text-emerald-600" />
-        <StatCard icon={RotateCcw}     title={t('assignment.kpi.returnsToday')}       value={returnsToday.toString()}             subtitle={t('assignment.kpi.returnedToday')}    iconBgColor="bg-[#F97316]/10" iconColor="text-[#F97316]"   />
+        <StatCard appearance="workspace" icon={ArrowLeftRight}title={t('assignment.kpi.currentlyAssigned')}  value={summaryData.activeAssignments.toString()} subtitle={t('assignment.kpi.outWithWorkers')}  iconBgColor="bg-amber-50"     iconColor="text-amber-600"   />
+        <StatCard appearance="workspace" icon={Calendar}      title={t('assignment.kpi.assignedToday')}      value={assignedToday.toString()}            subtitle={t('assignment.kpi.newToday')}         iconBgColor="bg-emerald-50"   iconColor="text-emerald-600" />
+        <StatCard appearance="workspace" icon={RotateCcw}     title={t('assignment.kpi.returnsToday')}       value={returnsToday.toString()}             subtitle={t('assignment.kpi.returnedToday')}    iconBgColor="bg-[#F97316]/10" iconColor="text-[#F97316]"   />
       </div>
 
       {/* Tabs */}
-      <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden">
-        <div className="flex border-b border-[#D4D4D8]">
+      <div className="bg-white border border-[#DBD0BB] overflow-hidden">
+        <div className="flex border-b border-[#DBD0BB]">
           {([['active', t('assignment.activeAssignments')], ['log', t('assignment.assignmentLog')]] as ['active' | 'log', string][]).map(([key, label]) => (
             <button key={key} onClick={() => setActiveTab(key)}
               className={`flex-1 sm:flex-none px-6 py-3.5 text-sm font-semibold transition-colors border-b-2 ${
                 activeTab === key
                   ? 'border-amber-500 text-amber-700 bg-amber-50/50'
-                  : 'border-transparent text-[#71717A] hover:text-[#0A0A0A] hover:bg-[#FAFAFA]'
+                  : 'border-transparent text-[#8A8175] hover:text-[#0A0A0A] hover:bg-[#FAF7F0]'
               }`}>
               {label}
               {key === 'active' && (
@@ -461,20 +456,20 @@ export function ToolAssignment() {
             <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-[#FAFAFA] hover:bg-[#FAFAFA]">
+                  <TableRow className="bg-[#FAF7F0] hover:bg-[#FAF7F0]">
                     {[t('assignment.table.tool'), t('assignment.table.category'), t('assignment.table.worker'), t('assignment.table.assignedDate'), t('assignment.table.project'), t('assignment.table.daysOut'), t('assignment.table.actions')].map(h => (
-                      <TableHead key={h} className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wider whitespace-nowrap">{h}</TableHead>
+                      <TableHead key={h} className="font-bt-mono text-[11px] font-semibold text-[#8A8175] uppercase tracking-wider whitespace-nowrap">{h}</TableHead>
                     ))}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {activePageRows.map(a => (
-                    <TableRow key={a.id} className="border-b border-[#D4D4D8]/50 hover:bg-[#FAFAFA]/50">
+                    <TableRow key={a.id} className="border-b border-[#DBD0BB]/50 hover:bg-[#FAF7F0]/50">
                       <TableCell className="py-3">
                         <div className="flex items-center gap-2">
                           <div>
                             <p className="text-sm font-semibold text-[#0A0A0A]">{a.toolName}</p>
-                            <p className="text-[11px] font-mono text-[#71717A]">{a.toolCode}</p>
+                            <p className="text-[11px] font-bt-mono text-[#8A8175]">{a.toolCode}</p>
                           </div>
                           {a.status === 'PENDING_ACCEPTANCE' && (
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-amber-50 text-amber-700 border-amber-200">
@@ -483,7 +478,7 @@ export function ToolAssignment() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="py-3 text-sm text-[#71717A]">{a.category}</TableCell>
+                      <TableCell className="py-3 text-sm text-[#8A8175]">{a.category}</TableCell>
                       <TableCell className="py-3">
                         <div className="flex items-center gap-2">
                           <div className="w-6 h-6 bg-[#F97316]/10 rounded-full flex items-center justify-center flex-shrink-0">
@@ -492,8 +487,8 @@ export function ToolAssignment() {
                           <span className="text-sm text-[#0A0A0A] font-medium">{a.worker}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="py-3 text-sm text-[#71717A] whitespace-nowrap">{fmtDate(a.assignedDate)}</TableCell>
-                      <TableCell className="py-3 text-sm text-[#71717A]">{a.project}</TableCell>
+                      <TableCell className="py-3 text-sm text-[#8A8175] whitespace-nowrap">{fmtDate(a.assignedDate)}</TableCell>
+                      <TableCell className="py-3 text-sm text-[#8A8175]">{a.project}</TableCell>
                       <TableCell className="py-3">
                         <span className={`text-sm ${getDaysOutColor(a.daysOut)}`}>
                           {a.daysOut === 0 ? t('assignment.today') : t('assignment.daysShort', { days: a.daysOut })}
@@ -509,8 +504,8 @@ export function ToolAssignment() {
                   ))}
                   {activeAssignments.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7} className="py-16 text-center text-sm text-[#71717A]">
-                        <Package className="w-8 h-8 text-[#D4D4D8] mx-auto mb-2" />
+                      <TableCell colSpan={7} className="py-16 text-center text-sm text-[#8A8175]">
+                        <Package className="w-8 h-8 text-[#DBD0BB] mx-auto mb-2" />
                         {t('assignment.noToolsAssigned')}
                       </TableCell>
                     </TableRow>
@@ -519,7 +514,7 @@ export function ToolAssignment() {
               </Table>
             </div>
             {/* Mobile */}
-            <div className="md:hidden divide-y divide-[#D4D4D8]">
+            <div className="md:hidden divide-y divide-[#DBD0BB]">
               {activePageRows.map(a => (
                 <div key={a.id} className="p-4 flex items-start justify-between gap-3">
                   <div>
@@ -531,8 +526,8 @@ export function ToolAssignment() {
                         </span>
                       )}
                     </div>
-                    <p className="text-[11px] font-mono text-[#71717A]">{a.toolCode}</p>
-                    <p className="text-xs text-[#71717A] mt-1">{a.worker} · {a.project}</p>
+                    <p className="text-[11px] font-bt-mono text-[#8A8175]">{a.toolCode}</p>
+                    <p className="text-xs text-[#8A8175] mt-1">{a.worker} · {a.project}</p>
                     <p className={`text-xs mt-0.5 ${getDaysOutColor(a.daysOut)}`}>{a.daysOut === 0 ? t('assignment.today') : t('assignment.daysOutLong', { days: a.daysOut })}</p>
                   </div>
                   <Button onClick={() => setShowReturn(true)} variant="outline" size="sm"
@@ -552,47 +547,47 @@ export function ToolAssignment() {
             <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-[#FAFAFA] hover:bg-[#FAFAFA]">
+                  <TableRow className="bg-[#FAF7F0] hover:bg-[#FAF7F0]">
                     {[t('assignment.log.date'), t('assignment.log.tool'), t('assignment.log.action'), t('assignment.log.worker'), t('assignment.log.project'), t('assignment.log.condition'), t('assignment.log.notes')].map(h => (
-                      <TableHead key={h} className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wider whitespace-nowrap">{h}</TableHead>
+                      <TableHead key={h} className="font-bt-mono text-[11px] font-semibold text-[#8A8175] uppercase tracking-wider whitespace-nowrap">{h}</TableHead>
                     ))}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {logPageRows.map(l => (
-                    <TableRow key={l.id} className="border-b border-[#D4D4D8]/50 hover:bg-[#FAFAFA]/50">
-                      <TableCell className="py-3 text-sm text-[#71717A] whitespace-nowrap">{fmtDateShort(l.date)}</TableCell>
+                    <TableRow key={l.id} className="border-b border-[#DBD0BB]/50 hover:bg-[#FAF7F0]/50">
+                      <TableCell className="py-3 text-sm text-[#8A8175] whitespace-nowrap">{fmtDateShort(l.date)}</TableCell>
                       <TableCell className="py-3">
                         <p className="text-sm font-medium text-[#0A0A0A]">{l.toolName}</p>
-                        <p className="text-[11px] font-mono text-[#71717A]">{l.toolCode}</p>
+                        <p className="text-[11px] font-bt-mono text-[#8A8175]">{l.toolCode}</p>
                       </TableCell>
                       <TableCell className="py-3"><ActionBadge action={l.action} /></TableCell>
                       <TableCell className="py-3 text-sm text-[#0A0A0A]">{l.worker}</TableCell>
-                      <TableCell className="py-3 text-sm text-[#71717A]">{l.project}</TableCell>
+                      <TableCell className="py-3 text-sm text-[#8A8175]">{l.project}</TableCell>
                       <TableCell className="py-3">
                         {l.condition ? (
-                          <span className={`text-xs font-medium ${l.condition === 'Good' || l.condition === 'Minor wear' ? 'text-emerald-600' : 'text-red-600'}`}>
+                          <span className={`font-bt-mono text-xs font-medium ${l.condition === 'Good' || l.condition === 'Minor wear' ? 'text-emerald-600' : 'text-red-600'}`}>
                             {l.condition}
                           </span>
-                        ) : <span className="text-[#D4D4D8]">—</span>}
+                        ) : <span className="text-[#DBD0BB]">—</span>}
                       </TableCell>
-                      <TableCell className="py-3 text-sm text-[#71717A] italic">{l.notes || '—'}</TableCell>
+                      <TableCell className="py-3 text-sm text-[#8A8175] italic">{l.notes || '—'}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             </div>
             {/* Mobile */}
-            <div className="md:hidden divide-y divide-[#D4D4D8]">
+            <div className="md:hidden divide-y divide-[#DBD0BB]">
               {logPageRows.map(l => (
                 <div key={l.id} className="p-4 space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <ActionBadge action={l.action} />
-                    <span className="text-[11px] text-[#71717A]">{fmtDateShort(l.date)}</span>
+                    <span className="text-[11px] text-[#8A8175]">{fmtDateShort(l.date)}</span>
                   </div>
-                  <p className="text-sm font-medium text-[#0A0A0A]">{l.toolName} <span className="font-mono text-[#71717A] text-xs">({l.toolCode})</span></p>
-                  <p className="text-xs text-[#71717A]">{l.worker} · {l.project}</p>
-                  {l.condition && <p className="text-xs text-[#71717A]">{t('assignment.conditionLabel', { condition: l.condition })}</p>}
+                  <p className="text-sm font-medium text-[#0A0A0A]">{l.toolName} <span className="font-bt-mono text-[#8A8175] text-xs">({l.toolCode})</span></p>
+                  <p className="text-xs text-[#8A8175]">{l.worker} · {l.project}</p>
+                  {l.condition && <p className="text-xs text-[#8A8175]">{t('assignment.conditionLabel', { condition: l.condition })}</p>}
                 </div>
               ))}
             </div>

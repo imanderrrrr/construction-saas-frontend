@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Wrench, Users, Clock, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { StatCard } from './StatCard';
+import { SectionHeader } from './workspace/SectionChrome';
 import { Button } from './ui/button';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -28,15 +29,15 @@ function getDaysOutColor(days: number) {
 function Pagination({ current, total, onPage, t }: { current: number; total: number; onPage: (p: number) => void; t: (key: string) => string }) {
   if (total <= 1) return null;
   return (
-    <div className="flex items-center justify-center gap-1 py-4 border-t border-[#D4D4D8]">
+    <div className="flex items-center justify-center gap-1 py-4 border-t border-[#DBD0BB]">
       <button onClick={() => onPage(current - 1)} disabled={current === 1}
-        className="h-8 px-3 rounded-lg text-xs font-medium text-[#71717A] hover:bg-[#F97316]/10 hover:text-[#F97316] disabled:opacity-30 disabled:cursor-not-allowed">{t('tools.prev')}</button>
+        className="h-8 px-3 font-bt-mono text-xs font-medium text-[#8A8175] hover:bg-[#F97316]/10 hover:text-[#F97316] disabled:opacity-30 disabled:cursor-not-allowed">{t('tools.prev')}</button>
       {Array.from({ length: total }, (_, i) => i + 1).map(p => (
         <button key={p} onClick={() => onPage(p)}
-          className={`h-8 w-8 rounded-lg text-xs font-semibold transition-colors ${p === current ? 'bg-[#F97316] text-white' : 'text-[#71717A] hover:bg-[#F97316]/10 hover:text-[#F97316]'}`}>{p}</button>
+          className={`h-8 w-8 text-xs font-semibold transition-colors ${p === current ? 'bg-[#F97316] text-white' : 'text-[#8A8175] hover:bg-[#F97316]/10 hover:text-[#F97316]'}`}>{p}</button>
       ))}
       <button onClick={() => onPage(current + 1)} disabled={current === total}
-        className="h-8 px-3 rounded-lg text-xs font-medium text-[#71717A] hover:bg-[#F97316]/10 hover:text-[#F97316] disabled:opacity-30 disabled:cursor-not-allowed">{t('tools.next')}</button>
+        className="h-8 px-3 font-bt-mono text-xs font-medium text-[#8A8175] hover:bg-[#F97316]/10 hover:text-[#F97316] disabled:opacity-30 disabled:cursor-not-allowed">{t('tools.next')}</button>
     </div>
   );
 }
@@ -107,30 +108,24 @@ export function TeamTools() {
     <div className="space-y-6 max-w-5xl">
 
       {/* Header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h2 className="text-sm font-semibold text-[#0A0A0A]">{t('tools.title')}</h2>
-          <p className="text-[11px] text-[#71717A] mt-0.5">{t('tools.subtitle')}</p>
-        </div>
-        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#F97316]/10 text-[#F97316] border border-[#F97316]/20">
+      <SectionHeader kicker={t('panelLabel')} title={t('tools.title')} description={t('tools.subtitle')} action={<span className="inline-flex items-center px-2.5 py-1 font-bt-mono uppercase text-[10px] font-semibold bg-[#FAF7F0] text-[#5A5346] border border-[#DBD0BB]">
           {t('tools.readOnly')}
-        </span>
-      </div>
+        </span>} />
 
       {/* KPI cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard icon={Wrench} title={t('tools.kpi.teamTools')}        value={loading ? '—' : tools.length.toString()}        subtitle={t('tools.kpi.currentlyOut')} iconBgColor="bg-[#F97316]/10" iconColor="text-[#F97316]"   />
-        <StatCard icon={Users}  title={t('tools.kpi.membersWithTools')} value={loading ? '—' : uniqueWorkers.toString()}       subtitle={t('tools.kpi.workers')}      iconBgColor="bg-emerald-50"   iconColor="text-emerald-600" />
-        <StatCard icon={Clock}  title={t('tools.kpi.avgDaysOut')}       value={loading ? '—' : t('tools.kpi.days', { count: Number(avgDaysOut) })} subtitle={t('tools.kpi.perTool')}     iconBgColor="bg-amber-50"     iconColor="text-amber-600"   />
+        <StatCard appearance="workspace" icon={Wrench} title={t('tools.kpi.teamTools')}        value={loading ? '—' : tools.length.toString()}        subtitle={t('tools.kpi.currentlyOut')} iconBgColor="bg-[#F97316]/10" iconColor="text-[#F97316]"   />
+        <StatCard appearance="workspace" icon={Users}  title={t('tools.kpi.membersWithTools')} value={loading ? '—' : uniqueWorkers.toString()}       subtitle={t('tools.kpi.workers')}      iconBgColor="bg-emerald-50"   iconColor="text-emerald-600" />
+        <StatCard appearance="workspace" icon={Clock}  title={t('tools.kpi.avgDaysOut')}       value={loading ? '—' : t('tools.kpi.days', { count: Number(avgDaysOut) })} subtitle={t('tools.kpi.perTool')}     iconBgColor="bg-amber-50"     iconColor="text-amber-600"   />
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-[#D4D4D8] p-3 sm:p-4">
+      <div className="bg-white border border-[#DBD0BB] p-3 sm:p-4">
         <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-end gap-3">
           <div className="flex flex-col gap-1.5 sm:min-w-[155px]">
-            <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide">{t('tools.filters.worker')}</label>
+            <label className="font-bt-mono text-[11px] font-semibold text-[#8A8175] uppercase tracking-wide">{t('tools.filters.worker')}</label>
             <Select value={workerFilter} onValueChange={setWorkerFilter}>
-              <SelectTrigger className="h-9 border-[#D4D4D8] text-sm"><SelectValue placeholder={t('tools.filters.allWorkers')} /></SelectTrigger>
+              <SelectTrigger className="rounded-none h-9 border-[#DBD0BB] text-sm"><SelectValue placeholder={t('tools.filters.allWorkers')} /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t('tools.filters.allWorkers')}</SelectItem>
                 {workers.map(w => <SelectItem key={w} value={w}>{w}</SelectItem>)}
@@ -138,9 +133,9 @@ export function TeamTools() {
             </Select>
           </div>
           <div className="flex flex-col gap-1.5 sm:min-w-[155px]">
-            <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide">{t('tools.filters.category')}</label>
+            <label className="font-bt-mono text-[11px] font-semibold text-[#8A8175] uppercase tracking-wide">{t('tools.filters.category')}</label>
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="h-9 border-[#D4D4D8] text-sm"><SelectValue placeholder={t('tools.filters.allCategories')} /></SelectTrigger>
+              <SelectTrigger className="rounded-none h-9 border-[#DBD0BB] text-sm"><SelectValue placeholder={t('tools.filters.allCategories')} /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t('tools.filters.allCategories')}</SelectItem>
                 {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
@@ -148,9 +143,9 @@ export function TeamTools() {
             </Select>
           </div>
           <div className="flex flex-col gap-1.5 col-span-2 sm:min-w-[155px]">
-            <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide">{t('tools.filters.project')}</label>
+            <label className="font-bt-mono text-[11px] font-semibold text-[#8A8175] uppercase tracking-wide">{t('tools.filters.project')}</label>
             <Select value={projectFilter} onValueChange={setProjectFilter}>
-              <SelectTrigger className="h-9 border-[#D4D4D8] text-sm"><SelectValue placeholder={t('tools.filters.allProjects')} /></SelectTrigger>
+              <SelectTrigger className="rounded-none h-9 border-[#DBD0BB] text-sm"><SelectValue placeholder={t('tools.filters.allProjects')} /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t('tools.filters.allProjects')}</SelectItem>
                 {projects.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
@@ -158,20 +153,20 @@ export function TeamTools() {
             </Select>
           </div>
           <div className="flex items-center gap-2 col-span-2 sm:col-span-1 mt-auto">
-            <Button variant="outline" onClick={handleReset} className="h-9 px-4 text-xs border-[#D4D4D8] text-[#71717A] flex-1 sm:flex-initial">{t('tools.filters.reset')}</Button>
-            <Button onClick={handleApply} className="h-9 px-4 text-xs bg-[#F97316] hover:bg-[#C2410C] text-white flex-1 sm:flex-initial">{t('tools.filters.apply')}</Button>
+            <Button variant="outline" onClick={handleReset} className="rounded-none h-9 px-4 text-xs border-[#DBD0BB] text-[#8A8175] flex-1 sm:flex-initial">{t('tools.filters.reset')}</Button>
+            <Button onClick={handleApply} className="rounded-none h-9 px-4 text-xs bg-[#F97316] hover:bg-[#C2410C] text-white flex-1 sm:flex-initial">{t('tools.filters.apply')}</Button>
           </div>
-          <p className="text-[11px] text-[#71717A] mt-auto col-span-2 sm:col-span-1 sm:ml-auto">
+          <p className="text-[11px] text-[#8A8175] mt-auto col-span-2 sm:col-span-1 sm:ml-auto">
             {t('tools.filters.showing', { filtered: filtered.length, total: tools.length })}
           </p>
         </div>
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-[#D4D4D8] overflow-hidden">
+      <div className="bg-white border border-[#DBD0BB] overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-16">
-            <Loader2 className="w-6 h-6 animate-spin text-[#71717A]" />
+            <Loader2 className="w-6 h-6 animate-spin text-[#8A8175]" />
           </div>
         ) : (
           <>
@@ -179,20 +174,20 @@ export function TeamTools() {
             <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-[#FAFAFA] hover:bg-[#FAFAFA]">
+                  <TableRow className="bg-[#FAF7F0] hover:bg-[#FAF7F0]">
                     {tableHeaders.map(h => (
-                      <TableHead key={h} className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wider whitespace-nowrap">{h}</TableHead>
+                      <TableHead key={h} className="font-bt-mono text-[11px] font-semibold text-[#8A8175] uppercase tracking-wider whitespace-nowrap">{h}</TableHead>
                     ))}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {pageRows.map(tool => (
-                    <TableRow key={tool.id} className="border-b border-[#D4D4D8]/50 hover:bg-[#FAFAFA]/50">
+                    <TableRow key={tool.id} className="border-b border-[#DBD0BB]/50 hover:bg-[#FAF7F0]/50">
                       <TableCell className="py-3">
                         <p className="text-sm font-semibold text-[#0A0A0A]">{tool.toolName}</p>
-                        <p className="text-[11px] font-mono text-[#71717A]">{tool.toolCode}</p>
+                        <p className="text-[11px] font-bt-mono text-[#8A8175]">{tool.toolCode}</p>
                       </TableCell>
-                      <TableCell className="py-3 text-sm text-[#71717A]">{tool.category}</TableCell>
+                      <TableCell className="py-3 text-sm text-[#8A8175]">{tool.category}</TableCell>
                       <TableCell className="py-3">
                         <div className="flex items-center gap-2">
                           <div className="w-6 h-6 bg-[#F97316]/10 rounded-full flex items-center justify-center flex-shrink-0">
@@ -201,8 +196,8 @@ export function TeamTools() {
                           <span className="text-sm font-medium text-[#0A0A0A]">{tool.worker}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="py-3 text-sm text-[#71717A]">{tool.project}</TableCell>
-                      <TableCell className="py-3 text-sm text-[#71717A] whitespace-nowrap">{fmtDate(tool.assignedDate, i18n.language)}</TableCell>
+                      <TableCell className="py-3 text-sm text-[#8A8175]">{tool.project}</TableCell>
+                      <TableCell className="py-3 text-sm text-[#8A8175] whitespace-nowrap">{fmtDate(tool.assignedDate, i18n.language)}</TableCell>
                       <TableCell className="py-3">
                         <span className={`text-sm ${getDaysOutColor(tool.daysOut)}`}>
                           {t('tools.day', { count: tool.daysOut })}
@@ -212,7 +207,7 @@ export function TeamTools() {
                   ))}
                   {filtered.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={6} className="py-14 text-center text-sm text-[#71717A]">
+                      <TableCell colSpan={6} className="py-14 text-center text-sm text-[#8A8175]">
                         {t('tools.noMatch')}
                       </TableCell>
                     </TableRow>
@@ -222,13 +217,13 @@ export function TeamTools() {
             </div>
 
             {/* Mobile cards */}
-            <div className="md:hidden divide-y divide-[#D4D4D8]">
+            <div className="md:hidden divide-y divide-[#DBD0BB]">
               {pageRows.map(tool => (
                 <div key={tool.id} className="p-4 space-y-1.5">
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="text-sm font-semibold text-[#0A0A0A]">{tool.toolName}</p>
-                      <p className="text-[11px] font-mono text-[#71717A]">{tool.toolCode} · {tool.category}</p>
+                      <p className="text-[11px] font-bt-mono text-[#8A8175]">{tool.toolCode} · {tool.category}</p>
                     </div>
                     <span className={`text-xs flex-shrink-0 ${getDaysOutColor(tool.daysOut)}`}>
                       {t('tools.day', { count: tool.daysOut })}
@@ -239,12 +234,12 @@ export function TeamTools() {
                       <span className="text-[8px] font-bold text-[#F97316]">{tool.worker.split(' ').map(w => w[0]).join('')}</span>
                     </div>
                     <span className="font-medium text-[#0A0A0A]">{tool.worker}</span>
-                    <span className="text-[#71717A]">→ {tool.project}</span>
+                    <span className="text-[#8A8175]">→ {tool.project}</span>
                   </div>
                 </div>
               ))}
               {filtered.length === 0 && (
-                <p className="py-10 text-center text-sm text-[#71717A]">{t('tools.noMatch')}</p>
+                <p className="py-10 text-center text-sm text-[#8A8175]">{t('tools.noMatch')}</p>
               )}
             </div>
 
@@ -254,7 +249,7 @@ export function TeamTools() {
       </div>
 
       {/* Informative note */}
-      <div className="flex items-start gap-3 rounded-xl p-4 border"
+      <div className="flex items-start gap-3 p-4 border"
         style={{ backgroundColor: '#F97316' + '0D', borderColor: '#F97316' + '33' }}>
         <Wrench className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#F97316' }} />
         <p className="text-xs" style={{ color: '#C2410C' }}>
