@@ -38,6 +38,7 @@ vi.mock('../ui/button', () => ({
 }));
 
 import { ModalAddMark } from './ModalAddMark';
+import { resetBusinessTz, setBusinessTz } from '../../helpers/dateTime';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -72,6 +73,7 @@ describe('ModalAddMark', () => {
   let root: Root;
 
   beforeEach(() => {
+    setBusinessTz('America/Guatemala');
     mocks.getManualMarkContext.mockReset();
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -79,6 +81,7 @@ describe('ModalAddMark', () => {
   });
 
   afterEach(async () => {
+    resetBusinessTz();
     await act(async () => root.unmount());
     container.remove();
   });

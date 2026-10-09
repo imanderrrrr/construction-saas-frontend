@@ -6,7 +6,7 @@ import { getAdminHoursReport, type AdminHoursReportResponse, type WorkerHoursSum
 import { listProjects } from '../../services/projects';
 import {
   GRID_INK, LaborFilters, LaborHeader, LaborSkeleton, Mono, fmtDay, fmtRange,
-  initials, mainProject, money, monthRange, projectedCost, weekRange,
+  initials, mainProject, money, LABOR_RANGES, laborRange, type LaborRange, projectedCost, weekRange,
 } from './shared';
 
 /** Ink → warm greys, so a stacked bar reads as one family, not a rainbow. */
@@ -23,7 +23,7 @@ export function LaborCostScreen({ onNavigate, mode = 'admin' }: { onNavigate: (s
   const { t, i18n } = useTranslation(['admin', 'common']);
   const lang = i18n.language;
 
-  const [range, setRange] = useScreenState<'week' | 'month'>('periodo', 'week', 'replace', ['week', 'month']);
+  const [range, setRange] = useScreenState<LaborRange>('periodo', 'week', 'replace', LABOR_RANGES);
   const [q, setQ] = useScreenState('q', '');
   const [project, setProject] = useProjectFilter<string>('');
   const [data, setData] = useState<AdminHoursReportResponse | null>(null);
@@ -32,7 +32,9 @@ export function LaborCostScreen({ onNavigate, mode = 'admin' }: { onNavigate: (s
   const [error, setError] = useState(false);
   const [open, setOpen] = useState<WorkerHoursSummary | null>(null);
 
-  const { from, to } = range === 'week' ? weekRange() : monthRange();
+  const [customFrom, setCustomFrom] = useScreenState('desde', weekRange().from);
+  const [customTo, setCustomTo] = useScreenState('hasta', weekRange().to);
+  const { from, to } = laborRange(range, customFrom, customTo);
 
   const load = useCallback(async () => {
     setLoading(true); setError(false);
@@ -93,7 +95,7 @@ export function LaborCostScreen({ onNavigate, mode = 'admin' }: { onNavigate: (s
   const chips = [
     q && { key: 'q', label: `${t('admin:lab.f.search')} · ${q}`, clear: () => setQ('') },
     project && { key: 'project', label: `${t('admin:lab.f.project')} · ${projects.find(p => String(p.id) === project)?.name ?? project}`, clear: () => setProject('') },
-    range !== 'week' && { key: 'range', label: `${t('admin:lab.f.range')} · ${t('admin:lab.f.month')}`, clear: () => setRange('week') },
+    range !== 'week' && { key: 'range', label: `${t('admin:lab.f.range')} · ${fmtRange(from, to, lang)}`, clear: () => setRange('week') },
   ].filter(Boolean) as { key: string; label: string; clear: () => void }[];
 
   const sorted = [...costed].sort((a, b) => (projectedCost(b) ?? 0) - (projectedCost(a) ?? 0));
@@ -189,6 +191,7 @@ export function LaborCostScreen({ onNavigate, mode = 'admin' }: { onNavigate: (s
       <LaborFilters
         tourAnchor="sec.labor-cost.filters"
         q={q} onQ={setQ} range={range} onRange={setRange}
+        from={customFrom} to={customTo} onFrom={setCustomFrom} onTo={setCustomTo}
         project={project} onProject={setProject} projects={projects}
         chips={chips} onClear={() => { setQ(''); setProject(''); setRange('week'); }}
       />

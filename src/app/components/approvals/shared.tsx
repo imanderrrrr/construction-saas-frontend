@@ -1,3 +1,4 @@
+import { getBusinessTz } from '../../helpers/dateTime';
 import type { TimeRecordResponse } from '../../services/time';
 
 /** Shared helpers for the Aprobaciones screens (inbox + record drawer). */
@@ -103,7 +104,7 @@ export function dayHours(r: TimeRecordResponse): number {
  * "08:12" — 24h always. Jobsite times are read as a sequence, and "02:05 a. m."
  * triples the width of every row for no gain.
  *
- * `hourCycle: 'h23'` rather than `hour12: false`: the latter leaves midnight up
+ * `hourCycle: 'h23', timeZone: getBusinessTz()` rather than `hour12: false`: the latter leaves midnight up
  * to the runtime's ICU, which resolves it to h23 ("00:10") on some and h24
  * ("24:10") on others — the same build rendered both (Node 25 vs the CI
  * runner). h24 would also contradict the editor below, which only accepts
@@ -112,7 +113,7 @@ export function dayHours(r: TimeRecordResponse): number {
  */
 export function hhmm(iso: string, _lang: string): string {
   return new Date(iso).toLocaleTimeString('es-GT', {
-    hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: getBusinessTz(),
   });
 }
 

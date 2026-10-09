@@ -45,14 +45,15 @@ vi.mock('react-i18next', () => ({
 }));
 
 import { RecordDrawer } from './RecordDrawer';
+import { resetBusinessTz, setBusinessTz } from '../../helpers/dateTime';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
-// Local wall-clock rendering AND the Date the edit path builds depend on the
-// machine timezone (CI is typically UTC) — pin the business one.
+// Rendering and editing use the authenticated tenant's business timezone.
 const ORIGINAL_TZ = process.env.TZ;
-beforeAll(() => { process.env.TZ = 'America/Guatemala'; }); // UTC-6, no DST
+beforeAll(() => { process.env.TZ = 'America/Guatemala'; setBusinessTz('America/Guatemala'); });
 afterAll(() => {
+  resetBusinessTz();
   if (ORIGINAL_TZ === undefined) delete process.env.TZ;
   else process.env.TZ = ORIGINAL_TZ;
 });
