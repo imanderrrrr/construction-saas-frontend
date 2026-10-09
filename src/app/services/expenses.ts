@@ -20,6 +20,7 @@ export interface ExpenseResponse {
   description: string | null;
   status: string;
   receiptUrl: string | null;
+  receiptRevisions?: string[];
   reviewerId: number | null;
   reviewerName: string | null;
   reviewerComment: string | null;
