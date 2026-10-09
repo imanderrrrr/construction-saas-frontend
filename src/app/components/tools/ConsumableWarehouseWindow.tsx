@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { money } from '../budgets/bits';
 import { useTranslation } from 'react-i18next';
-import { getConsumableDispatches, updateConsumable, type ConsumableResponse, type DispatchResponse } from '../../services/warehouse';
+import { getConsumableDispatches, restockConsumable, type ConsumableResponse, type DispatchResponse } from '../../services/warehouse';
+import { ApiError } from '../../lib/api';
 import { BtModal } from '../bt/windows';
 import { PrimaryButton, SecondaryButton } from '../onboarding/chrome';
 import { Bone, FieldLabel, INPUT, Mono, PaperNote } from '../projects/bt';
@@ -30,14 +31,26 @@ export function ConsumableWarehouseWindow({ consumable, onClose, onSaved, onEdit
   }, [consumable.id, reload]);
 
   const amount = Number(quantity);
-  const valid = Number.isFinite(amount) && amount > 0;
+  // Whole units: the stock is a count, and the server adds exactly this number.
+  const valid = Number.isInteger(amount) && amount > 0;
+  // One key per restock intention (AUD-049). It survives a retry whose first
+  // answer never came back — the server recognises it and adds nothing twice —
+  // and is renewed once an answer is known or the quantity changes.
+  const intent = useRef<string | null>(null);
   async function restock() {
     if (!valid || busy) return;
     setBusy(true); setError(null);
+    intent.current ??= crypto.randomUUID();
     try {
-      const saved = await updateConsumable(consumable.id, { currentStock: consumable.currentStock + amount });
+      const saved = await restockConsumable(consumable.id, amount, intent.current);
+      intent.current = null;
       onSaved(saved); setQuantity('');
-    } catch (err) { setError(err instanceof Error ? err.message : t('common:error.generic')); }
+    } catch (err) {
+      // A definitive refusal ends the intention; an unknown outcome (network,
+      // 5xx) keeps the key so the retry cannot add the quantity again.
+      if (err instanceof ApiError && err.status >= 400 && err.status < 500) intent.current = null;
+      setError(err instanceof Error ? err.message : t('common:error.generic'));
+    }
     finally { setBusy(false); }
   }
 
@@ -52,7 +65,7 @@ export function ConsumableWarehouseWindow({ consumable, onClose, onSaved, onEdit
     <div className="flex flex-wrap items-end gap-3 mt-4">
       <div className="flex-1 min-w-0">
         <FieldLabel htmlFor="warehouse-restock">{t('consumables.dialog.quantityToAdd')}</FieldLabel>
-        <input id="warehouse-restock" type="number" min="0" step="any" value={quantity} onChange={e => setQuantity(e.target.value)} className={INPUT} disabled={busy} />
+        <input id="warehouse-restock" type="number" min="1" step="1" value={quantity} onChange={e => { setQuantity(e.target.value); intent.current = null; }} className={INPUT} disabled={busy} />
       </div>
       <PrimaryButton disabled={!valid || busy} onClick={restock}>{t('consumables.restock')}</PrimaryButton>
     </div>

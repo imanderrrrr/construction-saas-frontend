@@ -23,7 +23,7 @@ import {
 } from './ui/select';
 import { toast } from 'sonner';
 import {
-  listConsumables, createConsumable, updateConsumable, getConsumableDispatches,
+  listConsumables, createConsumable, updateConsumable, restockConsumable, getConsumableDispatches,
   type ConsumableResponse, type DispatchResponse,
 } from '../services/warehouse';
 import { FIELD_LIMITS } from '../../shared/fieldLimits';
@@ -185,10 +185,13 @@ export function ConsumableInventory({ onNavigate }: { onNavigate?: (section: str
       .catch(() => toast.error(t('inventory:toast.updateSupplyError', 'Failed to update supply')));
   };
 
-  const handleRestock = (itemId: string, quantity: number) => {
+  // The quantity travels, not a stock computed from this (possibly stale)
+  // list: the server adds it to what it holds (AUD-049). The key comes from the
+  // dialog and is the same on a retry of the same intention.
+  const handleRestock = (itemId: string, quantity: number, requestKey: string) => {
     const item = items.find(i => i.id === itemId);
     if (!item) return;
-    updateConsumable(Number(itemId), { currentStock: item.currentStock + quantity })
+    restockConsumable(Number(itemId), quantity, requestKey)
       .then(res => {
         setRestockItem(null);
         toast.success(t('inventory:toast.consumableRestocked', 'Restocked {{code}} — +{{quantity}} units (new stock: {{stock}})', { code: res.code, quantity, stock: res.currentStock }));
@@ -594,11 +597,14 @@ function EditConsumableModal({ item, onClose, onSave }: {
 function RestockModal({ item, onClose, onRestock }: {
   item: ConsumableItem;
   onClose: () => void;
-  onRestock: (itemId: string, quantity: number) => void;
+  onRestock: (itemId: string, quantity: number, requestKey: string) => void;
 }) {
   const { t } = useTranslation('inventory');
   const [qty, setQty] = useState('');
-  const canSubmit = Number(qty) > 0;
+  // One intention per quantity: retrying the same one reuses the key, so a
+  // restock whose answer was lost is not added twice; a new quantity is new.
+  const [requestKey, setRequestKey] = useState(() => crypto.randomUUID());
+  const canSubmit = Number.isInteger(Number(qty)) && Number(qty) > 0;
 
   return (
     <Dialog open onOpenChange={v => { if (!v) onClose(); }}>
@@ -610,12 +616,12 @@ function RestockModal({ item, onClose, onRestock }: {
         <div className="space-y-4 py-2">
           <div>
             <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide">{t('consumables.dialog.quantityToAdd')} *</label>
-            <Input type="number" min={1} value={qty} onChange={e => setQty(e.target.value)} className="mt-1 h-9 border-[#D4D4D8] text-sm" placeholder={t('consumables.dialog.quantityPlaceholder')} />
+            <Input type="number" min={1} step={1} value={qty} onChange={e => { setQty(e.target.value); setRequestKey(crypto.randomUUID()); }} className="mt-1 h-9 border-[#D4D4D8] text-sm" placeholder={t('consumables.dialog.quantityPlaceholder')} />
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} className="border-[#D4D4D8]">{t('buttons.cancel', { ns: 'common' })}</Button>
-          <Button disabled={!canSubmit} onClick={() => onRestock(item.id, Number(qty))} className="bg-amber-500 hover:bg-amber-600 text-white">{t('consumables.restock')}</Button>
+          <Button disabled={!canSubmit} onClick={() => onRestock(item.id, Number(qty), requestKey)} className="bg-amber-500 hover:bg-amber-600 text-white">{t('consumables.restock')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
