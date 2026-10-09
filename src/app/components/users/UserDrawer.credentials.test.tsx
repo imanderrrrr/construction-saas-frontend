@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   getWorkerQr: vi.fn(),
   setWorkerPin: vi.fn(),
   download: vi.fn(),
+  updateUser: vi.fn(),
 }));
 
 // Same shape as the other users/ component tests: the import graph reaches
@@ -36,7 +37,7 @@ vi.mock('../../services/users', () => ({
   setWorkerPin: mocks.setWorkerPin,
   regenerateWorkerQr: vi.fn(),
   resetPassword: vi.fn(),
-  updateUser: vi.fn(),
+  updateUser: mocks.updateUser,
   revokeSession: vi.fn(),
   revokeAllSessions: vi.fn(),
   listUserSessions: vi.fn(() => Promise.resolve([])),
@@ -73,6 +74,7 @@ beforeEach(() => {
   mocks.getWorkerQr.mockReset();
   mocks.setWorkerPin.mockReset();
   mocks.download.mockReset();
+  mocks.updateUser.mockReset().mockResolvedValue(WORKER);
 });
 
 afterEach(() => {
@@ -194,4 +196,17 @@ describe('user drawer · download credentials', () => {
     expect(text()).toContain('admin:usr.d.dl.noPinHint');
     expect((confirmButton().textContent || '').trim()).toBe('admin:usr.d.dl.goReset');
   });
+});
+
+it('saves name, role and hourly rate through the existing user PATCH and refreshes the roster', async () => {
+ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+ mocks.getWorkerQr.mockResolvedValue(QR);
+ const changed = vi.fn();
+ await act(async () => root.render(<UserDrawer user={WORKER} onClose={() => {}} onChanged={changed} />));
+ const form=container.querySelector('form')!;
+ const inputs=form.querySelectorAll('input'); const select=form.querySelector('select')!;
+ const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')!.set!;
+ await act(async () => {setter.call(inputs[0],'Pedro Actualizado');inputs[0].dispatchEvent(new Event('input',{bubbles:true}));setter.call(inputs[1],'12.50');inputs[1].dispatchEvent(new Event('input',{bubbles:true})); select.value='SUPERVISOR';select.dispatchEvent(new Event('change',{bubbles:true}));});
+ await act(async () => form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true})));
+ expect(mocks.updateUser).toHaveBeenCalledWith(42,{fullName:'Pedro Actualizado',role:'SUPERVISOR',hourlyRate:12.5});expect(changed).toHaveBeenCalledTimes(1);
 });

@@ -34,6 +34,10 @@ export function UserDrawer({ user, onClose, onChanged }: {
   const [pinEditing, setPinEditing] = useState(false);
   const [pinValue, setPinValue] = useState('');
   const [pinSaved, setPinSaved] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [name, setName] = useState(user.fullName ?? '');
+  const [role, setRole] = useState<UserDTO['role']>(user.role);
+  const [rate, setRate] = useState(user.hourlyRate?.toString() ?? '');
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Credential sheet (PDF). Two deliberate modes, chosen before anything
@@ -69,8 +73,8 @@ export function UserDrawer({ user, onClose, onChanged }: {
   }, [qr?.qrToken]);
 
   async function run(key: string, fn: () => Promise<unknown>, after?: () => void) {
-    setBusy(key);
-    try { await fn(); after?.(); } catch { /* surfaced by the row state */ } finally { setBusy(null); }
+    setBusy(key); setActionError(null);
+    try { await fn(); after?.(); } catch (e) { setActionError(e instanceof Error ? e.message : t('common:error.generic')); } finally { setBusy(null); }
   }
 
   const savePin = () =>
@@ -167,6 +171,24 @@ export function UserDrawer({ user, onClose, onChanged }: {
               </div>
             </div>
           </div>
+
+          <form className="mt-4 space-y-3 border border-[#E4E4E7] p-3" onSubmit={e => {
+            e.preventDefault();
+            if (rate && !/^\d+(?:\.\d{1,2})?$/.test(rate)) { setActionError(t('admin:usr.edit.rateInvalid')); return; }
+            void run('profile', () => updateUser(user.id, {
+              fullName: name.trim(), role,
+              ...(rate !== (user.hourlyRate?.toString() ?? '') ? { hourlyRate: rate ? Number(rate) : null } : {}),
+            }), onChanged);
+          }}>
+            <label className="block text-sm">{t('admin:usr.edit.name')}<input className="block w-full border p-2" value={name} required maxLength={150} onChange={e => setName(e.target.value)} /></label>
+            <label className="block text-sm">{t('admin:usr.edit.role')}<select className="block w-full border p-2" value={role} onChange={e => setRole(e.target.value as UserDTO['role'])}>
+              {(['ADMIN','FINANCE','WAREHOUSE','SUPERVISOR','WORKER','SUBCONTRACTOR'] as const).map(r => <option key={r} value={r}>{t(`common:roles.${r}`)}</option>)}
+            </select></label>
+            <label className="block text-sm">{t('admin:usr.edit.rate')}<input className="block w-full border p-2" inputMode="decimal" value={rate} onChange={e => setRate(e.target.value)} /></label>
+            <p className="text-xs text-[#71717A]">{t('admin:usr.edit.rateHelp')}</p>
+            <button disabled={busy !== null} className="border px-3 py-2" type="submit">{t('common:buttons.save')}</button>
+          </form>
+          {actionError && <p role="alert" className="mt-2 text-sm text-red-700">{actionError}</p>}
 
           {/* How they sign in */}
           <div className="flex gap-2.5 items-center bg-[#F7F3EA] border border-[#ECE4D5] px-3 py-2.5 mt-3.5">
