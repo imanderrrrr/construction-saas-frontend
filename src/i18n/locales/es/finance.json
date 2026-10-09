@@ -844,5 +844,9 @@
   "overview.netMovement": "Neto de estos movimientos",
   "overview.netFormula": "Cobrado − pagado",
   "overview.guideFinance": "Guía de Finanzas",
-  "payable.subcontractorInvoice": "Factura de subcontratista #{{number}}"
+  "payable.subcontractorInvoice": "Factura de subcontratista #{{number}}",
+  "void.confirmTitle": "Anular pago o cobro",
+  "void.confirm": "Confirmar anulación",
+  "void.explanation": "Se recalculará el saldo. El movimiento original quedará en el historial.",
+  "void.reason": "Motivo (opcional)"
 }

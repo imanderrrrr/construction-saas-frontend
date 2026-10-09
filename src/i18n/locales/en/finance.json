@@ -844,5 +844,9 @@
   "overview.netMovement": "Net of these movements",
   "overview.netFormula": "Collected − paid",
   "overview.guideFinance": "Finance guide",
-  "payable.subcontractorInvoice": "Subcontractor invoice #{{number}}"
+  "payable.subcontractorInvoice": "Subcontractor invoice #{{number}}",
+  "void.confirmTitle": "Void payment or collection",
+  "void.confirm": "Confirm void",
+  "void.explanation": "The balance will be recalculated. The original movement remains in history.",
+  "void.reason": "Reason (optional)"
 }

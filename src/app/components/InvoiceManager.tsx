@@ -14,12 +14,9 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import {
-  listReceivables, type PageResponse, type Receivable,
+  downloadReceivableDocument, listReceivables, type PageResponse, type Receivable,
 } from '../services/finance';
 import { listProjects } from '../services/projects';
-import { loadInvoiceIssuer } from '../services/invoiceBranding';
-import { downloadInvoicePdf, type InvoicePdfData } from '../helpers/exportInvoicePdf';
-import { loadSignatureForPdf } from '../services/signatures';
 import { setSectionIntent } from '../lib/sectionIntent';
 import { requestTourStop } from '../lib/tourRequest';
 import { CellEmpty, DocTypeChip, InvoiceStatusChip, fmtMoney } from './invoices/bits';
@@ -79,27 +76,6 @@ function rangeOf(key: RangeKey): { issuedFrom?: string; issuedTo?: string } {
   }
 }
 
-function toPdfData(r: Receivable): InvoicePdfData {
-  return {
-    documentType: r.documentType,
-    invoiceNumber: r.invoiceNumber,
-    client: r.client,
-    project: r.project,
-    description: r.description,
-    issuedDate: r.issuedDate,
-    dueDate: r.dueDate,
-    lineItems: r.lineItems.map(li => ({
-      description: li.description, quantity: li.quantity,
-      unitPrice: li.unitPrice, subtotal: li.subtotal,
-    })),
-    subtotal: r.subtotal,
-    discount: r.discount,
-    taxRate: r.taxRate,
-    tax: r.tax,
-    amount: r.amount,
-    notes: r.notes,
-  };
-}
 
 export function InvoiceManager({ onNavigate, canManageBranding = true }: {
   onNavigate?: (section: string) => void;
@@ -207,11 +183,7 @@ export function InvoiceManager({ onNavigate, canManageBranding = true }: {
   const download = useCallback(async (row: Receivable) => {
     setDownloading(row.id);
     try {
-      const [issuer, signature] = await Promise.all([
-        loadInvoiceIssuer(),
-        loadSignatureForPdf(row.id).catch(() => undefined),
-      ]);
-      downloadInvoicePdf(toPdfData(row), issuer, signature, lang);
+      await downloadReceivableDocument(row.id, { lang, filename: row.invoiceNumber });
     } finally {
       setDownloading(null);
     }

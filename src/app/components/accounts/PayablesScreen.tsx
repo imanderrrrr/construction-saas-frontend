@@ -1,3 +1,4 @@
+import { VoidPaymentDialog } from './VoidPaymentDialog';
 import { useScreenState, useProjectFilter } from '../../workspace/WorkspaceState';
 import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -158,7 +159,8 @@ export function PayablesScreen({ onNavigate }: { onNavigate?: (section: string) 
     if (vendor && b.vendor !== vendor) return false;
     if (projectId && String(b.projectId) !== projectId) return false;
     if (category && b.category !== category) return false;
-    if (status && b.status !== status) return false;
+    const paymentStatus = b.status.toLowerCase() === 'overdue' ? (b.paidAmount > 0 ? 'partial' : 'pending') : b.status.toLowerCase();
+    if (status && paymentStatus !== status) return false;
     if (rangeFrom && b.receivedDate < rangeFrom) return false;
     if (!matches([b.billNumber, b.invoiceNumber, b.vendor, b.project, b.description], search)) return false;
     return true;
@@ -226,26 +228,22 @@ export function PayablesScreen({ onNavigate }: { onNavigate?: (section: string) 
     setSelected(new Set(stillSelected));
   }, []);
 
-  async function voidPayment(bill: VendorBill, paymentId: number) {
+  const [voidTarget, setVoidTarget] = useState<{ bill: VendorBill; paymentId: number } | null>(null);
+  async function voidPayment(bill: VendorBill, paymentId: number, reason: string) {
     setBusy(true);
     try {
-      patch(await voidOnePayment(bill.id, paymentId));
+      patch(await voidOnePayment(bill.id, paymentId, reason));
       toast.success(t('finance:payable.void.done'));
     } catch (err: unknown) {
       toast.error(t('finance:payable.void.failed'), { description: err instanceof Error ? err.message : undefined });
+      throw err;
     } finally {
       setBusy(false);
     }
   }
 
   const detail = detailId != null ? byId.get(detailId) ?? (bills ?? []).find(b => b.id === detailId) ?? null : null;
-  const nextBillNumber = useMemo(() => {
-    const max = (bills ?? []).reduce((m, b) => {
-      const n = parseInt(b.billNumber.split('-').pop() ?? '0', 10);
-      return Number.isFinite(n) && n > m ? n : m;
-    }, 0);
-    return `BILL-${today.slice(0, 4)}-${String(max + 1).padStart(3, '0')}`;
-  }, [bills, today]);
+
 
   /* ── Render ─────────────────────────────────────────────────────────── */
 
@@ -553,7 +551,7 @@ export function PayablesScreen({ onNavigate }: { onNavigate?: (section: string) 
         onReassign={b => { setDetailId(null); setReassignBill(b); }}
         onUnpay={b => { setDetailId(null); setUnpayBill(b); }}
         onDelete={b => { setDetailId(null); setDeleteBill(b); }}
-        onVoidPayment={(b, id) => void voidPayment(b, id)}
+        onVoidPayment={(bill, paymentId) => setVoidTarget({ bill, paymentId })}
         onEditPayment={(b, p) => { setDetailId(null); setEditPayment({ bill: b, payment: p }); }}
       />
 
@@ -570,7 +568,7 @@ export function PayablesScreen({ onNavigate }: { onNavigate?: (section: string) 
         open={createOpen}
         vendors={vendorOptions}
         projects={projects}
-        suggestedNumber={nextBillNumber}
+        suggestedNumber=""
         onClose={() => setCreateOpen(false)}
         onCreated={created => setBills(prev => (prev ? [toVendorBill(created), ...prev] : prev))}
       />
@@ -578,7 +576,8 @@ export function PayablesScreen({ onNavigate }: { onNavigate?: (section: string) 
       <EditBillInfoDialog bill={infoBill} vendors={vendorOptions} onClose={() => setInfoBill(null)} onSaved={patch} />
       <ConvertDialog bill={convertBill} onClose={() => setConvertBill(null)} onConverted={patch} />
       <ReassignDialog bill={reassignBill} projects={projects} onClose={() => setReassignBill(null)} onReassigned={patch} />
-      <UnpayDialog bill={unpayBill} onClose={() => setUnpayBill(null)} onUnpaid={patch} />
+      {unpayBill && <UnpayDialog bill={unpayBill} onClose={() => setUnpayBill(null)} onUnpaid={patch} />}
+      {voidTarget && <VoidPaymentDialog onClose={() => setVoidTarget(null)} onConfirm={reason => voidPayment(voidTarget.bill, voidTarget.paymentId, reason)} />}
       <DeleteBillDialog
         bill={deleteBill}
         onClose={() => setDeleteBill(null)}

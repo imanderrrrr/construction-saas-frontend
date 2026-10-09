@@ -44,6 +44,7 @@ vi.mock('../../services/officeExpenses', () => ({
 }));
 
 import { OfficeExpensesSection } from './OfficeExpensesSection';
+import { createOfficeExpense, updateOfficeExpense, uploadOfficeReceipt } from '../../services/officeExpenses';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -123,6 +124,9 @@ describe('Gastos de oficina', () => {
     getOfficeExpenseSummary.mockReset().mockResolvedValue(SUMMARY);
     listOfficeCategories.mockReset().mockResolvedValue(CATEGORIES);
     deleteOfficeExpense.mockReset().mockResolvedValue(undefined);
+    vi.mocked(createOfficeExpense).mockReset().mockResolvedValue(expense({ id: 9 }) as Awaited<ReturnType<typeof createOfficeExpense>>);
+    vi.mocked(updateOfficeExpense).mockReset().mockResolvedValue(expense({ id: 9 }) as Awaited<ReturnType<typeof updateOfficeExpense>>);
+    vi.mocked(uploadOfficeReceipt).mockReset().mockResolvedValue(expense({ id: 9 }) as Awaited<ReturnType<typeof uploadOfficeReceipt>>);
   });
 
   afterEach(() => {
@@ -247,5 +251,39 @@ describe('Gastos de oficina', () => {
     });
     await render();
     expect(container.textContent).toContain('officeExpenses.empty.firstTitle');
+  });
+
+  it('reintenta el comprobante sobre el gasto guardado sin duplicar ni perder el archivo', async () => {
+    vi.mocked(uploadOfficeReceipt).mockRejectedValueOnce(new Error('receipt offline'));
+    await render();
+    const button = (text: string) => [...document.body.querySelectorAll('button')].find(b => b.textContent === text)!;
+    await act(async () => { button('officeExpenses.newExpense').click(); });
+    const dialog = document.body.querySelector('[role="dialog"]')!;
+    const input = (placeholder: string) => dialog.querySelector<HTMLInputElement>(`input[placeholder="${placeholder}"]`)!;
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+    await act(async () => {
+      setter.call(input('officeExpenses.form.descriptionHint'), 'Compra de papel');
+      input('officeExpenses.form.descriptionHint').dispatchEvent(new Event('input', { bubbles: true }));
+      setter.call(input('0.00'), '25.00');
+      input('0.00').dispatchEvent(new Event('input', { bubbles: true }));
+      dialog.querySelector<HTMLButtonElement>('button[aria-haspopup="listbox"]')!.click();
+    });
+    await act(async () => { [...dialog.querySelectorAll<HTMLButtonElement>('button[role="option"]')].find(b => b.textContent?.startsWith('Papelería'))!.click(); });
+    const file = new File(['receipt'], 'receipt.pdf', { type: 'application/pdf' });
+    const fileInput = dialog.querySelector<HTMLInputElement>('input[type="file"]')!;
+    Object.defineProperty(fileInput, 'files', { configurable: true, value: [file] });
+    await act(async () => { fileInput.dispatchEvent(new Event('change', { bubbles: true })); });
+    const description = input('officeExpenses.form.descriptionHint');
+    await act(async () => { button('officeExpenses.form.save').click(); });
+    expect(createOfficeExpense).toHaveBeenCalledTimes(1);
+    expect(document.body.textContent).toContain('receipt offline');
+    expect(input('officeExpenses.form.descriptionHint')).toBe(description);
+    expect(description.value).toBe('Compra de papel');
+    await act(async () => { button('officeExpenses.form.saveEdit').click(); });
+    expect(createOfficeExpense).toHaveBeenCalledTimes(1);
+    expect(updateOfficeExpense).toHaveBeenCalledWith(9, expect.objectContaining({ description: 'Compra de papel', amountCents: 2500 }));
+    expect(uploadOfficeReceipt).toHaveBeenNthCalledWith(1, 9, file);
+    expect(uploadOfficeReceipt).toHaveBeenNthCalledWith(2, 9, file);
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   });
 });

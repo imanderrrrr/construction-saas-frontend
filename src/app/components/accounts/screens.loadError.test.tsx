@@ -142,3 +142,18 @@ describe('Pagar — el fallo de carga', () => {
     expect(container.textContent).toContain('payable.empty.word');
   });
 });
+
+it.each([['payables',PayablesScreen],['receivables',ReceivablesScreen]] as const)('%s keeps overdue documents in pending and partial payment filters',async (_,Screen) => {
+ const base={projectId:1,project:'Job',documentType:'INVOICE',description:null,notes:null,issuedDate:'2026-09-20',receivedDate:'2026-09-20',dueDate:'2026-09-25',amount:100,lineItems:[],payments:[],createdAt:'2026-09-20T00:00:00Z',updatedAt:'2026-09-20T00:00:00Z',attachmentCount:0};
+ const rows=[{...base,id:91,invoiceNumber:'AgedPending',billNumber:'AgedPending',client:'AgedPending',vendor:'AgedPending',paidAmount:0,status:'OVERDUE'},{...base,id:92,invoiceNumber:'AgedPartial',billNumber:'AgedPartial',client:'AgedPartial',vendor:'AgedPartial',paidAmount:25,status:'OVERDUE'}];
+ mocks.listAllPayables.mockResolvedValue(rows);
+ mocks.listAllReceivables.mockImplementation((params?: {status?: string}) => Promise.resolve(params?.status === 'PENDING_APPROVAL' ? [] : rows));
+ mocks.listPayableVendors.mockResolvedValue([]);mocks.listProjects.mockResolvedValue({content:[]});
+ await render(<Screen />);
+ const select=container.querySelector<HTMLSelectElement>('select[aria-label="common:labels.status"]')!;expect(select).not.toBeNull();
+ await act(async () => {select.value='pending';select.dispatchEvent(new Event('change',{bubbles:true}));});
+ const visibleRows = () => [...container.querySelectorAll('[role="button"],button[aria-expanded]')].map(row => row.textContent).join(' ');
+ expect(visibleRows()).toContain('AgedPending');expect(visibleRows()).not.toContain('AgedPartial');
+ await act(async () => {select.value='partial';select.dispatchEvent(new Event('change',{bubbles:true}));});
+ expect(visibleRows()).toContain('AgedPartial');expect(visibleRows()).not.toContain('AgedPending');
+});
