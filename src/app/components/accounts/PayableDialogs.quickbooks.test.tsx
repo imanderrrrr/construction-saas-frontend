@@ -18,7 +18,7 @@ vi.mock('react-i18next', () => {
   // The real ApiError's module loads the app's i18n, which plugs this in.
   return { initReactI18next: { type: '3rdParty', init: () => {} }, useTranslation: () => ({ t, i18n: { language: 'es' } }) };
 });
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }));
 vi.mock('../../services/finance', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../services/finance')>()),
   reassignPayableProject: vi.fn(),
@@ -29,7 +29,7 @@ vi.mock('../../services/finance', async (importOriginal) => ({
 }));
 
 import { toast } from 'sonner';
-import { DeleteBillDialog, PayDialog, ReassignDialog, UnpayDialog } from './PayableDialogs';
+import { BatchPayDialog, DeleteBillDialog, PayDialog, ReassignDialog, UnpayDialog } from './PayableDialogs';
 import { ApiError } from '../../lib/api';
 import { deletePayable, getPayable, markPayableUnpaid, reassignPayableProject, recordPayablePayment, type Payable } from '../../services/finance';
 
@@ -222,5 +222,35 @@ describe('«Pagar» and «Marcar como no pagada», refused because the bill is i
 
     expect(onUnpaid).toHaveBeenCalledWith(NOW_IN_QUICKBOOKS);
     expect(onClose).toHaveBeenCalled();
+  });
+});
+
+
+describe('payment intentions survive ambiguous responses', () => {
+  it('a lost response retries the same key and a 409 stays a failure', async () => {
+    vi.mocked(recordPayablePayment).mockRejectedValueOnce(new Error('Response lost'))
+      .mockRejectedValueOnce(new ApiError(409, 'Different payload', undefined, 'PAYMENT_REQUEST_CONFLICT'));
+    const onPaid = vi.fn(); const onClose = vi.fn();
+    await render(<PayDialog bill={PAID_HERE} project={undefined} onClose={onClose} onPaid={onPaid} />);
+    await clickLabel('finance:payable.pay.confirm');
+    await clickLabel('finance:payable.pay.confirm');
+    const [first, retry] = vi.mocked(recordPayablePayment).mock.calls;
+    expect(first[1].requestKey).toMatch(/^[0-9a-f-]{36}$/);
+    expect(retry[1].requestKey).toBe(first[1].requestKey);
+    expect(onPaid).not.toHaveBeenCalled(); expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('partial batch retries only the failed row with its original key', async () => {
+    vi.mocked(recordPayablePayment).mockResolvedValueOnce({ id: 9 } as Payable)
+      .mockRejectedValueOnce(new Error('Response lost')).mockResolvedValueOnce({ id: 10 } as Payable);
+    const onFinished = vi.fn();
+    await render(<BatchPayDialog bills={[PAID_HERE, bill({ id: 10 })]} projects={PROJECTS} onClose={() => {}} onFinished={onFinished} />);
+    await clickLabel('finance:payable.batch.confirm');
+    expect(onFinished.mock.calls[0][1]).toEqual([10]);
+    await clickLabel('finance:payable.batch.confirm');
+    const calls = vi.mocked(recordPayablePayment).mock.calls;
+    expect(calls.map(c => c[0])).toEqual([9, 10, 10]);
+    expect(calls[1][1].requestKey).toBe(calls[2][1].requestKey);
+    expect(calls[0][1].requestKey).not.toBe(calls[1][1].requestKey);
   });
 });

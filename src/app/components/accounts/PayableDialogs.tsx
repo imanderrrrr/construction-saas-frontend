@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { usePaymentRequestKey } from './usePaymentRequestKey';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
@@ -93,6 +94,7 @@ export function PayDialog({ bill, project, onClose, onPaid }: {
   const [methodOther, setMethodOther] = useState('');
   const [reference, setReference] = useState('');
   const [busy, setBusy] = useState(false);
+  const paymentRequestKey = usePaymentRequestKey(bill?.id ?? null);
 
   const balance = bill ? balanceOf(bill) : 0;
   if (bill && seeded !== bill.id) {
@@ -121,7 +123,7 @@ export function PayDialog({ bill, project, onClose, onPaid }: {
     setBusy(true);
     try {
       const updated = await recordPayablePayment(bill.id, {
-        amount: entered, date, method: resolved, reference: reference.trim() || undefined, approvedBy: 'finance',
+        amount: entered, date, method: resolved, reference: reference.trim() || undefined, approvedBy: 'finance', requestKey: paymentRequestKey(),
       });
       toast.success(t('finance:payable.toast.paymentRecorded', { amount: fmtMoney(entered), bill: bill.billNumber }));
       onPaid(updated);
@@ -202,7 +204,7 @@ export function PayDialog({ bill, project, onClose, onPaid }: {
 
 /* ── Pagar en lote ─────────────────────────────────────────────────────── */
 
-type BatchRow = { bill: VendorBill; amount: string; reference: string; error: string | null; done: boolean };
+type BatchRow = { bill: VendorBill; amount: string; reference: string; error: string | null; done: boolean; requestKey: string };
 
 /**
  * The Friday payment run.
@@ -223,7 +225,7 @@ export function BatchPayDialog({ bills, projects, onClose, onFinished }: {
   const [method, setMethod] = useState('Bank transfer');
   const [methodOther, setMethodOther] = useState('');
   const [rows, setRows] = useState<BatchRow[]>(() =>
-    bills.map(bill => ({ bill, amount: balanceOf(bill).toFixed(2), reference: '', error: null, done: false })));
+    bills.map(bill => ({ bill, amount: balanceOf(bill).toFixed(2), reference: '', error: null, done: false, requestKey: crypto.randomUUID() })));
   const [busy, setBusy] = useState(false);
 
   const pending = rows.filter(r => !r.done);
@@ -261,7 +263,7 @@ export function BatchPayDialog({ bills, projects, onClose, onFinished }: {
       try {
         const res = await recordPayablePayment(row.bill.id, {
           amount: parseFloat(row.amount), date, method: resolved,
-          reference: row.reference.trim() || undefined, approvedBy: 'finance',
+          reference: row.reference.trim() || undefined, approvedBy: 'finance', requestKey: row.requestKey,
         });
         updated.push(res);
         setRow(row.bill.id, { done: true, error: null });

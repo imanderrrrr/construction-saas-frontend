@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { usePaymentRequestKey } from './usePaymentRequestKey';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
@@ -39,6 +40,7 @@ export function CollectDialog({ doc, onClose, onCollected, clientOverdue }: {
   const [methodOther, setMethodOther] = useState('');
   const [reference, setReference] = useState('');
   const [busy, setBusy] = useState(false);
+  const paymentRequestKey = usePaymentRequestKey(doc?.id ?? null);
   const [seeded, setSeeded] = useState<number | null>(null);
 
   const balance = doc ? Math.round((doc.amount - doc.paidAmount) * 100) / 100 : 0;
@@ -72,7 +74,7 @@ export function CollectDialog({ doc, onClose, onCollected, clientOverdue }: {
     setBusy(true);
     try {
       const updated = await recordReceivablePayment(doc.id, {
-        amount: entered, date, method: resolved, reference: reference.trim() || undefined,
+        amount: entered, date, method: resolved, reference: reference.trim() || undefined, requestKey: paymentRequestKey(),
       });
       toast.success(t('finance:receivable.collect.done', { amount: fmtMoney(entered), invoice: doc.invoiceNumber }));
       onCollected(updated);

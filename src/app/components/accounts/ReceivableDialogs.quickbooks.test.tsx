@@ -107,3 +107,16 @@ describe('«Cobrar», refused because the document is in QuickBooks now', () => 
     expect(onClose).not.toHaveBeenCalled();
   });
 });
+
+
+it('a lost collection response retries its stable intention, without treating conflict as success', async () => {
+  vi.mocked(recordReceivablePayment).mockRejectedValueOnce(new Error('Response lost'))
+    .mockRejectedValueOnce(new ApiError(409, 'Different payload', undefined, 'PAYMENT_REQUEST_CONFLICT'));
+  const onCollected = vi.fn(); const onClose = vi.fn();
+  await render(<CollectDialog doc={DOC} onClose={onClose} onCollected={onCollected} clientOverdue={0} />);
+  await clickLabel('finance:receivable.collect.confirm'); await clickLabel('finance:receivable.collect.confirm');
+  const calls = vi.mocked(recordReceivablePayment).mock.calls;
+  expect(calls[0][1].requestKey).toMatch(/^[0-9a-f-]{36}$/);
+  expect(calls[1][1].requestKey).toBe(calls[0][1].requestKey);
+  expect(onCollected).not.toHaveBeenCalled(); expect(onClose).not.toHaveBeenCalled();
+});
