@@ -11,9 +11,8 @@ import { tenantCompanyName } from '../../services/branding';
 import { listActiveUsers, type UserDTO } from '../../services/users';
 import { listProjects, type ProjectResponse } from '../../services/projects';
 import { getSupervisorProjects } from '../../services/time';
-import { ApiError } from '../../lib/api';
 import {
-  adminBatchApprove, approveExpense, observeExpense, rejectExpense,
+  adminBatchApprove, supervisorBatchApprove, approveExpense, observeExpense, rejectExpense,
   getSupervisorSummary,
   type BatchApproveResponse, type ExpenseResponse,
 } from '../../services/expenses';
@@ -144,20 +143,9 @@ export function ExpensesSection({ readOnly = false, mode = 'admin' }: { readOnly
   const runBatch = async () => {
     setBusy(true); setBatchError(null);
     try {
-      // The supervisor batch endpoint ignores filters. Review exactly the
-      // rows shown in the confirmation, using its authorized per-row API.
-      let res: BatchApproveResponse;
-      if (mode === 'supervisor') {
-        const results = await Promise.allSettled(batchPending.map(e => approveExpense(e.id, 'supervisor')));
-        res = { approvedCount: results.filter(r => r.status === 'fulfilled').length, skipped: [] };
-        results.forEach((result, index) => {
-          if (result.status === 'rejected') res.skipped!.push({
-            expenseId: batchPending[index].id,
-            code: result.reason instanceof ApiError ? result.reason.code ?? 'ERROR' : 'ERROR',
-            reason: result.reason instanceof Error ? result.reason.message : null,
-          });
-        });
-      } else res = await adminBatchApprove(toScope(filters));
+      const res = mode === 'supervisor'
+        ? await supervisorBatchApprove(batchPending)
+        : await adminBatchApprove(batchPending, toScope(filters));
       setBatchResult(res);
       reload();
     } catch (err: unknown) {
