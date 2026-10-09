@@ -429,6 +429,17 @@ export async function getConsumableDispatches(consumableId: number): Promise<Dis
   return api<DispatchResponse[]>(`/api/v1/warehouse/consumables/${consumableId}/dispatches`);
 }
 
+/** The dispatch tab's figures over every dispatch of the tenant (the list itself is paged). */
+export interface DispatchSummary {
+  totalDispatches: number;
+  totalUnits: number;
+  projectCount: number;
+}
+
+export async function getDispatchSummary(): Promise<DispatchSummary> {
+  return api<DispatchSummary>('/api/v1/warehouse/consumables/dispatches/summary');
+}
+
 export async function getAllDispatches(params?: {
   page?: number;
   size?: number;

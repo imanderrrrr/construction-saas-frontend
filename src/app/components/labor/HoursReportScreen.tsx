@@ -3,9 +3,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, ChevronRight, Download, X } from 'lucide-react';
 import { getAdminHoursReport, type AdminHoursReportResponse, type WorkerHoursSummary } from '../../services/time';
-import { listProjects } from '../../services/projects';
 import {
-  LaborFilters, LaborHeader, LaborSkeleton, Mono, attendanceDays, fmtDay, fmtRange,
+  LaborFilters, LaborHeader, LaborSkeleton, Mono, attendanceDays, fmtDay, fmtRange, useLaborProjects,
   initials, mainProject, LABOR_RANGES, laborRange, type LaborRange, pendingHours, periodDays, weekRange,
 } from './shared';
 
@@ -25,7 +24,8 @@ export function HoursReportScreen({ onNavigate }: { onNavigate: (section: string
   const [project, setProject] = useProjectFilter<string>('');
   const [attendance, setAttendance] = useScreenState<'' | 'full' | 'absences' | 'late'>('asistencia', '', 'replace', ['', 'full', 'absences', 'late']);
   const [data, setData] = useState<AdminHoursReportResponse | null>(null);
-  const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
+  const projectCatalog = useLaborProjects();
+  const projects = projectCatalog.items;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [open, setOpen] = useState<WorkerHoursSummary | null>(null);
@@ -47,11 +47,6 @@ export function HoursReportScreen({ onNavigate }: { onNavigate: (section: string
   }, [from, to, project]);
 
   useEffect(() => { load(); }, [load]);
-  useEffect(() => {
-    listProjects({ status: 'ACTIVE', page: 0, size: 100 })
-      .then(p => setProjects(p.content.map(x => ({ id: x.id, name: x.name }))))
-      .catch(() => setProjects([]));
-  }, []);
 
   const workers = data?.workers ?? [];
 
@@ -138,7 +133,7 @@ export function HoursReportScreen({ onNavigate }: { onNavigate: (section: string
         tourAnchor="sec.hours.filters"
         q={q} onQ={setQ} range={range} onRange={setRange}
         from={customFrom} to={customTo} onFrom={setCustomFrom} onTo={setCustomTo}
-        project={project} onProject={setProject} projects={projects}
+        project={project} onProject={setProject} projects={projects} projectsCatalog={projectCatalog}
         chips={chips} onClear={() => { setQ(''); setProject(''); setAttendance(''); setRange('week'); }}
         extra={
           <select value={attendance} onChange={e => setAttendance(e.target.value as typeof attendance)}

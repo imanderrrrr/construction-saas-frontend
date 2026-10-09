@@ -13,7 +13,9 @@ import {
   type ProjectResponse, type ProjectStatus, type ProjectSummary,
 } from '../../services/projects';
 import { listActiveUsers } from '../../services/users';
-import { listClients, type ClientResponse } from '../../services/clients';
+import type { ClientResponse } from '../../services/clients';
+import { clientCatalog } from '../../services/catalogs';
+import { CatalogNote } from '../workspace/CatalogNote';
 import { getBranding } from '../../services/branding';
 import { ApiError } from '../../lib/api';
 import { clearSectionIntent, peekSectionIntent } from '../../lib/sectionIntent';
@@ -99,6 +101,7 @@ export function ProjectManagement({ onNavigate }: { onNavigate?: (section: 'bill
   const [summary, setSummary] = useState<ProjectSummary | null>(null);
   const [summaryFailed, setSummaryFailed] = useState(false);
   const [clients, setClients] = useState<ClientResponse[]>([]);
+  const [clientsCatalog, setClientsCatalog] = useState({ total: 0, truncated: false });
   const [orgName, setOrgName] = useState<string | null>(null);
 
   // Users cache for avatars & details view
@@ -177,11 +180,15 @@ export function ProjectManagement({ onNavigate }: { onNavigate?: (section: 'bill
   useEffect(() => { fetchSummary(); }, [fetchSummary]);
 
   // Company name for the kicker, clients for the filter, users for avatars —
-  // all decorative or secondary: a failure leaves the list working.
+  // all decorative or secondary: a failure leaves the list working. The
+  // clients are every active one, all pages (AUD-055): one page of 100, in
+  // alphabetical order, left the clients after the 100th out of the filter.
   useEffect(() => {
-    getBranding().then(b => setOrgName(b.organizationName)).catch(() => {});
-    listClients(undefined, 'ACTIVE', 0, 100).then(p => setClients(p.content)).catch(() => {});
     let cancelled = false;
+    getBranding().then(b => setOrgName(b.organizationName)).catch(() => {});
+    clientCatalog('ACTIVE')
+      .then(c => { if (!cancelled) { setClients(c.items); setClientsCatalog({ total: c.total, truncated: c.truncated }); } })
+      .catch(() => {});
     setUsersLoading(true);
     listActiveUsers()
       .then(users => {
@@ -411,6 +418,7 @@ export function ProjectManagement({ onNavigate }: { onNavigate?: (section: 'bill
               {intent && !clients.some(c => c.id === intent.clientId) && <option value={intent.clientId}>{intent.clientName}</option>}
               {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </MonoSelect>
+            <CatalogNote shown={clients.length} total={clientsCatalog.total} truncated={clientsCatalog.truncated} />
             <MonoSelect value={recordFilter} onChange={e => setRecord(e.target.value as RecordFilter)} className="hidden md:block">
               <option value="">{t('admin:projectMgmt.filter.record')}</option>
               <option value="incomplete">{t('admin:projectMgmt.filter.incomplete')}</option>

@@ -1,5 +1,5 @@
 import { useScreenState } from '../workspace/WorkspaceState';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeftRight, Calendar, RotateCcw, ArrowRight, ArrowLeft,
@@ -115,24 +115,127 @@ function Pagination({ current, total, onPage }: { current: number; total: number
   );
 }
 
+/** Rows of available tools fetched per request while searching. */
+const TOOL_PAGE = 25;
+
+/**
+ * The available tools, searched on the server (AUD-055). The dialog used to
+ * offer the first 100 the server returned — the most recently touched — with
+ * no search, so the 101st available tool could never be assigned from the
+ * web. The server matches code or name; more pages load on demand; a picked
+ * tool stays picked whatever the search shows next.
+ */
+function AvailableToolPicker({ value, onChange }: {
+  value: AvailableTool | null;
+  onChange: (tool: AvailableTool) => void;
+}) {
+  const { t } = useTranslation('inventory');
+  const [query, setQuery] = useState('');
+  const [result, setResult] = useState<{ term: string; rows: AvailableTool[]; total: number; page: number; pages: number } | null>(null);
+  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const generation = useRef(0);
+
+  const load = useCallback((term: string, pageNo: number, append: boolean) => {
+    // Only the newest request may write: a slow answer to an older search
+    // must not replace the list of the search on screen.
+    const mine = ++generation.current;
+    setState('loading');
+    listTools({ status: 'Available', search: term || undefined, page: pageNo, size: TOOL_PAGE })
+      .then(res => {
+        if (mine !== generation.current) return;
+        const mapped = res.content.map(tool => ({ code: tool.code, name: tool.name }));
+        setResult(prev => ({
+          term,
+          rows: append && prev ? [...prev.rows, ...mapped.filter(m => !prev.rows.some(p => p.code === m.code))] : mapped,
+          total: res.totalElements,
+          page: pageNo,
+          pages: res.totalPages,
+        }));
+        setState('ready');
+      })
+      .catch(() => { if (mine === generation.current) setState('error'); });
+  }, []);
+
+  // The first list comes at once; a search waits for the typing to pause.
+  // (The dialog's content mounts on every opening, so each one starts clean.)
+  useEffect(() => {
+    const term = query.trim();
+    const timer = setTimeout(() => load(term, 0, false), term ? 250 : 0);
+    return () => clearTimeout(timer);
+  }, [query, load]);
+  useEffect(() => () => { generation.current += 1; }, []);
+
+  const rows = result?.rows ?? [];
+  const total = result?.total ?? 0;
+  const searched = result?.term ?? '';
+
+  return (
+    <div className="space-y-2">
+      <input
+        type="search"
+        value={query}
+        onChange={e => setQuery(e.target.value)}
+        aria-label={t('assignment.dialog.searchTool')}
+        placeholder={t('assignment.dialog.searchTool')}
+        className="w-full rounded-md border border-[#DBD0BB] bg-white px-3 py-2 text-sm placeholder:text-[#8A8175] focus:outline-none focus:ring-2 focus:ring-amber-400"
+      />
+      {value && <p className="text-xs text-[#5A5346]">{t('assignment.dialog.selectedTool', { code: value.code, name: value.name })}</p>}
+      {state === 'error' ? (
+        <div role="alert" className="bg-red-50 border border-red-200 p-3 text-sm text-red-700 flex items-center justify-between gap-2">
+          <span>{t('assignment.dialog.toolsError')}</span>
+          <Button variant="outline" size="sm" onClick={() => load(query.trim(), 0, false)} className="rounded-none">{t('buttons.retry', { ns: 'common' })}</Button>
+        </div>
+      ) : state === 'ready' && total === 0 ? (
+        <div className="bg-amber-50 border border-amber-200 p-3 text-sm text-amber-700">
+          {searched ? t('assignment.dialog.noToolMatch') : t('assignment.dialog.noTools')}
+        </div>
+      ) : (
+        <>
+          <div role="listbox" aria-label={t('assignment.dialog.tool')} className="max-h-48 overflow-y-auto border border-[#DBD0BB] divide-y divide-[#EFE8DA]">
+            {rows.map(tool => (
+              <button
+                key={tool.code}
+                type="button"
+                role="option"
+                aria-selected={value?.code === tool.code}
+                onClick={() => onChange(tool)}
+                className={`w-full text-left px-3 py-2 text-sm ${value?.code === tool.code ? 'bg-amber-50' : 'hover:bg-[#FAF6EE]'}`}
+              >
+                <span className="font-bt-mono text-xs mr-2 text-[#8A8175]">{tool.code}</span>{tool.name}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] text-[#8A8175]" role="status">{t('assignment.dialog.toolsShown', { shown: rows.length, total })}</span>
+            {result && result.page + 1 < result.pages && (
+              <Button variant="outline" size="sm" disabled={state === 'loading'} onClick={() => load(searched, result.page + 1, true)} className="rounded-none">
+                {t('assignment.dialog.moreTools')}
+              </Button>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // Assign Tool Modal
 
-function AssignModal({ open, availableTools, workers, onClose, onAssign }: {
+function AssignModal({ open, workers, onClose, onAssign }: {
   open: boolean;
-  availableTools: AvailableTool[];
   workers: UserDTO[];
   onClose: () => void;
   onAssign: (toolCode: string, toolName: string, workerId: number, workerName: string, projectId: number, projectName: string, notes: string) => void;
 }) {
   const { t } = useTranslation('inventory');
-  const [toolCode,        setToolCode]        = useState('');
+  const [selectedTool,    setSelectedTool]    = useState<AvailableTool | null>(null);
   const [workerId,        setWorkerId]        = useState('');
   const [projectId,       setProjectId]       = useState('');
   const [notes,           setNotes]           = useState('');
   const [workerProjects,  setWorkerProjects]  = useState<WorkerProjectOption[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
 
-  useEffect(() => { if (open) { setToolCode(''); setWorkerId(''); setProjectId(''); setNotes(''); setWorkerProjects([]); } }, [open]);
+  useEffect(() => { if (open) { setSelectedTool(null); setWorkerId(''); setProjectId(''); setNotes(''); setWorkerProjects([]); } }, [open]);
 
   // Cascading: when worker changes, load their projects
   useEffect(() => {
@@ -145,10 +248,9 @@ function AssignModal({ open, availableTools, workers, onClose, onAssign }: {
       .finally(() => setLoadingProjects(false));
   }, [workerId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const selectedTool    = availableTools.find(t => t.code === toolCode);
   const selectedProject = workerProjects.find(p => String(p.id) === projectId);
   const selectedWorker  = workers.find(w => String(w.id) === workerId);
-  const valid           = toolCode && workerId && projectId;
+  const valid           = selectedTool && workerId && projectId;
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
@@ -158,20 +260,7 @@ function AssignModal({ open, availableTools, workers, onClose, onAssign }: {
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-[#8A8175] uppercase tracking-wide">{t('assignment.dialog.tool')} *</label>
-            {availableTools.length === 0 ? (
-              <div className="bg-amber-50 border border-amber-200 p-3 text-sm text-amber-700">{t('assignment.dialog.noTools')}</div>
-            ) : (
-              <Select value={toolCode} onValueChange={setToolCode}>
-                <SelectTrigger className="rounded-none border-[#DBD0BB] text-sm"><SelectValue placeholder={t('assignment.dialog.toolPlaceholder')} /></SelectTrigger>
-                <SelectContent>
-                  {availableTools.map(t => (
-                    <SelectItem key={t.code} value={t.code}>
-                      <span className="font-bt-mono text-xs mr-2 text-[#8A8175]">{t.code}</span>{t.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
+            <AvailableToolPicker value={selectedTool} onChange={setSelectedTool} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -217,10 +306,10 @@ function AssignModal({ open, availableTools, workers, onClose, onAssign }: {
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={onClose} className="rounded-none border-[#DBD0BB] text-[#8A8175]">{t('buttons.cancel', { ns: 'common' })}</Button>
           <Button
-            onClick={() => valid && selectedWorker && selectedProject &&
-              onAssign(toolCode, selectedTool?.name ?? '', selectedWorker.id, selectedWorker.fullName ?? selectedWorker.username, selectedProject.id, selectedProject.name, notes)
+            onClick={() => valid && selectedTool && selectedWorker && selectedProject &&
+              onAssign(selectedTool.code, selectedTool.name, selectedWorker.id, selectedWorker.fullName ?? selectedWorker.username, selectedProject.id, selectedProject.name, notes)
             }
-            disabled={!valid || availableTools.length === 0}
+            disabled={!valid}
             className="bg-[#0A0A0A] hover:bg-[#F97316] text-[#F5F1E8] hover:text-[#0A0A0A] disabled:opacity-50">
             {t('assignment.assignTool')}
           </Button>
@@ -315,7 +404,6 @@ export function ToolAssignment() {
   const { t } = useTranslation('inventory');
   const [activeAssignments, setActiveAssignments] = useState<Assignment[]>([]);
   const [assignmentLog,     setAssignmentLog]     = useState<LogEntry[]>([]);
-  const [availableTools,    setAvailableTools]    = useState<AvailableTool[]>([]);
   const [summaryData,       setSummaryData]       = useState<AssignmentSummaryResponse>({ activeAssignments: 0, assignedToday: 0, returnedToday: 0 });
   const [workers,           setWorkers]           = useState<UserDTO[]>([]);
   const [loading,           setLoading]           = useState(true);
@@ -335,14 +423,12 @@ export function ToolAssignment() {
       getActiveAssignments(),
       getAssignmentLog({ page: currentLogPage - 1, size: ITEMS_PER_PAGE }),
       getAssignmentSummary(),
-      listTools({ status: 'Available', size: 100 }),
       listActiveUsers('WORKER'),
-    ]).then(([active, log, summary, available, userList]) => {
+    ]).then(([active, log, summary, userList]) => {
       setActiveAssignments(active.map(a => ({ ...a, id: String(a.id) })));
       setAssignmentLog(log.content.map(l => ({ ...l, id: String(l.id), action: l.action as 'Assigned' | 'Returned' })));
       setLogTotalPages(Math.max(1, log.totalPages));
       setSummaryData(summary);
-      setAvailableTools(available.content.map(t => ({ code: t.code, name: t.name })));
       setWorkers(userList);
     }).catch(err => toast.error(err?.message)).finally(() => setLoading(false));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -597,7 +683,7 @@ export function ToolAssignment() {
       </div>
 
       {/* Modals */}
-      <AssignModal open={showAssign} availableTools={availableTools} workers={workers} onClose={() => setShowAssign(false)} onAssign={handleAssign} />
+      <AssignModal open={showAssign} workers={workers} onClose={() => setShowAssign(false)} onAssign={handleAssign} />
       <ReturnModal open={showReturn} activeAssignments={activeAssignments} onClose={() => setShowReturn(false)} onReturn={handleReturn} />
     </div>
   );

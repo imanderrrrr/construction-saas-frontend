@@ -151,6 +151,7 @@
   "workspace.allWorksites": "All worksites",
   "workspace.loadingWorksites": "Loading worksites…",
   "workspace.worksitesUnavailable": "Worksites unavailable",
+  "catalog.truncated": "Showing the first {{shown}} of {{total}}. Narrow the filters to find the rest.",
   "workspace.worksiteId": "Worksite #{{id}}",
   "workspace.primaryNavigation": "Work areas",
   "workspace.sectionNavigation": "Area sections",

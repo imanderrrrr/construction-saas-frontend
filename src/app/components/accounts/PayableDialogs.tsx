@@ -30,7 +30,7 @@ import { balanceOf, round2 } from './accounting';
  * live: out of a row of seven buttons and into the bill's own detail.
  */
 
-export type ProjectBudget = { id: number; name: string; remainingBudgetCents: number | null };
+export type ProjectBudget = { id: number; name: string; remainingBudgetCents: number | null; status?: string };
 
 function Head({ kicker, title, tone = 'ink' }: { kicker: string; title: string; tone?: 'ink' | 'red' | 'orange' }) {
   return (
