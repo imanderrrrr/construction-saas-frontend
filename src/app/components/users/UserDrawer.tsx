@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import QRCode from 'qrcode';
+import { loadQrCode } from '../../lib/qr';
 import { AlertTriangle, FileDown, KeyRound, Loader2, Mail, RefreshCw, X } from 'lucide-react';
 import {
   getWorkerQr, listUserActivity, listUserSessions, regenerateWorkerQr,
@@ -9,7 +9,7 @@ import {
 } from '../../services/users';
 import { loadInvoiceIssuer } from '../../services/invoiceBranding';
 import { businessToday, fmtDate, fmtDateTime } from '../../helpers/dateTime';
-import { credentialPdfLabels, downloadCredentialPdf, type CredentialSecret } from '../../helpers/exportCredentialPdf';
+import type { CredentialSecret } from '../../helpers/exportCredentialPdf';
 import { ResetPasswordModal } from './ResetPasswordModal';
 import { Mono, initials, isFieldRole, randomPin } from './shared';
 
@@ -67,8 +67,10 @@ export function UserDrawer({ user, onClose, onChanged }: {
 
   // Paint the QR whenever we have a token and the canvas is mounted.
   useEffect(() => {
-    if (qr?.qrToken && canvasRef.current) {
-      QRCode.toCanvas(canvasRef.current, qr.qrToken, { width: 132, margin: 1 }).catch(() => {});
+    const canvas = canvasRef.current;
+    const token = qr?.qrToken;
+    if (token && canvas) {
+      loadQrCode().then(QRCode => QRCode.toCanvas(canvas, token, { width: 132, margin: 1 })).catch(() => {});
     }
   }, [qr?.qrToken]);
 
@@ -118,7 +120,10 @@ export function UserDrawer({ user, onClose, onChanged }: {
       onChangedSoft();
     }
     try {
-      const issuer = await loadInvoiceIssuer();
+      // The PDF library is fetched now, not with the users screen (AUD-019).
+      const [issuer, { credentialPdfLabels, downloadCredentialPdf }] = await Promise.all([
+        loadInvoiceIssuer(), import('../../helpers/exportCredentialPdf'),
+      ]);
       downloadCredentialPdf({
         fullName: user.fullName,
         username: user.username,

@@ -8,7 +8,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import QRCode from 'qrcode';
+import { loadQrCode } from '../lib/qr';
 import {
   AlertCircle, Download, KeyRound, Loader2, Printer,
   QrCode, RefreshCw, ShieldCheck, Shuffle,
@@ -99,11 +99,12 @@ export function WorkerQrModal({ user, open, onClose }: WorkerQrModalProps) {
   // print/download reuse. Re-runs whenever the token changes (incl. regenerate).
   useEffect(() => {
     if (!data) return;
-    if (canvasRef.current) {
-      QRCode.toCanvas(canvasRef.current, data.qrToken, { width: 220, margin: 2 })
+    const canvas = canvasRef.current;
+    if (canvas) {
+      loadQrCode().then(QRCode => QRCode.toCanvas(canvas, data.qrToken, { width: 220, margin: 2 }))
         .catch(() => setLoadError(true));
     }
-    QRCode.toDataURL(data.qrToken, { width: 512, margin: 2 })
+    loadQrCode().then(QRCode => QRCode.toDataURL(data.qrToken, { width: 512, margin: 2 }))
       .then(setPngDataUrl)
       .catch(() => setPngDataUrl(''));
   }, [data]);

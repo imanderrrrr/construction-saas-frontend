@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import QRCode from 'qrcode';
+import { loadQrCode } from '../../lib/qr';
 import { ChevronLeft, ChevronRight, Check, FileDown, Loader2, RefreshCw, X } from 'lucide-react';
 import { createUser, getWorkerQr, setWorkerPin, type UserDTO } from '../../services/users';
 import { getStoredTenantSlug } from '../../lib/api';
 import { loadInvoiceIssuer } from '../../services/invoiceBranding';
 import { businessToday, fmtDate } from '../../helpers/dateTime';
-import { credentialPdfLabels, downloadCredentialPdf } from '../../helpers/exportCredentialPdf';
 import { GRID_INK, Mono, isFieldRole, randomPassword, randomPin } from './shared';
 
 /**
@@ -69,8 +68,9 @@ export function NewUserFlow({ existingUsernames, onClose, onCreated }: {
   }, [onClose, step]);
 
   useEffect(() => {
-    if (step === 3 && qrToken && canvasRef.current) {
-      QRCode.toCanvas(canvasRef.current, qrToken, { width: 168, margin: 1 }).catch(() => {});
+    const canvas = canvasRef.current;
+    if (step === 3 && qrToken && canvas) {
+      loadQrCode().then(QRCode => QRCode.toCanvas(canvas, qrToken, { width: 168, margin: 1 })).catch(() => {});
     }
   }, [step, qrToken]);
 
@@ -111,7 +111,10 @@ export function NewUserFlow({ existingUsernames, onClose, onCreated }: {
     if (!created) return;
     setDownloading(true);
     try {
-      const issuer = await loadInvoiceIssuer();
+      // The PDF library is fetched now, not with the users screen (AUD-019).
+      const [issuer, { credentialPdfLabels, downloadCredentialPdf }] = await Promise.all([
+        loadInvoiceIssuer(), import('../../helpers/exportCredentialPdf'),
+      ]);
       downloadCredentialPdf({
         fullName: created.fullName,
         username: created.username,
