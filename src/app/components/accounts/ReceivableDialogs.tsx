@@ -267,7 +267,7 @@ export function EditInfoDialog({ doc, onClose, onSaved }: {
     if (!doc) return;
     const n = number.trim();
     const c = client.trim();
-    if (!n || !c) {
+    if (!n || !c || !issuedDate || !dueDate) {
       toast.error(t('finance:receivable.edit.requiredFields'));
       return;
     }

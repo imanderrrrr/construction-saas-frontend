@@ -243,7 +243,7 @@
   "receivable.loadError.title": "We could not load your receivables.",
   "receivable.loadError.body": "Check your connection and try again. Nothing you have recorded was lost.",
   "receivable.edit.title": "Edit document",
-  "receivable.edit.requiredFields": "Number and client are required",
+  "receivable.edit.requiredFields": "Number, client and dates are required",
   "receivable.edit.failed": "Could not update the document",
   "receivable.edit.duplicate": "That number is already in use",
   "receivable.edit.amountsHint": "Amounts are not editable: delete the document and create it again while it has no payments.",

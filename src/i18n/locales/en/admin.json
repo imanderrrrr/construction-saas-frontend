@@ -3195,5 +3195,6 @@
   "lab.f.lastWeek": "Last week",
   "lab.f.lastMonth": "Previous month",
   "lab.f.fortnight": "Current half-month",
-  "pay.outsidePeriod": "There are {{count}} approved, unpaid time records outside this period. Choose an earlier or custom range to review them."
+  "pay.outsidePeriod": "Outside this period, {{minutes}} approved unpaid minutes in {{segments}} segments across {{count}} records are not included in this payment.",
+  "pay.outsidePeriodPartial": "{{count}} records still have marks awaiting review."
 }

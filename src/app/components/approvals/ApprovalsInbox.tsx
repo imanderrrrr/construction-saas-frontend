@@ -65,7 +65,8 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
       // Every record in the selected range. The text search below runs in the
       // browser over whatever landed here, so one page would quietly drop
       // records from the search — and from the counts built off this list.
-      // The range (today / this week) is what bounds the sweep.
+      // The default includes historical pending records. An explicit range
+      // narrows the same paginated search.
       const scope = {
         projectId: projectId ?? undefined,
         status: filters.status || undefined,
@@ -84,7 +85,7 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
     } finally {
       setLoading(false);
     }
-  }, [filters.status, filters.role, filters.range, mode, projectId]);
+  }, [filters.status, filters.role, filters.range, filters.from, filters.to, mode, projectId]);
 
   useEffect(() => { load(); }, [load]);
 

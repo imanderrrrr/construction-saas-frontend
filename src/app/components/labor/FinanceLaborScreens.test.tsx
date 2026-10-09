@@ -63,7 +63,7 @@ describe('new labor screens in Finance', () => {
   });
 
   it('shows approved unpaid records outside the selected period without adding them to payable totals', async () => {
-    mocks.report.mockResolvedValue({...report, approvedUnpaidRecordsOutsidePeriod: 3});
+    mocks.report.mockResolvedValue({...report, approvedUnpaidRecordsOutsidePeriod: 3, approvedUnpaidSegmentsOutsidePeriod: 4, approvedUnpaidMinutesOutsidePeriod: 180});
     await act(async () => root.render(<LaborPayrollScreen onNavigate={mocks.navigate} />));
     expect(host.querySelector('[role="status"]')?.textContent).toContain('admin:pay.outsidePeriod');
     expect(host.querySelector('[data-tour="sec.labor-payroll.kpis"]')?.textContent).toContain('30.00');

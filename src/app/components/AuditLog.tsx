@@ -2,6 +2,7 @@ import { useScreenState } from '../workspace/WorkspaceState';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { getBranding } from '../services/branding';
 import { searchAuditLogs, type AuditLogDTO, type AuditOutcome } from '../services/audit';
 import { businessDate, businessToday, nDaysAgo, startOfDayISO, endOfDayISO, fmtDate, fmtDateTime } from '../helpers/dateTime';
 
@@ -267,9 +268,10 @@ export function AuditLog() {
                 all.push(...response.content); pages = response.totalPages;
               }
               const cell = (v: unknown) => { const text = String(v ?? ''); return '"' + (/^[=+\-@]/.test(text) ? "'" : '') + text.replace(/"/g, '""') + '"'; };
-              const csv = [['occurredAt','actor','action','entity','entityId','outcome','reason'], ...all.map(r => [r.occurredAt, r.actorUsername, r.action, r.entityType, r.entityId, r.outcome, r.reasonCode])].map(r => r.map(cell).join(',')).join('\r\n');
+              const organization = (await getBranding()).organizationName ?? '';
+              const csv = [['organization','occurredAt','actor','action','entity','entityId','outcome','reason'], ...all.map(r => [organization, r.occurredAt, r.actorUsername, r.action, r.entityType, r.entityId, r.outcome, r.reasonCode])].map(r => r.map(cell).join(',')).join('\r\n');
               const url = URL.createObjectURL(new Blob(['\uFEFF',csv], {type:'text/csv;charset=utf-8'}));
-              const a = document.createElement('a'); a.href = url; a.download = `audit-${businessToday()}.csv`; a.click(); URL.revokeObjectURL(url);
+              const a = document.createElement('a'); a.href = url; a.download = `audit-${organization.replace(/[^\p{L}\p{N}-]+/gu, '-').slice(0, 80) || 'workspace'}-${businessToday()}.csv`; a.click(); URL.revokeObjectURL(url);
             } catch { setError(true); } finally { setExporting(false); }
           }}>{t('admin:audit.export')}</button>
           <SelectF value={filters.actor} onChange={v => setF('actor', v)}

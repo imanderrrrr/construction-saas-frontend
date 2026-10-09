@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useRef } from 'react';
+import { forwardRef, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowDownToLine, ArrowUpFromLine, ChevronDown, ChevronRight, ImageIcon, MoreVertical, Search } from 'lucide-react';
 import { cn } from '../ui/utils';
@@ -282,10 +282,11 @@ export function ViewToggle<T extends string>({ value, options, onChange, label, 
 /* ── Row furniture ─────────────────────────────────────────────────────── */
 
 /** The ⋮ that opens a row's menu. */
-export function RowMenuButton({ label, ...rest }: { label: string } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+export const RowMenuButton = forwardRef<HTMLButtonElement, { label: string } & React.ButtonHTMLAttributes<HTMLButtonElement>>(function RowMenuButton({ label, ...rest }, ref) {
   return (
     <button
       type="button"
+      ref={ref}
       aria-label={label}
       title={label}
       {...rest}
@@ -298,7 +299,7 @@ export function RowMenuButton({ label, ...rest }: { label: string } & React.Butt
       <MoreVertical className="w-3.5 h-3.5" />
     </button>
   );
-}
+});
 
 /** The chassis' menu surface: square, sand-bordered, orange edge on focus. */
 export const MENU_CONTENT = 'w-[250px] rounded-none border-[#CDBFA6] p-0 shadow-[0_16px_48px_rgba(23,19,15,0.3)]';

@@ -148,7 +148,8 @@ export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate:
       />
 
       {!loading && !error && (data?.approvedUnpaidRecordsOutsidePeriod ?? 0) > 0 && <div role="status" className="border border-[#F97316] bg-[#FFF7ED] p-3 text-sm">
-        {t('admin:pay.outsidePeriod', {count: data?.approvedUnpaidRecordsOutsidePeriod})}
+        {t('admin:pay.outsidePeriod', {count: data?.approvedUnpaidRecordsOutsidePeriod, segments: data?.approvedUnpaidSegmentsOutsidePeriod ?? 0, minutes: data?.approvedUnpaidMinutesOutsidePeriod ?? 0})}
+        {(data?.partiallyReviewedUnpaidRecordsOutsidePeriod ?? 0) > 0 && <p>{t('admin:pay.outsidePeriodPartial', {count: data?.partiallyReviewedUnpaidRecordsOutsidePeriod})}</p>}
       </div>}
 
       {/* Indicators */}

@@ -608,6 +608,9 @@ export interface HoursReportKpis {
 
 export interface AdminHoursReportResponse {
   approvedUnpaidRecordsOutsidePeriod?: number;
+  approvedUnpaidSegmentsOutsidePeriod?: number;
+  approvedUnpaidMinutesOutsidePeriod?: number;
+  partiallyReviewedUnpaidRecordsOutsidePeriod?: number;
   kpis: HoursReportKpis;
   workers: WorkerHoursSummary[];
 }
