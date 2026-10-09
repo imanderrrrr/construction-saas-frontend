@@ -2757,7 +2757,7 @@
   "usr.d.reset.copy": "Copy",
   "usr.d.reset.copied": "Copied",
   "usr.d.reset.format": "Format XXXX-XXXX · 9 characters with the hyphen · no ambiguous letters (O, 0, I, L, 1)",
-  "usr.d.reset.note": "They'll change it on sign-in: the panel asks before letting them work. Their open sessions stay active.",
+  "usr.d.reset.note": "They will change it on sign-in: the panel asks before letting them work. Their open sessions will be revoked.",
   "usr.d.reset.confirm": "Reset",
   "usr.d.reset.confirming": "Resetting…",
   "usr.d.reset.retry": "Retry",

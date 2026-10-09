@@ -2757,7 +2757,7 @@
   "usr.d.reset.copy": "Copiar",
   "usr.d.reset.copied": "Copiada",
   "usr.d.reset.format": "Formato XXXX-XXXX · 9 caracteres con el guion · sin letras ambiguas (O, 0, I, L, 1)",
-  "usr.d.reset.note": "La cambiará al entrar: el panel se lo pedirá antes de dejarlo trabajar. Sus sesiones abiertas siguen activas.",
+  "usr.d.reset.note": "La cambiará al entrar: el panel se lo pedirá antes de dejarlo trabajar. Sus sesiones abiertas se cerrarán.",
   "usr.d.reset.confirm": "Restablecer",
   "usr.d.reset.confirming": "Restableciendo…",
   "usr.d.reset.retry": "Reintentar",

@@ -14,7 +14,7 @@ import {
   api, apiMultipart, ApiError, NoResponseError,
   getStoredRole, getStoredUsername,
   getSessionMeta, isAuthenticated,
-  clearSessionCookie, getCsrfToken,
+  clearSessionCookie, getCsrfToken, ensureCsrfToken,
 } from './api';
 
 const refreshMock = vi.mocked(refreshIfNeeded);
@@ -497,5 +497,23 @@ describe('api() — no answer', () => {
 
     expect(error).toBeInstanceOf(NoResponseError);
     expect((error as NoResponseError).timedOut).toBe(false);
+  });
+});
+
+
+describe('CSRF bootstrap for handoff', () => {
+  it('obtains the cookie before posting through the central client', async () => {
+    fetchMock.mockImplementationOnce(() => {
+      setCsrfCookie('laboratory-token');
+      return Promise.resolve(jsonResponse(204));
+    }).mockResolvedValueOnce(jsonResponse(200, { role: 'ADMIN' }));
+    await ensureCsrfToken();
+    await api('/api/v1/auth/handoff', { method: 'POST', body: JSON.stringify({ token: 'laboratory-access' }) });
+    expect(fetchMock.mock.calls[0][0]).toContain('/api/v1/auth/csrf');
+    expect(fetchMock.mock.calls[1][1].headers['X-XSRF-TOKEN']).toBe('laboratory-token');
+  });
+  it('fails if no cookie was issued', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(204));
+    await expect(ensureCsrfToken()).rejects.toThrow('CSRF cookie was not issued');
   });
 });
