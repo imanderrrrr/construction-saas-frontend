@@ -1,10 +1,11 @@
+import { ApiError } from '../../lib/api';
 import { useScreenState, useProjectFilter } from '../../workspace/WorkspaceState';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, ArrowRight, Check, CreditCard, Download, FileSpreadsheet, Loader2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  confirmPayment, getAdminHoursReport,
+  confirmPayment, previewPayment, type PayrollPaymentPreview, getAdminHoursReport,
   type AdminHoursReportResponse, type WorkerHoursSummary,
 } from '../../services/time';
 import type { BudgetWarning } from '../../types';
@@ -236,7 +237,8 @@ export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate:
 
       {paying && (
         <ConfirmPaymentDialog
-          worker={paying} from={from} to={to} lang={lang}
+          key={`${paying.workerId}:${from}:${to}:${project}`}
+          worker={paying} from={from} to={to} lang={lang} projectId={project ? Number(project) : null}
           blockers={budgetBlockers(paying, remainingByProject)}
           onClose={() => setPaying(null)}
           onDone={() => { setPaying(null); load(); }}
@@ -344,8 +346,8 @@ function PayRow({ w, paid, onPay, onNavigate, lang, blockers, canManageRates }: 
 }
 
 /** The pay-day dialog: what exactly gets paid, and what it does to the budget. */
-function ConfirmPaymentDialog({ worker, from, to, lang, blockers, onClose, onDone }: {
-  worker: WorkerHoursSummary; from: string; to: string; lang: string;
+function ConfirmPaymentDialog({ worker, from, to, lang, projectId, blockers, onClose, onDone }: {
+  worker: WorkerHoursSummary; from: string; to: string; lang: string; projectId: number | null;
   blockers: { name: string; amount: number; remaining: number }[];
   onClose: () => void; onDone: () => void;
 }) {
@@ -354,6 +356,15 @@ function ConfirmPaymentDialog({ worker, from, to, lang, blockers, onClose, onDon
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<BudgetWarning[] | null>(null);
+  const [preview, setPreview] = useState<PayrollPaymentPreview | null>(null);
+  useEffect(() => {
+    let active = true;
+    previewPayment({ workerId: worker.workerId, periodFrom: from, periodTo: to, projectId })
+      .then(value => { if (active) setPreview(value); })
+      .catch(e => { if (active) setError(e instanceof Error ? e.message : String(e)); });
+    return () => { active = false; };
+  }, [worker.workerId, from, to, projectId]);
+
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !saving) onClose(); };
@@ -361,14 +372,16 @@ function ConfirmPaymentDialog({ worker, from, to, lang, blockers, onClose, onDon
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose, saving]);
 
-  const hours = unpaidHours(worker);
-  const amount = amountOwed(worker) ?? 0;
+  const hours = preview ? preview.totalMinutes / 60 : unpaidHours(worker);
+  const amount = preview ? preview.totalAmountCents / 100 : (amountOwed(worker) ?? 0);
 
   async function submit() {
+    if (!preview) return;
     setSaving(true); setError(null);
     try {
       const res = await confirmPayment({
-        workerId: worker.workerId, periodFrom: from, periodTo: to,
+        workerId: worker.workerId, periodFrom: from, periodTo: to, projectId,
+        previewDigest: preview.digest, expectedTotalAmountCents: preview.totalAmountCents,
         notes: notes.trim() || null,
       });
       // The backend reports overruns after the fact; show them before closing.
@@ -378,6 +391,12 @@ function ConfirmPaymentDialog({ worker, from, to, lang, blockers, onClose, onDon
       // Running past the budget is no longer an error: payroll goes through and
       // the project balance turns negative. Anything caught here is a real failure.
       setError(e instanceof Error ? e.message : t('admin:pay.d.error'));
+      if (e instanceof ApiError && e.code === 'PAYROLL_PREVIEW_CHANGED') {
+        setPreview(null);
+        try {
+          setPreview(await previewPayment({ workerId: worker.workerId, periodFrom: from, periodTo: to, projectId }));
+        } catch (refreshError) { setError(refreshError instanceof Error ? refreshError.message : String(refreshError)); }
+      }
       setSaving(false);
     }
   }
@@ -515,7 +534,7 @@ function ConfirmPaymentDialog({ worker, from, to, lang, blockers, onClose, onDon
                   className="border border-[#DBD0BB] bg-white px-4 py-3 font-bt-mono text-[11px] font-semibold uppercase tracking-[0.07em] text-[#5A5346] hover:border-[#F97316] hover:text-[#C2410C] disabled:opacity-40">
                   {t('common:buttons.cancel')}
                 </button>
-                <button onClick={submit} disabled={saving}
+                <button onClick={submit} disabled={saving || !preview || preview.totalAmountCents <= 0}
                   className="flex-1 inline-flex items-center justify-center gap-2 bg-[#0A0A0A] hover:bg-[#2E6B34] text-[#F5F1E8] px-4 py-3 font-bt-mono text-[11px] font-semibold uppercase tracking-[0.07em] disabled:opacity-60 transition-colors">
                   {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                   {t('admin:pay.d.confirmCta', { amount: money(amount) })}
