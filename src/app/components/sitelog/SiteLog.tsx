@@ -75,7 +75,7 @@ function formatTime(iso: string | null): string | null {
 const inputCls =
   'h-10 w-full rounded-lg border border-[#D4D4D8] bg-white px-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[#F97316]/25 focus:border-[#F97316] transition-colors placeholder:text-[#71717A] disabled:bg-[#FAFAFA] disabled:text-[#71717A]';
 
-export function SiteLog({ projects, canEdit }: SiteLogProps) {
+export function SiteLog({ projects, canEdit: roleCanEdit }: SiteLogProps) {
   const { t } = useTranslation(['siteLog', 'common']);
 
   const workspace = useWorkspace();
@@ -312,8 +312,10 @@ export function SiteLog({ projects, canEdit }: SiteLogProps) {
     }
   }
 
+  const canEdit = roleCanEdit && log?.status !== 'PUBLISHED';
+
   async function handlePhotoFiles(files: FileList | null) {
-    if (!files || files.length === 0 || !log) return;
+    if (!files || files.length === 0 || !log || !canEdit) return;
     const siteLogId = log.id;
     const forSelection = selectionKey;
     setUploading(true);
@@ -339,7 +341,7 @@ export function SiteLog({ projects, canEdit }: SiteLogProps) {
   }
 
   async function handleDeletePhoto(photoId: number) {
-    if (!log) return;
+    if (!log || !canEdit) return;
     const forSelection = selectionKey;
     const target = log;
     try {
@@ -685,7 +687,7 @@ export function SiteLog({ projects, canEdit }: SiteLogProps) {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
+                  disabled={uploading || !canEdit}
                   className="aspect-square rounded-lg border-2 border-dashed border-[#D4D4D8] hover:border-[#F97316] hover:bg-[#F97316]/5 transition-colors flex flex-col items-center justify-center gap-2 text-[#71717A] disabled:opacity-50"
                 >
                   {uploading ? <Loader2 className="w-6 h-6 animate-spin text-[#F97316]" /> : <Plus className="w-6 h-6" />}
@@ -800,11 +802,11 @@ function Header({
 
       {canEdit && showActions && (
         <div className="flex items-center gap-2">
-          <Button type="button" variant="outline" onClick={onSaveDraft} disabled={saving} className="gap-2 border-[#D4D4D8]">
+          <Button type="button" variant="outline" onClick={onSaveDraft} disabled={saving || status === 'PUBLISHED'} className="gap-2 border-[#D4D4D8]">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             {t('siteLog:actions.saveDraft')}
           </Button>
-          <Button type="button" onClick={onPublish} disabled={saving} className="gap-2 bg-[#F97316] hover:bg-[#C2410C] text-white">
+          <Button type="button" onClick={onPublish} disabled={saving || status === 'PUBLISHED'} className="gap-2 bg-[#F97316] hover:bg-[#C2410C] text-white">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             {t('siteLog:actions.publish')}
           </Button>

@@ -1,3 +1,4 @@
+import { TimezoneSwitcher } from './TimezoneSwitcher';
 // Admin screen: the tenant's invoice template — the letterhead printed on
 // every invoice and change order the app generates, and (via
 // GET /api/v1/branding, which reads this same row) the company identity the
@@ -324,6 +325,7 @@ export function InvoiceBrandingSettings() {
   return (
     <>
       <div className="space-y-4">
+      <TimezoneSwitcher />
         {/* ── Header ─────────────────────────────────────────────────── */}
         <div className="flex items-end justify-between gap-5 flex-wrap">
           <div>
