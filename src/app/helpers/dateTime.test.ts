@@ -4,24 +4,12 @@
 // the real current month.
 //
 // currentMonth() derives "today" via Intl in the business timezone
-// (localStorage `ofjr_business_timezone`, default America/Panama, UTC-5), so
+// (authenticated tenant setting, default America/Panama, UTC-5), so
 // the label must follow the BUSINESS month even when UTC has already rolled
 // into the next one. Only Date is faked — the helpers use no timers.
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { currentMonth, currentMonthLabel } from './dateTime';
-
-// dateTime.getBusinessTz() reads localStorage, which jsdom does not back here.
-// Stub a Map-backed one so tests can configure the business timezone.
-const store = new Map<string, string>();
-vi.stubGlobal('localStorage', {
-  getItem: (k: string) => store.get(k) ?? null,
-  setItem: (k: string, v: string) => { store.set(k, String(v)); },
-  removeItem: (k: string) => { store.delete(k); },
-  clear: () => { store.clear(); },
-  key: () => null,
-  length: 0,
-});
+import { currentMonth, currentMonthLabel, resetBusinessTz, setBusinessTz } from './dateTime';
 
 function freezeAt(iso: string) {
   vi.useFakeTimers({ toFake: ['Date'] });
@@ -30,7 +18,7 @@ function freezeAt(iso: string) {
 
 afterEach(() => {
   vi.useRealTimers();
-  store.clear();
+  resetBusinessTz();
 });
 
 describe('currentMonthLabel', () => {
@@ -48,7 +36,7 @@ describe('currentMonthLabel', () => {
   });
 
   it('follows a configured business timezone ahead of UTC', () => {
-    localStorage.setItem('ofjr_business_timezone', 'Asia/Tokyo');
+    setBusinessTz('Asia/Tokyo');
     freezeAt('2026-07-31T16:00:00Z'); // already 2026-08-01 01:00 in Tokyo
     expect(currentMonth()).toBe('2026-08');
     expect(currentMonthLabel()).toBe('Aug 2026');

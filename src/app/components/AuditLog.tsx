@@ -2,8 +2,10 @@ import { useScreenState } from '../workspace/WorkspaceState';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { getBranding } from '../services/branding';
 import { searchAuditLogs, type AuditLogDTO, type AuditOutcome } from '../services/audit';
-import { fmtDateTime } from '../helpers/dateTime';
+import { userCatalog } from '../services/catalogs';
+import { businessDate, businessToday, nDaysAgo, startOfDayISO, endOfDayISO, fmtDate, fmtDateTime } from '../helpers/dateTime';
 
 /**
  * Bitácora (audit log) — the trust surface, in the dashboard's industrial
@@ -25,7 +27,9 @@ const ACTION_CATEGORY: Record<string, Category> = {
   PROJECT_CREATED: 'project', PROJECT_UPDATED: 'project', PROJECT_DELETED: 'project',
   PROJECT_CLOSED: 'project', PROJECT_GEOFENCE_UPDATED: 'project', PROJECT_ASSIGNMENTS_UPDATED: 'project',
   PUNCH_CLOSED: 'project', PUNCH_CREATED: 'project', RFI_ANSWERED: 'project', RFI_CREATED: 'project',
-  DAILYLOG_CREATED: 'project',
+  DAILYLOG_CREATED: 'project', SITE_LOG_CREATED: 'project', SITE_LOG_UPDATED: 'project', SITE_LOG_PUBLISHED: 'project', SITE_LOG_DELETED: 'project', SITE_LOG_PHOTO_ADDED: 'project', SITE_LOG_PHOTO_DELETED: 'project',
+  RFI_DRAFT_CREATED: 'project', RFI_DRAFT_UPDATED: 'project', RFI_SUBMITTED: 'project', RFI_RESPONDED: 'project',
+  TASK_CREATED: 'project', TASK_UPDATED: 'project', TASK_MOVED: 'project', TASK_DELETED: 'project',
   TIME_CHECK_IN: 'time', TIME_CHECK_OUT: 'time', TIME_LUNCH_START: 'time', TIME_LUNCH_END: 'time',
   TIME_ENTRY_APPROVED: 'time', TIME_ENTRY_REJECTED: 'time', TIME_ENTRY_CORRECTED: 'time',
   TIME_EVENT_APPROVED: 'time', TIME_EVENT_REJECTED: 'time', TIME_EVENT_CORRECTED: 'time',
@@ -82,14 +86,16 @@ function Mono({ children, className = '' }: { children: React.ReactNode; classNa
 const PAGE_SIZES = [10, 20, 50] as const;
 
 interface Filters {
-  period: '7d' | 'today';
+  period: '7d' | 'today' | 'custom' | 'all';
+  from?: string; to?: string;
   actor: string;
+  entityType?: string; entityId?: string;
   category: '' | Category;
   action: string;
   outcome: '' | AuditOutcome;
 }
 
-const EMPTY: Filters = { period: '7d', actor: '', category: '', action: '', outcome: '' };
+const EMPTY: Filters = { period: 'all', actor: '', category: '', action: '', outcome: '' };
 
 export function AuditLog() {
   const { t, i18n } = useTranslation(['admin']);
@@ -105,12 +111,11 @@ export function AuditLog() {
   const [stats, setStats] = useState<{ access: number; alerts: number; events: number } | null>(null);
   const [open, setOpen] = useState<AuditLogDTO | null>(null);
 
-  const dayStartISO = (daysAgo: number) => {
-    const d = new Date();
-    d.setDate(d.getDate() - daysAgo);
-    d.setHours(0, 0, 0, 0);
-    return d.toISOString();
-  };
+  const [exporting, setExporting] = useState(false);
+  const dayStartISO = (daysAgo: number) => startOfDayISO(nDaysAgo(daysAgo));
+  const dateFrom = filters.period === 'all' ? undefined : filters.period === 'custom' ? (filters.from ? startOfDayISO(filters.from) : undefined) : dayStartISO(filters.period === 'today' ? 0 : 7);
+  const dateTo = filters.period === 'custom' && filters.to ? endOfDayISO(filters.to) : undefined;
+  const invalidRange = !!(filters.from && filters.to && filters.from > filters.to && filters.period === 'custom');
 
   // Category → the set of actions the API should filter on (comma-separated).
   const actionsForQuery = useMemo<string | undefined>(() => {
@@ -123,14 +128,14 @@ export function AuditLog() {
 
   const load = useCallback(async () => {
     setLoading(true); setError(false);
-    const dateFrom = filters.period === 'today' ? dayStartISO(0) : dayStartISO(7);
+    if (invalidRange) { setError(true); setLoading(false); return; }
     try {
       const res = await searchAuditLogs({
         page, size,
         actions: actionsForQuery,
         actor: filters.actor || undefined,
         outcome: filters.outcome || undefined,
-        dateFrom,
+        dateFrom, dateTo, entityType: filters.entityType || undefined, entityId: filters.entityId || undefined,
       });
       setRows(res.content);
       setTotal(res.totalElements);
@@ -139,7 +144,7 @@ export function AuditLog() {
     } finally {
       setLoading(false);
     }
-  }, [page, size, actionsForQuery, filters.actor, filters.outcome, filters.period]);
+  }, [page, size, actionsForQuery, filters.actor, filters.outcome, filters.period, filters.from, filters.to, filters.entityType, filters.entityId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -194,19 +199,34 @@ export function AuditLog() {
   const groups = useMemo(() => {
     const byDay = new Map<string, AuditLogDTO[]>();
     for (const r of rows) {
-      const key = new Date(r.occurredAt).toDateString();
+      const key = businessDate(r.occurredAt);
       (byDay.get(key) ?? byDay.set(key, []).get(key)!).push(r);
     }
     return [...byDay.entries()].map(([key, evs]) => ({
-      label: new Date(key).toLocaleDateString(lang.startsWith('es') ? 'es-GT' : 'en-US',
-        { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' }).replace(/\./g, '').toUpperCase(),
+      label: new Date(key + 'T00:00:00Z').toLocaleDateString(lang.startsWith('es') ? 'es-GT' : 'en-US',
+        { timeZone:'UTC', weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' }).replace(/\./g, '').toUpperCase(),
       count: t('admin:audit.eventsCount', { count: evs.length }),
       events: evs,
     }));
   }, [rows, lang, t]);
 
   const pages = Math.max(1, Math.ceil(total / size));
-  const actors = useMemo(() => [...new Set(rows.map(r => r.actorUsername).filter(Boolean))].sort(), [rows]);
+  // The people filter: every user of the company (AUD-055), plus whoever acts
+  // on the page without being one (system actors), plus the one picked. It
+  // used to be only the actors of the 20 rows on screen, so someone who did
+  // nothing on this page could not be filtered at all.
+  const [knownActors, setKnownActors] = useState<string[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    userCatalog()
+      .then(c => { if (!cancelled) setKnownActors(c.items.map(u => u.username)); })
+      .catch(() => { /* the filter keeps the actors of the page */ });
+    return () => { cancelled = true; };
+  }, []);
+  const actors = useMemo(
+    () => [...new Set([...knownActors, ...rows.map(r => r.actorUsername), filters.actor].filter(Boolean))].sort(),
+    [knownActors, rows, filters.actor],
+  );
 
   return (
     <div className="relative p-4 md:p-6 max-w-[1400px] mx-auto space-y-4">
@@ -222,6 +242,10 @@ export function AuditLog() {
         <Mono className="text-[10px] tracking-[0.12em] text-[#A1A1AA]">{t('admin:audit.immutable')}</Mono>
       </div>
 
+      <div className="flex gap-3">
+        <label className="text-sm">{t('admin:audit.f.entityType')}<input className="block border p-2" value={filters.entityType ?? ''} onChange={e => setF('entityType', e.target.value)} /></label>
+        <label className="text-sm">{t('admin:audit.f.entityId')}<input className="block border p-2" value={filters.entityId ?? ''} onChange={e => setF('entityId', e.target.value)} /></label>
+      </div>
       {/* Indicators */}
       <div className="grid grid-cols-3 bg-white border border-[#E4E4E7]" data-tour="sec.audit.kpis">
         {[
@@ -246,7 +270,26 @@ export function AuditLog() {
         <div className="flex flex-wrap items-center gap-2.5">
           <Mono className="text-[10px] text-[#8A8175]">{t('admin:audit.f.filter')}</Mono>
           <SelectF value={filters.period} onChange={v => setF('period', v as Filters['period'])}
-            options={[['7d', t('admin:audit.f.last7')], ['today', t('admin:audit.f.today')]]} />
+            options={[['all', t('admin:apr.f.allDates')], ['7d', t('admin:audit.f.last7')], ['today', t('admin:audit.f.today')], ['custom', t('admin:lab.f.custom')]]} />
+          {filters.period === 'custom' && <>
+            <input aria-label={t('admin:lab.f.from')} type="date" value={filters.from ?? ''} max={filters.to} onChange={e => setF('from', e.target.value)} />
+            <input aria-label={t('admin:lab.f.to')} type="date" value={filters.to ?? ''} min={filters.from} onChange={e => setF('to', e.target.value)} />
+          </>}
+          <button disabled={exporting || invalidRange} className="border p-2" onClick={async () => {
+            setExporting(true);
+            try {
+              const all: AuditLogDTO[] = [];
+              for (let p = 0, pages = 1; p < pages; p++) {
+                const response = await searchAuditLogs({ page: p, size: 100, actions: actionsForQuery, actor: filters.actor || undefined, outcome: filters.outcome || undefined, dateFrom, dateTo, entityType:filters.entityType || undefined, entityId:filters.entityId || undefined });
+                all.push(...response.content); pages = response.totalPages;
+              }
+              const cell = (v: unknown) => { const text = String(v ?? ''); return '"' + (/^[=+\-@]/.test(text) ? "'" : '') + text.replace(/"/g, '""') + '"'; };
+              const organization = (await getBranding()).organizationName ?? '';
+              const csv = [['organization','occurredAt','actor','action','entity','entityId','outcome','reason'], ...all.map(r => [organization, r.occurredAt, r.actorUsername, r.action, r.entityType, r.entityId, r.outcome, r.reasonCode])].map(r => r.map(cell).join(',')).join('\r\n');
+              const url = URL.createObjectURL(new Blob(['\uFEFF',csv], {type:'text/csv;charset=utf-8'}));
+              const a = document.createElement('a'); a.href = url; a.download = `audit-${organization.replace(/[^\p{L}\p{N}-]+/gu, '-').slice(0, 80) || 'workspace'}-${businessToday()}.csv`; a.click(); URL.revokeObjectURL(url);
+            } catch { setError(true); } finally { setExporting(false); }
+          }}>{t('admin:audit.export')}</button>
           <SelectF value={filters.actor} onChange={v => setF('actor', v)}
             options={[['', t('admin:audit.f.allPeople')], ...actors.map(a => [a, a] as [string, string])]} />
           <SelectF value={filters.category} onChange={v => setF('category', v as Filters['category'])}

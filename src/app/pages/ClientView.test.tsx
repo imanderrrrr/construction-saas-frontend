@@ -24,6 +24,7 @@ vi.mock('../services/clientView', async (importOriginal) => {
 import { ApiError } from '../lib/api';
 import i18n from '../../i18n';
 import { routes } from '../routes';
+import { settleRoutes } from '../testing/routes';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -55,6 +56,7 @@ async function renderPortal(root: Root, token = 'tok123') {
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
+  await settleRoutes();
 }
 
 function setInputValue(input: HTMLInputElement, value: string) {

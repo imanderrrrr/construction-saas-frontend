@@ -5,7 +5,7 @@
 // existing admin signing in and landing on their dashboard.
 
 import { test, expect } from '@playwright/test';
-import { installHermeticBase, sessionResponse, BASE_URL, BILLING_ACTIVE } from './support/mock-api';
+import { installHermeticBase, sessionResponse, BASE_URL, BILLING_ACCESS_FULL } from './support/mock-api';
 
 test.describe('Auth — money path', () => {
   test('existing admin signs in via the login form → admin dashboard', async ({ page, context }) => {
@@ -39,9 +39,10 @@ test.describe('Auth — money path', () => {
   // welcome once the guard answered).
   test('a slow backend after sign-in: the welcome stays on top until the dashboard paints', async ({ page, context }) => {
     await installHermeticBase(page);
-    await page.route('**/api/v1/billing/status', async route => {
+    // The BillingGuard's check (GET /billing/access since phase 2) is the slow one.
+    await page.route('**/api/v1/billing/access', async route => {
       await new Promise(r => setTimeout(r, 1_500));
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(BILLING_ACTIVE) });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(BILLING_ACCESS_FULL) });
     });
     await page.route('**/api/v1/auth/login', async route => {
       await context.addCookies([{
@@ -67,8 +68,8 @@ test.describe('Auth — money path', () => {
     const welcome = page.getByTestId('welcome-overlay');
     await expect(welcome).toBeVisible();
     await expect(welcome).toContainText('Ana Ruiz');
-    // The guard is loading behind it — and it is the welcome that is on top.
-    await expect.poll(() => page.evaluate(() => document.body.hasAttribute('data-splash-active'))).toBe(true);
+    // The guard is still checking behind it — and it is the welcome that is on top.
+    await expect(page.locator('p[role="status"]', { hasText: 'Loading...' })).toBeAttached();
     const topLayer = () => page.evaluate(() =>
       document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2)?.closest('[data-testid]')?.getAttribute('data-testid') ?? null);
     expect(await topLayer()).toBe('welcome-overlay');

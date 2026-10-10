@@ -607,6 +607,12 @@ export interface HoursReportKpis {
 }
 
 export interface AdminHoursReportResponse {
+  approvedUnpaidRecordsOutsidePeriod?: number;
+  approvedUnpaidSegmentsOutsidePeriod?: number;
+  approvedUnpaidMinutesOutsidePeriod?: number;
+  partiallyReviewedUnpaidRecordsOutsidePeriod?: number;
+  /** The server read its bounded number of records and more exist: the figures above are a floor. */
+  approvedUnpaidOutsidePeriodTruncated?: boolean;
   kpis: HoursReportKpis;
   workers: WorkerHoursSummary[];
 }
@@ -649,6 +655,10 @@ export interface ConfirmPaymentRequest {
   periodFrom: string;
   periodTo: string;
   notes?: string | null;
+  /** Omitted/null explicitly means all projects in the period. */
+  projectId?: number | null;
+  previewDigest?: string;
+  expectedTotalAmountCents?: number;
 }
 
 export interface ConfirmPaymentResponse {
@@ -673,6 +683,15 @@ export interface LaborPaymentResponse {
   confirmedBy: string;
   notes: string | null;
   createdAt: string;
+}
+
+export interface PayrollPaymentPreview {
+  workerId: number; periodFrom: string; periodTo: string; projectId: number | null;
+  totalMinutes: number; totalAmountCents: number; digest: string;
+  projects: { projectId: number; workMinutes: number; transitMinutes: number; amountCents: number }[];
+}
+export function previewPayment(request: ConfirmPaymentRequest): Promise<PayrollPaymentPreview> {
+  return api('/api/v1/admin/payroll/preview-payment', { method: 'POST', body: JSON.stringify(request) });
 }
 
 /** Confirm payment for a worker's approved hours in a period. */

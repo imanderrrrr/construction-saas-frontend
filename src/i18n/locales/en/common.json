@@ -151,6 +151,7 @@
   "workspace.allWorksites": "All worksites",
   "workspace.loadingWorksites": "Loading worksites…",
   "workspace.worksitesUnavailable": "Worksites unavailable",
+  "catalog.truncated": "Showing the first {{shown}} of {{total}}. Narrow the filters to find the rest.",
   "workspace.worksiteId": "Worksite #{{id}}",
   "workspace.primaryNavigation": "Work areas",
   "workspace.sectionNavigation": "Area sections",
@@ -178,5 +179,10 @@
   "workspace.unavailableBody": "Check access to this feature with your administrator. You can continue working on your worksites.",
   "workspace.backToWorksites": "Back to my worksites",
   "workspace.skipToContent": "Skip to content",
-  "workspace.discardPrompt": "You have unsaved changes. Discard them and change records?"
+  "workspace.discardPrompt": "You have unsaved changes. Discard them and change records?",
+  "error.network": "Connection unavailable. Your entries are still here; try again.",
+  "billing.blocked": "Billing access is blocked. Contact the administrator to reactivate it.",
+  "billing.recover": "Update billing",
+  "billing.unavailable": "Access check unavailable. This screen is preserved; try again.",
+  "billing.readOnly": "Read-only access due to billing. Time punches remain available."
 }

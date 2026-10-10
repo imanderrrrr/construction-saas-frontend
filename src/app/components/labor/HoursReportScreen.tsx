@@ -3,10 +3,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, ChevronRight, Download, X } from 'lucide-react';
 import { getAdminHoursReport, type AdminHoursReportResponse, type WorkerHoursSummary } from '../../services/time';
-import { listProjects } from '../../services/projects';
 import {
-  LaborFilters, LaborHeader, LaborSkeleton, Mono, attendanceDays, fmtDay, fmtRange,
-  initials, mainProject, monthRange, pendingHours, periodDays, weekRange,
+  LaborFilters, LaborHeader, LaborSkeleton, Mono, attendanceDays, fmtDay, fmtRange, useLaborProjects,
+  initials, mainProject, LABOR_RANGES, laborRange, type LaborRange, pendingHours, periodDays, weekRange,
 } from './shared';
 
 /**
@@ -20,17 +19,20 @@ export function HoursReportScreen({ onNavigate }: { onNavigate: (section: string
   const { t, i18n } = useTranslation(['admin', 'common']);
   const lang = i18n.language;
 
-  const [range, setRange] = useScreenState<'week' | 'month'>('periodo', 'week', 'replace', ['week', 'month']);
+  const [range, setRange] = useScreenState<LaborRange>('periodo', 'week', 'replace', LABOR_RANGES);
   const [q, setQ] = useScreenState('q', '');
   const [project, setProject] = useProjectFilter<string>('');
   const [attendance, setAttendance] = useScreenState<'' | 'full' | 'absences' | 'late'>('asistencia', '', 'replace', ['', 'full', 'absences', 'late']);
   const [data, setData] = useState<AdminHoursReportResponse | null>(null);
-  const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
+  const projectCatalog = useLaborProjects();
+  const projects = projectCatalog.items;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [open, setOpen] = useState<WorkerHoursSummary | null>(null);
 
-  const { from, to } = range === 'week' ? weekRange() : monthRange();
+  const [customFrom, setCustomFrom] = useScreenState('desde', weekRange().from);
+  const [customTo, setCustomTo] = useScreenState('hasta', weekRange().to);
+  const { from, to } = laborRange(range, customFrom, customTo);
 
   const load = useCallback(async () => {
     setLoading(true); setError(false);
@@ -45,11 +47,6 @@ export function HoursReportScreen({ onNavigate }: { onNavigate: (section: string
   }, [from, to, project]);
 
   useEffect(() => { load(); }, [load]);
-  useEffect(() => {
-    listProjects({ status: 'ACTIVE', page: 0, size: 100 })
-      .then(p => setProjects(p.content.map(x => ({ id: x.id, name: x.name }))))
-      .catch(() => setProjects([]));
-  }, []);
 
   const workers = data?.workers ?? [];
 
@@ -77,7 +74,7 @@ export function HoursReportScreen({ onNavigate }: { onNavigate: (section: string
     q && { key: 'q', label: `${t('admin:lab.f.search')} · ${q}`, clear: () => setQ('') },
     project && { key: 'project', label: `${t('admin:lab.f.project')} · ${projects.find(p => String(p.id) === project)?.name ?? project}`, clear: () => setProject('') },
     attendance && { key: 'att', label: `${t('admin:hrs.f.attendance')} · ${t(`admin:hrs.att.${attendance}`)}`, clear: () => setAttendance('') },
-    range !== 'week' && { key: 'range', label: `${t('admin:lab.f.range')} · ${t('admin:lab.f.month')}`, clear: () => setRange('week') },
+    range !== 'week' && { key: 'range', label: `${t('admin:lab.f.range')} · ${fmtRange(from, to, lang)}`, clear: () => setRange('week') },
   ].filter(Boolean) as { key: string; label: string; clear: () => void }[];
 
   const kpis = data?.kpis;
@@ -135,7 +132,8 @@ export function HoursReportScreen({ onNavigate }: { onNavigate: (section: string
       <LaborFilters
         tourAnchor="sec.hours.filters"
         q={q} onQ={setQ} range={range} onRange={setRange}
-        project={project} onProject={setProject} projects={projects}
+        from={customFrom} to={customTo} onFrom={setCustomFrom} onTo={setCustomTo}
+        project={project} onProject={setProject} projects={projects} projectsCatalog={projectCatalog}
         chips={chips} onClear={() => { setQ(''); setProject(''); setAttendance(''); setRange('week'); }}
         extra={
           <select value={attendance} onChange={e => setAttendance(e.target.value as typeof attendance)}
@@ -353,7 +351,7 @@ function DayByDayDrawer({ worker, lang, days, onClose, onNavigate }: {
                       </Mono>
                     ) : (
                       <span className="font-bt-display font-bold text-lg leading-none text-[#0A0A0A] whitespace-nowrap">
-                        {d.totalHours!.toFixed(1)} H
+                        {d.totalHours != null ? `${d.totalHours.toFixed(1)} H` : '—'}
                       </span>
                     )}
                   </div>

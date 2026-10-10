@@ -3,16 +3,21 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AdminHoursReportResponse, WorkerHoursSummary } from '../../services/time';
 
-const mocks = vi.hoisted(() => ({ report: vi.fn(), confirm: vi.fn(), navigate: vi.fn() }));
+const mocks = vi.hoisted(() => ({ report: vi.fn(), confirm: vi.fn(), preview: vi.fn(), navigate: vi.fn() }));
 vi.mock('react-i18next', () => {
   const t = (key: string) => key;
   return { useTranslation: () => ({ t, i18n: { language: 'es' } }), initReactI18next: { type: '3rdParty', init: () => {} } };
 });
-vi.mock('../../services/time', () => ({ getAdminHoursReport: mocks.report, confirmPayment: mocks.confirm, exportPayrollPayments: vi.fn() }));
-vi.mock('../../services/projects', () => ({ listProjects: () => Promise.resolve({ content: [{ id: 1, name: 'Obra Demo', remainingBudgetCents: 100000 }] }) }));
+vi.mock('../../services/time', () => ({ getAdminHoursReport: mocks.report, confirmPayment: mocks.confirm, previewPayment: mocks.preview, exportPayrollPayments: vi.fn() }));
+// A page as the server sends it: the catalog walks pages by `totalPages` (AUD-055).
+vi.mock('../../services/projects', () => {
+  const page = { content: [{ id: 1, name: 'Obra Demo', status: 'ACTIVE', remainingBudgetCents: 100000 }], page: 0, size: 100, totalElements: 1, totalPages: 1 };
+  return { listProjects: () => Promise.resolve(page), listFinanceProjects: () => Promise.resolve(page) };
+});
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }));
 import { LaborCostScreen } from './LaborCostScreen';
 import { LaborPayrollScreen } from './LaborPayrollScreen';
+import { HoursReportScreen } from './HoursReportScreen';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const worker: WorkerHoursSummary = {
@@ -34,6 +39,7 @@ describe('new labor screens in Finance', () => {
   let root: Root;
   beforeEach(() => {
     vi.clearAllMocks(); mocks.report.mockResolvedValue(report);
+    mocks.preview.mockResolvedValue({ workerId: 1, totalMinutes: 180, totalAmountCents: 3000, projects: [{ projectId: 1, amountCents: 3000 }], digest: "lab-preview" });
     host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host);
   });
   afterEach(async () => { await act(async () => root.unmount()); host.remove(); });
@@ -49,15 +55,30 @@ describe('new labor screens in Finance', () => {
     expect(mocks.navigate).toHaveBeenCalledWith('supervisor-hours');
   });
 
-  it('uses unpaid hours for payroll and opens confirmation without confirming a payment', async () => {
+  it('uses unpaid hours for payroll without offering admin payment actions', async () => {
     await act(async () => root.render(<LaborPayrollScreen mode="finance" onNavigate={mocks.navigate} />));
     expect(host.querySelector('[data-tour="sec.labor-payroll.kpis"]')?.textContent).toContain('30.00');
     expect(host.textContent).toContain('finance:labor.rateAdmin');
     expect(button('admin:cost.setRate')).toBeUndefined();
-    await act(async () => button('admin:pay.confirm').click());
-    expect(host.textContent).toContain('admin:pay.d.title');
+    expect(button('admin:pay.confirm')).toBeUndefined();
+    expect(button('admin:pay.exportPayments')).toBeUndefined();
+    expect(host.textContent).not.toContain('admin:pay.d.title');
     expect(host.textContent).toContain('Ana Demo');
     expect(mocks.confirm).not.toHaveBeenCalled();
+  });
+
+  it('shows approved unpaid records outside the selected period without adding them to payable totals', async () => {
+    mocks.report.mockResolvedValue({...report, approvedUnpaidRecordsOutsidePeriod: 3, approvedUnpaidSegmentsOutsidePeriod: 4, approvedUnpaidMinutesOutsidePeriod: 180});
+    await act(async () => root.render(<LaborPayrollScreen onNavigate={mocks.navigate} />));
+    expect(host.querySelector('[role="status"]')?.textContent).toContain('admin:pay.outsidePeriod');
+    expect(host.querySelector('[data-tour="sec.labor-payroll.kpis"]')?.textContent).toContain('30.00');
+  });
+
+  it('says "at least" when the server bounded the outside-period notice', async () => {
+    mocks.report.mockResolvedValue({...report, approvedUnpaidRecordsOutsidePeriod: 2000, approvedUnpaidSegmentsOutsidePeriod: 2100,
+      approvedUnpaidMinutesOutsidePeriod: 126000, approvedUnpaidOutsidePeriodTruncated: true});
+    await act(async () => root.render(<LaborPayrollScreen onNavigate={mocks.navigate} />));
+    expect(host.querySelector('[role="status"]')?.textContent).toContain('admin:pay.outsidePeriodAtLeast');
   });
 
   it('retains Administration rate management', async () => {
@@ -71,5 +92,15 @@ describe('new labor screens in Finance', () => {
     expect(host.textContent).toContain('admin:pay.emptyTitle');
     expect(host.textContent).not.toContain('admin:pay.allPaidBig');
     expect(host.textContent).not.toContain('admin:pay.groupPaid');
+  });
+  it('opens an incomplete workday without formatting null hours as a number', async () => {
+    mocks.report.mockResolvedValue({ ...report, workers: [{ ...worker, dailyEntries: [{ ...worker.dailyEntries[0], totalHours: null, clockOut: null, approvalStatus: 'PENDING' }] }] });
+    await act(async () => root.render(<HoursReportScreen onNavigate={mocks.navigate} />));
+    const name = [...host.querySelectorAll('span')].find(d => d.textContent === 'Ana Demo')!;
+    await act(async () => name.click());
+    expect(host.textContent).toContain('Ana Demo');
+    expect(host.textContent).toContain('—');
+    expect(host.textContent).not.toContain('NaN');
+    expect(host.textContent).toContain('08:00 → —');
   });
 });

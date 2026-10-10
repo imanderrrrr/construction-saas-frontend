@@ -1,3 +1,4 @@
+import { businessDateTimeToISO } from '../../helpers/dateTime';
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, AlertCircle, AlertTriangle, Clock, CalendarPlus, Info } from 'lucide-react';
@@ -37,10 +38,7 @@ const MANUAL_TYPES = TIME_EVENT_SEQUENCE.filter(type => type !== 'IN_TRANSIT') a
 // Helpers (same conversion logic as ModalCorrect / ModalEditTime)
 
 function buildIso(workDate: string, timeValue: string): string {
-  const [year, month, day] = workDate.split('-').map(Number);
-  const [hh, mm] = timeValue.split(':').map(Number);
-  const d = new Date(year, month - 1, day, hh, mm, 0, 0);
-  return d.toISOString();
+  return businessDateTimeToISO(workDate, timeValue);
 }
 
 /**

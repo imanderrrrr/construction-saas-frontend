@@ -1,5 +1,5 @@
 import { useScreenState } from '../../workspace/WorkspaceState';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft } from 'lucide-react';
 import { cn } from '../ui/utils';
@@ -33,7 +33,8 @@ import { JobTimeline } from './JobTimeline';
 
 export type JobFichaTab = 'notes' | 'evidence' | 'history';
 
-export function JobFicha({ job, onBack, onChangeStatus, onJobChanged, onOpenInvoice }: {
+export function JobFicha({ job, onBack, onChangeStatus, onJobChanged, onOpenInvoice, invoiceRevision = 0 }: {
+  invoiceRevision?: number;
   job: SubcontractorJobDTO;
   onBack: () => void;
   /**
@@ -59,20 +60,29 @@ export function JobFicha({ job, onBack, onChangeStatus, onJobChanged, onOpenInvo
 
   // The money strip: what was agreed, plus this job's own invoices.
   const [invoices, setInvoices] = useState<SubcontractorInvoiceDTO[] | null>(null);
+  const invoiceRequest = useRef(0);
+  const [invoiceError, setInvoiceError] = useState(false);
   const loadInvoices = useCallback(() => {
-    listInvoices({ subcontractorId: job.subcontractorId, size: 100 })
-      .then(page => setInvoices(page.content.filter(i => i.jobId === job.id)))
-      // The strip degrades to the agreed amount alone rather than inventing a
-      // balance; the Facturas tab is still the authority.
-      .catch(() => setInvoices([]));
+    const generation = ++invoiceRequest.current;
+    const fetchAll = async () => {
+      const rows: SubcontractorInvoiceDTO[] = [];
+      let page = 0;
+      while (true) {
+        const result = await listInvoices({ subcontractorId: job.subcontractorId, size: 100, page });
+        rows.push(...result.content.filter(i => i.jobId === job.id));
+        if (++page >= result.totalPages) break;
+      }
+      if (generation === invoiceRequest.current) { setInvoices(rows); setInvoiceError(false); }
+    };
+    fetchAll().catch(() => { if (generation === invoiceRequest.current) { setInvoices(null); setInvoiceError(true); } });
   }, [job.id, job.subcontractorId]);
-  useEffect(() => { loadInvoices(); }, [loadInvoices]);
+  useEffect(() => { loadInvoices(); return () => { invoiceRequest.current++; }; }, [loadInvoices, invoiceRevision]);
 
   const money = useMemo(() => {
     const rows = invoices ?? [];
     const invoiced = rows.reduce((sum, i) => sum + i.amountCents, 0);
-    const paid = rows.filter(i => i.status === 'PAID').reduce((sum, i) => sum + i.amountCents, 0);
-    const balance = rows.filter(i => isPayable(i.status)).reduce((sum, i) => sum + i.amountCents, 0);
+    const paid = rows.reduce((sum, i) => sum + (i.paidAmountCents ?? (i.status === 'PAID' ? i.amountCents : 0)), 0);
+    const balance = rows.filter(i => isPayable(i.status)).reduce((sum, i) => sum + (i.outstandingCents ?? i.amountCents - (i.paidAmountCents ?? 0)), 0);
     return { invoiced, paid, balance };
   }, [invoices]);
 
@@ -112,6 +122,7 @@ export function JobFicha({ job, onBack, onChangeStatus, onJobChanged, onOpenInvo
 
   return (
     <div className="max-w-[1206px]">
+      {invoiceError && <p role="alert" className="text-red-700">{t('common:error.network')} <button onClick={loadInvoices}>{t('common:buttons.retry')}</button></p>}
       <nav aria-label={t('subcontractors:ficha.breadcrumb')} className="mb-3.5">
         <button
           type="button"

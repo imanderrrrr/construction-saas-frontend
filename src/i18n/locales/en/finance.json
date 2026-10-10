@@ -243,7 +243,7 @@
   "receivable.loadError.title": "We could not load your receivables.",
   "receivable.loadError.body": "Check your connection and try again. Nothing you have recorded was lost.",
   "receivable.edit.title": "Edit document",
-  "receivable.edit.requiredFields": "Number and client are required",
+  "receivable.edit.requiredFields": "Number, client and dates are required",
   "receivable.edit.failed": "Could not update the document",
   "receivable.edit.duplicate": "That number is already in use",
   "receivable.edit.amountsHint": "Amounts are not editable: delete the document and create it again while it has no payments.",
@@ -844,5 +844,9 @@
   "overview.netMovement": "Net of these movements",
   "overview.netFormula": "Collected − paid",
   "overview.guideFinance": "Finance guide",
-  "payable.subcontractorInvoice": "Subcontractor invoice #{{number}}"
+  "payable.subcontractorInvoice": "Subcontractor invoice #{{number}}",
+  "void.confirmTitle": "Void payment or collection",
+  "void.confirm": "Confirm void",
+  "void.explanation": "The balance will be recalculated. The original movement remains in history.",
+  "void.reason": "Reason (optional)"
 }

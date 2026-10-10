@@ -1,4 +1,8 @@
+import { businessToday } from '../../helpers/dateTime';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { projectCatalog } from '../../services/catalogs';
+import { CatalogNote } from '../workspace/CatalogNote';
 import type { WorkerHoursSummary } from '../../services/time';
 
 /**
@@ -52,7 +56,7 @@ function ymd(d: Date): string {
 
 /** Monday of the current week → today. */
 export function weekRange(): { from: string; to: string } {
-  const d = new Date();
+  const d = new Date(`${businessToday()}T12:00:00`);
   const day = (d.getDay() + 6) % 7;
   const from = new Date(d);
   from.setDate(d.getDate() - day);
@@ -60,8 +64,22 @@ export function weekRange(): { from: string; to: string } {
 }
 
 export function monthRange(): { from: string; to: string } {
-  const d = new Date();
+  const d = new Date(`${businessToday()}T12:00:00`);
   return { from: ymd(new Date(d.getFullYear(), d.getMonth(), 1)), to: ymd(d) };
+}
+
+export type LaborRange = 'week' | 'month' | 'last-week' | 'last-month' | 'fortnight' | 'custom';
+export const LABOR_RANGES: LaborRange[] = ['week', 'month', 'last-week', 'last-month', 'fortnight', 'custom'];
+export function laborRange(range: LaborRange, customFrom: string, customTo: string): {from: string; to: string} {
+  if (range === 'custom') return {from: customFrom, to: customTo};
+  if (range === 'week') return weekRange();
+  if (range === 'month') return monthRange();
+  const d = new Date(`${businessToday()}T12:00:00`);
+  if (range === 'last-month') return {from: ymd(new Date(d.getFullYear(), d.getMonth() - 1, 1)), to: ymd(new Date(d.getFullYear(), d.getMonth(), 0))};
+  if (range === 'fortnight') return {from: ymd(new Date(d.getFullYear(), d.getMonth(), d.getDate() < 16 ? 1 : 16)), to: ymd(d)};
+  const from = new Date(`${weekRange().from}T12:00:00`);
+  const to = new Date(from); to.setDate(to.getDate() - 1); from.setDate(from.getDate() - 7);
+  return {from: ymd(from), to: ymd(to)};
 }
 
 /** "20 JUL – 22 JUL 2026" */
@@ -234,14 +252,45 @@ export function LaborSwitch({ current, onNavigate, mode = 'admin' }: {
   );
 }
 
+export interface LaborProject { id: number; name: string; status: string; remainingCents: number | null }
+
+/**
+ * The projects of the three labor screens: every status, all pages (AUD-055).
+ * They used to read one page of 100 ACTIVE projects — the 101st did not exist
+ * for the filter, and a project closed since the period being reported had
+ * vanished from a report about that period. Read from the endpoint of the
+ * screen's role.
+ */
+export function useLaborProjects(mode: 'admin' | 'finance' = 'admin') {
+  const [state, setState] = useState<{ items: LaborProject[]; total: number; truncated: boolean }>({ items: [], total: 0, truncated: false });
+  useEffect(() => {
+    let cancelled = false;
+    projectCatalog({ role: mode === 'finance' ? 'FINANCE' : 'ADMIN' })
+      .then(c => {
+        if (cancelled) return;
+        setState({
+          items: c.items.map(p => ({ id: p.id, name: p.name, status: p.status, remainingCents: p.remainingBudgetCents ?? null })),
+          total: c.total,
+          truncated: c.truncated,
+        });
+      })
+      .catch(() => { if (!cancelled) setState({ items: [], total: 0, truncated: false }); });
+    return () => { cancelled = true; };
+  }, [mode]);
+  return state;
+}
+
 /** Shared filter shell: search + range + project, with removable chips. */
 export function LaborFilters({
-  q, onQ, range, onRange, project, onProject, projects, extra, chips, onClear, tourAnchor,
+  q, onQ, range, onRange, from, to, onFrom, onTo, project, onProject, projects, projectsCatalog, extra, chips, onClear, tourAnchor,
 }: {
   q: string; onQ: (v: string) => void;
-  range: 'week' | 'month'; onRange: (v: 'week' | 'month') => void;
+  from?: string; to?: string; onFrom?: (v: string) => void; onTo?: (v: string) => void;
+  range: LaborRange; onRange: (v: LaborRange) => void;
   project: string; onProject: (v: string) => void;
   projects: { id: number; name: string }[];
+  /** The catalog's own count, to say so if the list had to stop short. */
+  projectsCatalog?: { total: number; truncated: boolean };
   extra?: React.ReactNode;
   chips: { key: string; label: string; clear: () => void }[];
   onClear: () => void;
@@ -262,16 +311,25 @@ export function LaborFilters({
           <input value={q} onChange={e => onQ(e.target.value)} placeholder={t('admin:lab.f.searchPlaceholder')}
             className="w-full border border-[#DBD0BB] bg-[#FAF7F0] py-2 pl-8 pr-3 text-[13px] text-[#0A0A0A] outline-none focus:border-[#F97316]" />
         </div>
-        <select value={range} onChange={e => onRange(e.target.value as 'week' | 'month')}
+        <select value={range} onChange={e => onRange(e.target.value as LaborRange)}
           className="appearance-none border border-[#DBD0BB] bg-[#FAF7F0] px-3 py-2 font-bt-mono text-[11px] uppercase tracking-[0.06em] text-[#0A0A0A] cursor-pointer">
           <option value="week">{t('admin:lab.f.week')}</option>
           <option value="month">{t('admin:lab.f.month')}</option>
+          <option value="last-week">{t('admin:lab.f.lastWeek')}</option>
+          <option value="last-month">{t('admin:lab.f.lastMonth')}</option>
+          <option value="fortnight">{t('admin:lab.f.fortnight')}</option>
+          <option value="custom">{t('admin:lab.f.custom')}</option>
         </select>
+        {range === 'custom' && <>
+          <input aria-label={t('admin:lab.f.from')} type="date" value={from} max={to} onChange={e => e.target.value && onFrom?.(e.target.value)} />
+          <input aria-label={t('admin:lab.f.to')} type="date" value={to} min={from} onChange={e => e.target.value && onTo?.(e.target.value)} />
+        </>}
         <select value={project} onChange={e => onProject(e.target.value)}
           className="appearance-none border border-[#DBD0BB] bg-[#FAF7F0] px-3 py-2 font-bt-mono text-[11px] uppercase tracking-[0.06em] text-[#0A0A0A] cursor-pointer max-w-[230px]">
           <option value="">{t('admin:lab.f.allProjects')}</option>
           {projects.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
         </select>
+        {projectsCatalog && <CatalogNote shown={projects.length} total={projectsCatalog.total} truncated={projectsCatalog.truncated} />}
         {extra}
         {chips.length > 0 && (
           <button onClick={onClear}

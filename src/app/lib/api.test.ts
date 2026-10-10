@@ -6,18 +6,18 @@ vi.stubGlobal('fetch', fetchMock);
 
 // Mock refresh-coordinator so we can control its behaviour independently
 vi.mock('./refresh-coordinator', () => ({
-  refreshIfNeeded: vi.fn(),
+  refreshSession: vi.fn(),
 }));
 
-import { refreshIfNeeded } from './refresh-coordinator';
+import { refreshSession } from './refresh-coordinator';
 import {
   api, apiMultipart, ApiError, NoResponseError,
   getStoredRole, getStoredUsername,
   getSessionMeta, isAuthenticated,
-  clearSessionCookie, getCsrfToken,
+  clearSessionCookie, getCsrfToken, ensureCsrfToken,
 } from './api';
 
-const refreshMock = vi.mocked(refreshIfNeeded);
+const refreshMock = vi.mocked(refreshSession);
 
 // Helpers
 function jsonResponse(status: number, body?: object): Response {
@@ -51,7 +51,7 @@ beforeEach(() => {
   refreshMock.mockReset();
   // Prevent location redirect from throwing in jsdom
   Object.defineProperty(window, 'location', {
-    value: { href: '' },
+    value: { href: '', pathname: '/', search: '' },
     writable: true,
   });
 });
@@ -177,7 +177,7 @@ describe('api() — success', () => {
 
 // ── api() — 401 auto-refresh ────────────────────────────────────
 describe('api() — 401 auto-refresh', () => {
-  it('on 401, calls refreshIfNeeded and retries on success', async () => {
+  it('on 401, calls refreshSession and retries on success', async () => {
     setSessionCookie('WORKER', 'user');
 
     // First call → 401, second call (retry) → 200
@@ -185,7 +185,7 @@ describe('api() — 401 auto-refresh', () => {
       .mockResolvedValueOnce(jsonResponse(401, { error: 'TOKEN_EXPIRED' }))
       .mockResolvedValueOnce(jsonResponse(200, { data: 'ok' }));
 
-    refreshMock.mockResolvedValueOnce(true);
+    refreshMock.mockResolvedValueOnce('ok');
 
     const result = await api('/api/v1/projects');
 
@@ -200,12 +200,12 @@ describe('api() — 401 auto-refresh', () => {
     setSessionCookie('WORKER', 'user');
 
     fetchMock.mockResolvedValueOnce(jsonResponse(401, {}));
-    refreshMock.mockResolvedValueOnce(false);
+    refreshMock.mockResolvedValueOnce('rejected');
 
     await expect(api('/api/v1/projects')).rejects.toThrow(ApiError);
 
     expect(isAuthenticated()).toBe(false);
-    expect(window.location.href).toBe('/?session=expired');
+    expect(window.location.href).toBe('/login?session=expired&next=%2F');
   });
 
   it('does NOT attempt refresh for /auth/login 401', async () => {
@@ -329,12 +329,12 @@ describe('api() — 401 on anonymous endpoints', () => {
     // Anonymous-endpoint carve-out must not weaken protected behaviour.
     setSessionCookie('WORKER', 'user');
     fetchMock.mockResolvedValueOnce(jsonResponse(401, {}));
-    refreshMock.mockResolvedValueOnce(false);
+    refreshMock.mockResolvedValueOnce('rejected');
 
     await expect(api('/api/v1/admin/projects')).rejects.toThrow(ApiError);
 
     expect(isAuthenticated()).toBe(false);
-    expect(window.location.href).toBe('/?session=expired');
+    expect(window.location.href).toBe('/login?session=expired&next=%2F');
   });
 });
 
@@ -367,7 +367,7 @@ describe('apiMultipart() — 401 auto-refresh', () => {
       .mockResolvedValueOnce(jsonResponse(401, {}))
       .mockResolvedValueOnce(jsonResponse(200, { uploaded: true }));
 
-    refreshMock.mockResolvedValueOnce(true);
+    refreshMock.mockResolvedValueOnce('ok');
 
     const result = await apiMultipart('/api/v1/receipts', 'POST', formData);
 
@@ -384,14 +384,14 @@ describe('apiMultipart() — 401 auto-refresh', () => {
     const formData = new FormData();
 
     fetchMock.mockResolvedValueOnce(jsonResponse(401, {}));
-    refreshMock.mockResolvedValueOnce(false);
+    refreshMock.mockResolvedValueOnce('rejected');
 
     await expect(
       apiMultipart('/api/v1/receipts', 'POST', formData),
     ).rejects.toThrow(ApiError);
 
     expect(isAuthenticated()).toBe(false);
-    expect(window.location.href).toBe('/?session=expired');
+    expect(window.location.href).toBe('/login?session=expired&next=%2F');
   });
 
   it('sends CSRF header on upload', async () => {
@@ -497,5 +497,23 @@ describe('api() — no answer', () => {
 
     expect(error).toBeInstanceOf(NoResponseError);
     expect((error as NoResponseError).timedOut).toBe(false);
+  });
+});
+
+
+describe('CSRF bootstrap for handoff', () => {
+  it('obtains the cookie before posting through the central client', async () => {
+    fetchMock.mockImplementationOnce(() => {
+      setCsrfCookie('laboratory-token');
+      return Promise.resolve(jsonResponse(204));
+    }).mockResolvedValueOnce(jsonResponse(200, { role: 'ADMIN' }));
+    await ensureCsrfToken();
+    await api('/api/v1/auth/handoff', { method: 'POST', body: JSON.stringify({ token: 'laboratory-access' }) });
+    expect(fetchMock.mock.calls[0][0]).toContain('/api/v1/auth/csrf');
+    expect(fetchMock.mock.calls[1][1].headers['X-XSRF-TOKEN']).toBe('laboratory-token');
+  });
+  it('fails if no cookie was issued', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(204));
+    await expect(ensureCsrfToken()).rejects.toThrow('CSRF cookie was not issued');
   });
 });

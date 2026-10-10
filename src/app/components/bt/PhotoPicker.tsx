@@ -24,25 +24,16 @@ export function usePhotoPicker(max: number, maxBytes: number, messages: PickerMe
 
   const addFiles = (list: FileList | null) => {
     if (!list) return;
-    setPhotos((prev) => {
-      const next = [...prev];
-      for (const file of Array.from(list)) {
-        if (!file.type.startsWith('image/')) {
-          toast.error(messages.invalidType);
-          continue;
-        }
-        if (file.size > maxBytes) {
-          toast.error(messages.tooLarge);
-          continue;
-        }
-        if (next.length >= max) {
-          toast.error(messages.tooMany);
-          break;
-        }
-        next.push(file);
-      }
-      return next;
-    });
+    // FileList is live: snapshot it before resetting the input. Validation
+    // and notices run outside the updater, which React may evaluate twice.
+    const accepted: File[] = [];
+    for (const file of Array.from(list)) {
+      if (!file.type.startsWith('image/')) { toast.error(messages.invalidType); continue; }
+      if (file.size > maxBytes) { toast.error(messages.tooLarge); continue; }
+      accepted.push(file);
+    }
+    if (photos.length + accepted.length > max) toast.error(messages.tooMany);
+    setPhotos(prev => [...prev, ...accepted].slice(0, max));
     if (inputRef.current) inputRef.current.value = '';
   };
 

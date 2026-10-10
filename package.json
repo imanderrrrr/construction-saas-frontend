@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
+    "budget": "BUNDLE_BUDGET=1 vite build --manifest --outDir dist-budget && node tools/bundle-budget.mjs dist-budget",
     "dev": "vite",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",

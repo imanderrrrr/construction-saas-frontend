@@ -1,7 +1,7 @@
 // OFJR Construction — HTTP API Client
 // Single fetch wrapper: baseURL from env, HttpOnly cookie auth, CSRF protection.
 
-import { refreshIfNeeded } from './refresh-coordinator';
+import { refreshSession } from './refresh-coordinator';
 import i18n from '../../i18n';
 import { getPasswordChangeRequired, setPasswordChangeRequired } from './passwordChangeState';
 
@@ -160,6 +160,8 @@ const ANONYMOUS_ENDPOINTS = [
   // request, confirm and the GET preview of a link — all before any session.
   '/auth/password-reset/',
   '/auth/invitations/',
+  '/auth/handoff',
+  '/auth/csrf',
   // Client portal (public read-only site-log view): auth is the portal token,
   // not a user session. A 401/410 here must render inline on the public page,
   // never bounce the visitor to /?session=expired.
@@ -198,12 +200,16 @@ async function withAutoRefresh(
   if (res.status !== 401) return res;
   if (isAuthEndpoint(endpoint) || isAnonymousEndpoint(endpoint)) return res;
 
-  const refreshed = await refreshIfNeeded();
-  if (refreshed) {
+  const refreshed = await refreshSession();
+  if (refreshed === 'ok') {
     return doFetch();
   }
+  if (refreshed === 'unreachable') {
+    throw new ApiError(503, i18n.t('common:error.network'), undefined, 'NETWORK_ERROR');
+  }
   clearSessionCookie();
-  window.location.href = '/?session=expired';
+  const next = encodeURIComponent(window.location.pathname + window.location.search);
+  window.location.href = `/login?session=expired&next=${next}`;
   throw new ApiError(401, i18n.t('common:error.sessionExpired'));
 }
 
@@ -346,4 +352,19 @@ export async function apiMultipart<T>(
 
   if (res.status === 204) return undefined as unknown as T;
   return res.json() as Promise<T>;
+}
+
+/** Bootstrap the cookie/header CSRF contract for a browser without a prior session. */
+export async function ensureCsrfToken(): Promise<void> {
+  if (!getCsrfToken()) await api('/api/v1/auth/csrf');
+  if (!getCsrfToken()) throw new Error('CSRF cookie was not issued');
+}
+
+/** Downloads authenticated evidence through the same refresh/error contract. */
+export async function apiBlob(endpoint: string): Promise<Blob> {
+  const res = await withAutoRefresh(endpoint, () => fetch(BASE_URL + endpoint, {
+    credentials: 'include', headers: {'Accept-Language': i18n.language},
+  }));
+  if (!res.ok) await handleErrorResponse(res);
+  return res.blob();
 }

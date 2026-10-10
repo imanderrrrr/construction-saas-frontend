@@ -10,7 +10,7 @@
 //   · las categorías son FILAS que escribe la empresa, no un enum del
 //     producto, así que sus nombres NO se traducen: son texto del usuario.
 
-import { api } from '../lib/api';
+import { api, apiMultipart } from '../lib/api';
 import { getBaseUrl } from '../lib/api';
 
 export interface PageResponse<T> {
@@ -205,18 +205,7 @@ export function deleteOfficeCategory(id: number): Promise<void> {
 export async function uploadOfficeReceipt(id: number, file: File): Promise<OfficeExpense> {
   const body = new FormData();
   body.append('file', file);
-  // Sin `Content-Type`: el navegador tiene que poner el boundary del multipart,
-  // y escribirlo a mano rompe la subida sin decir por qué.
-  const res = await fetch(`${getBaseUrl()}${BASE}/${id}/receipt`, {
-    method: 'POST',
-    credentials: 'include',
-    body,
-  });
-  if (!res.ok) {
-    const payload = await res.json().catch(() => null);
-    throw new Error(payload?.message ?? `Upload failed (${res.status})`);
-  }
-  return res.json() as Promise<OfficeExpense>;
+  return apiMultipart<OfficeExpense>(`${BASE}/${id}/receipt`, 'POST', body);
 }
 
 export function removeOfficeReceipt(id: number): Promise<OfficeExpense> {

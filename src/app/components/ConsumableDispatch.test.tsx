@@ -59,7 +59,7 @@ describe('warehouse project access for consumable dispatch', () => {
     await act(async () => root.render(<ConsumableDispatch />));
     await act(async () => { await Promise.resolve(); });
     const paths = apiMock.mock.calls.map(([path]) => String(path));
-    expect(paths).toContain('/api/v1/warehouse/projects?status=ACTIVE&size=100');
+    expect(paths).toContain('/api/v1/warehouse/projects?status=ACTIVE&page=0&size=100');
     expect(paths.some(path => path.startsWith('/api/v1/admin/projects'))).toBe(false);
     const button = Array.from(container.querySelectorAll('button')).find(el => el.textContent?.includes('dispatch.dispatchSupply'));
     expect(button).toBeDefined();

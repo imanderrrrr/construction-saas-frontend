@@ -1,27 +1,59 @@
 /**
  * Centralized date/time utilities that respect the business timezone setting.
  *
- * All formatting and "today" computations use the timezone stored in
- * localStorage under `ofjr_business_timezone` (set by TimezoneSwitcher).
+ * The authenticated tenant setting is held only for this session.
  */
 
-const STORAGE_KEY = 'ofjr_business_timezone';
+let businessTimezone = 'America/Panama';
 const DEFAULT_TZ = 'America/Panama';
 
 // ── Core ────────────────────────────────────────────────────────────────
 
 /** Read the configured business timezone. */
 export function getBusinessTz(): string {
-  return localStorage.getItem(STORAGE_KEY) || DEFAULT_TZ;
+  return businessTimezone;
+}
+
+export function setBusinessTz(tz: string): void {
+  // Validate before replacing the session's setting. Never inherit another tenant's cache.
+  new Intl.DateTimeFormat('en', { timeZone: tz }).format();
+  businessTimezone = tz;
+}
+export function resetBusinessTz(): void { businessTimezone = DEFAULT_TZ; }
+export function businessDate(iso: string): string {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: getBusinessTz(), year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(iso));
+  const value = (type: string) => parts.find(p => p.type === type)!.value;
+  return `${value('year')}-${value('month')}-${value('day')}`;
+}
+/** A civil date/time in the tenant zone. Reject DST gaps and repeated hours. */
+export function businessDateTimeToISO(date: string, time: string): string {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(time);
+  if (!match || Number(match[1]) > 23 || Number(match[2]) > 59) throw new Error('Invalid business time');
+  const target = `${date}T${match[1].padStart(2, '0')}:${match[2]}`;
+  const base = Date.parse(`${target}:00Z`);
+  if (!Number.isFinite(base)) throw new Error('Invalid business date/time');
+  const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: getBusinessTz(), year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  const local = (ms: number) => {
+    const ps = fmt.formatToParts(new Date(ms));
+    const v = (t: string) => ps.find(p => p.type === t)!.value;
+    return `${v('year')}-${v('month')}-${v('day')}T${v('hour')}:${v('minute')}`;
+  };
+  const candidates = new Set<number>();
+  for (const delta of [-36, -12, 0, 12, 36]) {
+    const probe = base + delta * 3600000;
+    const offset = Date.parse(`${local(probe)}:00Z`) - probe;
+    const candidate = base - offset;
+    if (local(candidate) === target) candidates.add(candidate);
+  }
+  if (candidates.size !== 1) throw new Error('Invalid or ambiguous business time');
+  return new Date([...candidates][0]).toISOString();
 }
 
 // ── "Today" helpers ─────────────────────────────────────────────────────
 
 /** Current date as YYYY-MM-DD in the business timezone. */
 export function businessToday(): string {
-  return formatInTz(new Date(), 'en-CA', {
-    year: 'numeric', month: '2-digit', day: '2-digit',
-  });
+  return businessDate(new Date().toISOString());
 }
 
 /** Current month as YYYY-MM in the business timezone. */
@@ -40,13 +72,9 @@ export function currentMonthLabel(locale: string = 'en-US'): string {
 
 /** Date N days ago as YYYY-MM-DD in the business timezone. */
 export function nDaysAgo(n: number): string {
-  // Walk back calendar days to avoid DST 23/25-hour issues
-  const today = businessToday();
-  const d = new Date(`${today}T12:00:00`); // noon avoids DST edge
-  d.setDate(d.getDate() - n);
-  return formatInTz(d, 'en-CA', {
-    year: 'numeric', month: '2-digit', day: '2-digit',
-  });
+  const d = new Date(`${businessToday()}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - n);
+  return d.toISOString().slice(0, 10);
 }
 
 /** Filename-safe stamp: YYYY-MM-DD in business timezone. */
@@ -58,18 +86,18 @@ export function todayStamp(): string {
 
 /** Format a date-only ISO string (YYYY-MM-DD) for display. */
 export function fmtDate(iso: string, locale: string = 'en-US'): string {
-  const date = iso.includes('T') ? new Date(iso) : new Date(`${iso}T00:00:00`);
+  const date = iso.includes('T') ? new Date(iso) : new Date(`${iso}T00:00:00Z`);
   return date.toLocaleDateString(locale, {
-    timeZone: getBusinessTz(),
+    timeZone: iso.includes('T') ? getBusinessTz() : 'UTC',
     month: 'short', day: 'numeric', year: 'numeric',
   });
 }
 
 /** Format a date-only ISO string with short format (no year). */
 export function fmtDateShort(iso: string, locale: string = 'en-US'): string {
-  const date = iso.includes('T') ? new Date(iso) : new Date(`${iso}T00:00:00`);
+  const date = iso.includes('T') ? new Date(iso) : new Date(`${iso}T00:00:00Z`);
   return date.toLocaleDateString(locale, {
-    timeZone: getBusinessTz(),
+    timeZone: iso.includes('T') ? getBusinessTz() : 'UTC',
     month: 'short', day: 'numeric',
   });
 }
@@ -107,8 +135,7 @@ export function fmtTime(iso: string, locale: string = 'en-US'): string {
  * representing midnight (00:00:00) in the business timezone.
  */
 export function startOfDayISO(dateStr: string): string {
-  const offsetMs = tzOffsetMs(new Date(`${dateStr}T00:00:00Z`));
-  return new Date(new Date(`${dateStr}T00:00:00Z`).getTime() + offsetMs).toISOString();
+  return businessDateTimeToISO(dateStr, '00:00');
 }
 
 /**
@@ -116,8 +143,7 @@ export function startOfDayISO(dateStr: string): string {
  * representing end-of-day (23:59:59.999) in the business timezone.
  */
 export function endOfDayISO(dateStr: string): string {
-  const offsetMs = tzOffsetMs(new Date(`${dateStr}T23:59:59Z`));
-  return new Date(new Date(`${dateStr}T23:59:59.999Z`).getTime() + offsetMs).toISOString();
+  return new Date(Date.parse(businessDateTimeToISO(dateStr, '23:59')) + 59999).toISOString();
 }
 
 // ── Business logic helpers ──────────────────────────────────────────────
@@ -125,32 +151,7 @@ export function endOfDayISO(dateStr: string): string {
 /** Number of calendar days a due date is overdue (0 if not overdue). */
 export function daysOverdue(dueDate: string): number {
   const today = businessToday();
-  const t = new Date(`${today}T00:00:00`).getTime();
-  const d = new Date(`${dueDate}T00:00:00`).getTime();
+  const t = new Date(`${today}T00:00:00Z`).getTime();
+  const d = new Date(`${dueDate}T00:00:00Z`).getTime();
   return Math.max(0, Math.floor((t - d) / 86_400_000));
-}
-
-// ── Internal ────────────────────────────────────────────────────────────
-
-/** Format a Date in the business timezone with the given Intl options. */
-function formatInTz(
-  date: Date,
-  locale: string,
-  options: Intl.DateTimeFormatOptions,
-): string {
-  return new Intl.DateTimeFormat(locale, {
-    ...options,
-    timeZone: getBusinessTz(),
-  }).format(date);
-}
-
-/**
- * Compute the UTC offset (in ms) for the business timezone at a given instant.
- * Positive means the business TZ is behind UTC (e.g. UTC-5 → +18_000_000).
- */
-function tzOffsetMs(refDate: Date): number {
-  const tz = getBusinessTz();
-  const utcStr = refDate.toLocaleString('en-US', { timeZone: 'UTC' });
-  const tzStr = refDate.toLocaleString('en-US', { timeZone: tz });
-  return new Date(utcStr).getTime() - new Date(tzStr).getTime();
 }

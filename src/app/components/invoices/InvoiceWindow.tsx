@@ -9,14 +9,11 @@ import { businessToday } from '../../helpers/dateTime';
 import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 import { CloseButton, FOCUS_RING, InkBar, SecondaryButton, TertiaryButton } from '../onboarding/chrome';
 import { FieldError, FieldHint, FieldLabel, INPUT, INPUT_ERROR, INPUT_MONO, Mono, PaperNote } from '../projects/bt';
-import { createReceivable, type DocumentType, type Receivable } from '../../services/finance';
+import { downloadReceivableDocument, createReceivable, type DocumentType, type Receivable } from '../../services/finance';
 import { listProjects, type ProjectResponse } from '../../services/projects';
 import { listClients } from '../../services/clients';
 import { loadInvoiceIssuer } from '../../services/invoiceBranding';
-import {
-  invoicePdfPreviewUrl, downloadInvoicePdf,
-  type InvoiceIssuerPdf, type InvoicePdfData,
-} from '../../helpers/exportInvoicePdf';
+import type { InvoiceIssuerPdf, InvoicePdfData } from '../../helpers/exportInvoicePdf';
 import { SearchSelect, type PickerOption } from './SearchSelect';
 import { ceilingOf, fmtCents, fmtMoney, submitError, type InvoiceSubmitError } from './bits';
 
@@ -62,7 +59,9 @@ function plusDays(iso: string, days: number): string {
 function num(raw: string): number | null {
   const trimmed = raw.trim();
   if (!trimmed) return null;
-  const parsed = Number(trimmed.replace(',', '.'));
+  // Canonical decimal input; grouping and decimal commas are ambiguous.
+  if (!/^\d+(?:\.\d{1,2})?$/.test(trimmed)) return null;
+  const parsed = Number(trimmed);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
@@ -230,18 +229,20 @@ export function InvoiceWindow({ onClose, onCreated, onOpenBranding }: {
       return;
     }
     if (!issuerReady) return; // don't flash a headerless draft before it lands
+    let cancelled = false;
     const handle = setTimeout(() => {
-      let url: string | null;
-      try {
-        url = invoicePdfPreviewUrl(previewData, issuer, undefined, lang);
-      } catch {
-        url = null; // a half-typed state must not take the editor down
-      }
-      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
-      previewUrlRef.current = url;
-      setPreviewUrl(url);
+      // The PDF library arrives with the first preview, not with the list (AUD-019).
+      import('../../helpers/exportInvoicePdf')
+        .then(({ invoicePdfPreviewUrl }) => invoicePdfPreviewUrl(previewData, issuer, undefined, lang))
+        .catch(() => null) // a half-typed state must not take the editor down
+        .then(url => {
+          if (cancelled) { if (url) URL.revokeObjectURL(url); return; }
+          if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+          previewUrlRef.current = url;
+          setPreviewUrl(url);
+        });
     }, 400);
-    return () => clearTimeout(handle);
+    return () => { cancelled = true; clearTimeout(handle); };
   }, [previewData, issuer, issuerReady, lang]);
   useEffect(() => () => {
     if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
@@ -255,7 +256,7 @@ export function InvoiceWindow({ onClose, onCreated, onOpenBranding }: {
   const noLines = billable.length === 0;
   const badLines = parsedLines.some(l => l.badQuantity || l.badPrice);
   const canSubmit = !submitting && !missingClient && !missingProject && !noLines && !badLines
-    && !discountTooBig && total > 0 && !(isCO && !description.trim())
+    && !discountTooBig && (!discount || num(discount) != null) && (!taxRate || num(taxRate) != null) && total > 0 && !(isCO && !description.trim())
     && !datesWrong && !ceilingBlocks && !overCeiling;
 
   const handleSubmit = async () => {
@@ -284,30 +285,7 @@ export function InvoiceWindow({ onClose, onCreated, onOpenBranding }: {
       // Only now does the document have a number, so only now can it become a
       // PDF someone could send.
       try {
-        downloadInvoicePdf(
-          {
-            documentType: created.documentType,
-            invoiceNumber: created.invoiceNumber,
-            client: created.client,
-            project: created.project,
-            description: created.description,
-            issuedDate: created.issuedDate,
-            dueDate: created.dueDate,
-            lineItems: created.lineItems.map(li => ({
-              description: li.description, quantity: li.quantity,
-              unitPrice: li.unitPrice, subtotal: li.subtotal,
-            })),
-            subtotal: created.subtotal,
-            discount: created.discount,
-            taxRate: created.taxRate,
-            tax: created.tax,
-            amount: created.amount,
-            notes: created.notes,
-          },
-          await loadInvoiceIssuer(),
-          undefined,
-          lang,
-        );
+        await downloadReceivableDocument(created.id, { lang, filename: created.invoiceNumber });
       } catch {
         // The document is saved; a failed download is not a failed issue.
       }

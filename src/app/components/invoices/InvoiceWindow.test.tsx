@@ -33,8 +33,10 @@ vi.mock('../../helpers/exportInvoicePdf', () => ({
 vi.mock('../../lib/tourScope', () => ({ useTourScopeWhileMounted: () => {} }));
 
 const createReceivable = vi.fn();
+const downloadReceivableDocument = vi.fn();
 vi.mock('../../services/finance', () => ({
   createReceivable: (...a: unknown[]) => createReceivable(...a),
+  downloadReceivableDocument: (...a: unknown[]) => downloadReceivableDocument(...a),
 }));
 const listProjects = vi.fn();
 vi.mock('../../services/projects', () => ({ listProjects: (...a: unknown[]) => listProjects(...a) }));
@@ -82,6 +84,7 @@ describe('InvoiceWindow', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    downloadReceivableDocument.mockReset().mockResolvedValue(undefined);
     listClients.mockResolvedValue({ content: [{ id: 3, name: 'Grupo Marisol', contact: null, email: null }], totalElements: 1 });
     listProjects.mockImplementation(({ status }: { status: string }) =>
       Promise.resolve({ content: status === 'ACTIVE' ? [TORRE, SUR, BODEGA] : [], totalElements: 3 }));
@@ -91,9 +94,9 @@ describe('InvoiceWindow', () => {
   });
   afterEach(() => { act(() => root.unmount()); container.remove(); });
 
-  async function mount() {
+  async function mount(onCreated = vi.fn()) {
     await act(async () => {
-      root.render(<InvoiceWindow onClose={() => {}} onCreated={() => {}} />);
+      root.render(<InvoiceWindow onClose={() => {}} onCreated={onCreated} />);
     });
     await flush();
   }
@@ -240,5 +243,41 @@ describe('InvoiceWindow', () => {
     ]);
     // Blank means "let the sequence number it": no placeholder travels.
     expect(createReceivable.mock.calls[0][0].invoiceNumber).toBeUndefined();
+    expect(downloadReceivableDocument).toHaveBeenCalledWith(1, { lang: 'es', filename: 'INV-2026-7' });
+  });
+
+  it('refuses comma amounts instead of silently billing 1.5 for 1,500', async () => {
+    await mount();
+    await pick('invoice-client', 'Grupo Marisol');
+    await pick('invoice-project', 'Torre Norte');
+    await act(async () => {
+      typeInto(line(0).description, 'Cimentación');
+      typeInto(line(0).price, '1,500');
+    });
+    expect(submit().disabled).toBe(true);
+    expect(createReceivable).not.toHaveBeenCalled();
+    await act(async () => { typeInto(line(0).price, '1500.00'); });
+    expect(submit().disabled).toBe(false);
+    expect(container.querySelector('[data-testid="invoice-total"]')!.textContent).toBe('$1,500.00');
+  });
+
+  it('reports the saved document once when downloading its official PDF fails', async () => {
+    const saved = { id: 73, invoiceNumber: 'INV-2026-0073' };
+    createReceivable.mockResolvedValue(saved);
+    downloadReceivableDocument.mockRejectedValue(new Error('download interrupted'));
+    const onCreated = vi.fn();
+    await mount(onCreated);
+    await pick('invoice-client', 'Grupo Marisol');
+    await pick('invoice-project', 'Torre Norte');
+    await act(async () => {
+      typeInto(line(0).description, 'Cimentación');
+      typeInto(line(0).price, '1500.00');
+    });
+    await act(async () => { submit().click(); });
+    await flush();
+    expect(createReceivable).toHaveBeenCalledTimes(1);
+    expect(downloadReceivableDocument).toHaveBeenCalledWith(73, { lang: 'es', filename: saved.invoiceNumber });
+    expect(onCreated).toHaveBeenCalledExactlyOnceWith(saved);
+    expect(submit().disabled).toBe(true);
   });
 });

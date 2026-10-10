@@ -17,13 +17,15 @@ import {
   UPLOAD_LAG_MS, dayHours, hhmm, payableAt, sequenceOf, uploadLagOf,
 } from './shared';
 import type { TimeRecordResponse } from '../../services/time';
+import { resetBusinessTz, setBusinessTz } from '../../helpers/dateTime';
 
 // The suite may run in any machine timezone (CI is typically UTC) and these
 // helpers render local wall-clock times — pin the business one. Assigning
 // process.env.TZ resets both Date and Intl's default timezone in Node.
 const ORIGINAL_TZ = process.env.TZ;
-beforeAll(() => { process.env.TZ = 'America/Guatemala'; }); // UTC-6, no DST
+beforeAll(() => { process.env.TZ = 'America/Guatemala'; setBusinessTz('America/Guatemala'); });
 afterAll(() => {
+  resetBusinessTz();
   if (ORIGINAL_TZ === undefined) delete process.env.TZ;
   else process.env.TZ = ORIGINAL_TZ;
 });

@@ -19,8 +19,11 @@ vi.mock('react-i18next', () => ({
   Trans: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
   initReactI18next: { type: '3rdParty', init: () => {} },
 }));
+// A page as the server sends it: the catalog walks pages by `totalPages` (AUD-055).
+const PROJECTS_PAGE = { content: [{ id: 1, name: 'Torre Corporativa Zona 10' }], page: 0, size: 100, totalElements: 1, totalPages: 1 };
 vi.mock('../../services/projects', () => ({
-  listProjects: () => Promise.resolve({ content: [{ id: 1, name: 'Torre Corporativa Zona 10' }] }),
+  listProjects: () => Promise.resolve(PROJECTS_PAGE),
+  listFinanceProjects: () => Promise.resolve(PROJECTS_PAGE),
 }));
 vi.mock('../../services/branding', () => ({ tenantCompanyName: () => Promise.resolve('Constructora Andes') }));
 

@@ -388,3 +388,7 @@ export async function listDirectory(params: {
   });
   return api<PageResponse<SubcontractorDirectoryRow>>(`${OVERVIEW}/directory${q}`);
 }
+
+export async function getInvoice(id: number): Promise<SubcontractorInvoiceDTO> {
+  return api<SubcontractorInvoiceDTO>(`/api/v1/admin/subcontractor-invoices/${id}`);
+}

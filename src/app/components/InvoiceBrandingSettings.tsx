@@ -1,3 +1,4 @@
+import { TimezoneSwitcher } from './TimezoneSwitcher';
 // Admin screen: the tenant's invoice template — the letterhead printed on
 // every invoice and change order the app generates, and (via
 // GET /api/v1/branding, which reads this same row) the company identity the
@@ -41,11 +42,7 @@ import {
   type InvoiceBranding,
 } from '../services/invoiceBranding';
 import { invalidateTenantCompanyName } from '../services/branding';
-import {
-  invoicePdfPreviewUrl,
-  type InvoiceIssuerPdf,
-  type InvoicePdfData,
-} from '../helpers/exportInvoicePdf';
+import type { InvoiceIssuerPdf, InvoicePdfData } from '../helpers/exportInvoicePdf';
 
 /** Mirrors of the backend caps (InvoiceBrandingService / UpdateInvoiceBrandingRequest). */
 const MAX_LOGO_BYTES = 2 * 1024 * 1024;
@@ -190,18 +187,20 @@ export function InvoiceBrandingSettings() {
   const previewUrlRef = useRef<string | null>(null);
   useEffect(() => {
     if (loadState !== 'ready') return;
+    let cancelled = false;
     const handle = setTimeout(() => {
-      let url: string | null;
-      try {
-        url = invoicePdfPreviewUrl(samplePdf, previewIssuer, undefined, lang);
-      } catch {
-        url = null;
-      }
-      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
-      previewUrlRef.current = url;
-      setPreviewUrl(url);
+      // The PDF library arrives with the first preview, not with the settings (AUD-019).
+      import('../helpers/exportInvoicePdf')
+        .then(({ invoicePdfPreviewUrl }) => invoicePdfPreviewUrl(samplePdf, previewIssuer, undefined, lang))
+        .catch(() => null)
+        .then(url => {
+          if (cancelled) { if (url) URL.revokeObjectURL(url); return; }
+          if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+          previewUrlRef.current = url;
+          setPreviewUrl(url);
+        });
     }, 350);
-    return () => clearTimeout(handle);
+    return () => { cancelled = true; clearTimeout(handle); };
   }, [previewIssuer, samplePdf, loadState, lang]);
   useEffect(() => () => {
     if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
@@ -324,6 +323,7 @@ export function InvoiceBrandingSettings() {
   return (
     <>
       <div className="space-y-4">
+      <TimezoneSwitcher />
         {/* ── Header ─────────────────────────────────────────────────── */}
         <div className="flex items-end justify-between gap-5 flex-wrap">
           <div>
