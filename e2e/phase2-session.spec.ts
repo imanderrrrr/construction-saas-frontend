@@ -1,16 +1,18 @@
 import {test,expect} from '@playwright/test';
 import {installHermeticBase,json} from './support/mock-api';
 
-async function prepare(page: import('@playwright/test').Page, context: import('@playwright/test').BrowserContext) {
+// Cookies for the origin under test: the repository config (localhost:E2E_PORT)
+// or playwright.phase2.config.ts (127.0.0.1:5198).
+async function prepare(page: import('@playwright/test').Page, context: import('@playwright/test').BrowserContext, baseURL: string) {
  await installHermeticBase(page,{role:'WORKER',username:'tester'});
- await context.addCookies([{name:'ofjr_session',value:encodeURIComponent(JSON.stringify({role:'WORKER',username:'tester'})),url:'http://127.0.0.1:5198'},{name:'bt_tenant',value:'phase2-a',url:'http://127.0.0.1:5198'},{name:'XSRF-TOKEN',value:'phase2-csrf',url:'http://127.0.0.1:5198'}]);
+ await context.addCookies([{name:'ofjr_session',value:encodeURIComponent(JSON.stringify({role:'WORKER',username:'tester'})),url:baseURL},{name:'bt_tenant',value:'phase2-a',url:baseURL},{name:'XSRF-TOKEN',value:'phase2-csrf',url:baseURL}]);
  await page.route('**/api/v1/billing/access',json({tier:'FULL',enforced:false,fieldWorkAllowed:true}));
  await page.route('**/api/v1/settings/timezone',json({timezone:'America/Guatemala'}));
  await page.route('**/api/v1/worker/expenses/places*',json([]));
 }
 
-test('cold SPA refreshes expired access and keeps the direct destination and query',async({page,context})=>{
- await prepare(page,context);let me=0,refresh=0;
+test('cold SPA refreshes expired access and keeps the direct destination and query',async({page,context,baseURL})=>{
+ await prepare(page,context,baseURL!);let me=0,refresh=0;
  await page.route('**/api/v1/auth/me',route=>route.fulfill({status:++me===1?401:200,contentType:'application/json',body:JSON.stringify(me===1?{code:'UNAUTHORIZED'}:{role:'WORKER',username:'tester'})}));
  await page.route('**/api/v1/auth/refresh',route=>{refresh++;return json({role:'WORKER',username:'tester'})(route);});
  await page.goto('/worker/gastos/nuevo?phase2=direct');
@@ -19,8 +21,8 @@ test('cold SPA refreshes expired access and keeps the direct destination and que
  expect(refresh).toBe(1);expect(me).toBeGreaterThanOrEqual(2);
 });
 
-test('a transient refresh keeps the session and an unfinished expense form',async({page,context})=>{
- await prepare(page,context);
+test('a transient refresh keeps the session and an unfinished expense form',async({page,context,baseURL})=>{
+ await prepare(page,context,baseURL!);
  await page.goto('/worker/gastos/nuevo?phase2=draft');
  const amount=page.getByRole('spinbutton').first();await amount.fill('25');
  await page.route('**/api/v1/phase2/session-check',json({code:'UNAUTHORIZED'},401));
@@ -31,8 +33,8 @@ test('a transient refresh keeps the session and an unfinished expense form',asyn
  expect((await context.cookies()).some(c=>c.name==='ofjr_session')).toBe(true);
 });
 
-test('a rejected refresh clears the session and returns to login with the full destination',async({page,context})=>{
- await prepare(page,context);await page.goto('/worker/gastos/nuevo?phase2=expired');
+test('a rejected refresh clears the session and returns to login with the full destination',async({page,context,baseURL})=>{
+ await prepare(page,context,baseURL!);await page.goto('/worker/gastos/nuevo?phase2=expired');
  await expect(page.getByRole('spinbutton').first()).toBeVisible();
  await page.route('**/api/v1/phase2/session-check',json({code:'UNAUTHORIZED'},401));
  await page.route('**/api/v1/auth/refresh',json({code:'REFRESH_REVOKED'},401));
