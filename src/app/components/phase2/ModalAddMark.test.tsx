@@ -138,8 +138,9 @@ describe('ModalAddMark', () => {
     const marks = onSubmit.mock.calls[0][0];
     expect(marks).toHaveLength(1);
     expect(marks[0].type).toBe('CHECK_OUT');
-    // Local 17:30 on the work date converted to an ISO instant.
-    expect(marks[0].capturedAt).toBe(new Date(2026, 6, 1, 17, 30, 0, 0).toISOString());
+    // 17:30 on the work date in the business zone set above (America/Guatemala,
+    // UTC-6), whatever the zone of the machine running the test.
+    expect(marks[0].capturedAt).toBe('2026-07-01T23:30:00.000Z');
   });
 
   it('blocks LUNCH_END without LUNCH_START (payroll dependency chain)', async () => {
