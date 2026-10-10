@@ -29,7 +29,7 @@ interface ModalAddMarkProps {
   onSubmit: (marks: ManualMarkInput[]) => Promise<void>;
 }
 
-// Helpers (same conversion logic as ModalCorrect / ModalEditTime)
+// Helpers (same conversion logic as ModalEditTime)
 
 function buildIso(workDate: string, timeValue: string): string {
   return businessDateTimeToISO(workDate, timeValue);
