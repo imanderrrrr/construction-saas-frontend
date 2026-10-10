@@ -66,6 +66,7 @@ vi.mock('react-i18next', () => ({
 }));
 
 import { routes } from './routes';
+import { settleRoutes } from './testing/routes';
 import {
   setPasswordChangeRequired,
   clearPasswordChangeState,
@@ -106,6 +107,7 @@ describe('routes – what\'s-new modal never paints over a guard', () => {
     await act(async () => {
       await new Promise(resolve => setTimeout(resolve, 0));
     });
+    await settleRoutes(container);
   }
 
   it('renders the forced password change WITHOUT the modal on top', async () => {

@@ -13,10 +13,7 @@ import { downloadReceivableDocument, createReceivable, type DocumentType, type R
 import { listProjects, type ProjectResponse } from '../../services/projects';
 import { listClients } from '../../services/clients';
 import { loadInvoiceIssuer } from '../../services/invoiceBranding';
-import {
-  invoicePdfPreviewUrl,
-  type InvoiceIssuerPdf, type InvoicePdfData,
-} from '../../helpers/exportInvoicePdf';
+import type { InvoiceIssuerPdf, InvoicePdfData } from '../../helpers/exportInvoicePdf';
 import { SearchSelect, type PickerOption } from './SearchSelect';
 import { ceilingOf, fmtCents, fmtMoney, submitError, type InvoiceSubmitError } from './bits';
 
@@ -232,18 +229,20 @@ export function InvoiceWindow({ onClose, onCreated, onOpenBranding }: {
       return;
     }
     if (!issuerReady) return; // don't flash a headerless draft before it lands
+    let cancelled = false;
     const handle = setTimeout(() => {
-      let url: string | null;
-      try {
-        url = invoicePdfPreviewUrl(previewData, issuer, undefined, lang);
-      } catch {
-        url = null; // a half-typed state must not take the editor down
-      }
-      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
-      previewUrlRef.current = url;
-      setPreviewUrl(url);
+      // The PDF library arrives with the first preview, not with the list (AUD-019).
+      import('../../helpers/exportInvoicePdf')
+        .then(({ invoicePdfPreviewUrl }) => invoicePdfPreviewUrl(previewData, issuer, undefined, lang))
+        .catch(() => null) // a half-typed state must not take the editor down
+        .then(url => {
+          if (cancelled) { if (url) URL.revokeObjectURL(url); return; }
+          if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+          previewUrlRef.current = url;
+          setPreviewUrl(url);
+        });
     }, 400);
-    return () => clearTimeout(handle);
+    return () => { cancelled = true; clearTimeout(handle); };
   }, [previewData, issuer, issuerReady, lang]);
   useEffect(() => () => {
     if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);

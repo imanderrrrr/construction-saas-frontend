@@ -10,9 +10,8 @@ import {
 } from '../../services/time';
 import type { BudgetWarning } from '../../types';
 import { exportPayrollPayments } from '../../services/payroll';
-import { listProjects } from '../../services/projects';
 import {
-  GRID_INK, LaborFilters, LaborHeader, LaborSkeleton, Mono, amountOwed, fmtRange,
+  GRID_INK, LaborFilters, LaborHeader, LaborSkeleton, Mono, amountOwed, fmtRange, useLaborProjects,
   budgetBlockers, initials, mainProject, money, LABOR_RANGES, laborRange, type LaborRange, paidAmount, unpaidHours, weekRange,
 } from './shared';
 
@@ -32,7 +31,8 @@ export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate:
   const [project, setProject] = useProjectFilter<string>('');
   const [status, setStatus] = useState<'' | 'unpaid' | 'paid'>('');
   const [data, setData] = useState<AdminHoursReportResponse | null>(null);
-  const [projects, setProjects] = useState<{ id: number; name: string; remainingCents: number | null }[]>([]);
+  const projectCatalog = useLaborProjects(mode);
+  const projects = projectCatalog.items;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [paying, setPaying] = useState<WorkerHoursSummary | null>(null);
@@ -66,13 +66,6 @@ export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate:
     }
   }, [from, to, t]);
 
-  useEffect(() => {
-    listProjects({ status: 'ACTIVE', page: 0, size: 100 })
-      .then(p => setProjects(p.content.map(x => ({
-        id: x.id, name: x.name, remainingCents: x.remainingBudgetCents,
-      }))))
-      .catch(() => setProjects([]));
-  }, []);
 
   // A person with only unapproved hours has no payroll yet; zero payable
   // hours must not label that person (or the entire period) as already paid.
@@ -89,10 +82,15 @@ export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate:
     });
   }, [workers, q, status]);
 
-  /** projectId → remaining contract in dollars, for the pre-flight budget check. */
+  /**
+   * projectId → remaining contract in dollars, for the pre-flight budget
+   * check — of every ACTIVE project, as before, but no longer only of the
+   * first 100: past them a payment that overran a project's budget went
+   * through the pre-flight without its warning (AUD-055).
+   */
   const remainingByProject = useMemo(() => {
     const m = new Map<number, number>();
-    for (const p of projects) if (p.remainingCents != null) m.set(p.id, p.remainingCents / 100);
+    for (const p of projects) if (p.status === 'ACTIVE' && p.remainingCents != null) m.set(p.id, p.remainingCents / 100);
     return m;
   }, [projects]);
 
@@ -182,7 +180,7 @@ export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate:
         tourAnchor="sec.labor-payroll.filters"
         q={q} onQ={setQ} range={range} onRange={setRange}
         from={customFrom} to={customTo} onFrom={setCustomFrom} onTo={setCustomTo}
-        project={project} onProject={setProject} projects={projects}
+        project={project} onProject={setProject} projects={projects} projectsCatalog={projectCatalog}
         chips={chips} onClear={() => { setQ(''); setProject(''); setStatus(''); setRange('week'); }}
         extra={
           <select value={status} onChange={e => setStatus(e.target.value as typeof status)}

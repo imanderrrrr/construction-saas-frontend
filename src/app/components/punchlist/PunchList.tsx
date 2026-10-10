@@ -33,7 +33,7 @@ import {
   type PunchItemComment,
   type PunchItemStatus,
 } from '../../services/punchItems';
-import { exportPunchListCsv, exportPunchListPdf, type PunchListExportLabels } from '../../helpers/exportPunchList';
+import type { PunchListExportLabels } from '../../helpers/exportPunchList';
 import { AuthImage } from '../sitelog/AuthImage';
 import { Lightbox, type LightboxImage } from '../sitelog/Lightbox';
 import {
@@ -207,12 +207,14 @@ export function PunchList({ projects }: { projects: PunchProject[] }) {
     },
   });
 
-  const runExport = (kind: 'csv' | 'pdf') => {
+  const runExport = async (kind: 'csv' | 'pdf') => {
     if (!project || items.length === 0) {
       toast.error(t('internal.export.empty'));
       return;
     }
     try {
+      // The PDF/CSV writers are fetched on the click, not with the screen (AUD-019).
+      const { exportPunchListCsv, exportPunchListPdf } = await import('../../helpers/exportPunchList');
       const params = { items, projectName: project.name, labels: exportLabels() };
       if (kind === 'csv') exportPunchListCsv(params);
       else exportPunchListPdf(params);

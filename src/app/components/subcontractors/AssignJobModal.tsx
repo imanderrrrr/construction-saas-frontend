@@ -7,6 +7,7 @@ import { BtModal } from '../bt/windows';
 import { PrimaryButton, SecondaryButton, TertiaryButton } from '../onboarding/chrome';
 import { FieldError, FieldHint, FieldLabel, INPUT, INPUT_ERROR, Mono, PaperNote } from '../projects/bt';
 import type { RefData } from './refData';
+import { CatalogNote } from '../workspace/CatalogNote';
 
 /**
  * 06 — assign a job.
@@ -145,6 +146,7 @@ export function AssignJobModal({ open, onOpenChange, refData, presetSubcontracto
             <option value="">{t('subcontractors:assign.pickOne')}</option>
             {refData.subcontractors.map(s => <option key={s.id} value={s.id}>{s.fullName ?? s.username}</option>)}
           </select>
+          {refData.catalogs && <CatalogNote shown={refData.subcontractors.length} {...refData.catalogs.subcontractors} />}
           {errors.subcontractorId && <FieldError>{errors.subcontractorId}</FieldError>}
         </div>
         <div>
@@ -159,6 +161,7 @@ export function AssignJobModal({ open, onOpenChange, refData, presetSubcontracto
             <option value="">{t('subcontractors:assign.pickOneF')}</option>
             {refData.projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
+          {refData.catalogs && <CatalogNote shown={refData.projects.length} {...refData.catalogs.projects} />}
           {errors.projectId && <FieldError>{errors.projectId}</FieldError>}
         </div>
       </div>

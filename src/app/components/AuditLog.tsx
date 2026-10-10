@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { AlertTriangle, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { getBranding } from '../services/branding';
 import { searchAuditLogs, type AuditLogDTO, type AuditOutcome } from '../services/audit';
+import { userCatalog } from '../services/catalogs';
 import { businessDate, businessToday, nDaysAgo, startOfDayISO, endOfDayISO, fmtDate, fmtDateTime } from '../helpers/dateTime';
 
 /**
@@ -210,7 +211,22 @@ export function AuditLog() {
   }, [rows, lang, t]);
 
   const pages = Math.max(1, Math.ceil(total / size));
-  const actors = useMemo(() => [...new Set(rows.map(r => r.actorUsername).filter(Boolean))].sort(), [rows]);
+  // The people filter: every user of the company (AUD-055), plus whoever acts
+  // on the page without being one (system actors), plus the one picked. It
+  // used to be only the actors of the 20 rows on screen, so someone who did
+  // nothing on this page could not be filtered at all.
+  const [knownActors, setKnownActors] = useState<string[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    userCatalog()
+      .then(c => { if (!cancelled) setKnownActors(c.items.map(u => u.username)); })
+      .catch(() => { /* the filter keeps the actors of the page */ });
+    return () => { cancelled = true; };
+  }, []);
+  const actors = useMemo(
+    () => [...new Set([...knownActors, ...rows.map(r => r.actorUsername), filters.actor].filter(Boolean))].sort(),
+    [knownActors, rows, filters.actor],
+  );
 
   return (
     <div className="relative p-4 md:p-6 max-w-[1400px] mx-auto space-y-4">

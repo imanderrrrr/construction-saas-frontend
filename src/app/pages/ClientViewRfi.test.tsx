@@ -28,6 +28,7 @@ vi.mock('../services/clientRfis', async (importOriginal) => {
 
 import i18n from '../../i18n';
 import { routes } from '../routes';
+import { settleRoutes } from '../testing/routes';
 import { ApiError } from '../lib/api';
 import type { ClientRfi, ClientRfiResponseEntry } from '../services/clientRfis';
 
@@ -111,6 +112,7 @@ async function openRfiTab(root: Root, container: HTMLElement) {
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
+  await settleRoutes();
   await click(buttonByText(container, i18n.t('rfi:tab.rfi')));
 }
 

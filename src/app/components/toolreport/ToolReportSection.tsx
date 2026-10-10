@@ -4,7 +4,9 @@ import { RefreshCw, X } from 'lucide-react';
 import { cn } from '../ui/utils';
 import { ApiError } from '../../lib/api';
 import { getBranding } from '../../services/branding';
-import { listProjects, type ProjectResponse } from '../../services/projects';
+import type { ProjectResponse } from '../../services/projects';
+import { projectCatalog } from '../../services/catalogs';
+import { CatalogNote } from '../workspace/CatalogNote';
 import { searchConsumables, type ConsumableResponse } from '../../services/warehouse';
 import {
   getMissingTools, getToolReport,
@@ -50,6 +52,7 @@ export function ToolReportSection({ onNavigate }: { onNavigate?: (section: strin
   const [status, setStatus] = useState('');
   const [projectId, setProjectId] = useState<number | ''>('');
   const [projects, setProjects] = useState<ProjectResponse[]>([]);
+  const [projectsCatalog, setProjectsCatalog] = useState({ total: 0, truncated: false });
 
   const [report, setReport] = useState<ToolReport | null>(null);
   const [loading, setLoading] = useState(true);
@@ -74,10 +77,14 @@ export function ToolReportSection({ onNavigate }: { onNavigate?: (section: strin
   const filterCount = [category, status, projectId !== '' ? 'p' : ''].filter(Boolean).length;
 
   useEffect(() => {
+    let cancelled = false;
     getBranding().then(b => setTenant(b.organizationName)).catch(() => { /* the kicker drops the name */ });
-    listProjects({ size: 200 })
-      .then(page => setProjects(page.content))
+    // Every project of every status, all pages (AUD-055): one page of 100
+    // hid the older projects, whose tools are still out.
+    projectCatalog({ role: 'ADMIN' })
+      .then(c => { if (!cancelled) { setProjects(c.items); setProjectsCatalog({ total: c.total, truncated: c.truncated }); } })
       .catch(() => { /* the project filter degrades to absent */ });
+    return () => { cancelled = true; };
   }, []);
 
   const load = useCallback(async () => {
@@ -237,6 +244,7 @@ export function ToolReportSection({ onNavigate }: { onNavigate?: (section: strin
             <option value="">{t('admin:toolReport.filter.project')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </MonoSelect>
+          <CatalogNote shown={projects.length} total={projectsCatalog.total} truncated={projectsCatalog.truncated} />
 
           <div className="ml-auto flex items-center gap-2">
             {filterCount > 0 && (

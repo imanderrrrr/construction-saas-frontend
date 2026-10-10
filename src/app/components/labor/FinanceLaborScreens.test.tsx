@@ -9,7 +9,11 @@ vi.mock('react-i18next', () => {
   return { useTranslation: () => ({ t, i18n: { language: 'es' } }), initReactI18next: { type: '3rdParty', init: () => {} } };
 });
 vi.mock('../../services/time', () => ({ getAdminHoursReport: mocks.report, confirmPayment: mocks.confirm, previewPayment: mocks.preview, exportPayrollPayments: vi.fn() }));
-vi.mock('../../services/projects', () => ({ listProjects: () => Promise.resolve({ content: [{ id: 1, name: 'Obra Demo', remainingBudgetCents: 100000 }] }) }));
+// A page as the server sends it: the catalog walks pages by `totalPages` (AUD-055).
+vi.mock('../../services/projects', () => {
+  const page = { content: [{ id: 1, name: 'Obra Demo', status: 'ACTIVE', remainingBudgetCents: 100000 }], page: 0, size: 100, totalElements: 1, totalPages: 1 };
+  return { listProjects: () => Promise.resolve(page), listFinanceProjects: () => Promise.resolve(page) };
+});
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }));
 import { LaborCostScreen } from './LaborCostScreen';
 import { LaborPayrollScreen } from './LaborPayrollScreen';

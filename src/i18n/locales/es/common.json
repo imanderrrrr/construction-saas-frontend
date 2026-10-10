@@ -151,6 +151,7 @@
   "workspace.allWorksites": "Todas las obras",
   "workspace.loadingWorksites": "Cargando obras…",
   "workspace.worksitesUnavailable": "Obras no disponibles",
+  "catalog.truncated": "Se muestran los primeros {{shown}} de {{total}}. Ajusta los filtros para encontrar el resto.",
   "workspace.worksiteId": "Obra #{{id}}",
   "workspace.primaryNavigation": "Áreas de trabajo",
   "workspace.sectionNavigation": "Secciones del área",

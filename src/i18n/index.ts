@@ -1,138 +1,67 @@
-import i18n from 'i18next';
+import i18n, { type BackendModule } from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
+import { bundledResources, loadLocale, NAMESPACES } from '@buildtrack/i18n-locales';
+import ROUTE_NAMESPACES from './route-namespaces.json';
 
-// English
-import enCommon from './locales/en/common.json';
-import enAuth from './locales/en/auth.json';
-import enAdmin from './locales/en/admin.json';
-import enExpenses from './locales/en/expenses.json';
-import enFinance from './locales/en/finance.json';
-import enProjects from './locales/en/projects.json';
-import enTime from './locales/en/time.json';
-import enInventory from './locales/en/inventory.json';
-import enUsers from './locales/en/users.json';
-import enDashboard from './locales/en/dashboard.json';
-import enWorker from './locales/en/worker.json';
-import enSupervisor from './locales/en/supervisor.json';
-import enSubcontractors from './locales/en/subcontractors.json';
-import enTasks from './locales/en/tasks.json';
-import enLanding from './locales/en/landing.json';
-import enBilling from './locales/en/billing.json';
-import enSiteLog from './locales/en/siteLog.json';
-import enClientView from './locales/en/clientView.json';
-import enSignatures from './locales/en/signatures.json';
-import enPunchList from './locales/en/punchList.json';
-import enRfi from './locales/en/rfi.json';
-import enDocs from './locales/en/docs.json';
-import enStatus from './locales/en/status.json';
-import enPay from './locales/en/pay.json';
-import enTm from './locales/en/tm.json';
-import enTools from './locales/en/tools.json';
-import enNotifications from './locales/en/notifications.json';
-import enQuickbooks from './locales/en/quickbooks.json';
+/**
+ * Translations load per language and namespace (AUD-019): only the visitor's
+ * language, and only the namespaces the route on screen can use. They used
+ * to ship in the entry chunk — both languages, all 28 namespaces — so the
+ * landing paid for the admin panel's 430 KB of strings before painting.
+ *
+ * - The shell's namespaces (what main.tsx renders statically) load before
+ *   the first render: `i18nReady`.
+ * - Each lazy route loads its group's namespaces together with its chunk
+ *   (`loadRouteNamespaces`, see app/lazyRoute.tsx); the lists live in
+ *   ./route-namespaces.json and a test checks they cover every namespace the
+ *   route's code names. The authenticated workspaces load all of them ('*').
+ * - Changing language fetches every namespace already in use for the new one
+ *   before switching, so nothing renders half-translated.
+ * - Safety net: a key asked for in a namespace nobody loaded triggers its
+ *   load, and components re-render when it arrives.
+ */
 
-// Spanish
-import esCommon from './locales/es/common.json';
-import esAuth from './locales/es/auth.json';
-import esAdmin from './locales/es/admin.json';
-import esExpenses from './locales/es/expenses.json';
-import esFinance from './locales/es/finance.json';
-import esProjects from './locales/es/projects.json';
-import esTime from './locales/es/time.json';
-import esInventory from './locales/es/inventory.json';
-import esUsers from './locales/es/users.json';
-import esDashboard from './locales/es/dashboard.json';
-import esWorker from './locales/es/worker.json';
-import esSupervisor from './locales/es/supervisor.json';
-import esSubcontractors from './locales/es/subcontractors.json';
-import esTasks from './locales/es/tasks.json';
-import esLanding from './locales/es/landing.json';
-import esBilling from './locales/es/billing.json';
-import esSiteLog from './locales/es/siteLog.json';
-import esClientView from './locales/es/clientView.json';
-import esSignatures from './locales/es/signatures.json';
-import esPunchList from './locales/es/punchList.json';
-import esRfi from './locales/es/rfi.json';
-import esDocs from './locales/es/docs.json';
-import esStatus from './locales/es/status.json';
-import esPay from './locales/es/pay.json';
-import esTm from './locales/es/tm.json';
-import esTools from './locales/es/tools.json';
-import esNotifications from './locales/es/notifications.json';
-import esQuickbooks from './locales/es/quickbooks.json';
+export type RouteGroup = keyof typeof ROUTE_NAMESPACES;
 
-const ns = ['common', 'auth', 'admin', 'expenses', 'finance', 'projects', 'time', 'inventory', 'users', 'dashboard', 'worker', 'supervisor', 'subcontractors', 'tasks', 'landing', 'billing', 'siteLog', 'clientView', 'signatures', 'punchList', 'rfi', 'docs', 'status', 'pay', 'tm', 'tools', 'notifications', 'quickbooks'] as const;
+export const LANGUAGES = ['es', 'en'] as const;
 
-i18n
+export function routeNamespaces(group: RouteGroup): string[] {
+  const declared = ROUTE_NAMESPACES[group] as string[] | string;
+  return typeof declared === 'string' ? NAMESPACES : declared;
+}
+
+const backend: BackendModule = {
+  type: 'backend',
+  init() {},
+  read(language, namespace, callback) {
+    loadLocale(language, namespace).then(
+      table => callback(null, table),
+      error => callback(error, null),
+    );
+  },
+};
+
+if (!bundledResources) i18n.use(backend);
+
+export const i18nReady = i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
-    resources: {
-      en: {
-        common: enCommon,
-        auth: enAuth,
-        admin: enAdmin,
-        expenses: enExpenses,
-        finance: enFinance,
-        projects: enProjects,
-        time: enTime,
-        inventory: enInventory,
-        users: enUsers,
-        dashboard: enDashboard,
-        worker: enWorker,
-        supervisor: enSupervisor,
-        subcontractors: enSubcontractors,
-        tasks: enTasks,
-        landing: enLanding,
-        billing: enBilling,
-        siteLog: enSiteLog,
-        clientView: enClientView,
-        signatures: enSignatures,
-        punchList: enPunchList,
-        rfi: enRfi,
-        docs: enDocs,
-        status: enStatus,
-        pay: enPay,
-        tm: enTm,
-        tools: enTools,
-        notifications: enNotifications,
-        quickbooks: enQuickbooks,
-      },
-      es: {
-        common: esCommon,
-        auth: esAuth,
-        admin: esAdmin,
-        expenses: esExpenses,
-        finance: esFinance,
-        projects: esProjects,
-        time: esTime,
-        inventory: esInventory,
-        users: esUsers,
-        dashboard: esDashboard,
-        worker: esWorker,
-        supervisor: esSupervisor,
-        subcontractors: esSubcontractors,
-        tasks: esTasks,
-        landing: esLanding,
-        billing: esBilling,
-        siteLog: esSiteLog,
-        clientView: esClientView,
-        signatures: esSignatures,
-        punchList: esPunchList,
-        rfi: esRfi,
-        docs: esDocs,
-        status: esStatus,
-        pay: esPay,
-        tm: esTm,
-        tools: esTools,
-        notifications: esNotifications,
-        quickbooks: esQuickbooks,
-      },
-    },
-    fallbackLng: 'es',
+    ...(bundledResources ? { resources: bundledResources } : {}),
+    // Detect the language and request the shell's tables right now, not on
+    // the next tick: a route preloading its namespaces in the same tick then
+    // asks for the right language, in parallel with these.
+    initAsync: false,
+    supportedLngs: [...LANGUAGES],
+    nonExplicitSupportedLngs: true,
+    load: 'languageOnly',
+    // Spanish for any language we do not have. English is complete — a test
+    // keeps both languages key for key — so it needs no Spanish behind it,
+    // and an English visitor no longer downloads both.
+    fallbackLng: { en: [], default: ['es'] },
     defaultNS: 'common',
-    ns: [...ns],
+    ns: bundledResources ? NAMESPACES : routeNamespaces('shell'),
     keySeparator: false,
     interpolation: {
       escapeValue: false, // React already escapes
@@ -142,6 +71,34 @@ i18n
       lookupLocalStorage: 'ofjr_language',
       caches: ['localStorage'],
     },
+    react: {
+      // Re-render when a namespace arrives, not only on a language change.
+      bindI18n: 'languageChanged loaded',
+    },
+    saveMissing: !bundledResources,
+    missingKeyHandler: (_languages, namespace) => {
+      if (namespace && !i18n.hasLoadedNamespace(namespace)) void i18n.loadNamespaces(namespace);
+    },
   });
+
+/** The language the tables are loaded for ('en-US' resolves to 'en'). */
+function activeLanguage(): string {
+  return i18n.resolvedLanguage ?? i18n.language ?? 'es';
+}
+
+/**
+ * Load a route group's namespaces for the active language. Rejects when a
+ * table could not be fetched even after one retry, so the route's error
+ * boundary offers a reload instead of a screen of raw keys.
+ */
+export async function loadRouteNamespaces(group: RouteGroup): Promise<void> {
+  const namespaces = routeNamespaces(group);
+  await i18n.loadNamespaces(namespaces);
+  await i18nReady;
+  const missing = () => namespaces.filter(ns => !i18n.hasResourceBundle(activeLanguage(), ns));
+  if (missing().length) await i18n.reloadResources([activeLanguage()], missing());
+  const still = missing();
+  if (still.length) throw new Error(`Failed to load translations: ${still.join(', ')}`);
+}
 
 export default i18n;

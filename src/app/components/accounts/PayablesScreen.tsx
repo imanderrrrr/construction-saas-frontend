@@ -13,7 +13,8 @@ import { fmtMoney } from '../invoices/bits';
 import { CATEGORY_KEY_MAP, toVendorBill, type VendorBill, type VendorPayment } from '../PayableCommon';
 import { AuthImage } from '../sitelog/AuthImage';
 import { AuthService } from '../../services/auth';
-import { listProjects } from '../../services/projects';
+import { projectCatalog } from '../../services/catalogs';
+import { CatalogNote } from '../workspace/CatalogNote';
 import { businessToday, currentMonth, fmtDate } from '../../helpers/dateTime';
 import {
   getPayableSummary, listAllPayables, listAllReceivables, listPayableVendors, payableAttachmentUrl,
@@ -72,6 +73,7 @@ export function PayablesScreen({ onNavigate }: { onNavigate?: (section: string) 
   const [loadError, setLoadError] = useState<string | null>(null);
   const [vendors, setVendors] = useState<string[]>([]);
   const [projects, setProjects] = useState<ProjectBudget[]>([]);
+  const [projectsCatalog, setProjectsCatalog] = useState({ total: 0, truncated: false });
   const [inflow, setInflow] = useState<Owed[] | null>(null);
   const [summary, setSummary] = useState<PayableSummary | null>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
@@ -111,10 +113,17 @@ export function PayablesScreen({ onNavigate }: { onNavigate?: (section: string) 
 
   useEffect(() => {
     listPayableVendors().then(setVendors).catch(() => { /* the select falls back to the bills' own vendors */ });
-    listProjects({ page: 0, size: 200 })
-      .then(r => setProjects(r.content.map(p => ({
-        id: p.id, name: p.name, remainingBudgetCents: p.remainingBudgetCents ?? p.contractAmountCents,
-      }))))
+    // Every project of the company, every status, all pages (AUD-055): one
+    // page of 100 newest left the older projects — some still active — out of
+    // the filter, out of "register a bill" and out of the payment's budget
+    // note. The dialogs that write keep the server's rule (below).
+    projectCatalog()
+      .then(c => {
+        setProjects(c.items.map(p => ({
+          id: p.id, name: p.name, status: p.status, remainingBudgetCents: p.remainingBudgetCents ?? p.contractAmountCents,
+        })));
+        setProjectsCatalog({ total: c.total, truncated: c.truncated });
+      })
       .catch(() => toast.error(t('finance:accounts.catalogFailed')));
   }, [t]);
 
@@ -131,6 +140,11 @@ export function PayablesScreen({ onNavigate }: { onNavigate?: (section: string) 
   useEffect(() => {
     getPayableSummary().then(setSummary).catch(() => setSummary(null));
   }, [reloadNonce]);
+
+  // The server's rules for the dialogs that write: no new bill on a CLOSED
+  // project (its budget is final), and a bill moves only to an ACTIVE one.
+  const billableProjects = useMemo(() => projects.filter(p => p.status !== 'CLOSED'), [projects]);
+  const activeProjects = useMemo(() => projects.filter(p => p.status === 'ACTIVE'), [projects]);
 
   /* ── Figures ────────────────────────────────────────────────────────── */
 
@@ -352,6 +366,7 @@ export function PayablesScreen({ onNavigate }: { onNavigate?: (section: string) 
           <option value="">{t('common:labels.allProjects')}</option>
           {projects.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
         </MonoSelect>
+        <CatalogNote shown={projects.length} total={projectsCatalog.total} truncated={projectsCatalog.truncated} />
         <MonoSelect value={category} onChange={e => setCategory(e.target.value)} aria-label={t('common:labels.category')} className="text-[10px] py-2">
           <option value="">{t('common:labels.allCategories')}</option>
           {Object.entries(CATEGORY_KEY_MAP).map(([k, key]) => <option key={k} value={k}>{t(`finance:${key}`)}</option>)}
@@ -567,7 +582,7 @@ export function PayablesScreen({ onNavigate }: { onNavigate?: (section: string) 
       <CreateBillDialog
         open={createOpen}
         vendors={vendorOptions}
-        projects={projects}
+        projects={billableProjects}
         suggestedNumber=""
         onClose={() => setCreateOpen(false)}
         onCreated={created => setBills(prev => (prev ? [toVendorBill(created), ...prev] : prev))}
@@ -575,7 +590,7 @@ export function PayablesScreen({ onNavigate }: { onNavigate?: (section: string) 
       <EditAmountDatesDialog bill={editBill} onClose={() => setEditBill(null)} onSaved={patch} />
       <EditBillInfoDialog bill={infoBill} vendors={vendorOptions} onClose={() => setInfoBill(null)} onSaved={patch} />
       <ConvertDialog bill={convertBill} onClose={() => setConvertBill(null)} onConverted={patch} />
-      <ReassignDialog bill={reassignBill} projects={projects} onClose={() => setReassignBill(null)} onReassigned={patch} />
+      <ReassignDialog bill={reassignBill} projects={activeProjects} onClose={() => setReassignBill(null)} onReassigned={patch} />
       {unpayBill && <UnpayDialog bill={unpayBill} onClose={() => setUnpayBill(null)} onUnpaid={patch} />}
       {voidTarget && <VoidPaymentDialog onClose={() => setVoidTarget(null)} onConfirm={reason => voidPayment(voidTarget.bill, voidTarget.paymentId, reason)} />}
       <DeleteBillDialog

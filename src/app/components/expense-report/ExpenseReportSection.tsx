@@ -8,7 +8,9 @@ import { pct } from '../budgets/bits';
 import { EmptyWord, Mono, MonoSelect, INPUT } from '../projects/bt';
 import { FOCUS_RING, PrimaryButton, SecondaryButton, TertiaryButton } from '../onboarding/chrome';
 import { tenantCompanyName } from '../../services/branding';
-import { listProjects, type ProjectResponse } from '../../services/projects';
+import type { ProjectResponse } from '../../services/projects';
+import { projectCatalog } from '../../services/catalogs';
+import { CatalogNote } from '../workspace/CatalogNote';
 import { exportExpenseReport } from '../../services/expenses';
 import { getBusinessTz } from '../../helpers/dateTime';
 import { writeInboxPreset } from '../expenses/preset';
@@ -53,10 +55,17 @@ export function ExpenseReportSection({ readOnly = false, onNavigate }: {
 
   const [tenant, setTenant] = useState<string | null>(null);
   const [projects, setProjects] = useState<ProjectResponse[]>([]);
+  const [projectsCatalog, setProjectsCatalog] = useState({ total: 0, truncated: false });
   useEffect(() => {
+    let cancelled = false;
     tenantCompanyName().then(setTenant).catch(() => { /* sin nombre, el antetítulo no lo dice */ });
-    listProjects({ size: 200 }).then(r => setProjects(r.content)).catch(() => { /* el filtro se queda en «todas» */ });
-  }, []);
+    // Every project of every status, all pages, from the endpoint of the
+    // reader's role (AUD-055): the filter used to know only the 100 newest.
+    projectCatalog({ role: readOnly ? 'FINANCE' : 'ADMIN' })
+      .then(c => { if (!cancelled) { setProjects(c.items); setProjectsCatalog({ total: c.total, truncated: c.truncated }); } })
+      .catch(() => { /* el filtro se queda en «todas» */ });
+    return () => { cancelled = true; };
+  }, [readOnly]);
 
   const [openProject, setOpenProject] = useScreenState<number | null>('registro', null, 'push');
   const [exporting, setExporting] = useState<'pdf' | 'xlsx' | null>(null);
@@ -219,6 +228,7 @@ export function ExpenseReportSection({ readOnly = false, onNavigate }: {
             <option value="all">{t('expenseReport.filters.allProjects')}</option>
             {projects.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
           </MonoSelect>
+          <CatalogNote shown={projects.length} total={projectsCatalog.total} truncated={projectsCatalog.truncated} />
         </Field>
         <Field label={t('expenseReport.filters.type')}>
           <MonoSelect value={filters.type} onChange={e => setFilters(f => ({ ...f, type: e.target.value }))}>

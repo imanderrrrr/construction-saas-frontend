@@ -9,7 +9,9 @@ import { FOCUS_RING, PrimaryButton, SecondaryButton } from '../onboarding/chrome
 import { fmtUSD } from '../projects/helpers';
 import { tenantCompanyName } from '../../services/branding';
 import { listActiveUsers, type UserDTO } from '../../services/users';
-import { listProjects, type ProjectResponse } from '../../services/projects';
+import type { ProjectResponse } from '../../services/projects';
+import { projectCatalog } from '../../services/catalogs';
+import { CatalogNote } from '../workspace/CatalogNote';
 import { getSupervisorProjects } from '../../services/time';
 import {
   adminBatchApprove, supervisorBatchApprove, approveExpense, observeExpense, rejectExpense,
@@ -74,12 +76,20 @@ export function ExpensesSection({ readOnly = false, mode = 'admin' }: { readOnly
   const [tenant, setTenant] = useState<string | null>(null);
   const [workers, setWorkers] = useState<UserDTO[]>([]);
   const [projects, setProjects] = useState<Pick<ProjectResponse, 'id' | 'name'>[]>([]);
+  const [projectsCatalog, setProjectsCatalog] = useState({ total: 0, truncated: false });
   useEffect(() => {
+    let cancelled = false;
     // Degrada en silencio: sin el nombre, el antetítulo simplemente no lo dice.
     tenantCompanyName().then(setTenant).catch(() => { /* sin nombre */ });
     listActiveUsers().then(setWorkers).catch(() => { /* el filtro se queda en «todos» */ });
-    (mode === 'supervisor' ? getSupervisorProjects() : listProjects({ size: 200 }).then(r => r.content))
-      .then(setProjects).catch(() => { /* the scoped list still loads */ });
+    // Every project of every status, all pages (AUD-055): the filter used to
+    // know only the 100 newest, and old or closed projects keep their expenses.
+    (mode === 'supervisor'
+      ? getSupervisorProjects().then(list => ({ items: list, total: list.length, truncated: false }))
+      : projectCatalog())
+      .then(c => { if (!cancelled) { setProjects(c.items); setProjectsCatalog({ total: c.total, truncated: c.truncated }); } })
+      .catch(() => { /* the scoped list still loads */ });
+    return () => { cancelled = true; };
   }, [mode]);
 
   // Revisión
@@ -293,6 +303,7 @@ export function ExpensesSection({ readOnly = false, mode = 'admin' }: { readOnly
             <option value="all">{t('expenses.filters.allProjects')}</option>
             {projects.map(p => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
           </MonoSelect>
+          <CatalogNote shown={projects.length} total={projectsCatalog.total} truncated={projectsCatalog.truncated} />
         </Field>
         <Field label={t('expenses.filters.type')}>
           <MonoSelect value={filters.type} onChange={e => setFilters(f => ({ ...f, type: e.target.value }))}>
