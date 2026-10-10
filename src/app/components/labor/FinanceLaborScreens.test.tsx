@@ -3,12 +3,12 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AdminHoursReportResponse, WorkerHoursSummary } from '../../services/time';
 
-const mocks = vi.hoisted(() => ({ report: vi.fn(), confirm: vi.fn(), navigate: vi.fn() }));
+const mocks = vi.hoisted(() => ({ report: vi.fn(), confirm: vi.fn(), preview: vi.fn(), navigate: vi.fn() }));
 vi.mock('react-i18next', () => {
   const t = (key: string) => key;
   return { useTranslation: () => ({ t, i18n: { language: 'es' } }), initReactI18next: { type: '3rdParty', init: () => {} } };
 });
-vi.mock('../../services/time', () => ({ getAdminHoursReport: mocks.report, confirmPayment: mocks.confirm, exportPayrollPayments: vi.fn() }));
+vi.mock('../../services/time', () => ({ getAdminHoursReport: mocks.report, confirmPayment: mocks.confirm, previewPayment: mocks.preview, exportPayrollPayments: vi.fn() }));
 vi.mock('../../services/projects', () => ({ listProjects: () => Promise.resolve({ content: [{ id: 1, name: 'Obra Demo', remainingBudgetCents: 100000 }] }) }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }));
 import { LaborCostScreen } from './LaborCostScreen';
@@ -34,6 +34,7 @@ describe('new labor screens in Finance', () => {
   let root: Root;
   beforeEach(() => {
     vi.clearAllMocks(); mocks.report.mockResolvedValue(report);
+    mocks.preview.mockResolvedValue({ workerId: 1, totalMinutes: 180, totalAmountCents: 3000, projects: [{ projectId: 1, amountCents: 3000 }], digest: "lab-preview" });
     host = document.createElement('div'); document.body.appendChild(host); root = createRoot(host);
   });
   afterEach(async () => { await act(async () => root.unmount()); host.remove(); });

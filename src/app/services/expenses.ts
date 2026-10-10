@@ -7,6 +7,7 @@ import type { BudgetWarning } from '../types';
 // ── Types ─────────────────────────────────────────────
 
 export interface ExpenseResponse {
+  version?: number;
   id: number;
   workerId: number;
   workerName: string | null;
@@ -70,6 +71,8 @@ export interface ExpenseSummaryResponse {
 }
 
 export interface BatchApproveResponse {
+  approvedIds?: number[];
+  approvedAmountCents?: number;
   approvedCount: number;
   /**
    * Los que no entraron y por qué. El servidor siempre los devolvió; la
@@ -310,8 +313,11 @@ export function summarizeExpenses(rows: ExpenseResponse[]): ExpenseSummaryRespon
   };
 }
 
-export function supervisorBatchApprove(): Promise<BatchApproveResponse> {
-  return api<BatchApproveResponse>('/api/v1/supervisor/expenses/approve-batch', { method: 'POST' });
+function batchSnapshot(rows: Pick<ExpenseResponse, 'id' | 'version'>[]) {
+  return { expenseIds: rows.map(e => e.id), expectedVersions: Object.fromEntries(rows.map(e => [e.id, e.version ?? 0])) };
+}
+export function supervisorBatchApprove(rows: Pick<ExpenseResponse, 'id' | 'version'>[]): Promise<BatchApproveResponse> {
+  return api('/api/v1/supervisor/expenses/approve-batch', { method: 'POST', body: JSON.stringify(batchSnapshot(rows)) });
 }
 
 // ── Admin endpoints ──────────────────────────────────
@@ -351,10 +357,10 @@ export function getAdminSummary(scope: ExpenseScope = {}): Promise<ExpenseSummar
  * Aprueba los pendientes **del filtro**. Sin filtros aprueba todos los del
  * inquilino, que es lo que hacía siempre mientras el botón decía otra cosa.
  */
-export function adminBatchApprove(scope: ExpenseScope = {}): Promise<BatchApproveResponse> {
+export function adminBatchApprove(rows: Pick<ExpenseResponse, 'id' | 'version'>[], scope: ExpenseScope = {}): Promise<BatchApproveResponse> {
   return api<BatchApproveResponse>(
     `/api/v1/admin/expenses/approve-batch${qs({ ...scope })}`,
-    { method: 'POST' },
+    { method: 'POST', body: JSON.stringify(batchSnapshot(rows)) },
   );
 }
 

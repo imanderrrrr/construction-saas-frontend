@@ -160,6 +160,8 @@ const ANONYMOUS_ENDPOINTS = [
   // request, confirm and the GET preview of a link — all before any session.
   '/auth/password-reset/',
   '/auth/invitations/',
+  '/auth/handoff',
+  '/auth/csrf',
   // Client portal (public read-only site-log view): auth is the portal token,
   // not a user session. A 401/410 here must render inline on the public page,
   // never bounce the visitor to /?session=expired.
@@ -346,4 +348,10 @@ export async function apiMultipart<T>(
 
   if (res.status === 204) return undefined as unknown as T;
   return res.json() as Promise<T>;
+}
+
+/** Bootstrap the cookie/header CSRF contract for a browser without a prior session. */
+export async function ensureCsrfToken(): Promise<void> {
+  if (!getCsrfToken()) await api('/api/v1/auth/csrf');
+  if (!getCsrfToken()) throw new Error('CSRF cookie was not issued');
 }
