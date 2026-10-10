@@ -70,6 +70,13 @@ describe('new labor screens in Finance', () => {
     expect(host.querySelector('[data-tour="sec.labor-payroll.kpis"]')?.textContent).toContain('30.00');
   });
 
+  it('says "at least" when the server bounded the outside-period notice', async () => {
+    mocks.report.mockResolvedValue({...report, approvedUnpaidRecordsOutsidePeriod: 2000, approvedUnpaidSegmentsOutsidePeriod: 2100,
+      approvedUnpaidMinutesOutsidePeriod: 126000, approvedUnpaidOutsidePeriodTruncated: true});
+    await act(async () => root.render(<LaborPayrollScreen onNavigate={mocks.navigate} />));
+    expect(host.querySelector('[role="status"]')?.textContent).toContain('admin:pay.outsidePeriodAtLeast');
+  });
+
   it('retains Administration rate management', async () => {
     await act(async () => root.render(<LaborCostScreen onNavigate={mocks.navigate} />));
     await act(async () => button('admin:cost.setRate').click());

@@ -611,6 +611,8 @@ export interface AdminHoursReportResponse {
   approvedUnpaidSegmentsOutsidePeriod?: number;
   approvedUnpaidMinutesOutsidePeriod?: number;
   partiallyReviewedUnpaidRecordsOutsidePeriod?: number;
+  /** The server read its bounded number of records and more exist: the figures above are a floor. */
+  approvedUnpaidOutsidePeriodTruncated?: boolean;
   kpis: HoursReportKpis;
   workers: WorkerHoursSummary[];
 }

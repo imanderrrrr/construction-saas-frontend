@@ -3196,5 +3196,6 @@
   "lab.f.lastMonth": "Mes anterior",
   "lab.f.fortnight": "Quincena actual",
   "pay.outsidePeriod": "Fuera del período hay {{minutes}} minutos de {{segments}} tramos aprobados sin pagar en {{count}} jornadas. No se incluyen en este pago.",
+  "pay.outsidePeriodAtLeast": "Fuera del período hay al menos {{minutes}} minutos de {{segments}} tramos aprobados sin pagar en {{count}} jornadas. No se incluyen en este pago; el aviso revisa un número limitado de jornadas.",
   "pay.outsidePeriodPartial": "{{count}} jornadas todavía tienen marcas pendientes de revisión."
 }

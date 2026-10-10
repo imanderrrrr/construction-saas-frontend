@@ -3196,5 +3196,6 @@
   "lab.f.lastMonth": "Previous month",
   "lab.f.fortnight": "Current half-month",
   "pay.outsidePeriod": "Outside this period, {{minutes}} approved unpaid minutes in {{segments}} segments across {{count}} records are not included in this payment.",
+  "pay.outsidePeriodAtLeast": "Outside this period, at least {{minutes}} approved unpaid minutes in {{segments}} segments across {{count}} records are not included in this payment. The notice reads a limited number of records.",
   "pay.outsidePeriodPartial": "{{count}} records still have marks awaiting review."
 }
