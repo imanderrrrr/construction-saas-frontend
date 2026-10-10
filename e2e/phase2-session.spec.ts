@@ -1,8 +1,7 @@
 import {test,expect} from '@playwright/test';
 import {installHermeticBase,json} from './support/mock-api';
 
-// Cookies for the origin under test: the repository config (localhost:E2E_PORT)
-// or playwright.phase2.config.ts (127.0.0.1:5198).
+// Cookies for the origin under test (baseURL), whichever host and port the config serves.
 async function prepare(page: import('@playwright/test').Page, context: import('@playwright/test').BrowserContext, baseURL: string) {
  await installHermeticBase(page,{role:'WORKER',username:'tester'});
  await context.addCookies([{name:'ofjr_session',value:encodeURIComponent(JSON.stringify({role:'WORKER',username:'tester'})),url:baseURL},{name:'bt_tenant',value:'phase2-a',url:baseURL},{name:'XSRF-TOKEN',value:'phase2-csrf',url:baseURL}]);
