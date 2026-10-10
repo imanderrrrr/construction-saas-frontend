@@ -1,40 +1,26 @@
-// OFJR Construction — JWT Refresh Coordinator
-// Ensures only ONE refresh request is in flight at a time.
-// Multiple concurrent 401s all wait on the same Promise.
-// The browser sends the HttpOnly refresh cookie automatically.
+// A rejected credential and an unavailable server have different lifecycles.
+import { getBaseUrl, getCsrfToken } from './api';
+export type RefreshOutcome = 'ok' | 'rejected' | 'unreachable';
+let refreshPromise: Promise<RefreshOutcome> | null = null;
 
-import { getBaseUrl } from './api';
-
-let refreshPromise: Promise<boolean> | null = null;
-
-export async function refreshIfNeeded(): Promise<boolean> {
+export async function refreshSession(): Promise<RefreshOutcome> {
   if (refreshPromise) return refreshPromise;
-
   refreshPromise = doRefresh();
-  try {
-    return await refreshPromise;
-  } finally {
-    refreshPromise = null;
-  }
+  try { return await refreshPromise; } finally { refreshPromise = null; }
 }
-
-async function doRefresh(): Promise<boolean> {
+// Compatibility for callers which only need to know whether a token changed.
+export async function refreshIfNeeded(): Promise<boolean> {
+  return await refreshSession() === 'ok';
+}
+async function doRefresh(): Promise<RefreshOutcome> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
   try {
-    // Use fetch directly — NEVER go through api() to avoid infinite loops.
-    // The HttpOnly cookie `ofjr_rt` is sent automatically via credentials: 'include'.
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
     const res = await fetch(`${getBaseUrl()}/api/v1/auth/refresh`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: '{}',
-      signal: controller.signal,
+      method: 'POST', credentials: 'include', body: '{}', signal: controller.signal,
+      headers: { 'Content-Type': 'application/json', 'X-XSRF-TOKEN': getCsrfToken() ?? '' },
     });
-    clearTimeout(timeoutId);
-
-    return res.ok;
-  } catch {
-    return false;
-  }
+    if (res.ok) return 'ok';
+    return res.status === 401 || res.status === 403 ? 'rejected' : 'unreachable';
+  } catch { return 'unreachable'; } finally { clearTimeout(timeoutId); }
 }

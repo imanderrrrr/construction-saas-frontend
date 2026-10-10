@@ -1,3 +1,4 @@
+import { fmtDateShort } from '../../helpers/dateTime';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../ui/utils';
 import { Mono, PaperNote } from '../projects/bt';
@@ -171,7 +172,7 @@ export function ExpenseRow({ expense, mode, justReviewed, error, actions, canRev
 }
 
 function stamp(iso: string, lang: string): string {
-  return new Date(iso).toLocaleDateString(lang, { day: '2-digit', month: 'short' });
+  return fmtDateShort(iso, lang);
 }
 
 function stampTime(iso: string, lang: string): string {

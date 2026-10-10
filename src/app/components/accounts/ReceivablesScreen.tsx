@@ -1,3 +1,4 @@
+import { VoidPaymentDialog } from './VoidPaymentDialog';
 import { useScreenState, useProjectFilter } from '../../workspace/WorkspaceState';
 import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -147,7 +148,8 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
   const filtered = useMemo(() => billable.filter(r => {
     if (client && r.client !== client) return false;
     if (projectId && String(r.projectId) !== projectId) return false;
-    if (status && r.status.toLowerCase() !== status) return false;
+    const paymentStatus = r.status.toLowerCase() === 'overdue' ? (r.paidAmount > 0 ? 'partial' : 'pending') : r.status.toLowerCase();
+    if (status && paymentStatus !== status) return false;
     if (rangeFrom && r.issuedDate < rangeFrom) return false;
     if (overdueOnly && !(daysLate(r.dueDate, today) > 0 && !isSettled(receivableToOwed(r)))) return false;
     if (!matches([r.invoiceNumber, r.client, r.project, r.description], search)) return false;
@@ -214,14 +216,16 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
    * — balance, status and the payment now struck through — so the row is patched
    * from that answer instead of reloading the whole screen.
    */
-  async function voidCollection(doc: Receivable, paymentId: number) {
+  const [voidTarget, setVoidTarget] = useState<{ doc: Receivable; paymentId: number } | null>(null);
+  async function voidCollection(doc: Receivable, paymentId: number, reason: string) {
     setVoiding(paymentId);
     try {
-      const updated = await voidReceivablePayment(doc.id, paymentId);
+      const updated = await voidReceivablePayment(doc.id, paymentId, reason);
       setRows(prev => (prev ? prev.map(r => (r.id === updated.id ? updated : r)) : prev));
       toast.success(t('finance:receivable.void.done'));
     } catch (err: unknown) {
       toast.error(t('finance:receivable.void.failed'), { description: err instanceof Error ? err.message : undefined });
+      throw err;
     } finally {
       setVoiding(null);
     }
@@ -507,7 +511,7 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
                 onEdit={setEditDoc}
                 onDelete={setDeleteDoc}
                 onDownload={download}
-                onVoid={(d, paymentId) => void voidCollection(d, paymentId)}
+                onVoid={(doc, paymentId) => setVoidTarget({ doc, paymentId })}
                 downloading={downloading}
                 voiding={voiding}
                 today={today}
@@ -543,7 +547,7 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
                 onEdit={setEditDoc}
                 onDelete={setDeleteDoc}
                 onDownload={download}
-                onVoid={(d, paymentId) => void voidCollection(d, paymentId)}
+                onVoid={(doc, paymentId) => setVoidTarget({ doc, paymentId })}
                 downloading={downloading}
                 voiding={voiding}
                 today={today}
@@ -555,6 +559,7 @@ export function ReceivablesScreen({ onNavigate }: { onNavigate?: (section: strin
       </div>
       </div>
 
+      {voidTarget && <VoidPaymentDialog onClose={() => setVoidTarget(null)} onConfirm={reason => voidCollection(voidTarget.doc, voidTarget.paymentId, reason)} />}
       <CollectDialog
         doc={collectDoc}
         onClose={() => setCollectDoc(null)}

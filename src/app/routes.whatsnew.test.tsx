@@ -17,7 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 
 const mocks = vi.hoisted(() => ({
-  getStatus: vi.fn(),
+  getAccess: vi.fn(),
   auth: {
     ref: { role: 'ADMIN' as string, authed: true, username: 'ana' as string | null },
   },
@@ -34,7 +34,7 @@ vi.mock('./services/auth', () => ({
   },
 }));
 vi.mock('./services/billing', () => ({
-  BillingService: { getStatus: () => mocks.getStatus() },
+  BillingService: { getAccess: () => mocks.getAccess() },
 }));
 
 vi.mock('./pages/AdminDashboard', () => ({
@@ -84,7 +84,7 @@ describe('routes – what\'s-new modal never paints over a guard', () => {
     mocks.auth.ref.role = 'ADMIN';
     mocks.auth.ref.authed = true;
     mocks.auth.ref.username = 'ana';
-    mocks.getStatus.mockReset();
+    mocks.getAccess.mockReset();
     clearPasswordChangeState();
     localStorage.clear(); // the modal is unseen in every scenario
     container = document.createElement('div');
@@ -110,7 +110,7 @@ describe('routes – what\'s-new modal never paints over a guard', () => {
 
   it('renders the forced password change WITHOUT the modal on top', async () => {
     setPasswordChangeRequired(true);
-    mocks.getStatus.mockResolvedValue({ billingStatus: 'ACTIVE' });
+    mocks.getAccess.mockResolvedValue({ tier: 'FULL' });
     await renderPath('/admin/dashboard');
 
     expect(has('change-screen')).toBe(true);
@@ -120,18 +120,17 @@ describe('routes – what\'s-new modal never paints over a guard', () => {
 
   it('keeps the modal out while the billing check is still resolving', async () => {
     setPasswordChangeRequired(false);
-    mocks.getStatus.mockReturnValue(new Promise(() => {})); // never settles
+    mocks.getAccess.mockReturnValue(new Promise(() => {})); // never settles
     await renderPath('/admin/dashboard');
 
-    // BillingGuard is showing its spinner; neither the page nor the modal
-    // may render until it decides.
-    expect(has('admin-dash')).toBe(false);
-    expect(dialog()).toBeNull();
+    // The guard hides the retained subtree until the first decision.
+    expect(container.querySelector('[data-testid="admin-dash"]')?.closest('[hidden]')).not.toBeNull();
+    expect(dialog()?.closest('[hidden]')).not.toBeNull();
   });
 
   it('shows the modal over the dashboard once every guard is green', async () => {
     setPasswordChangeRequired(false);
-    mocks.getStatus.mockResolvedValue({ billingStatus: 'ACTIVE' });
+    mocks.getAccess.mockResolvedValue({ tier: 'FULL' });
     await renderPath('/admin/dashboard');
 
     expect(has('admin-dash')).toBe(true);

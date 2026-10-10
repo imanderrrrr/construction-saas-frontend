@@ -97,6 +97,7 @@ export function PayDialog({ bill, project, onClose, onPaid }: {
   const paymentRequestKey = usePaymentRequestKey(bill?.id ?? null);
 
   const balance = bill ? balanceOf(bill) : 0;
+  if (!bill && seeded !== null) setSeeded(null);
   if (bill && seeded !== bill.id) {
     setSeeded(bill.id);
     setAmount(balance.toFixed(2));
@@ -547,6 +548,7 @@ export function EditAmountDatesDialog({ bill, onClose, onSaved }: {
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
 
+  if (!bill && seeded !== null) setSeeded(null);
   if (bill && seeded !== bill.id) {
     setSeeded(bill.id);
     setAmount(bill.amount.toFixed(2));
@@ -630,6 +632,7 @@ export function EditBillInfoDialog({ bill, vendors, onClose, onSaved }: {
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [busy, setBusy] = useState(false);
 
+  if (!bill && seeded !== null) setSeeded(null);
   if (bill && seeded !== bill.id) {
     setSeeded(bill.id);
     setVendor(bill.vendor);
@@ -648,9 +651,9 @@ export function EditBillInfoDialog({ bill, vendors, onClose, onSaved }: {
     if (who !== bill.vendor) payload.vendor = who;
     if (category && category !== bill.category) payload.category = category;
     const d = description.trim();
-    if (d !== (bill.description ?? '')) payload.description = d || null;
+    if (d !== (bill.description ?? '')) payload.description = d;
     const n = notes.trim();
-    if (n !== (bill.notes ?? '')) payload.notes = n || null;
+    if (n !== (bill.notes ?? '')) payload.notes = n;
     if (bill.documentType === 'INVOICE') {
       const inv = invoiceNumber.trim();
       if (inv && inv !== (bill.invoiceNumber ?? '')) payload.invoiceNumber = inv;
@@ -727,6 +730,7 @@ export function ConvertDialog({ bill, onClose, onConverted }: {
   const [seeded, setSeeded] = useState<number | null>(null);
   const [number, setNumber] = useState('');
   const [busy, setBusy] = useState(false);
+  if (!bill && seeded !== null) setSeeded(null);
   if (bill && seeded !== bill.id) { setSeeded(bill.id); setNumber(bill.invoiceNumber ?? ''); }
   if (!bill) return null;
 
@@ -777,6 +781,7 @@ export function ReassignDialog({ bill, projects, onClose, onReassigned }: {
   const [seeded, setSeeded] = useState<number | null>(null);
   const [target, setTarget] = useState('');
   const [busy, setBusy] = useState(false);
+  if (!bill && seeded !== null) setSeeded(null);
   if (bill && seeded !== bill.id) { setSeeded(bill.id); setTarget(''); }
   if (!bill) return null;
 
@@ -880,6 +885,7 @@ export function DeleteBillDialog({ bill, onClose, onDeleted }: {
   const [step, setStep] = useState<1 | 2>(1);
   const [busy, setBusy] = useState(false);
   const [seeded, setSeeded] = useState<number | null>(null);
+  if (!bill && seeded !== null) setSeeded(null);
   if (bill && seeded !== bill.id) { setSeeded(bill.id); setStep(1); }
   if (!bill) return null;
 
@@ -947,6 +953,7 @@ export function EditPaymentDialog({ subject, onClose, onSaved }: {
   const [date, setDate] = useState('');
   const [busy, setBusy] = useState(false);
 
+  if (!subject && seeded !== null) setSeeded(null);
   if (subject && seeded !== subject.payment.id) {
     setSeeded(subject.payment.id);
     const split = splitMethod(subject.payment.method);
@@ -1003,8 +1010,8 @@ export function EditPaymentDialog({ subject, onClose, onSaved }: {
 }
 
 /** Void one payment — kept listed, struck through, with its reason. */
-export async function voidOnePayment(billId: number, paymentId: number): Promise<Payable> {
-  return voidPayablePayment(billId, paymentId);
+export async function voidOnePayment(billId: number, paymentId: number, reason?: string): Promise<Payable> {
+  return voidPayablePayment(billId, paymentId, reason);
 }
 
 /** 409 QUICKBOOKS_PAYMENTS_IN_QBO: this bill's payments are registered in QuickBooks now. */

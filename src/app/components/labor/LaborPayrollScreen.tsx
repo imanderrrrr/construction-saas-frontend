@@ -13,7 +13,7 @@ import { exportPayrollPayments } from '../../services/payroll';
 import { listProjects } from '../../services/projects';
 import {
   GRID_INK, LaborFilters, LaborHeader, LaborSkeleton, Mono, amountOwed, fmtRange,
-  budgetBlockers, initials, mainProject, money, monthRange, paidAmount, unpaidHours, weekRange,
+  budgetBlockers, initials, mainProject, money, LABOR_RANGES, laborRange, type LaborRange, paidAmount, unpaidHours, weekRange,
 } from './shared';
 
 /**
@@ -27,7 +27,7 @@ export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate:
   const { t, i18n } = useTranslation(['admin', 'common']);
   const lang = i18n.language;
 
-  const [range, setRange] = useScreenState<'week' | 'month'>('periodo', 'week', 'replace', ['week', 'month']);
+  const [range, setRange] = useScreenState<LaborRange>('periodo', 'week', 'replace', LABOR_RANGES);
   const [q, setQ] = useScreenState('q', '');
   const [project, setProject] = useProjectFilter<string>('');
   const [status, setStatus] = useState<'' | 'unpaid' | 'paid'>('');
@@ -38,7 +38,9 @@ export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate:
   const [paying, setPaying] = useState<WorkerHoursSummary | null>(null);
   const [exportingPayments, setExportingPayments] = useState(false);
 
-  const { from, to } = range === 'week' ? weekRange() : monthRange();
+  const [customFrom, setCustomFrom] = useScreenState('desde', weekRange().from);
+  const [customTo, setCustomTo] = useScreenState('hasta', weekRange().to);
+  const { from, to } = laborRange(range, customFrom, customTo);
 
   const load = useCallback(async () => {
     setLoading(true); setError(false);
@@ -111,7 +113,7 @@ export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate:
     q && { key: 'q', label: `${t('admin:lab.f.search')} · ${q}`, clear: () => setQ('') },
     status && { key: 'status', label: `${t('admin:pay.f.payment')} · ${t(`admin:pay.f.${status}`)}`, clear: () => setStatus('') },
     project && { key: 'project', label: `${t('admin:lab.f.project')} · ${projects.find(p => String(p.id) === project)?.name ?? project}`, clear: () => setProject('') },
-    range !== 'week' && { key: 'range', label: `${t('admin:lab.f.range')} · ${t('admin:lab.f.month')}`, clear: () => setRange('week') },
+    range !== 'week' && { key: 'range', label: `${t('admin:lab.f.range')} · ${fmtRange(from, to, lang)}`, clear: () => setRange('week') },
   ].filter(Boolean) as { key: string; label: string; clear: () => void }[];
 
   const allPaid = !loading && !error && workers.length > 0 && workers.every(isPaid) && !q && !status;
@@ -134,17 +136,22 @@ export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate:
                 owed, from the hours on screen. This one lists the payments
                 already made in the period — the cheques — which is what gets
                 keyed into QuickBooks. */}
-            <button onClick={downloadPayments} disabled={exportingPayments}
+            {mode === 'admin' && <button onClick={downloadPayments} disabled={exportingPayments}
               title={t('admin:pay.exportPayments.hint')}
               className="inline-flex items-center gap-2 border border-[#DBD0BB] bg-[#FAF7F0] px-4 py-3 font-bt-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-[#0A0A0A] hover:border-[#F97316] hover:text-[#C2410C] disabled:opacity-50">
               {exportingPayments
                 ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 : <FileSpreadsheet className="w-3.5 h-3.5" />}
               {t('admin:pay.exportPayments')}
-            </button>
+            </button>}
           </div>
         }
       />
+
+      {!loading && !error && (data?.approvedUnpaidRecordsOutsidePeriod ?? 0) > 0 && <div role="status" className="border border-[#F97316] bg-[#FFF7ED] p-3 text-sm">
+        {t('admin:pay.outsidePeriod', {count: data?.approvedUnpaidRecordsOutsidePeriod, segments: data?.approvedUnpaidSegmentsOutsidePeriod ?? 0, minutes: data?.approvedUnpaidMinutesOutsidePeriod ?? 0})}
+        {(data?.partiallyReviewedUnpaidRecordsOutsidePeriod ?? 0) > 0 && <p>{t('admin:pay.outsidePeriodPartial', {count: data?.partiallyReviewedUnpaidRecordsOutsidePeriod})}</p>}
+      </div>}
 
       {/* Indicators */}
       <div className="grid grid-cols-1 sm:grid-cols-3 bg-white border border-[#E4E4E7]" data-tour="sec.labor-payroll.kpis">
@@ -174,6 +181,7 @@ export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate:
       <LaborFilters
         tourAnchor="sec.labor-payroll.filters"
         q={q} onQ={setQ} range={range} onRange={setRange}
+        from={customFrom} to={customTo} onFrom={setCustomFrom} onTo={setCustomTo}
         project={project} onProject={setProject} projects={projects}
         chips={chips} onClear={() => { setQ(''); setProject(''); setStatus(''); setRange('week'); }}
         extra={
@@ -219,7 +227,7 @@ export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate:
             {unpaidSorted.length > 0 && (
               <Group title={t('admin:pay.groupUnpaid')} dot="#F97316" bg="#FBF8F2" color="#0A0A0A" count={unpaidSorted.length}>
                 {unpaidSorted.map(w => (
-                  <PayRow key={w.workerId} w={w} paid={false} onPay={() => setPaying(w)} onNavigate={onNavigate} canManageRates={mode === 'admin'}
+                  <PayRow key={w.workerId} w={w} paid={false} onPay={() => setPaying(w)} onNavigate={onNavigate} canManageRates={mode === 'admin'} canPay={mode === 'admin'}
                     lang={lang} blockers={budgetBlockers(w, remainingByProject)} />
                 ))}
               </Group>
@@ -227,7 +235,7 @@ export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate:
             {paid.length > 0 && (
               <Group title={t('admin:pay.groupPaid')} dot="#7A9A7E" bg="#F3F5F1" color="#2E6B34" count={paid.length}>
                 {paid.map(w => (
-                  <PayRow key={w.workerId} w={w} paid onPay={() => {}} onNavigate={onNavigate} canManageRates={mode === 'admin'} lang={lang} blockers={[]} />
+                  <PayRow key={w.workerId} w={w} paid onPay={() => {}} onNavigate={onNavigate} canManageRates={mode === 'admin'} canPay={mode === 'admin'} lang={lang} blockers={[]} />
                 ))}
               </Group>
             )}
@@ -265,9 +273,9 @@ function Group({ title, dot, bg, color, count, children }: {
   );
 }
 
-function PayRow({ w, paid, onPay, onNavigate, lang, blockers, canManageRates }: {
+function PayRow({ w, paid, onPay, onNavigate, lang, blockers, canManageRates, canPay }: {
   w: WorkerHoursSummary; paid: boolean; onPay: () => void; onNavigate: (s: string) => void; lang: string;
-  canManageRates: boolean;
+  canManageRates: boolean; canPay: boolean;
   blockers: { name: string; amount: number; remaining: number }[];
 }) {
   const { t } = useTranslation(['admin', 'finance']);
@@ -279,7 +287,7 @@ function PayRow({ w, paid, onPay, onNavigate, lang, blockers, canManageRates }: 
     : null;
 
   return (
-    <div onClick={() => { if (!paid && !rateless) onPay(); }}
+    <div onClick={() => { if (canPay && !paid && !rateless) onPay(); }}
       className={`grid grid-cols-[40px_minmax(0,1fr)] sm:grid-cols-[40px_minmax(0,1fr)_104px_150px] gap-3.5 items-center px-5 py-4 border-b border-[#F0EBE1] transition-colors ${paid ? '' : 'cursor-pointer hover:bg-[#FBF8F2]'}`}
       style={{ borderLeft: !paid && rateless ? '3px solid #F97316' : '3px solid transparent', opacity: paid ? 0.72 : 1 }}>
       <span className={`w-10 h-10 flex items-center justify-center font-bt-mono text-[13px] font-semibold flex-shrink-0 ${
@@ -327,7 +335,7 @@ function PayRow({ w, paid, onPay, onNavigate, lang, blockers, canManageRates }: 
         </Mono>
       </div>
       <div className="col-start-2 sm:col-start-auto flex justify-end" onClick={e => e.stopPropagation()}>
-        {!paid && !rateless && (
+        {canPay && !paid && !rateless && (
           <button onClick={onPay}
             className="inline-flex items-center gap-2 bg-[#0A0A0A] hover:bg-[#2E6B34] text-[#F5F1E8] px-3.5 py-2.5 font-bt-mono text-[10px] font-semibold uppercase tracking-[0.07em] transition-colors">
             <CreditCard className="w-3.5 h-3.5" />{t('admin:pay.confirm')}

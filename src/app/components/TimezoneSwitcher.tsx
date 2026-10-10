@@ -1,3 +1,4 @@
+import { getBusinessTz, setBusinessTz } from '../helpers/dateTime';
 import { useState, useEffect, useRef } from 'react';
 import { Clock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -14,13 +15,12 @@ const TIMEZONES = [
   { value: 'America/Anchorage', label: 'Alaska (UTC-9)' },
   { value: 'Pacific/Honolulu', label: 'Hawaii (UTC-10)' },
   // Latin America
+  { value: 'America/Guatemala', label: 'Guatemala (UTC-6)' },
   { value: 'America/Panama', label: 'Panamá (UTC-5)' },
   { value: 'America/Mexico_City', label: 'México (UTC-6)' },
   { value: 'America/Bogota', label: 'Colombia (UTC-5)' },
 ];
 
-const STORAGE_KEY = 'ofjr_business_timezone';
-const DEFAULT_TZ = 'America/Panama';
 
 function shortLabel(tz: string): string {
   const parts = tz.split('/');
@@ -30,20 +30,20 @@ function shortLabel(tz: string): string {
 export function TimezoneSwitcher() {
   const { t } = useTranslation('common');
   const [timezone, setTimezone] = useState<string>(
-    () => localStorage.getItem(STORAGE_KEY) || DEFAULT_TZ,
+    () => getBusinessTz(),
   );
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const isAdmin = AuthService.getCanonicalRole() === 'ADMIN';
 
-  // Fetch the real value from the backend (and cache in localStorage)
+  // Fetch the real value from the backend (and keep it for this session)
   useEffect(() => {
     let cancelled = false;
     api<{ timezone: string }>('/api/v1/settings/timezone')
       .then(res => {
         if (!cancelled) {
           setTimezone(res.timezone);
-          localStorage.setItem(STORAGE_KEY, res.timezone);
+          setBusinessTz(res.timezone);
         }
       })
       .catch(() => {
@@ -65,7 +65,7 @@ export function TimezoneSwitcher() {
     setOpen(false);
     const prev = timezone;
     setTimezone(tz);
-    localStorage.setItem(STORAGE_KEY, tz);
+    setBusinessTz(tz);
     try {
       await api('/api/v1/settings/timezone', {
         method: 'PUT',
@@ -73,7 +73,7 @@ export function TimezoneSwitcher() {
       });
     } catch {
       setTimezone(prev);
-      localStorage.setItem(STORAGE_KEY, prev);
+      setBusinessTz(prev);
     }
   };
 

@@ -1,3 +1,4 @@
+import { businessDate, businessDateTimeToISO } from '../../helpers/dateTime';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, Check, Loader2, Plus, X } from 'lucide-react';
@@ -244,14 +245,15 @@ export function RecordDrawer({ recordId, onClose, onChanged, mode = 'admin' }: {
                             toast.error(t('admin:apr.d.fixBadTime'));
                             return;
                           }
-                          const d = new Date(payableAt(e));
-                          d.setHours(h, m, 0, 0);
+                          let correctedISO: string;
+                          try { correctedISO = businessDateTimeToISO(businessDate(payableAt(e)), timeValue.trim()); }
+                          catch { toast.error(t('admin:apr.d.fixBadTime')); return; }
                           const reason = window.prompt(t('admin:apr.d.fixReason'));
                           // Dismissing the reason aborts the edit. This path rewrites
                           // a paid timestamp — cancel has to mean cancel.
                           if (reason === null) return;
                           run(`ev-time-${e.id}`, () => editEventTime(
-                            record.id, e.id, d.toISOString(),
+                            record.id, e.id, correctedISO,
                             reason.trim() || t('admin:apr.d.fixDefaultReason')));
                           setEditingEvent(null);
                         }}

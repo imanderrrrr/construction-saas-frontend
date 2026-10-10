@@ -254,3 +254,15 @@ describe('payment intentions survive ambiguous responses', () => {
     expect(calls[0][1].requestKey).not.toBe(calls[1][1].requestKey);
   });
 });
+it('reopening the same payable resets amount and reference from its updated balance', async () => {
+ const props={project:undefined,onClose:() => {},onPaid:() => {}};
+ await render(<PayDialog {...props} bill={PAID_HERE} />);
+ const amount=document.querySelector<HTMLInputElement>('#ap-pay-amount')!;
+ const reference=document.querySelector<HTMLInputElement>('#ap-pay-ref')!;
+ const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')!.set!;
+ await act(async () => {setter.call(amount,'7');amount.dispatchEvent(new Event('input',{bubbles:true}));setter.call(reference,'old draft');reference.dispatchEvent(new Event('input',{bubbles:true}));});
+ await act(async () => root.render(<PayDialog {...props} bill={null} />));
+ await act(async () => root.render(<PayDialog {...props} bill={{...PAID_HERE,paidAmount:200}} />));
+ expect(document.querySelector<HTMLInputElement>('#ap-pay-amount')!.value).toBe('100.00');
+ expect(document.querySelector<HTMLInputElement>('#ap-pay-ref')!.value).toBe('');
+});

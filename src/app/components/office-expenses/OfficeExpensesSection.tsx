@@ -114,6 +114,8 @@ export function OfficeExpensesSection() {
         const saved = editing
           ? await updateOfficeExpense(editing.id, input)
           : await createOfficeExpense(input);
+        // Preserve the committed identity even if receipt upload fails.
+        setEditing(saved);
         if (receipt) await uploadOfficeReceipt(saved.id, receipt);
         setFormOpen(false);
         setEditing(null);
@@ -476,7 +478,6 @@ export function OfficeExpensesSection() {
 
       {formOpen && (
         <ExpenseWindow
-          key={editing?.id ?? (prefill ? `pre-${prefill.recurringOfId}` : 'new')}
           open
           expense={editing ?? (prefill ? prefillAsExpense(prefill) : null)}
           categories={categories}

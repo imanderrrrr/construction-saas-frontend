@@ -3,11 +3,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, ChevronLeft, ChevronRight, Plus, QrCode, Search } from 'lucide-react';
 import {
-  listUsers, getWorkerQr, type UserDTO,
+  listUsers, getWorkerQr, getUser, type UserDTO,
 } from '../../services/users';
 import { AuthService } from '../../services/auth';
 import { UserDrawer } from './UserDrawer';
 import { NewUserFlow } from './NewUserFlow';
+import { InvitationsManager } from './InvitationsManager';
 import { InviteUserModal } from '../InviteUserModal';
 import { FIELD_ROLES, isFieldRole, Mono, initials, type AccessKind } from './shared';
 
@@ -87,6 +88,10 @@ export function UsersRoster() {
   }, [page, size, debouncedQ, filters.role, filters.status, reloadKey]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const id = Number(new URLSearchParams(window.location.search).get('userId'));
+    if (id > 0) getUser(id).then(setOpenUser).catch(() => setError(true));
+  }, []);
 
   function setF<K extends keyof Filters>(k: K, v: Filters[K]) {
     setFilters(f => ({ ...f, [k]: v }));
@@ -128,6 +133,7 @@ export function UsersRoster() {
 
   return (
     <div className="relative p-4 md:p-6 max-w-[1400px] mx-auto space-y-4">
+      <InvitationsManager revision={reloadKey} />
       {/* Header */}
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div className="min-w-0">
@@ -402,7 +408,7 @@ export function UsersRoster() {
       )}
       <InviteUserModal
         open={inviteOpen}
-        onClose={() => setInviteOpen(false)}
+        onClose={() => { setInviteOpen(false); setReloadKey(k => k + 1); }}
         onChooseManualForSubcontractor={() => {
           // Subcontractors can't be invited by QR — hand the admin straight to
           // the manual create flow so the same click keeps going.
