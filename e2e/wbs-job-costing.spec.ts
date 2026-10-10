@@ -62,6 +62,7 @@ test('warehouse optional cost code reaches the dispatch request with exact proje
   const supply = { id: 2, code: 'CS-002', name: 'Cemento', category: 'General', unit: 'sacos', currentStock: 100, minimumStock: 10, unitCostCents: 1000, status: 'In Stock', notes: '' };
   await page.route('**/api/v1/warehouse/consumables?*', json([supply]));
   await page.route('**/api/v1/warehouse/consumables/dispatches?*', json(paged([])));
+  await page.route('**/api/v1/warehouse/consumables/dispatches/summary', json({ totalDispatches: 0, totalUnits: 0, projectCount: 0 }));
   await page.route('**/api/v1/warehouse/projects?*', json(paged([project])));
   await page.route('**/api/v1/admin/users?*', json(paged([{ id: 7, username: 'ana', fullName: 'Ana López', role: 'WORKER', status: 'ACTIVE' }])));
   await page.route('**/api/v1/projects/13/budget-line-items/options', json(items.map(({ id, code, name }) => ({ id, code, name }))));
