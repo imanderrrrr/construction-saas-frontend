@@ -25,7 +25,6 @@ const LOCALES = join(HERE, '../../../i18n/locales');
 const SCREENS = [
   'SupervisorProjects.tsx',
   'MyHours.tsx',
-  'phase2/ApprovalStatusBadge.tsx',
   'ProjectFinancials.tsx',
   'ToolInventory.tsx',
   'ClosedProjectBanner.tsx',
@@ -110,17 +109,10 @@ describe('no screen pins a display locale to English', () => {
   }
 });
 
-describe('the approval badge reads the labels the rest of the app uses', () => {
-  const text = source('phase2/ApprovalStatusBadge.tsx');
-
-  it('carries no English labels of its own', () => {
-    // The labels used to live in STYLES, which is why Supervisor › Aprobación
-    // de Horas said "Pending" while the inbox two clicks away said "Pendientes".
-    for (const label of ['Pending', 'Approved', 'Observed', 'Rejected', 'Auto-rejected', 'In review']) {
-      expect(text, `still hardcodes "${label}"`).not.toContain(`'${label}'`);
-    }
-    expect(text).toContain('apr.st.${status}');
-  });
+describe('every approval status has words in both languages', () => {
+  // The inbox, the record drawer and the hours report build the key from the
+  // record itself (`admin:apr.st.${status}`), so a status with nothing behind
+  // it reaches the screen as a raw key and no static key check can see it.
 
   it('labels every ApprovalStatus in both languages', () => {
     // Read the statuses from the type rather than restating them: a seventh
@@ -144,15 +136,5 @@ describe('the approval badge reads the labels the rest of the app uses', () => {
       const admin = locale(lang, 'admin');
       expect(admin['apr.st.AUTO_REJECTED']).not.toBe(admin['apr.st.REJECTED']);
     }
-  });
-
-  it('still gives every status its own colours', () => {
-    const styles = /const STYLES[^{]+\{([\s\S]*?)\n\};/.exec(text);
-    expect(styles, 'STYLES record not found').toBeTruthy();
-    for (const status of ['PENDING', 'APPROVED', 'OBSERVED', 'REJECTED', 'AUTO_REJECTED', 'PARTIAL']) {
-      expect(styles![1], `STYLES is missing ${status}`).toContain(`${status}:`);
-    }
-    // Auto-rejection is not a rejection; it should not photograph as one.
-    expect(styles![1]).toContain('orange');
   });
 });

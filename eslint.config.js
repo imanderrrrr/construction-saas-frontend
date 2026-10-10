@@ -96,13 +96,16 @@ export default tseslint.config(
     plugins: { i18next },
     rules: {
       // 146 al adoptarla; 122 tras el #158, que se llevó SupervisorProjects
-      // entera (era 20 de esas). Vuelve a medirse cuando alguien baje el
+      // entera (era 20 de esas); 78 tras borrar las pantallas muertas de
+      // aprobaciones y reportes (HoursReport, LaborCostReport,
+      // LaborPayrollReport, SupervisorApprovals y TimelineItem sumaban 42 de
+      // las 120 que quedaban). Vuelve a medirse cuando alguien baje el
       // backlog: con la cuenta cerca de cero, esta regla sube a 'error' y
       // deja de ser una advertencia que se puede ignorar.
       //
       // Warning mientras tanto, igual que las de React Compiler de arriba:
       // visible en el editor y en CI, sin romper la construcción. Los peores
-      // hoy: HoursReport (16), AccessDenied (13), LaborCostReport (8).
+      // hoy: AccessDenied (13), Landing (7), ErrorFallback (5).
       // Excluye las cadenas sin letras (símbolos, guiones, separadores).
       'i18next/no-literal-string': ['warn', {
         mode: 'jsx-text-only',
