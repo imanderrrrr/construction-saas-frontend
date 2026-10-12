@@ -20,6 +20,7 @@ vi.mock('../lib/paddle', () => ({
 
 import i18n from '../../i18n';
 import { routes } from '../routes';
+import { settleRoutes } from '../testing/routes';
 import type { PaddleEvent } from '../lib/paddle';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -50,6 +51,7 @@ describe('Pay page', () => {
     await act(async () => {
       root.render(<RouterProvider router={router} />);
     });
+    await settleRoutes(container);
   };
 
   /** The eventCallback the page registered with the (mocked) SDK. */

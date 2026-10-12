@@ -1,3 +1,4 @@
+import { resetBusinessTz, setBusinessTz } from '../helpers/dateTime';
 // OFJR Construction — Auth Service (real API)
 // Canonical roles: ADMIN | SUPERVISOR | WORKER | FINANCE | WAREHOUSE
 import { CanonicalRole, ROLE_DASHBOARD_ROUTES } from '../types';
@@ -97,7 +98,10 @@ export class AuthService {
 
   // Validate session — GET /api/v1/auth/me
   static async getMe(): Promise<MeResponse> {
-    return api<MeResponse>('/api/v1/auth/me');
+    const me = await api<MeResponse>('/api/v1/auth/me');
+    const settings = await api<{ timezone: string }>('/api/v1/settings/timezone');
+    setBusinessTz(settings.timezone);
+    return me;
   }
 
   /**
@@ -139,10 +143,12 @@ export class AuthService {
       await fetch(`${getBaseUrl()}/api/v1/auth/logout`, {
         method: 'POST',
         credentials: 'include',
+        signal: AbortSignal.timeout(8000),
         headers: { 'X-XSRF-TOKEN': getCsrfToken() ?? '' },
       });
     } catch { /* best effort */ }
     clearSessionCookie();
+    resetBusinessTz();
     // Otherwise the next person to sign in on this browser inherits the
     // previous user's verdict until their own login overwrites it.
     clearPasswordChangeState();

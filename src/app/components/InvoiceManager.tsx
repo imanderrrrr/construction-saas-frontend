@@ -14,12 +14,10 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import {
-  listReceivables, type PageResponse, type Receivable,
+  downloadReceivableDocument, listReceivables, type PageResponse, type Receivable,
 } from '../services/finance';
-import { listProjects } from '../services/projects';
-import { loadInvoiceIssuer } from '../services/invoiceBranding';
-import { downloadInvoicePdf, type InvoicePdfData } from '../helpers/exportInvoicePdf';
-import { loadSignatureForPdf } from '../services/signatures';
+import { projectCatalog } from '../services/catalogs';
+import { CatalogNote } from './workspace/CatalogNote';
 import { setSectionIntent } from '../lib/sectionIntent';
 import { requestTourStop } from '../lib/tourRequest';
 import { CellEmpty, DocTypeChip, InvoiceStatusChip, fmtMoney } from './invoices/bits';
@@ -79,27 +77,6 @@ function rangeOf(key: RangeKey): { issuedFrom?: string; issuedTo?: string } {
   }
 }
 
-function toPdfData(r: Receivable): InvoicePdfData {
-  return {
-    documentType: r.documentType,
-    invoiceNumber: r.invoiceNumber,
-    client: r.client,
-    project: r.project,
-    description: r.description,
-    issuedDate: r.issuedDate,
-    dueDate: r.dueDate,
-    lineItems: r.lineItems.map(li => ({
-      description: li.description, quantity: li.quantity,
-      unitPrice: li.unitPrice, subtotal: li.subtotal,
-    })),
-    subtotal: r.subtotal,
-    discount: r.discount,
-    taxRate: r.taxRate,
-    tax: r.tax,
-    amount: r.amount,
-    notes: r.notes,
-  };
-}
 
 export function InvoiceManager({ onNavigate, canManageBranding = true }: {
   onNavigate?: (section: string) => void;
@@ -123,6 +100,7 @@ export function InvoiceManager({ onNavigate, canManageBranding = true }: {
   const [current, setCurrent] = useScreenState('pagina', 0);
 
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
+  const [projectsCatalog, setProjectsCatalog] = useState({ total: 0, truncated: false });
   const [windowOpen, setWindowOpen] = useState(false);
   const [flashId, setFlashId] = useState<number | null>(null);
   /** The document just issued, while its note under the header is up. */
@@ -193,8 +171,13 @@ export function InvoiceManager({ onNavigate, canManageBranding = true }: {
   /* ── Jobsites, for the filter ───────────────────────────────────────── */
 
   useEffect(() => {
-    listProjects({ size: 100 })
-      .then(r => setProjects(r.content.map(p => ({ id: p.id, name: p.name }))))
+    // Every project, every status, all pages (AUD-055): invoices of an old or
+    // closed project are still filtered by it.
+    projectCatalog()
+      .then(c => {
+        setProjects(c.items.map(p => ({ id: p.id, name: p.name })));
+        setProjectsCatalog({ total: c.total, truncated: c.truncated });
+      })
       .catch(() => setProjects([]));
   }, []);
 
@@ -207,11 +190,7 @@ export function InvoiceManager({ onNavigate, canManageBranding = true }: {
   const download = useCallback(async (row: Receivable) => {
     setDownloading(row.id);
     try {
-      const [issuer, signature] = await Promise.all([
-        loadInvoiceIssuer(),
-        loadSignatureForPdf(row.id).catch(() => undefined),
-      ]);
-      downloadInvoicePdf(toPdfData(row), issuer, signature, lang);
+      await downloadReceivableDocument(row.id, { lang, filename: row.invoiceNumber });
     } finally {
       setDownloading(null);
     }
@@ -380,6 +359,7 @@ export function InvoiceManager({ onNavigate, canManageBranding = true }: {
             <option value="">{t('finance:invoice.filter.allProjects')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </MonoSelect>
+          <CatalogNote shown={projects.length} total={projectsCatalog.total} truncated={projectsCatalog.truncated} />
           <MonoSelect value={docType} onChange={e => { setDocType(e.target.value); setCurrent(0); }} aria-label={t('finance:invoice.filter.type')}>
             <option value="">{t('finance:invoice.filter.allTypes')}</option>
             <option value="INVOICE">{t('finance:invoice.type.invoice')}</option>

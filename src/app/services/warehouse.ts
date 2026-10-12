@@ -182,6 +182,8 @@ export interface ConsumableResponse {
   status: string;
   lastRestocked: string | null;
   notes: string | null;
+  /** Moves with every stock change; a physical count sends the one it was taken against. */
+  stockVersion?: number;
 }
 
 export interface DispatchResponse {
@@ -372,11 +374,16 @@ export async function createConsumable(payload: {
   });
 }
 
+/**
+ * Edits what describes a consumable. Never its stock: an absolute stock
+ * computed here from a screen that may be stale erased dispatches committed
+ * after it was drawn (AUD-049) — the server refuses it. Stock changes go
+ * through {@link restockConsumable} or {@link countConsumable}.
+ */
 export async function updateConsumable(id: number, payload: {
   name?: string;
   category?: string;
   unit?: string;
-  currentStock?: number;
   minimumStock?: number;
   unitCostCents?: number;
   notes?: string;
@@ -387,8 +394,50 @@ export async function updateConsumable(id: number, payload: {
   });
 }
 
+/**
+ * Adds `quantity` units; the server applies it to the stock it holds.
+ *
+ * `requestKey` names the intention: keep the same key when retrying after an
+ * answer that never arrived, and the quantity is not added twice. A new
+ * quantity is a new intention and gets a new key.
+ */
+export async function restockConsumable(id: number, quantity: number, requestKey: string): Promise<ConsumableResponse> {
+  return api<ConsumableResponse>(`/api/v1/warehouse/consumables/${id}/restock`, {
+    method: 'POST',
+    body: JSON.stringify({ quantity, requestKey }),
+  });
+}
+
+/**
+ * A physical count: sets the stock to what was counted, only if it has not
+ * moved since `expectedStockVersion` (409 CONSUMABLE_STOCK_CONFLICT otherwise,
+ * with the current stock and version in the error details).
+ */
+export async function countConsumable(id: number, payload: {
+  countedStock: number;
+  expectedStockVersion: number;
+  requestKey?: string;
+  note?: string;
+}): Promise<ConsumableResponse> {
+  return api<ConsumableResponse>(`/api/v1/warehouse/consumables/${id}/count`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function getConsumableDispatches(consumableId: number): Promise<DispatchResponse[]> {
   return api<DispatchResponse[]>(`/api/v1/warehouse/consumables/${consumableId}/dispatches`);
+}
+
+/** The dispatch tab's figures over every dispatch of the tenant (the list itself is paged). */
+export interface DispatchSummary {
+  totalDispatches: number;
+  totalUnits: number;
+  projectCount: number;
+}
+
+export async function getDispatchSummary(): Promise<DispatchSummary> {
+  return api<DispatchSummary>('/api/v1/warehouse/consumables/dispatches/summary');
 }
 
 export async function getAllDispatches(params?: {

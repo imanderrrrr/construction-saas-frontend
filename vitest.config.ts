@@ -5,6 +5,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      // Tests render and assert text synchronously: every translation table
+      // bundled, instead of the app's per-language, per-namespace fetches.
+      '@buildtrack/i18n-locales': path.resolve(__dirname, './src/i18n/locales.eager.ts'),
     },
   },
   test: {

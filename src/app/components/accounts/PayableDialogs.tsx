@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { usePaymentRequestKey } from './usePaymentRequestKey';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
@@ -30,7 +31,7 @@ import { balanceOf, round2 } from './accounting';
  * live: out of a row of seven buttons and into the bill's own detail.
  */
 
-export type ProjectBudget = { id: number; name: string; remainingBudgetCents: number | null };
+export type ProjectBudget = { id: number; name: string; remainingBudgetCents: number | null; status?: string };
 
 function Head({ kicker, title, tone = 'ink' }: { kicker: string; title: string; tone?: 'ink' | 'red' | 'orange' }) {
   return (
@@ -93,8 +94,10 @@ export function PayDialog({ bill, project, onClose, onPaid }: {
   const [methodOther, setMethodOther] = useState('');
   const [reference, setReference] = useState('');
   const [busy, setBusy] = useState(false);
+  const paymentRequestKey = usePaymentRequestKey(bill?.id ?? null);
 
   const balance = bill ? balanceOf(bill) : 0;
+  if (!bill && seeded !== null) setSeeded(null);
   if (bill && seeded !== bill.id) {
     setSeeded(bill.id);
     setAmount(balance.toFixed(2));
@@ -121,7 +124,7 @@ export function PayDialog({ bill, project, onClose, onPaid }: {
     setBusy(true);
     try {
       const updated = await recordPayablePayment(bill.id, {
-        amount: entered, date, method: resolved, reference: reference.trim() || undefined, approvedBy: 'finance',
+        amount: entered, date, method: resolved, reference: reference.trim() || undefined, approvedBy: 'finance', requestKey: paymentRequestKey(),
       });
       toast.success(t('finance:payable.toast.paymentRecorded', { amount: fmtMoney(entered), bill: bill.billNumber }));
       onPaid(updated);
@@ -202,7 +205,7 @@ export function PayDialog({ bill, project, onClose, onPaid }: {
 
 /* ── Pagar en lote ─────────────────────────────────────────────────────── */
 
-type BatchRow = { bill: VendorBill; amount: string; reference: string; error: string | null; done: boolean };
+type BatchRow = { bill: VendorBill; amount: string; reference: string; error: string | null; done: boolean; requestKey: string };
 
 /**
  * The Friday payment run.
@@ -223,7 +226,7 @@ export function BatchPayDialog({ bills, projects, onClose, onFinished }: {
   const [method, setMethod] = useState('Bank transfer');
   const [methodOther, setMethodOther] = useState('');
   const [rows, setRows] = useState<BatchRow[]>(() =>
-    bills.map(bill => ({ bill, amount: balanceOf(bill).toFixed(2), reference: '', error: null, done: false })));
+    bills.map(bill => ({ bill, amount: balanceOf(bill).toFixed(2), reference: '', error: null, done: false, requestKey: crypto.randomUUID() })));
   const [busy, setBusy] = useState(false);
 
   const pending = rows.filter(r => !r.done);
@@ -261,7 +264,7 @@ export function BatchPayDialog({ bills, projects, onClose, onFinished }: {
       try {
         const res = await recordPayablePayment(row.bill.id, {
           amount: parseFloat(row.amount), date, method: resolved,
-          reference: row.reference.trim() || undefined, approvedBy: 'finance',
+          reference: row.reference.trim() || undefined, approvedBy: 'finance', requestKey: row.requestKey,
         });
         updated.push(res);
         setRow(row.bill.id, { done: true, error: null });
@@ -545,6 +548,7 @@ export function EditAmountDatesDialog({ bill, onClose, onSaved }: {
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
 
+  if (!bill && seeded !== null) setSeeded(null);
   if (bill && seeded !== bill.id) {
     setSeeded(bill.id);
     setAmount(bill.amount.toFixed(2));
@@ -628,6 +632,7 @@ export function EditBillInfoDialog({ bill, vendors, onClose, onSaved }: {
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [busy, setBusy] = useState(false);
 
+  if (!bill && seeded !== null) setSeeded(null);
   if (bill && seeded !== bill.id) {
     setSeeded(bill.id);
     setVendor(bill.vendor);
@@ -646,9 +651,9 @@ export function EditBillInfoDialog({ bill, vendors, onClose, onSaved }: {
     if (who !== bill.vendor) payload.vendor = who;
     if (category && category !== bill.category) payload.category = category;
     const d = description.trim();
-    if (d !== (bill.description ?? '')) payload.description = d || null;
+    if (d !== (bill.description ?? '')) payload.description = d;
     const n = notes.trim();
-    if (n !== (bill.notes ?? '')) payload.notes = n || null;
+    if (n !== (bill.notes ?? '')) payload.notes = n;
     if (bill.documentType === 'INVOICE') {
       const inv = invoiceNumber.trim();
       if (inv && inv !== (bill.invoiceNumber ?? '')) payload.invoiceNumber = inv;
@@ -725,6 +730,7 @@ export function ConvertDialog({ bill, onClose, onConverted }: {
   const [seeded, setSeeded] = useState<number | null>(null);
   const [number, setNumber] = useState('');
   const [busy, setBusy] = useState(false);
+  if (!bill && seeded !== null) setSeeded(null);
   if (bill && seeded !== bill.id) { setSeeded(bill.id); setNumber(bill.invoiceNumber ?? ''); }
   if (!bill) return null;
 
@@ -775,6 +781,7 @@ export function ReassignDialog({ bill, projects, onClose, onReassigned }: {
   const [seeded, setSeeded] = useState<number | null>(null);
   const [target, setTarget] = useState('');
   const [busy, setBusy] = useState(false);
+  if (!bill && seeded !== null) setSeeded(null);
   if (bill && seeded !== bill.id) { setSeeded(bill.id); setTarget(''); }
   if (!bill) return null;
 
@@ -878,6 +885,7 @@ export function DeleteBillDialog({ bill, onClose, onDeleted }: {
   const [step, setStep] = useState<1 | 2>(1);
   const [busy, setBusy] = useState(false);
   const [seeded, setSeeded] = useState<number | null>(null);
+  if (!bill && seeded !== null) setSeeded(null);
   if (bill && seeded !== bill.id) { setSeeded(bill.id); setStep(1); }
   if (!bill) return null;
 
@@ -945,6 +953,7 @@ export function EditPaymentDialog({ subject, onClose, onSaved }: {
   const [date, setDate] = useState('');
   const [busy, setBusy] = useState(false);
 
+  if (!subject && seeded !== null) setSeeded(null);
   if (subject && seeded !== subject.payment.id) {
     setSeeded(subject.payment.id);
     const split = splitMethod(subject.payment.method);
@@ -1001,8 +1010,8 @@ export function EditPaymentDialog({ subject, onClose, onSaved }: {
 }
 
 /** Void one payment — kept listed, struck through, with its reason. */
-export async function voidOnePayment(billId: number, paymentId: number): Promise<Payable> {
-  return voidPayablePayment(billId, paymentId);
+export async function voidOnePayment(billId: number, paymentId: number, reason?: string): Promise<Payable> {
+  return voidPayablePayment(billId, paymentId, reason);
 }
 
 /** 409 QUICKBOOKS_PAYMENTS_IN_QBO: this bill's payments are registered in QuickBooks now. */

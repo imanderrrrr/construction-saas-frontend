@@ -7,6 +7,8 @@ node_modules
 # Build output
 dist/
 dist-ssr/
+# npm run budget (AUD-019)
+dist-budget/
 build/
 .next/
 

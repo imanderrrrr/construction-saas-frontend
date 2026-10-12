@@ -73,7 +73,7 @@ export function TaskWindow({ open, onOpenChange, task, lang, supervisor, onAdvan
     if (taskId == null) return;
     setLoadFailed(false);
     const historyOf = supervisor ? supervisorGetTaskHistory : getTaskHistory;
-    Promise.all([historyOf(taskId), getTaskComments(taskId), getTaskAttachments(taskId)])
+    Promise.all([historyOf(taskId), getTaskComments(taskId, supervisor), getTaskAttachments(taskId, supervisor)])
       .then(([h, c, f]) => { setHistory(h); setComments(c); setFiles(f); })
       .catch(() => setLoadFailed(true));
   }, [taskId, supervisor]);
@@ -100,7 +100,7 @@ export function TaskWindow({ open, onOpenChange, task, lang, supervisor, onAdvan
     setPosting(true);
     setCommentFailed(false);
     try {
-      const added = await addTaskComment(task.id, body);
+      const added = await addTaskComment(task.id, body, supervisor);
       setComments(prev => [...(prev ?? []), added]);
       setDraft('');
       onChanged();
@@ -125,7 +125,7 @@ export function TaskWindow({ open, onOpenChange, task, lang, supervisor, onAdvan
     }
     setUploading(file.name);
     try {
-      const added = await uploadTaskAttachment(task.id, file);
+      const added = await uploadTaskAttachment(task.id, file, supervisor);
       setFiles(prev => [...(prev ?? []), added]);
       onChanged();
     } catch {
@@ -137,7 +137,7 @@ export function TaskWindow({ open, onOpenChange, task, lang, supervisor, onAdvan
 
   const removeFile = async (att: TaskAttachment) => {
     try {
-      await deleteTaskAttachment(task.id, att.id);
+      await deleteTaskAttachment(task.id, att.id, supervisor);
       setFiles(prev => (prev ?? []).filter(f => f.id !== att.id));
       onChanged();
     } catch {
@@ -253,7 +253,7 @@ export function TaskWindow({ open, onOpenChange, task, lang, supervisor, onAdvan
                       onClick={() => setViewer(i)}
                       className={cn('block border border-[#DBD0BB] hover:border-[#F97316] transition-colors overflow-hidden aspect-[4/3]', FOCUS_RING)}
                     >
-                      <AuthImage src={taskAttachmentUrl(task.id, att.id)} alt={att.fileName} className="w-full h-full object-cover" />
+                      <AuthImage src={taskAttachmentUrl(task.id, att.id, supervisor)} alt={att.fileName} className="w-full h-full object-cover" />
                     </button>
                   ))}
                 </div>
@@ -268,7 +268,7 @@ export function TaskWindow({ open, onOpenChange, task, lang, supervisor, onAdvan
                         {att.uploadedByName} · {stampShort(att.createdAt, lang)} · {formatFileSize(att.sizeBytes)}
                       </Mono>
                       <a
-                        href={taskAttachmentUrl(task.id, att.id)}
+                        href={taskAttachmentUrl(task.id, att.id, supervisor)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className={cn('font-bt-mono text-[9px] uppercase tracking-[0.1em] text-[#5A5346] hover:text-[#C2410C] flex-shrink-0', FOCUS_RING)}
@@ -410,7 +410,7 @@ export function TaskWindow({ open, onOpenChange, task, lang, supervisor, onAdvan
         <Lightbox
           images={images.map(att => ({
             id: att.id,
-            url: taskAttachmentUrl(task.id, att.id),
+            url: taskAttachmentUrl(task.id, att.id, supervisor),
             alt: att.fileName,
             downloadName: att.fileName,
             caption: task.title,

@@ -265,5 +265,8 @@
   "review.types.per-diem.short": "Viáticos",
   "review.types.minor-purchases.short": "Compras men.",
   "review.types.transportation.short": "Transporte",
-  "review.types.other.short": "Otro"
+  "review.types.other.short": "Otro",
+  "review.batch.resultTitle": "Resultado de la aprobación",
+  "review.batch.notApproved": "Estos gastos siguen pendientes:",
+  "review.batch.selfApprovalForbidden": "Un supervisor no puede aprobar su propio gasto."
 }

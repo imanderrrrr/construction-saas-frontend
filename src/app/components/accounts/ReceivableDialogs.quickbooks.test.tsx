@@ -22,12 +22,13 @@ vi.mock('../../services/finance', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../services/finance')>()),
   recordReceivablePayment: vi.fn(),
   getReceivable: vi.fn(),
+  updateReceivableInfo: vi.fn(),
 }));
 
 import { toast } from 'sonner';
-import { CollectDialog } from './ReceivableDialogs';
+import { CollectDialog, EditInfoDialog } from './ReceivableDialogs';
 import { ApiError } from '../../lib/api';
-import { getReceivable, recordReceivablePayment } from '../../services/finance';
+import { getReceivable, recordReceivablePayment, updateReceivableInfo } from '../../services/finance';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -106,4 +107,36 @@ describe('«Cobrar», refused because the document is in QuickBooks now', () => 
     expect(onCollected).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
   });
+});
+
+
+it('a lost collection response retries its stable intention, without treating conflict as success', async () => {
+  vi.mocked(recordReceivablePayment).mockRejectedValueOnce(new Error('Response lost'))
+    .mockRejectedValueOnce(new ApiError(409, 'Different payload', undefined, 'PAYMENT_REQUEST_CONFLICT'));
+  const onCollected = vi.fn(); const onClose = vi.fn();
+  await render(<CollectDialog doc={DOC} onClose={onClose} onCollected={onCollected} clientOverdue={0} />);
+  await clickLabel('finance:receivable.collect.confirm'); await clickLabel('finance:receivable.collect.confirm');
+  const calls = vi.mocked(recordReceivablePayment).mock.calls;
+  expect(calls[0][1].requestKey).toMatch(/^[0-9a-f-]{36}$/);
+  expect(calls[1][1].requestKey).toBe(calls[0][1].requestKey);
+  expect(onCollected).not.toHaveBeenCalled(); expect(onClose).not.toHaveBeenCalled();
+});
+it('reopening the same receivable resets the amount and reference to the current balance', async () => {
+  const props={onClose:() => {},onCollected:() => {},clientOverdue:0};
+ await render(<CollectDialog {...props} doc={DOC} />);
+ const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')!.set!;
+ const amount=document.querySelector<HTMLInputElement>('#ar-collect-amount')!,reference=document.querySelector<HTMLInputElement>('#ar-collect-ref')!;
+ await act(async () => {setter.call(amount,'5');amount.dispatchEvent(new Event('input',{bubbles:true}));setter.call(reference,'stale ref');reference.dispatchEvent(new Event('input',{bubbles:true}));});
+ await act(async () => root.render(<CollectDialog {...props} doc={null} />));
+ await act(async () => root.render(<CollectDialog {...props} doc={{...DOC,paidAmount:200}} />));
+ expect(document.querySelector<HTMLInputElement>('#ar-collect-amount')!.value).toBe('100.00');expect(document.querySelector<HTMLInputElement>('#ar-collect-ref')!.value).toBe('');
+});
+it('clearing notes and description sends empty strings instead of ignored nulls', async () => {
+ vi.mocked(updateReceivableInfo).mockResolvedValue(DOC);
+ await render(<EditInfoDialog doc={{...DOC,notes:'Old note',description:'Old description'}} onClose={() => {}} onSaved={() => {}} />);
+ await act(async () => {
+  const note=document.querySelector<HTMLTextAreaElement>('#ar-edit-notes')!;Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value')!.set!.call(note,'');note.dispatchEvent(new Event('input',{bubbles:true}));
+  const desc=document.querySelector<HTMLInputElement>('#ar-edit-desc')!;Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')!.set!.call(desc,'');desc.dispatchEvent(new Event('input',{bubbles:true}));
+ });
+ await clickLabel('common:buttons.save');expect(updateReceivableInfo).toHaveBeenCalledWith(7,{description:'',notes:''});
 });

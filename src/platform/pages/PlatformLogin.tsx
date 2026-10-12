@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import QRCode from 'qrcode';
+import { loadQrCode } from '../../app/lib/qr';
 import { Lock, ShieldCheck } from 'lucide-react';
 import { AnimatePresence, motion, MotionConfig } from 'motion/react';
 
@@ -68,7 +68,8 @@ export function PlatformLogin() {
       return;
     }
     let cancelled = false;
-    QRCode.toDataURL(stage.otpAuthUri, { width: 220, margin: 1 })
+    const uri = stage.otpAuthUri;
+    loadQrCode().then(QRCode => QRCode.toDataURL(uri, { width: 220, margin: 1 }))
       .then(url => { if (!cancelled) setQrDataUrl(url); })
       .catch(() => { if (!cancelled) setQrDataUrl(null); });
     return () => { cancelled = true; };

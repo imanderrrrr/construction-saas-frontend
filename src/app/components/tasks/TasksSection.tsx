@@ -4,11 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, RefreshCw, Search } from 'lucide-react';
 import { cn } from '../ui/utils';
-import { ApiError, api } from '../../lib/api';
+import { ApiError } from '../../lib/api';
+import { drainCatalog } from '../../lib/catalog';
+import { projectCatalog, userCatalog } from '../../services/catalogs';
+import { CatalogNote } from '../workspace/CatalogNote';
 import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 import { useTourScopeWhileMounted } from '../../lib/tourScope';
 import { AuthService } from '../../services/auth';
-import { listUsers, type UserDTO } from '../../services/users';
+import type { UserDTO } from '../../services/users';
 import {
   deleteTask, getSupervisorTask, getSupervisorTasksSummary, getTask, getTasksSummary,
   listSupervisorTasks, listTasks, moveTask, supervisorMoveTask, unassignTask, updateTask,
@@ -44,8 +47,16 @@ import { WeekView } from './WeekView';
  * "already seen this" flag for the tour. Only the menu label changed.
  */
 
-/** The whole list is fetched in one page: the groups have to be complete to be honest. */
-const PAGE_SIZE = 100;
+/**
+ * The whole list is fetched — every page of it — because the groups have to be
+ * complete to be honest. One page of 100 used to be taken for all of it, and
+ * since the server puts the undated tasks last, past 100 tasks the "no dates"
+ * group was the one that silently lost rows (AUD-055). The walk stops at this
+ * bound and then says so, with the real total.
+ */
+const TASK_SAFETY_ROWS = 2000;
+/** Past this many projects the filter is a select: a wall of chips is no filter. */
+const PROJECT_CHIPS_MAX = 20;
 const FLASH_MS = 2200;
 /** Below this the week's seven day-columns cannot be drawn without lying. */
 const WEEK_MIN_WIDTH = 1200;
@@ -69,14 +80,19 @@ export function TasksSection({ supervisor = false }: { supervisor?: boolean } = 
   useTourScopeWhileMounted(view === 'week' ? 'schedules-semana' : null, t('tasks:week.title'));
 
   const [tasks, setTasks] = useState<TaskResponse[]>([]);
+  const [taskTotal, setTaskTotal] = useState(0);
+  const [tasksTruncated, setTasksTruncated] = useState(false);
   const [state, setState] = useState<ListState>('loading');
+  const taskRequest = useRef(0);
   const [reloadNonce, setReloadNonce] = useState(0);
 
   const [summary, setSummary] = useState<TaskSummary | null>(null);
   const [summaryFailed, setSummaryFailed] = useState(false);
 
   const [projects, setProjects] = useState<ProjectOption[]>([]);
+  const [projectsTotal, setProjectsTotal] = useState({ total: 0, truncated: false });
   const [users, setUsers] = useState<UserDTO[]>([]);
+  const [usersTotal, setUsersTotal] = useState({ total: 0, truncated: false });
 
   // Filters
   const [projectId, setProjectId] = useProjectFilter<number | ''>('', true);
@@ -155,6 +171,9 @@ export function TasksSection({ supervisor = false }: { supervisor?: boolean } = 
   }, [search, debouncedSearch]);
 
   const fetchTasks = useCallback(async () => {
+    // Filters can change while the pages are still coming: only the newest
+    // walk may write the list.
+    const mine = ++taskRequest.current;
     setState('loading');
     setPinned({});
     try {
@@ -165,13 +184,17 @@ export function TasksSection({ supervisor = false }: { supervisor?: boolean } = 
         status: status || undefined,
         openOnly: !showClosed || undefined,
         search: debouncedSearch || undefined,
-        size: PAGE_SIZE,
       };
-      const page = supervisor ? await listSupervisorTasks(query) : await listTasks(query);
-      setTasks(page.content);
+      const list = supervisor ? listSupervisorTasks : listTasks;
+      const all = await drainCatalog((page, size) => list({ ...query, page, size }), TASK_SAFETY_ROWS);
+      if (mine !== taskRequest.current) return;
+      setTasks(all.items);
+      setTaskTotal(all.total);
+      setTasksTruncated(all.truncated);
       const hasFilters = !!(projectId || assigneeId || status || debouncedSearch);
-      setState(page.content.length === 0 ? (hasFilters ? 'noMatch' : 'empty') : 'data');
+      setState(all.items.length === 0 ? (hasFilters ? 'noMatch' : 'empty') : 'data');
     } catch (err) {
+      if (mine !== taskRequest.current) return;
       setState(err instanceof ApiError && err.status === 403 ? 'forbidden' : 'error');
     }
   }, [projectId, assigneeId, status, showClosed, debouncedSearch, supervisor, reloadNonce]); // eslint-disable-line react-hooks/exhaustive-deps -- reloadNonce forces a refetch with unchanged filters
@@ -189,14 +212,26 @@ export function TasksSection({ supervisor = false }: { supervisor?: boolean } = 
   // The two lists the filters and the form need. The admin's only: a
   // supervisor neither assigns nor creates, so asking for them would be a
   // pointless call that a 403 would then make look like a failure.
+  // Both are whole catalogs (every page), with every status as before: the
+  // server accepts a task on any project and for any user of the company.
   useEffect(() => {
     if (supervisor) return;
-    api<{ content: ProjectOption[] }>('/api/v1/admin/projects?size=200')
-      .then(p => setProjects(p.content))
+    let cancelled = false;
+    projectCatalog({ role: 'ADMIN' })
+      .then(c => {
+        if (cancelled) return;
+        setProjects(c.items.map(p => ({ id: p.id, name: p.name })));
+        setProjectsTotal({ total: c.total, truncated: c.truncated });
+      })
       .catch(() => { /* the chips degrade to "all projects"; the list still loads */ });
-    listUsers({ size: 200 })
-      .then(u => setUsers(u.content))
+    userCatalog()
+      .then(c => {
+        if (cancelled) return;
+        setUsers(c.items);
+        setUsersTotal({ total: c.total, truncated: c.truncated });
+      })
       .catch(() => { /* the picker degrades to empty and says so */ });
+    return () => { cancelled = true; };
   }, [supervisor]);
 
   useEffect(() => {
@@ -402,7 +437,7 @@ export function TasksSection({ supervisor = false }: { supervisor?: boolean } = 
               <><ScreenProjectFilter role="SUPERVISOR" value={projectId} onChange={value => setProjectId(value ? Number(value) : '')} /><Mono className="text-[9.5px] tracking-[0.08em] text-[#A69C8D]">{t('tasks:filter.supervisorNote')}</Mono></>
             ) : (
               <>
-                <div className="hidden xl:flex items-center gap-[7px] flex-wrap">
+                <div className={cn('hidden items-center gap-[7px] flex-wrap', projects.length <= PROJECT_CHIPS_MAX && 'xl:flex')}>
                   <ProjectChip
                     active={projectId === ''}
                     label={t('tasks:filter.allProjects', { count: projects.length, total: summary?.open ?? 0 })}
@@ -420,7 +455,7 @@ export function TasksSection({ supervisor = false }: { supervisor?: boolean } = 
                 <MonoSelect
                   value={projectId}
                   onChange={e => setProjectId(e.target.value ? Number(e.target.value) : '')}
-                  className="xl:hidden py-1.5"
+                  className={cn('py-1.5', projects.length <= PROJECT_CHIPS_MAX && 'xl:hidden')}
                   aria-label={t('tasks:filter.projects')}
                 >
                   <option value="">{t('tasks:filter.projects')}</option>
@@ -436,6 +471,8 @@ export function TasksSection({ supervisor = false }: { supervisor?: boolean } = 
                   <option value="none">{t('tasks:filter.unassigned')}</option>
                   {users.map(u => <option key={u.id} value={u.id}>{u.fullName ?? u.username}</option>)}
                 </MonoSelect>
+                <CatalogNote shown={projects.length} total={projectsTotal.total} truncated={projectsTotal.truncated} />
+                <CatalogNote shown={users.length} total={usersTotal.total} truncated={usersTotal.truncated} />
               </>
             )}
             <MonoSelect
@@ -476,6 +513,7 @@ export function TasksSection({ supervisor = false }: { supervisor?: boolean } = 
           )}
         </div>
 
+        <CatalogNote shown={tasks.length} total={taskTotal} truncated={tasksTruncated} />
         {view === 'list' ? (
           <TaskList
             state={state}

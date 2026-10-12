@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { usePaymentRequestKey } from './usePaymentRequestKey';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogTitle } from '../ui/dialog';
@@ -39,11 +40,13 @@ export function CollectDialog({ doc, onClose, onCollected, clientOverdue }: {
   const [methodOther, setMethodOther] = useState('');
   const [reference, setReference] = useState('');
   const [busy, setBusy] = useState(false);
+  const paymentRequestKey = usePaymentRequestKey(doc?.id ?? null);
   const [seeded, setSeeded] = useState<number | null>(null);
 
   const balance = doc ? Math.round((doc.amount - doc.paidAmount) * 100) / 100 : 0;
 
   // Seed from the document the first time this one opens, not on every render.
+  if (!doc && seeded !== null) setSeeded(null);
   if (doc && seeded !== doc.id) {
     setSeeded(doc.id);
     setAmount(balance.toFixed(2));
@@ -72,7 +75,7 @@ export function CollectDialog({ doc, onClose, onCollected, clientOverdue }: {
     setBusy(true);
     try {
       const updated = await recordReceivablePayment(doc.id, {
-        amount: entered, date, method: resolved, reference: reference.trim() || undefined,
+        amount: entered, date, method: resolved, reference: reference.trim() || undefined, requestKey: paymentRequestKey(),
       });
       toast.success(t('finance:receivable.collect.done', { amount: fmtMoney(entered), invoice: doc.invoiceNumber }));
       onCollected(updated);
@@ -249,6 +252,7 @@ export function EditInfoDialog({ doc, onClose, onSaved }: {
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
 
+  if (!doc && seeded !== null) setSeeded(null);
   if (doc && seeded !== doc.id) {
     setSeeded(doc.id);
     setNumber(doc.invoiceNumber);
@@ -265,7 +269,7 @@ export function EditInfoDialog({ doc, onClose, onSaved }: {
     if (!doc) return;
     const n = number.trim();
     const c = client.trim();
-    if (!n || !c) {
+    if (!n || !c || !issuedDate || !dueDate) {
       toast.error(t('finance:receivable.edit.requiredFields'));
       return;
     }
@@ -278,9 +282,9 @@ export function EditInfoDialog({ doc, onClose, onSaved }: {
     if (n !== doc.invoiceNumber) payload.invoiceNumber = n;
     if (c !== doc.client) payload.client = c;
     const d = description.trim();
-    if (d !== (doc.description ?? '')) payload.description = d || null;
+    if (d !== (doc.description ?? '')) payload.description = d;
     const no = notes.trim();
-    if (no !== (doc.notes ?? '')) payload.notes = no || null;
+    if (no !== (doc.notes ?? '')) payload.notes = no;
     if (issuedDate !== doc.issuedDate) payload.issuedDate = issuedDate;
     if (dueDate !== doc.dueDate) payload.dueDate = dueDate;
     if (Object.keys(payload).length === 0) { onClose(); return; }

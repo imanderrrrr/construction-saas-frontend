@@ -4,6 +4,7 @@ import { Loader2, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
 import { BtModal } from '../bt/windows';
 import { PrimaryButton, SecondaryButton } from '../onboarding/chrome';
 import { Mono } from '../projects/bt';
+import { apiBlob } from '../../lib/api';
 import { fmtUSD } from '../projects/helpers';
 import type { ExpenseResponse } from '../../services/expenses';
 
@@ -23,6 +24,8 @@ const STEP = 0.25;
 export function ReceiptViewer({ expense, onClose }: { expense: ExpenseResponse; onClose: () => void }) {
   const { t } = useTranslation(['admin', 'common']);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [contentType, setContentType] = useState('');
+  const [imageFailed, setImageFailed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [nonce, setNonce] = useState(0);
@@ -33,18 +36,19 @@ export function ReceiptViewer({ expense, onClose }: { expense: ExpenseResponse; 
   const dragStart = useRef({ x: 0, y: 0 });
   const translateStart = useRef({ x: 0, y: 0 });
 
-  const url = expense.receiptUrl;
+  const [revision, setRevision] = useState('current');
+  const url = revision === 'current' ? expense.receiptUrl : expense.receiptRevisions?.[Number(revision)];
 
   useEffect(() => {
     if (!url) return;
     let revoke: string | null = null;
     let cancelled = false;
-    setLoading(true); setError(null); setBlobUrl(null); setScale(1); setTranslate({ x: 0, y: 0 });
-    fetch(url, { credentials: 'include' })
-      .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.blob(); })
+    setLoading(true); setError(null); setContentType(''); setImageFailed(false); setBlobUrl(null); setScale(1); setTranslate({ x: 0, y: 0 });
+    apiBlob(url)
       .then(blob => {
         if (cancelled) return;
         revoke = URL.createObjectURL(blob);
+        setContentType(blob.type.toLowerCase());
         setBlobUrl(revoke);
       })
       .catch((err: unknown) => { if (!cancelled) setError(err instanceof Error ? err.message : 'ERROR'); })
@@ -97,6 +101,10 @@ export function ReceiptViewer({ expense, onClose }: { expense: ExpenseResponse; 
         )
       }
     >
+      {!!expense.receiptRevisions?.length && <select aria-label={t('expenses.receipt.history')} value={revision} onChange={e => setRevision(e.target.value)} className="mb-3 w-full border p-2">
+        <option value="current">{t('expenses.receipt.current')}</option>
+        {expense.receiptRevisions.map((_, i) => <option key={i} value={String(i)}>{t('expenses.receipt.revision', {number:i+1})}</option>)}
+      </select>}
       {error ? (
         <div className="py-8 text-center">
           <p className="font-bt-display font-extrabold uppercase text-[24px] leading-none text-[#0A0A0A]">
@@ -125,10 +133,14 @@ export function ReceiptViewer({ expense, onClose }: { expense: ExpenseResponse; 
               <Loader2 className="w-5 h-5 text-[#8A8175] animate-spin" />
             </span>
           )}
-          {blobUrl && (
+          {blobUrl && (imageFailed || (contentType !== 'application/pdf' && !/^image\/(jpeg|png|webp|gif)$/.test(contentType))) && <p className="p-6 text-white">{t('expenses.receipt.unsupported')}</p>}
+          {blobUrl && <a href={blobUrl} download target="_blank" rel="noreferrer" className="absolute bottom-2 left-2 z-10 bg-white p-2">{t('common:buttons.download')}</a>}
+          {blobUrl && contentType === 'application/pdf' && <iframe src={blobUrl} title={t('expenses.receipt.view')} className="w-full h-full" />}
+          {blobUrl && !imageFailed && /^image\/(jpeg|png|webp|gif)$/.test(contentType) && (
             <img
               src={blobUrl}
               alt={t('expenses.receipt.view')}
+              onError={() => setImageFailed(true)}
               draggable={false}
               className="absolute left-1/2 top-1/2 max-w-none select-none"
               style={{ transform: `translate(-50%, -50%) translate(${translate.x}px, ${translate.y}px) scale(${scale})` }}

@@ -10,7 +10,10 @@ import { Button } from './ui/button';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from './ui/select';
-import { getGlobalToolHistory, listTools } from '../services/warehouse';
+import { getGlobalToolHistory } from '../services/warehouse';
+import { toolCatalog, userCatalog } from '../services/catalogs';
+import type { Catalog } from '../lib/catalog';
+import { CatalogNote } from './workspace/CatalogNote';
 
 // Types
 
@@ -104,6 +107,8 @@ function Pagination({ current, total, onPage }: { current: number; total: number
   );
 }
 
+const NO_OPTIONS = { items: [], total: 0, truncated: false };
+
 // Main component
 
 export function ToolHistory() {
@@ -125,20 +130,31 @@ export function ToolHistory() {
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [totalElements, setTotalElements] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [toolOptions, setToolOptions] = useState<{code:string;name:string}[]>([]);
-  const [workers, setWorkers] = useState<string[]>([]);
+  const [toolOptions, setToolOptions] = useState<Catalog<{ code: string; name: string }>>(NO_OPTIONS);
+  const [workers, setWorkers] = useState<Catalog<{ username: string; label: string }>>(NO_OPTIONS);
 
-  // Load tool options and workers on mount
+  // The filter options are whole catalogs (AUD-055). They used to be the first
+  // 100 tools, and the "Person" list was whoever HOLDS one of those 100 today —
+  // so the history of someone who had returned everything (someone who left)
+  // could not be filtered, and the value sent was the display name while the
+  // server matches the username, which made the filter silently match nobody
+  // and return everything. Every tool, whatever its state now, and every
+  // worker, active or not: both still have a history. The value is the username.
   useEffect(() => {
-    listTools({ size: 200 }).then(res => {
-      setToolOptions(res.content.map((t: any) => ({ code: t.code, name: t.name })));
-      const uniqueWorkers = [...new Set(res.content.filter((t: any) => t.assignedTo).map((t: any) => t.assignedTo!))];
-      setWorkers(uniqueWorkers as string[]);
-    }).catch(err => toast.error(err?.message));
+    let cancelled = false;
+    toolCatalog()
+      .then(c => { if (!cancelled) setToolOptions({ ...c, items: c.items.map(tool => ({ code: tool.code, name: tool.name })) }); })
+      .catch(err => toast.error(err?.message));
+    userCatalog({ role: 'WORKER' })
+      .then(c => { if (!cancelled) setWorkers({ ...c, items: c.items.map(u => ({ username: u.username, label: u.fullName ?? u.username })) }); })
+      .catch(err => toast.error(err?.message));
+    return () => { cancelled = true; };
   }, []);
 
-  // Fetch history when applied filters or page change
+  // Fetch history when applied filters or page change; a late answer for
+  // filters or a page already left is dropped.
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
     const params: any = { page: currentPage - 1, size: ITEMS_PER_PAGE };
     if (appliedTool !== 'all') params.toolCode = appliedTool;
@@ -148,6 +164,7 @@ export function ToolHistory() {
     if (appliedTo) params.dateTo = appliedTo;
     getGlobalToolHistory(params)
       .then(res => {
+        if (cancelled) return;
         setEntries(res.content.map(e => ({
           id: String(e.id), date: e.date, time: e.time,
           action: (e.action ?? 'Registered') as HistoryAction,
@@ -157,8 +174,9 @@ export function ToolHistory() {
         })));
         setTotalElements(res.totalElements);
       })
-      .catch(err => toast.error(err?.message))
-      .finally(() => setLoading(false));
+      .catch(err => { if (!cancelled) toast.error(err?.message); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [appliedTool, appliedAction, appliedWorker, appliedFrom, appliedTo, currentPage]);
 
   function handleApply() {
@@ -198,13 +216,14 @@ export function ToolHistory() {
               <SelectTrigger className="rounded-none h-9 border-[#DBD0BB] text-sm"><SelectValue placeholder={t('tools.history.allTools')} /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t('tools.history.allTools')}</SelectItem>
-                {toolOptions.map(t => (
+                {toolOptions.items.map(t => (
                   <SelectItem key={t.code} value={t.code}>
                     <span className="font-bt-mono text-xs mr-1 text-[#8A8175]">{t.code}</span>{t.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            <CatalogNote shown={toolOptions.items.length} total={toolOptions.total} truncated={toolOptions.truncated} />
           </div>
           {/* Action */}
           <div className="flex flex-col gap-1.5 min-w-[155px]">
@@ -224,9 +243,10 @@ export function ToolHistory() {
               <SelectTrigger className="rounded-none h-9 border-[#DBD0BB] text-sm"><SelectValue placeholder={t('tools.history.allWorkers')} /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t('tools.history.allWorkers')}</SelectItem>
-                {workers.map(w => <SelectItem key={w} value={w}>{w}</SelectItem>)}
+                {workers.items.map(w => <SelectItem key={w.username} value={w.username}>{w.label}</SelectItem>)}
               </SelectContent>
             </Select>
+            <CatalogNote shown={workers.items.length} total={workers.total} truncated={workers.truncated} />
           </div>
           {/* Date range */}
           <div className="flex flex-col gap-1.5">

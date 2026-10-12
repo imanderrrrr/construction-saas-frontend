@@ -1,10 +1,11 @@
 import { useScreenState } from '../../workspace/WorkspaceState';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 import { cn } from '../ui/utils';
 import { businessToday } from '../../helpers/dateTime';
 import {
-  getSubcontractorsSummary,
+  getInvoice, getSubcontractorsSummary,
   type JobStatus, type SubcontractorDirectoryRow, type SubcontractorInvoiceDTO,
   type SubcontractorJobDTO, type SubcontractorsSummary,
 } from '../../services/subcontractors';
@@ -98,7 +99,15 @@ export function SubcontractorsSection({ onNavigate }: { onNavigate?: (section: s
     loadSummary();
   };
 
+  const openPayment = async (invoice: SubcontractorInvoiceDTO) => {
+    try { setPayInvoice(await getInvoice(invoice.id)); }
+    catch (error) { toast.error(error instanceof Error ? error.message : t('common:error.load')); }
+  };
+  const [invoiceRevision, setInvoiceRevision] = useState(0);
   const handleInvoiceChanged = (updated: SubcontractorInvoiceDTO) => {
+    setInvoiceRevision(v => v + 1);
+    setReviewInvoice(prev => prev?.id === updated.id ? updated : prev);
+    setPayInvoice(prev => prev?.id === updated.id ? updated : prev);
     setFlashInvoiceId(updated.id);
     loadSummary();
   };
@@ -117,6 +126,7 @@ export function SubcontractorsSection({ onNavigate }: { onNavigate?: (section: s
       <>
         <JobFicha
           job={job}
+          invoiceRevision={invoiceRevision}
           onBack={() => setJob(null)}
           onChangeStatus={preset => { setStatusPreset(preset); setStatusJob(job); }}
           onJobChanged={handleJobChanged}
@@ -135,7 +145,7 @@ export function SubcontractorsSection({ onNavigate }: { onNavigate?: (section: s
           invoice={reviewInvoice}
           agreedAmountCents={job.agreedAmountCents}
           onReviewed={handleInvoiceChanged}
-          onPay={setPayInvoice}
+          onPay={openPayment}
         />
         <RegisterPaymentModal
           open={payInvoice != null}
@@ -232,7 +242,7 @@ export function SubcontractorsSection({ onNavigate }: { onNavigate?: (section: s
             summaryState={summaryState}
             refData={refData}
             onReview={setReviewInvoice}
-            onPay={setPayInvoice}
+            onPay={openPayment}
             flashInvoiceId={flashInvoiceId}
           />
         )}
@@ -251,7 +261,7 @@ export function SubcontractorsSection({ onNavigate }: { onNavigate?: (section: s
         onOpenChange={open => { if (!open) setReviewInvoice(null); }}
         invoice={reviewInvoice}
         onReviewed={handleInvoiceChanged}
-        onPay={setPayInvoice}
+        onPay={openPayment}
       />
       <RegisterPaymentModal
         open={payInvoice != null}

@@ -34,3 +34,10 @@ jobs:
 
       - name: Build production bundle
         run: npm run build
+
+      # AUD-019: the JavaScript of the landing's first anonymous view (entry,
+      # its static imports, the landing chunk and its translations, per
+      # language) stays within 400 000 bytes gzip, and carries no dashboard,
+      # platform console, PDF/QR library or admin/other-language translations.
+      - name: Bundle budget (landing first view)
+        run: npm run budget

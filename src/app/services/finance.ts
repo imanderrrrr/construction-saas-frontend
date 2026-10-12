@@ -493,6 +493,7 @@ export function recordReceivablePayment(id: number, data: {
   date: string;
   method: string;
   reference?: string;
+  requestKey?: string;
 }): Promise<Receivable> {
   return api<Receivable>(`${RECEIVABLES}/${id}/payments`, {
     method: 'POST',

@@ -14,7 +14,6 @@ import { resetPassword, type UserDTO } from '../../services/users';
 import { loadInvoiceIssuer } from '../../services/invoiceBranding';
 import { getStoredTenantSlug } from '../../lib/api';
 import { businessToday, fmtDate } from '../../helpers/dateTime';
-import { credentialPdfLabels, downloadCredentialPdf } from '../../helpers/exportCredentialPdf';
 import { cn } from '../ui/utils';
 import { PrimaryButton, SecondaryButton } from '../onboarding/chrome';
 import { Mono, PaperNote } from '../projects/bt';
@@ -70,7 +69,10 @@ export function ResetPasswordModal({ open, onOpenChange, user, onReset }: {
   const download = async () => {
     setPdfError(false);
     try {
-      const issuer = await loadInvoiceIssuer();
+      // The PDF library is fetched now, not with the users screen (AUD-019).
+      const [issuer, { credentialPdfLabels, downloadCredentialPdf }] = await Promise.all([
+        loadInvoiceIssuer(), import('../../helpers/exportCredentialPdf'),
+      ]);
       const slug = getStoredTenantSlug();
       downloadCredentialPdf(
         {

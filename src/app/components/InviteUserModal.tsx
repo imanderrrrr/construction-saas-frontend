@@ -8,7 +8,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import QRCode from 'qrcode';
+import { loadQrCode } from '../lib/qr';
 import { AlertCircle, Copy, Check, X, Loader2 } from 'lucide-react';
 
 import { Button } from './ui/button';
@@ -71,9 +71,10 @@ export function InviteUserModal({
 
   // Render the QR onto the canvas once we have a token.
   useEffect(() => {
-    if (!generated || !qrCanvasRef.current) return;
+    const canvas = qrCanvasRef.current;
+    if (!generated || !canvas) return;
     const url = buildAcceptUrl(generated.token);
-    QRCode.toCanvas(qrCanvasRef.current, url, { width: 256, margin: 2 })
+    loadQrCode().then(QRCode => QRCode.toCanvas(canvas, url, { width: 256, margin: 2 }))
       .catch(() => setError(t('invite.modal.error')));
   }, [generated, t]);
 

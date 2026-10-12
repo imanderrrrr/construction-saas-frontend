@@ -5,7 +5,9 @@ import { ChevronLeft, ChevronRight, Plus, RefreshCw, Search, X } from 'lucide-re
 import { cn } from '../ui/utils';
 import { ApiError } from '../../lib/api';
 import { FIELD_LIMITS } from '../../../shared/fieldLimits';
-import { listUsers, type UserDTO } from '../../services/users';
+import type { UserDTO } from '../../services/users';
+import { userCatalog } from '../../services/catalogs';
+import { CatalogNote } from '../workspace/CatalogNote';
 import {
   getAdminTools, getAdminToolSummary, listTools, getToolSummary, getConsumableSummary, searchConsumables,
   type ConsumableResponse, type ConsumableSummary, type StockLight,
@@ -68,6 +70,7 @@ export function ToolsSection({ onNavigate, mode = 'admin', view }: {
   const [status, setStatus] = useScreenState('estado', '');
   const [worker, setWorker] = useState<UserDTO | null>(null);
   const [workers, setWorkers] = useState<UserDTO[]>([]);
+  const [workersCatalog, setWorkersCatalog] = useState({ total: 0, truncated: false });
   const [keepers, setKeepers] = useState<UserDTO[]>([]);
 
   // Consumables
@@ -106,7 +109,14 @@ export function ToolsSection({ onNavigate, mode = 'admin', view }: {
     return () => { if (searchTimer.current) clearTimeout(searchTimer.current); };
   }, [search, debouncedSearch]);
 
+  // Only the newest request of each list may write it: a slow answer for the
+  // filters or page the user has already left would otherwise replace the
+  // list on screen.
+  const toolsRequest = useRef(0);
+  const consumablesRequest = useRef(0);
+
   const fetchTools = useCallback(async () => {
+    const mine = ++toolsRequest.current;
     setToolsState('loading');
     try {
       const page = await (mode === 'warehouse' ? listTools : getAdminTools)({
@@ -117,17 +127,20 @@ export function ToolsSection({ onNavigate, mode = 'admin', view }: {
         page: toolsPage,
         size: pageSize,
       });
+      if (mine !== toolsRequest.current) return;
       setTools(page.content);
       setToolsTotal(page.totalElements);
       setToolsPages(page.totalPages);
       const filtered = !!(debouncedSearch || category || status || worker);
       setToolsState(page.content.length === 0 ? (filtered ? 'noMatch' : 'empty') : 'data');
     } catch (err) {
+      if (mine !== toolsRequest.current) return;
       setToolsState(err instanceof ApiError && err.status === 403 ? 'forbidden' : 'error');
     }
   }, [status, category, debouncedSearch, worker, toolsPage, pageSize, reloadNonce, mode]); // eslint-disable-line react-hooks/exhaustive-deps -- reloadNonce forces a refetch with unchanged filters
 
   const fetchConsumables = useCallback(async () => {
+    const mine = ++consumablesRequest.current;
     setConsumablesState('loading');
     try {
       const page = await searchConsumables({
@@ -137,12 +150,14 @@ export function ToolsSection({ onNavigate, mode = 'admin', view }: {
         page: consumablesPage,
         size: pageSize,
       });
+      if (mine !== consumablesRequest.current) return;
       setConsumables(page.content);
       setConsumablesTotal(page.totalElements);
       setConsumablesPages(page.totalPages);
       const filtered = !!(debouncedSearch || unit || light);
       setConsumablesState(page.content.length === 0 ? (filtered ? 'noMatch' : 'empty') : 'data');
     } catch (err) {
+      if (mine !== consumablesRequest.current) return;
       setConsumablesState(err instanceof ApiError && err.status === 403 ? 'forbidden' : 'error');
     }
   }, [debouncedSearch, unit, light, consumablesPage, pageSize, reloadNonce]); // eslint-disable-line react-hooks/exhaustive-deps -- reloadNonce forces a refetch with unchanged filters
@@ -159,14 +174,18 @@ export function ToolsSection({ onNavigate, mode = 'admin', view }: {
   useEffect(() => { fetchSummaries(); }, [fetchSummaries]);
 
   // Workers, for the filter of the day somebody leaves the company; and the
-  // warehouse users, who are the answer to "then who returns it".
+  // warehouse users, who are the answer to "then who returns it". Both are
+  // every page of the list (AUD-055): one page of 100 workers hid the rest
+  // from the filter without a word.
   useEffect(() => {
-    listUsers({ role: 'WORKER', size: 200 })
-      .then(page => setWorkers(page.content))
+    let cancelled = false;
+    userCatalog({ role: 'WORKER' })
+      .then(c => { if (!cancelled) { setWorkers(c.items); setWorkersCatalog({ total: c.total, truncated: c.truncated }); } })
       .catch(() => { /* the filter degrades to absent; the list still loads */ });
-    listUsers({ role: 'WAREHOUSE', size: 20 })
-      .then(page => setKeepers(page.content))
+    userCatalog({ role: 'WAREHOUSE' })
+      .then(c => { if (!cancelled) setKeepers(c.items); })
       .catch(() => { /* the blocked windows fall back to "no warehouse user" */ });
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -358,6 +377,7 @@ export function ToolsSection({ onNavigate, mode = 'admin', view }: {
                     {workers.map(w => <option key={w.id} value={w.id}>{w.fullName ?? w.username}</option>)}
                   </MonoSelect>
                 )}
+                <CatalogNote shown={workers.length} total={workersCatalog.total} truncated={workersCatalog.truncated} />
               </>
             ) : (
               <>

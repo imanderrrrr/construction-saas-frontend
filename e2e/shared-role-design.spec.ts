@@ -87,6 +87,7 @@ test.describe('Shared administrator design in web roles', () => {
     await warehouseData(page);
     let supply = { id: 2, code: 'CS-002', name: 'Cemento', category: 'General', unit: 'sacos', currentStock: 40, minimumStock: 10, status: 'In Stock', lastRestocked: null, notes: '' };
     const updates: Record<string, unknown>[] = [];
+    const restocks: Record<string, unknown>[] = [];
     await page.route('**/api/v1/warehouse/consumables/search?*', route => json(paged([supply]))(route));
     await page.route('**/api/v1/warehouse/consumables/2/dispatches', json([{ id: 1, project: 'Escuela Central', requestedBy: 'Ana López', date: '2026-10-01', quantity: 5, unit: 'sacos', notes: 'Colado de columnas' }]));
     await page.route('**/api/v1/warehouse/consumables/2', route => {
@@ -95,13 +96,23 @@ test.describe('Shared administrator design in web roles', () => {
       supply = { ...supply, ...update };
       return json(supply)(route);
     });
+    // AUD-049: a restock adds a quantity under an intention key; the server applies it.
+    await page.route('**/api/v1/warehouse/consumables/2/restock', route => {
+      const restock = route.request().postDataJSON();
+      restocks.push(restock);
+      supply = { ...supply, currentStock: supply.currentStock + Number(restock.quantity) };
+      return json(supply)(route);
+    });
     await page.goto('/warehouse/materiales');
     await page.getByTestId('consumable-row-2').click();
     const window = page.getByRole('dialog');
     await expect(window).toContainText('Colado de columnas');
     await window.getByRole('spinbutton', { name: 'Quantity to add', exact: true }).fill('20');
     await window.getByRole('button', { name: 'Restock', exact: true }).click();
-    await expect.poll(() => updates[0]).toEqual({ currentStock: 60 });
+    await expect.poll(() => restocks[0]).toMatchObject({ quantity: 20 });
+    expect(String(restocks[0].requestKey ?? '')).not.toBe('');
+    expect(restocks[0]).not.toHaveProperty('currentStock');
+    expect(updates).toEqual([]);
     await expect(window).toContainText('Current stock: 60 sacos');
     await window.getByRole('button', { name: 'Edit Item', exact: true }).click();
     const edit = page.getByRole('dialog', { name: 'Edit CS-002' });
@@ -109,8 +120,8 @@ test.describe('Shared administrator design in web roles', () => {
     await edit.locator('#cs-name').fill('Cemento Portland');
     await edit.locator('#cs-notes').fill('Almacén principal');
     await edit.getByRole('button', { name: 'Save Changes', exact: true }).click();
-    await expect.poll(() => updates[1]).toMatchObject({ name: 'Cemento Portland', notes: 'Almacén principal' });
-    expect(updates[1]).not.toHaveProperty('currentStock');
+    await expect.poll(() => updates[0]).toMatchObject({ name: 'Cemento Portland', notes: 'Almacén principal' });
+    expect(updates[0]).not.toHaveProperty('currentStock');
     await expect(page.getByTestId('consumable-row-2')).toContainText('Cemento Portland');
   });
 
@@ -119,17 +130,22 @@ test.describe('Shared administrator design in web roles', () => {
     await installHermeticBase(page, { role: 'SUPERVISOR', username: 'tester' });
     await page.route('**/api/v1/supervisor/dashboard/projects', json(projects));
     await page.route('**/api/v1/admin/users?*', json(paged([])));
-    const expense = { id: 1, workerId: 7, workerName: 'Ana López', workerUsername: 'ana', projectId: 13, projectName: 'Escuela Central', expenseType: 'MATERIALS', amountCents: 10000, expenseDate: '2026-10-01', description: 'Cemento para la escuela', status: 'PENDING', receiptUrl: null, reviewerId: null, reviewerName: null, reviewerComment: null, reviewedAt: null, createdAt: '2026-10-01T12:00:00Z', updatedAt: '2026-10-01T12:00:00Z' };
+    const expense = { id: 1, version: 4, workerId: 7, workerName: 'Ana López', workerUsername: 'ana', projectId: 13, projectName: 'Escuela Central', expenseType: 'MATERIALS', amountCents: 10000, expenseDate: '2026-10-01', description: 'Cemento para la escuela', status: 'PENDING', receiptUrl: null, reviewerId: null, reviewerName: null, reviewerComment: null, reviewedAt: null, createdAt: '2026-10-01T12:00:00Z', updatedAt: '2026-10-01T12:00:00Z' };
     const reviewed: number[] = [];
     await page.route('**/api/v1/supervisor/expenses?*', route => {
       const secondPage = new URL(route.request().url()).searchParams.get('page') === '1';
-      const rows = secondPage ? [{ ...expense, id: 2, amountCents: 20000 }, { ...expense, id: 3, projectId: 14, projectName: 'Other worksite', description: 'Must stay pending' }] : [expense];
+      const rows = secondPage ? [{ ...expense, id: 2, version: 5, amountCents: 20000 }, { ...expense, id: 3, projectId: 14, projectName: 'Other worksite', description: 'Must stay pending' }] : [expense];
       return json(paged(rows.filter(e => !reviewed.includes(e.id)), 2))(route);
     });
     await page.route('**/api/v1/supervisor/expenses/summary', json({ totalSubmitted: 3, pendingCount: 3, pendingCents: 40000, observedCount: 0, rejectedCount: 0, totalApprovedCents: 0 }));
-    await page.route(/\/api\/v1\/supervisor\/expenses\/\d+\/approve$/, route => {
-      reviewed.push(Number(route.request().url().split('/').at(-2)));
-      return json({ ...expense, status: 'APPROVED' })(route);
+    // AUD-013 (phase 1): one request with the frozen set and the versions the
+    // supervisor saw — never a filter the server re-evaluates.
+    const batches: { expenseIds: number[]; expectedVersions: Record<string, number> }[] = [];
+    await page.route('**/api/v1/supervisor/expenses/approve-batch', route => {
+      const batch = route.request().postDataJSON();
+      batches.push(batch);
+      reviewed.push(...batch.expenseIds);
+      return json({ approvedCount: batch.expenseIds.length, skipped: [], approvedIds: batch.expenseIds, approvedAmountCents: 30000 })(route);
     });
     const requests: string[] = [];
     page.on('request', r => requests.push(r.url()));
@@ -142,7 +158,10 @@ test.describe('Shared administrator design in web roles', () => {
     await expect(modal).toBeVisible();
     await modal.getByRole('button', { name: 'Approve the 2', exact: true }).click();
     await expect.poll(() => reviewed.slice().sort()).toEqual([1, 2]);
-    expect(requests.some(url => url.includes('/api/v1/admin/expenses') || url.includes('/api/v1/admin/projects') || url.includes('/approve-batch'))).toBe(false);
+    expect(batches).toHaveLength(1);
+    expect(batches[0].expenseIds.slice().sort()).toEqual([1, 2]);
+    expect(batches[0].expectedVersions).toEqual({ 1: 4, 2: 5 });
+    expect(requests.some(url => url.includes('/api/v1/admin/expenses') || url.includes('/api/v1/admin/projects'))).toBe(false);
     await expect(page.getByRole('dialog')).toContainText('$300.00');
   });
 

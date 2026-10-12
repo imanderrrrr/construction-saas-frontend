@@ -86,6 +86,9 @@ export interface CreateTaskPayload {
 }
 
 export interface UpdateTaskPayload {
+  clearAssignee?: boolean;
+  clearStartDate?: boolean;
+  clearDueDate?: boolean;
   title?: string;
   description?: string;
   priority?: TaskPriority;
@@ -261,12 +264,12 @@ export async function supervisorGetTaskHistory(id: number): Promise<TaskStatusHi
 
 // ── Comments ─────────────────────────────────────────
 
-export async function getTaskComments(taskId: number): Promise<TaskComment[]> {
-  return api<TaskComment[]>(`/api/v1/admin/tasks/${taskId}/comments`);
+export async function getTaskComments(taskId: number, supervisor = false): Promise<TaskComment[]> {
+  return api<TaskComment[]>(`/api/v1/${supervisor ? 'supervisor' : 'admin'}/tasks/${taskId}/comments`);
 }
 
-export async function addTaskComment(taskId: number, body: string): Promise<TaskComment> {
-  return api<TaskComment>(`/api/v1/admin/tasks/${taskId}/comments`, {
+export async function addTaskComment(taskId: number, body: string, supervisor = false): Promise<TaskComment> {
+  return api<TaskComment>(`/api/v1/${supervisor ? 'supervisor' : 'admin'}/tasks/${taskId}/comments`, {
     method: 'POST',
     body: JSON.stringify({ body }),
   });
@@ -275,18 +278,18 @@ export async function addTaskComment(taskId: number, body: string): Promise<Task
 // ── Attachments ──────────────────────────────────────
 // Admin routes — the task-detail modal is admin-side (the Kanban board).
 
-export async function getTaskAttachments(taskId: number): Promise<TaskAttachment[]> {
-  return api<TaskAttachment[]>(`/api/v1/admin/tasks/${taskId}/attachments`);
+export async function getTaskAttachments(taskId: number, supervisor = false): Promise<TaskAttachment[]> {
+  return api<TaskAttachment[]>(`/api/v1/${supervisor ? 'supervisor' : 'admin'}/tasks/${taskId}/attachments`);
 }
 
-export async function uploadTaskAttachment(taskId: number, file: File): Promise<TaskAttachment> {
+export async function uploadTaskAttachment(taskId: number, file: File, supervisor = false): Promise<TaskAttachment> {
   const formData = new FormData();
   formData.append('file', file);
-  return apiMultipart<TaskAttachment>(`/api/v1/admin/tasks/${taskId}/attachments`, 'POST', formData);
+  return apiMultipart<TaskAttachment>(`/api/v1/${supervisor ? 'supervisor' : 'admin'}/tasks/${taskId}/attachments`, 'POST', formData);
 }
 
-export async function deleteTaskAttachment(taskId: number, attId: number): Promise<void> {
-  return api<void>(`/api/v1/admin/tasks/${taskId}/attachments/${attId}`, { method: 'DELETE' });
+export async function deleteTaskAttachment(taskId: number, attId: number, supervisor = false): Promise<void> {
+  return api<void>(`/api/v1/${supervisor ? 'supervisor' : 'admin'}/tasks/${taskId}/attachments/${attId}`, { method: 'DELETE' });
 }
 
 /**
@@ -294,6 +297,6 @@ export async function deleteTaskAttachment(taskId: number, attId: number): Promi
  * fetch (a bare <img src>/<a href> can't reliably carry the session cookie) —
  * see AuthImage and the modal's download/preview helpers.
  */
-export function taskAttachmentUrl(taskId: number, attId: number): string {
-  return `${getBaseUrl()}/api/v1/admin/tasks/${taskId}/attachments/${attId}/download`;
+export function taskAttachmentUrl(taskId: number, attId: number, supervisor = false): string {
+  return `${getBaseUrl()}/api/v1/${supervisor ? 'supervisor' : 'admin'}/tasks/${taskId}/attachments/${attId}/download`;
 }

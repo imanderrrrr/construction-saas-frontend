@@ -1,0 +1,20 @@
+{
+  "shell": ["auth", "common"],
+  "landing": ["common", "landing"],
+  "docs": ["common", "docs", "landing"],
+  "status": ["common", "landing", "status"],
+  "login": ["auth", "common"],
+  "acceptInvite": ["auth", "common"],
+  "forgotPassword": ["auth", "common"],
+  "resetPassword": ["auth", "common"],
+  "pay": ["common", "landing", "pay"],
+  "privacy": ["common"],
+  "terms": ["common"],
+  "support": ["common"],
+  "accessDenied": ["common"],
+  "authHandoff": ["common"],
+  "clientView": ["clientView", "common", "punchList", "rfi"],
+  "sign": ["common", "signatures"],
+  "platform": ["common"],
+  "workspace": "*"
+}

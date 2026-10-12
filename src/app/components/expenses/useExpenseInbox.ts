@@ -112,8 +112,8 @@ export function useExpenseInbox(tab: Tab, filters: Filters, readOnly: boolean, s
         ? ['PENDING', 'OBSERVED']
         : filters.status !== 'all' ? [filters.status] : ['APPROVED', 'OBSERVED', 'REJECTED'];
     const fetcher = readOnly
-      ? () => getFinanceExpenses({ ...scope, page: 0, size: PAGE_SIZE })
-      : (status: string) => getAdminExpenses({ ...scope, status, page: 0, size: PAGE_SIZE });
+      ? (_status: string, page = 0) => getFinanceExpenses({ ...scope, page, size: PAGE_SIZE })
+      : (status: string, page = 0) => getAdminExpenses({ ...scope, status, page, size: PAGE_SIZE });
 
     if (supervisor) {
       // One complete, server-authorized scope supplies both the list and its
@@ -133,7 +133,19 @@ export function useExpenseInbox(tab: Tab, filters: Filters, readOnly: boolean, s
         .finally(() => { if (!cancelled) setLoading(false); });
       return () => { cancelled = true; };
     }
-    Promise.all(statuses.map(fetcher))
+    const fetchComplete = async (status: string) => {
+      const first = await fetcher(status, 0);
+      const content = [...first.content];
+      // A confirmed batch must include exactly the rows whose amounts and
+      // budgets the reviewer sees. Read the remaining pages before preview.
+      if (tab === 'review') {
+        for (let page = 1; page < first.totalPages; page++) {
+          content.push(...(await fetcher(status, page)).content);
+        }
+      }
+      return { ...first, content };
+    };
+    Promise.all(statuses.map(fetchComplete))
       .then(pages => {
         if (cancelled) return;
         // Dos consultas por estado no son atómicas: si alguien aprueba entre

@@ -3,10 +3,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, ArrowRight, ChevronRight, X } from 'lucide-react';
 import { getAdminHoursReport, type AdminHoursReportResponse, type WorkerHoursSummary } from '../../services/time';
-import { listProjects } from '../../services/projects';
 import {
-  GRID_INK, LaborFilters, LaborHeader, LaborSkeleton, Mono, fmtDay, fmtRange,
-  initials, mainProject, money, monthRange, projectedCost, weekRange,
+  GRID_INK, LaborFilters, LaborHeader, LaborSkeleton, Mono, fmtDay, fmtRange, useLaborProjects,
+  initials, mainProject, money, LABOR_RANGES, laborRange, type LaborRange, projectedCost, weekRange,
 } from './shared';
 
 /** Ink → warm greys, so a stacked bar reads as one family, not a rainbow. */
@@ -23,16 +22,19 @@ export function LaborCostScreen({ onNavigate, mode = 'admin' }: { onNavigate: (s
   const { t, i18n } = useTranslation(['admin', 'common']);
   const lang = i18n.language;
 
-  const [range, setRange] = useScreenState<'week' | 'month'>('periodo', 'week', 'replace', ['week', 'month']);
+  const [range, setRange] = useScreenState<LaborRange>('periodo', 'week', 'replace', LABOR_RANGES);
   const [q, setQ] = useScreenState('q', '');
   const [project, setProject] = useProjectFilter<string>('');
   const [data, setData] = useState<AdminHoursReportResponse | null>(null);
-  const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
+  const projectCatalog = useLaborProjects(mode);
+  const projects = projectCatalog.items;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [open, setOpen] = useState<WorkerHoursSummary | null>(null);
 
-  const { from, to } = range === 'week' ? weekRange() : monthRange();
+  const [customFrom, setCustomFrom] = useScreenState('desde', weekRange().from);
+  const [customTo, setCustomTo] = useScreenState('hasta', weekRange().to);
+  const { from, to } = laborRange(range, customFrom, customTo);
 
   const load = useCallback(async () => {
     setLoading(true); setError(false);
@@ -46,11 +48,6 @@ export function LaborCostScreen({ onNavigate, mode = 'admin' }: { onNavigate: (s
   }, [from, to, project]);
 
   useEffect(() => { load(); }, [load]);
-  useEffect(() => {
-    listProjects({ status: 'ACTIVE', page: 0, size: 100 })
-      .then(p => setProjects(p.content.map(x => ({ id: x.id, name: x.name }))))
-      .catch(() => setProjects([]));
-  }, []);
 
   const workers = data?.workers ?? [];
   const visible = useMemo(() => {
@@ -93,7 +90,7 @@ export function LaborCostScreen({ onNavigate, mode = 'admin' }: { onNavigate: (s
   const chips = [
     q && { key: 'q', label: `${t('admin:lab.f.search')} · ${q}`, clear: () => setQ('') },
     project && { key: 'project', label: `${t('admin:lab.f.project')} · ${projects.find(p => String(p.id) === project)?.name ?? project}`, clear: () => setProject('') },
-    range !== 'week' && { key: 'range', label: `${t('admin:lab.f.range')} · ${t('admin:lab.f.month')}`, clear: () => setRange('week') },
+    range !== 'week' && { key: 'range', label: `${t('admin:lab.f.range')} · ${fmtRange(from, to, lang)}`, clear: () => setRange('week') },
   ].filter(Boolean) as { key: string; label: string; clear: () => void }[];
 
   const sorted = [...costed].sort((a, b) => (projectedCost(b) ?? 0) - (projectedCost(a) ?? 0));
@@ -189,7 +186,8 @@ export function LaborCostScreen({ onNavigate, mode = 'admin' }: { onNavigate: (s
       <LaborFilters
         tourAnchor="sec.labor-cost.filters"
         q={q} onQ={setQ} range={range} onRange={setRange}
-        project={project} onProject={setProject} projects={projects}
+        from={customFrom} to={customTo} onFrom={setCustomFrom} onTo={setCustomTo}
+        project={project} onProject={setProject} projects={projects} projectsCatalog={projectCatalog}
         chips={chips} onClear={() => { setQ(''); setProject(''); setRange('week'); }}
       />
 

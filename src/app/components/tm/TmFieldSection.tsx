@@ -22,7 +22,8 @@ import {
 } from 'lucide-react';
 import { AuthService } from '../../services/auth';
 import { getSupervisorProjects } from '../../services/time';
-import { listProjects } from '../../services/projects';
+import { projectCatalog } from '../../services/catalogs';
+import { CatalogNote } from '../workspace/CatalogNote';
 import { fmtDate, fmtDateTime } from '../../helpers/dateTime';
 import { formatApiAmount } from '../../helpers/tmMoney';
 import {
@@ -73,32 +74,36 @@ const BTN_GHOST = 'font-bt-mono text-[10.5px] font-semibold uppercase tracking-[
  * because the only project list their role can read is the assigned one:
  * `/api/v1/supervisor/dashboard/projects`. There is no company-wide list a
  * SUPERVISOR is allowed to call, and inventing one would be a backend change.
- * An ADMIN on this same screen reads the full list, which they are allowed to.
+ * An ADMIN on this same screen reads the full list, which they are allowed to:
+ * every ACTIVE project, all pages of it — the server takes field work only on
+ * an active project (`FieldProjectAccess`), and one page of 100, closed ones
+ * included, used to hide the older active projects (AUD-055).
  */
 function useCapturableProjects() {
   const [projects, setProjects] = useState<TmFormProject[]>([]);
+  const [catalog, setCatalog] = useState({ total: 0, truncated: false });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     const role = AuthService.getRole();
     const load = role === 'ADMIN'
-      ? listProjects({ size: 200 }).then(page => page.content.map(p => ({ id: p.id, name: p.name })))
-      : getSupervisorProjects().then(list => list.map(p => ({ id: p.id, name: p.name })));
+      ? projectCatalog({ status: 'ACTIVE', role }).then(c => ({ items: c.items.map(p => ({ id: p.id, name: p.name })), total: c.total, truncated: c.truncated }))
+      : getSupervisorProjects().then(list => ({ items: list.map(p => ({ id: p.id, name: p.name })), total: list.length, truncated: false }));
 
     load
-      .then(list => { if (!cancelled) setProjects(list); })
+      .then(c => { if (!cancelled) { setProjects(c.items); setCatalog({ total: c.total, truncated: c.truncated }); } })
       .catch(() => { if (!cancelled) setProjects([]); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
 
-  return { projects, loadingProjects: loading };
+  return { projects, loadingProjects: loading, projectsTotal: catalog.total, projectsTruncated: catalog.truncated };
 }
 
 export function TmFieldSection() {
   const { t, i18n } = useTranslation(['tm', 'signatures']);
-  const { projects, loadingProjects } = useCapturableProjects();
+  const { projects, loadingProjects, projectsTotal, projectsTruncated } = useCapturableProjects();
 
   const [tickets, setTickets] = useState<TmTicket[]>([]);
   const [pending, setPending] = useState<TmPendingSummary | null>(null);
@@ -291,6 +296,7 @@ export function TmFieldSection() {
             <option value="">{t('tm:filter.projectAll')}</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
+          <CatalogNote shown={projects.length} total={projectsTotal} truncated={projectsTruncated} />
           <select
             data-tour="sec.tm-field.states"
             aria-label={t('tm:filter.status')}

@@ -4,8 +4,9 @@
 //   • stub window.Paddle + intercept the Paddle CDN so checkout "succeeds"
 //     by redirecting to its successUrl,
 //   • force the UI language to English (deterministic text assertions),
-//   • answer GET /billing/status with ACTIVE (so the ADMIN BillingGuard
-//     lets dashboards render),
+//   • answer GET /billing/status with ACTIVE and GET /billing/access (what
+//     the BillingGuard reads for every role) with FULL, so pages render
+//     without the "access check unavailable" banner,
 //   • default every other /api/v1/** call to 500 so data-fetching dashboards
 //     fall back to their empty/error state and still render their shell.
 //
@@ -31,6 +32,9 @@ export const BILLING_ACTIVE = {
   lastEventId: 'evt_e2e',
   lastEventOccurredAt: '2026-06-04T00:00:00Z',
 };
+
+// The BillingGuard's own read (GET /billing/access): full access, not enforced.
+export const BILLING_ACCESS_FULL = { tier: 'FULL', code: null, enforced: false, fieldWorkAllowed: true };
 
 // A login/complete/accept success body (same shape across all three).
 export function sessionResponse(role: string, username = 'tester', fullName: string | null = null) {
@@ -131,6 +135,7 @@ export async function installHermeticBase(page: Page, opts: BaseOpts = {}) {
 
   // Billing gate → allowed, so the ADMIN BillingGuard renders children.
   await page.route('**/api/v1/billing/status', json(BILLING_ACTIVE));
+  await page.route('**/api/v1/billing/access', json(BILLING_ACCESS_FULL));
 
   // Session validation echo (some shells call /auth/me on mount).
   if (opts.role) {

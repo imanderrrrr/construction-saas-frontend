@@ -11,7 +11,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string, o?: Record<string, unknown>) => (o?.count != null ? `${key}:${o.count}` : key), i18n: { language: 'es' } }),
+  useTranslation: () => ({ t: (key: string, o?: Record<string, unknown>) => (o?.count != null ? `${key}:${o.count}${o.amount != null ? `:${o.amount}` : ""}` : key), i18n: { language: 'es' } }),
   Trans: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
   initReactI18next: { type: '3rdParty', init: () => {} },
 }));
@@ -116,9 +116,34 @@ describe('Gastos — la bandeja', () => {
     await flush();
 
     expect(adminBatchApprove).toHaveBeenCalledTimes(1);
-    const scope = adminBatchApprove.mock.calls[0][0] as Record<string, unknown>;
+    const scope = adminBatchApprove.mock.calls[0][1] as Record<string, unknown>;
+    expect(adminBatchApprove.mock.calls[0][0].map((e: {id: number}) => e.id)).toEqual([1,2]);
     expect(scope.dateFrom, 'el lote tiene que ir con el filtro de la pantalla').toBeTruthy();
     expect(scope.dateTo).toBeTruthy();
+  });
+
+  it('loads 51 pending rows before preview and confirms that snapshot when a new row appears', async () => {
+    let newArrival = false;
+    getAdminExpenses.mockImplementation((p: { status: string; page: number }) => {
+      if (p.status !== 'PENDING') return page([]);
+      const rows = Array.from({ length: newArrival ? 52 : 51 }, (_, i) => expense({ id: i + 1, version: 7, amountCents: 1000 }));
+      return Promise.resolve({ content: rows.slice(p.page * 50, (p.page + 1) * 50), page: p.page, size: 50, totalPages: 2, totalElements: rows.length });
+    });
+    adminBatchApprove.mockResolvedValue({ approvedCount: 50, approvedAmountCents: 50000,
+      skipped: [{ expenseId: 51, code: 'BATCH_PREVIEW_CHANGED', reason: 'Changed after review' }] });
+    await render();
+    expect(getAdminExpenses).toHaveBeenCalledWith(expect.objectContaining({ status: 'PENDING', page: 1 }));
+    const batch = [...container.querySelectorAll('button')].find(b => b.textContent?.includes('expenses.batch.cta'))!;
+    await act(async () => batch.click()); await flush();
+    expect(document.body.textContent).toContain('$510.00');
+    newArrival = true;
+    const confirm = [...document.querySelectorAll('button')].find(b => b.textContent?.includes('expenses.batch.confirm'))!;
+    await act(async () => confirm.click()); await flush();
+    const rows = adminBatchApprove.mock.calls[0][0] as { id: number; version: number }[];
+    expect(rows.map(r => r.id)).toEqual(Array.from({ length: 51 }, (_, i) => i + 1));
+    expect(rows.every(r => r.version === 7)).toBe(true);
+    expect(document.body.textContent).toContain('$500.00');
+    expect(document.body.textContent).toContain('Changed after review');
   });
 
   it('aprobar en rojo avisa y pide una casilla, pero no bloquea', async () => {

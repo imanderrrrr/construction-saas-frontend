@@ -80,7 +80,7 @@ export function BatchWindow({ pending, filters, filterChips, busy, error, result
   const canConfirm = (inRed.length === 0 || understood) && !busy && pending.length > 0;
 
   if (result) {
-    const approvedCents = totalCents - (result.skipped ?? [])
+    const approvedCents = result?.approvedAmountCents ?? totalCents - (result.skipped ?? [])
       .map(s => pending.find(p => p.id === s.expenseId)?.amountCents ?? 0)
       .reduce((a, b) => a + b, 0);
     return (

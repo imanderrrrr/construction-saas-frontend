@@ -1,3 +1,4 @@
+import { businessToday } from '../../helpers/dateTime';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Paperclip, X } from 'lucide-react';
@@ -38,7 +39,7 @@ export function ExpenseWindow({
   const [categoryId, setCategoryId] = useState<number | null>(expense?.categoryId ?? null);
   const [categoryName, setCategoryName] = useState('');
   const [amount, setAmount] = useState(expense ? (expense.amountCents / 100).toFixed(2) : '');
-  const [purchaseDate, setPurchaseDate] = useState(expense?.purchaseDate ?? new Date().toISOString().slice(0, 10));
+  const [purchaseDate, setPurchaseDate] = useState(expense?.purchaseDate ?? businessToday());
   const [purchasedByUserId, setPurchasedByUserId] = useState(
     expense?.purchasedByUserId != null ? String(expense.purchasedByUserId) : 'none',
   );

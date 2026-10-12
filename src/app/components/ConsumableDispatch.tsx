@@ -2,7 +2,7 @@ import { useScreenState } from '../workspace/WorkspaceState';
 import { money } from './budgets/bits';
 // ConsumableDispatch.tsx — Dispatch consumable supplies to projects
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowRight, Package, Building2, Plus,
@@ -20,10 +20,13 @@ import {
 } from './ui/select';
 import { toast } from 'sonner';
 import {
-  getAllDispatches, dispatchConsumable, listConsumables, listWarehouseProjects,
-  type DispatchResponse, type ConsumableResponse, type WarehouseProjectResponse,
+  getAllDispatches, getDispatchSummary, dispatchConsumable, listConsumables,
+  type DispatchResponse, type DispatchSummary, type ConsumableResponse, type WarehouseProjectResponse,
 } from '../services/warehouse';
+import { warehouseProjectCatalog } from '../services/catalogs';
 import { listActiveUsers, type UserDTO } from '../services/users';
+import type { Catalog } from '../lib/catalog';
+import { CatalogNote } from './workspace/CatalogNote';
 import { FIELD_LIMITS } from '../../shared/fieldLimits';
 import { BudgetLineItemSelector } from './budgets/wbs/BudgetLineItemSelector';
 
@@ -67,46 +70,90 @@ function fmtDate(iso: string) {
   return new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+/** Page buttons around the current one, with the first and the last always reachable. */
+function pageWindow(current: number, total: number): (number | 'gap')[] {
+  const pages = new Set([1, total, current - 1, current, current + 1].filter(p => p >= 1 && p <= total));
+  const sorted = [...pages].sort((a, b) => a - b);
+  return sorted.flatMap((p, i) => (i > 0 && p - sorted[i - 1] > 1 ? ['gap' as const, p] : [p]));
+}
+
+const NO_PROJECTS: Catalog<WarehouseProjectResponse> = { items: [], total: 0, truncated: false };
+
 // Main component
 
 export function ConsumableDispatch() {
   const { t } = useTranslation('inventory');
-  const [dispatches, setDispatches] = useState<DispatchItem[]>([]);
+  // The history is paged on the server and the totals are the server's
+  // (AUD-055): the screen used to ask for 500 rows, receive the newest 100 and
+  // compute every figure from those, so past 100 dispatches each KPI, the page
+  // count and the "of N" stopped growing without a word.
+  const [paged, setPaged] = useState<DispatchItem[]>([]);
+  const [totalRows, setTotalRows] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [summary, setSummary] = useState<DispatchSummary | null>(null);
   const [consumables, setConsumables] = useState<ConsumableResponse[]>([]);
-  const [projects, setProjects] = useState<WarehouseProjectResponse[]>([]);
+  const [projects, setProjects] = useState<Catalog<WarehouseProjectResponse>>(NO_PROJECTS);
   const [workers, setWorkers] = useState<UserDTO[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [page, setPage] = useScreenState('pagina', 1);
   const [modalOpen, setModalOpen] = useState(false);
+  const [reloads, setReloads] = useState(0);
+  const pageRequest = useRef(0);
 
   const loadData = useCallback(() => {
     setLoading(true);
     Promise.all([
-      getAllDispatches({ page: 0, size: 500 }),
+      getDispatchSummary(),
       listConsumables(),
-      listWarehouseProjects({ status: 'ACTIVE', size: 100 }),
+      warehouseProjectCatalog('ACTIVE'),
       listActiveUsers(),
     ])
-      .then(([dispatchPage, consumableList, projectsPage, userList]) => {
-        setDispatches(dispatchPage.content.map(mapDispatchResponse));
+      .then(([totals, consumableList, projectCatalog, userList]) => {
+        setSummary(totals);
         setConsumables(consumableList);
-        setProjects(projectsPage.content);
+        setProjects(projectCatalog);
         setWorkers(userList);
       })
       .catch(() => toast.error(t('inventory:toast.loadDispatchError', 'Failed to load dispatch data')))
       .finally(() => setLoading(false));
+    setReloads(n => n + 1);
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const totalPages = Math.max(1, Math.ceil(dispatches.length / ITEMS_PER_PAGE));
-  const safePage = Math.min(page, totalPages);
-  const paged = dispatches.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE);
+  // One page of the history at a time; a late answer for a page the user has
+  // already left is dropped.
+  const pageKey = `${page}:${reloads}`;
+  const pageLoading = loadedKey !== pageKey;
+  const pageError = t('inventory:toast.loadDispatchError', 'Failed to load dispatch data');
+  useEffect(() => {
+    if (reloads === 0) return;
+    const mine = ++pageRequest.current;
+    const key = `${page}:${reloads}`;
+    getAllDispatches({ page: page - 1, size: ITEMS_PER_PAGE })
+      .then(res => {
+        if (mine !== pageRequest.current) return;
+        const pages = Math.max(1, res.totalPages);
+        if (page > pages) { setPage(pages); return; }
+        setPaged(res.content.map(mapDispatchResponse));
+        setTotalRows(res.totalElements);
+        setTotalPages(pages);
+        setLoadedKey(key);
+      })
+      .catch(() => {
+        if (mine !== pageRequest.current) return;
+        toast.error(pageError);
+        setLoadedKey(key);
+      });
+  }, [page, reloads, setPage, pageError]);
 
-  // KPIs
-  const totalDispatches = dispatches.length;
-  const totalUnits = dispatches.reduce((s, d) => s + d.quantity, 0);
-  const uniqueProjects = new Set(dispatches.map(d => d.project)).size;
+  const safePage = Math.min(page, totalPages);
+
+  // KPIs — the server's totals over every dispatch of the tenant.
+  const totalDispatches = summary?.totalDispatches ?? 0;
+  const totalUnits = summary?.totalUnits ?? 0;
+  const uniqueProjects = summary?.projectCount ?? 0;
 
   const handleDispatch = (
     consumableCode: string,
@@ -156,7 +203,7 @@ export function ConsumableDispatch() {
 
       {/* Table */}
       <div className="bg-white border border-[#DBD0BB] overflow-hidden">
-        {loading ? (
+        {loading || (pageLoading && paged.length === 0) ? (
           <div className="flex items-center justify-center py-24">
             <Loader2 className="w-6 h-6 text-amber-500 animate-spin" />
           </div>
@@ -228,23 +275,26 @@ export function ConsumableDispatch() {
       {!loading && totalPages > 1 && (
         <div className="flex items-center justify-between pt-2">
           <p className="text-xs text-[#8A8175]">
-            {t('dispatch.showing', { from: (safePage - 1) * ITEMS_PER_PAGE + 1, to: Math.min(safePage * ITEMS_PER_PAGE, dispatches.length), total: dispatches.length })}
+            {t('dispatch.showing', { from: (safePage - 1) * ITEMS_PER_PAGE + 1, to: Math.min(safePage * ITEMS_PER_PAGE, totalRows), total: totalRows })}
           </p>
           <div className="flex items-center gap-1">
             <Button variant="outline" size="sm" disabled={safePage <= 1} onClick={() => setPage(p => p - 1)} className="h-8 w-8 p-0 border-[#DBD0BB]">
               <ChevronLeft className="w-4 h-4" />
             </Button>
-            {Array.from({ length: totalPages }, (_, i) => (
+            {pageWindow(safePage, totalPages).map((p, i) => (p === 'gap' ? (
+              <span key={`gap-${i}`} className="px-1 text-xs text-[#8A8175]" aria-hidden>…</span>
+            ) : (
               <Button
-                key={i + 1}
-                variant={safePage === i + 1 ? 'default' : 'outline'}
+                key={p}
+                variant={safePage === p ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setPage(i + 1)}
-                className={`h-8 w-8 p-0 ${safePage === i + 1 ? 'bg-[#0A0A0A] hover:bg-[#F97316] text-[#F5F1E8] hover:text-[#0A0A0A] border-amber-500' : 'border-[#DBD0BB]'}`}
+                onClick={() => setPage(p)}
+                aria-current={safePage === p ? 'page' : undefined}
+                className={`h-8 w-8 p-0 ${safePage === p ? 'bg-[#0A0A0A] hover:bg-[#F97316] text-[#F5F1E8] hover:text-[#0A0A0A] border-amber-500' : 'border-[#DBD0BB]'}`}
               >
-                {i + 1}
+                {p}
               </Button>
-            ))}
+            )))}
             <Button variant="outline" size="sm" disabled={safePage >= totalPages} onClick={() => setPage(p => p + 1)} className="h-8 w-8 p-0 border-[#DBD0BB]">
               <ChevronRight className="w-4 h-4" />
             </Button>
@@ -275,7 +325,7 @@ function DispatchModal({
   open: boolean;
   onClose: () => void;
   consumables: ConsumableResponse[];
-  projects: WarehouseProjectResponse[];
+  projects: Catalog<WarehouseProjectResponse>;
   workers: UserDTO[];
   onDispatch: (
     consumableCode: string,
@@ -299,7 +349,7 @@ function DispatchModal({
   const [notes, setNotes] = useState('');
 
   const selected = consumables.find(c => String(c.id) === selectedConsumableId);
-  const selectedProject = projects.find(p => String(p.id) === projectId);
+  const selectedProject = projects.items.find(p => String(p.id) === projectId);
   const selectedWorker = workers.find(w => String(w.id) === workerId);
 
   const maxQty = selected?.currentStock ?? 0;
@@ -379,7 +429,7 @@ function DispatchModal({
             <Select value={projectId} onValueChange={value => { setProjectId(value); setBudgetLineItemId(null); }}>
               <SelectTrigger className="rounded-none mt-1 h-9 border-[#DBD0BB] text-sm"><SelectValue placeholder={t('dispatch.dialog.projectPlaceholder')} /></SelectTrigger>
               <SelectContent>
-                {projects.map(p => (
+                {projects.items.map(p => (
                   <SelectItem key={p.id} value={String(p.id)}>
                     {p.name}
                     {p.status === 'CLOSED' && <span className="ml-1 text-red-600 text-[10px] font-semibold">CLOSED</span>}
@@ -387,6 +437,7 @@ function DispatchModal({
                 ))}
               </SelectContent>
             </Select>
+            <CatalogNote shown={projects.items.length} total={projects.total} truncated={projects.truncated} />
             {projectClosed && (
               <p className="text-[11px] text-red-600 mt-1">{t('dispatch.dialog.closedProject')}</p>
             )}

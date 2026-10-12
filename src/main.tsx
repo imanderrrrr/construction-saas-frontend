@@ -5,9 +5,16 @@
 import { initSentry } from './app/lib/sentry';
 initSentry();
 
-import './i18n';
+import { i18nReady } from './i18n';
 import { createRoot } from "react-dom/client";
 import App from "./app/App.tsx";
+import { preloadRoute } from './app/routes';
 import "./styles/index.css";
 
-createRoot(document.getElementById("root")!).render(<App />);
+// The page on screen starts loading now, alongside the shell's translations
+// (AUD-019). The first render waits only for those few kilobytes: rendering
+// before them would paint raw keys.
+preloadRoute(window.location.pathname);
+i18nReady.finally(() => {
+  createRoot(document.getElementById("root")!).render(<App />);
+});

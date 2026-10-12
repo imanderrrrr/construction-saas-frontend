@@ -11,7 +11,7 @@ import { NotificationInbox } from './notifications/NotificationInbox';
 import { searchAuditLogs, type AuditLogDTO } from '../services/audit';
 import { getBranding } from '../services/branding';
 import { PANEL_REV } from '../lib/panelRev';
-import { listProjects } from '../services/projects';
+import { projectCatalog } from '../services/catalogs';
 import {
   getBudgetBlock, getMoneyBlock, getProjectPulse, getTodayBlock,
   type BudgetBlock, type MoneyBlock, type ProjectPulse, type TodayBlock,
@@ -98,14 +98,16 @@ export function DashboardContent({ onNavigate }: { onNavigate: (section: string)
       getTodayBlock(date),
       getBudgetBlock(),
       searchAuditLogs({ page: 0, size: 5 }),
-      listProjects({ status: 'ACTIVE', page: 0, size: 100 }),
+      // Every active project, all pages (AUD-055): the pulse rail used to
+      // offer the 100 newest and nothing after them.
+      projectCatalog({ status: 'ACTIVE', role: 'ADMIN' }),
     ]);
     setMoneyB(m.status === 'fulfilled' ? { state: 'ok', data: m.value } : { state: 'error', data: null });
     setTodayB(td.status === 'fulfilled' ? { state: 'ok', data: td.value } : { state: 'error', data: null });
     setBudgetB(b.status === 'fulfilled' ? { state: 'ok', data: b.value } : { state: 'error', data: null });
     setActivity(a.status === 'fulfilled' ? { state: 'ok', data: a.value.content } : { state: 'error', data: null });
     if (p.status === 'fulfilled') {
-      setObras(p.value.content.map(pr => ({ id: pr.id, name: pr.name })));
+      setObras(p.value.items.map(pr => ({ id: pr.id, name: pr.name })));
     }
     // Time only — the business date already stamps the header's first line.
     setLastUpdated(fmtDateTime(new Date().toISOString(), i18n.language).split(',').pop()?.trim() ?? null);

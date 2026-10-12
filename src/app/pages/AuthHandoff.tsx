@@ -4,7 +4,7 @@
 
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { getBaseUrl } from '../lib/api';
+import { api, ensureCsrfToken } from '../lib/api';
 import { AuthService } from '../services/auth';
 import { Building2, Loader2 } from 'lucide-react';
 
@@ -38,18 +38,11 @@ export function AuthHandoff() {
     // Send tokens to the backend handoff endpoint which sets HttpOnly cookies.
     (async () => {
       try {
-        const res = await fetch(`${getBaseUrl()}/api/v1/auth/handoff`, {
+        await ensureCsrfToken();
+        const data = await api<{ role: string }>('/api/v1/auth/handoff', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify(
-          refreshToken ? { token, refreshToken } : { token },
-        ),
+          body: JSON.stringify(refreshToken ? { token, refreshToken } : { token }),
         });
-
-        if (!res.ok) throw new Error('Handoff failed');
-
-        const data = await res.json();
         const dashRoute = AuthService.getDashboardRoute(data.role);
         navigate(dashRoute, { replace: true });
       } catch {

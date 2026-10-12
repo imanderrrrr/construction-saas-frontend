@@ -1,3 +1,4 @@
+import { fmtDateShort } from '../../helpers/dateTime';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BtModal } from '../bt/windows';
@@ -103,7 +104,7 @@ export function ReviewWindow({ target, busy, error, onClose, onConfirm }: {
         </span>
         <Mono className="text-[10px] tracking-[0.1em] text-[#5A5346]">
           {worker} · {t(`expenses.type.${expense.expenseType}`, { defaultValue: expense.expenseType })} ·{' '}
-          {new Date(expense.expenseDate).toLocaleDateString(lang, { day: '2-digit', month: 'short', year: 'numeric' })}
+          {fmtDateShort(expense.expenseDate, lang)}
         </Mono>
         {!expense.receiptUrl && (
           <Mono className="text-[9px] tracking-[0.1em] text-[#A69C8D] border border-dashed border-[#DBD0BB] px-1.5 py-0.5">

@@ -31,6 +31,7 @@ vi.mock('../services/clientPunchItems', async (importOriginal) => {
 
 import i18n from '../../i18n';
 import { routes } from '../routes';
+import { settleRoutes } from '../testing/routes';
 import type { ClientPunchItem } from '../services/clientPunchItems';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -101,6 +102,7 @@ async function renderPortalOnPunchTab(root: Root, container: HTMLElement) {
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
+  await settleRoutes();
   await click(buttonByText(container, i18n.t('punchList:tab.punch')));
 }
 

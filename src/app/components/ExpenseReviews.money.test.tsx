@@ -16,7 +16,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
+  useTranslation: () => ({ t: (key: string, args?: { count?: number }) => args?.count == null ? key : `${key}:${args.count}`, i18n: { language: 'en' } }),
   Trans: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
   // src/i18n/index.ts (pulled in via lib/api) initializes the real chain.
   initReactI18next: { type: '3rdParty', init: () => {} },
@@ -47,6 +47,7 @@ vi.mock('../services/expenses', () => ({
 }));
 
 import { ExpenseReviews } from './ExpenseReviews';
+import { toast } from 'sonner';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -194,5 +195,31 @@ describe('ExpenseReviews — money flow', () => {
     await flush();
 
     expect(rejectExpense).toHaveBeenCalledWith(9, 'Recibo ilegible, re-subir por favor', 'supervisor');
+  });
+
+  it.each([0, 1])('batch with %i approvals reports each rejected own row without a full-success toast', async approvedCount => {
+    getSupervisorExpenses.mockResolvedValue(page([apiExpense(42), apiExpense(43)]));
+    supervisorBatchApprove.mockResolvedValue({
+      approvedCount,
+      skipped: [42, 43].map(expenseId => ({ expenseId, code: 'EXPENSE_SELF_APPROVAL_FORBIDDEN', reason: 'Server reason' })),
+    });
+    await act(async () => root.render(<ExpenseReviews />));
+    await flush();
+    const open = Array.from(container.querySelectorAll('button')).find(b => b.textContent?.includes('review.approveAllPending'));
+    expect(open).toBeTruthy();
+    await act(async () => open!.click());
+    await flush();
+    const confirm = Array.from(document.querySelectorAll('button')).find(b => b.textContent?.includes('review.dialog.approveAll'));
+    expect(confirm).toBeTruthy();
+    await act(async () => confirm!.click());
+    await flush();
+    const result = Array.from(document.querySelectorAll('[role="dialog"]')).find(d => d.textContent?.includes('review.batch.resultTitle'));
+    expect(result?.textContent).toContain(`review.toast.batchApproved:${approvedCount}`);
+    expect(result?.textContent).toContain('#42');
+    expect(result?.textContent).toContain('#43');
+    expect(result?.textContent).toContain('review.batch.selfApprovalForbidden');
+    expect(result?.textContent).not.toContain('Server reason');
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(supervisorBatchApprove).toHaveBeenCalledTimes(1);
   });
 });

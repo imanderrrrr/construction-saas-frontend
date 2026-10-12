@@ -35,12 +35,13 @@ const today = businessToday;
 
 interface Filters {
   q: string;
-  range: 'week' | 'today';
+  range: 'all' | 'week' | 'today' | 'custom';
+  from?: string; to?: string;
   status: string;
   role: '' | 'WORKER' | 'SUPERVISOR';
 }
 
-const EMPTY: Filters = { q: '', range: 'week', status: 'PENDING', role: '' };
+const EMPTY: Filters = { q: '', range: 'all', status: 'PENDING', role: '' };
 
 export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'supervisor' | 'finance' } = {}) {
   const { t, i18n } = useTranslation(['admin', 'common', 'finance']);
@@ -64,13 +65,14 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
       // Every record in the selected range. The text search below runs in the
       // browser over whatever landed here, so one page would quietly drop
       // records from the search — and from the counts built off this list.
-      // The range (today / this week) is what bounds the sweep.
+      // The default includes historical pending records. An explicit range
+      // narrows the same paginated search.
       const scope = {
         projectId: projectId ?? undefined,
         status: filters.status || undefined,
         role: mode === 'finance' ? 'SUPERVISOR' as const : filters.role || undefined,
-        dateFrom: filters.range === 'today' ? today() : mondayOfWeek(),
-        dateTo: today(),
+        dateFrom: filters.range === 'all' ? undefined : filters.range === 'custom' ? filters.from : filters.range === 'today' ? today() : mondayOfWeek(),
+        dateTo: filters.range === 'all' ? undefined : filters.range === 'custom' ? filters.to : today(),
       };
       const rows = mode === 'supervisor'
         ? await getAllSupervisorTimeRecords(scope)
@@ -83,7 +85,7 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
     } finally {
       setLoading(false);
     }
-  }, [filters.status, filters.role, filters.range, mode, projectId]);
+  }, [filters.status, filters.role, filters.range, filters.from, filters.to, mode, projectId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -293,9 +295,15 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
           </div>
           <select value={filters.range} onChange={e => setF('range', e.target.value as Filters['range'])}
             className="appearance-none border border-[#DBD0BB] bg-[#FAF7F0] px-3 py-2 font-bt-mono text-[11px] uppercase tracking-[0.06em] text-[#0A0A0A] cursor-pointer">
+            <option value="all">{t('admin:apr.f.allDates')}</option>
+            <option value="custom">{t('admin:lab.f.custom')}</option>
             <option value="week">{t('admin:apr.f.thisWeek')}</option>
             <option value="today">{t('admin:apr.f.today')}</option>
           </select>
+          {filters.range === 'custom' && <>
+            <input aria-label={t('admin:lab.f.from')} type="date" value={filters.from ?? ''} max={filters.to} onChange={e => setF('from', e.target.value)} />
+            <input aria-label={t('admin:lab.f.to')} type="date" value={filters.to ?? ''} min={filters.from} onChange={e => setF('to', e.target.value)} />
+          </>}
           <select value={filters.status} onChange={e => setF('status', e.target.value)}
             className="appearance-none border border-[#DBD0BB] bg-[#FAF7F0] px-3 py-2 font-bt-mono text-[11px] uppercase tracking-[0.06em] text-[#0A0A0A] cursor-pointer">
             <option value="PENDING">{t('admin:apr.st.PENDING')}</option>

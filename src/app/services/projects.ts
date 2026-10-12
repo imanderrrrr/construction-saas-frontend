@@ -66,6 +66,8 @@ export interface CreateProjectPayload {
 }
 
 export interface UpdateProjectPayload {
+  clearClient?: boolean;
+  clearGeofence?: boolean;
   name?: string;
   status?: ProjectStatus;
   clientId?: number;

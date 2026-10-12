@@ -175,6 +175,7 @@ export function ProjectWindow({ onClose, onSaved, editProject, initialClient = n
     if (!form.name.trim()) { setNameError(t('admin:projectForm.projectNameRequired')); bad = true; }
     if (!isEdit && !dollarsToCents(form.contractAmount)) { setContractError(t('admin:projectForm.contractAmountRequired')); bad = true; }
     if (bad) return;
+    if (!!form.latitude !== !!form.longitude) { toast.error(t('admin:projectForm.invalidLat')); return; }
     if (!isValidLat(form.latitude)) { toast.error(t('admin:projectForm.invalidLat')); return; }
     if (!isValidLng(form.longitude)) { toast.error(t('admin:projectForm.invalidLng')); return; }
 
@@ -185,13 +186,16 @@ export function ProjectWindow({ onClose, onSaved, editProject, initialClient = n
       if (isEdit && editProject) {
         const payload: UpdateProjectPayload = {};
         if (form.name.trim() !== editProject.name) payload.name = form.name.trim();
-        if (form.clientId !== editProject.clientId) payload.clientId = form.clientId ?? undefined;
-        if (form.costCode !== (editProject.costCode ?? '')) payload.costCode = form.costCode || undefined;
+        if (form.clientId !== (editProject.clientId ?? null)) {
+          if (form.clientId == null) payload.clearClient = true; else payload.clientId = form.clientId;
+        }
+        if (form.costCode !== (editProject.costCode ?? '')) payload.costCode = form.costCode;
         if (cents !== (editProject.originalContractCents ?? editProject.contractAmountCents)) payload.contractAmountCents = cents;
         // Sends 0 when the field is cleared: a PATCH cannot say null, and 0
         // is what the backend reads as "no budget".
         if (budgetCents !== (editProject.costBudgetCents ?? null)) payload.costBudgetCents = budgetCents ?? 0;
-        if (form.address !== (editProject.address ?? '')) payload.address = form.address || undefined;
+        if (form.address !== (editProject.address ?? '')) payload.address = form.address;
+        if ((!form.latitude && !form.longitude) && (editProject.latitude != null || editProject.longitude != null)) payload.clearGeofence = true;
         if (form.latitude && parseFloat(form.latitude) !== editProject.latitude) payload.latitude = parseFloat(form.latitude);
         if (form.longitude && parseFloat(form.longitude) !== editProject.longitude) payload.longitude = parseFloat(form.longitude);
         if (form.geofenceRadiusMeters !== editProject.geofenceRadiusMeters) payload.geofenceRadiusMeters = form.geofenceRadiusMeters;

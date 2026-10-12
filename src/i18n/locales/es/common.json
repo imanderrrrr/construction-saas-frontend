@@ -151,6 +151,7 @@
   "workspace.allWorksites": "Todas las obras",
   "workspace.loadingWorksites": "Cargando obras…",
   "workspace.worksitesUnavailable": "Obras no disponibles",
+  "catalog.truncated": "Se muestran los primeros {{shown}} de {{total}}. Ajusta los filtros para encontrar el resto.",
   "workspace.worksiteId": "Obra #{{id}}",
   "workspace.primaryNavigation": "Áreas de trabajo",
   "workspace.sectionNavigation": "Secciones del área",
@@ -178,5 +179,10 @@
   "workspace.unavailableBody": "Verifica con tu administrador el acceso a esta función. Puedes continuar trabajando en tus obras.",
   "workspace.backToWorksites": "Volver a mis obras",
   "workspace.skipToContent": "Ir al contenido",
-  "workspace.discardPrompt": "Hay cambios sin guardar. ¿Quieres descartarlos y cambiar de registro?"
+  "workspace.discardPrompt": "Hay cambios sin guardar. ¿Quieres descartarlos y cambiar de registro?",
+  "error.network": "No hay conexión. Tus datos siguen aquí; vuelve a intentar.",
+  "billing.blocked": "Acceso suspendido por facturación. Contacta al administrador para reactivarlo.",
+  "billing.recover": "Actualizar facturación",
+  "billing.unavailable": "No pudimos consultar el acceso. Conservamos esta pantalla; vuelve a intentar.",
+  "billing.readOnly": "Solo consulta por facturación. El fichaje sigue disponible."
 }

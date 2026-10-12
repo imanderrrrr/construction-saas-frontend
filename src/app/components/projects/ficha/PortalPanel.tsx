@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import QRCode from 'qrcode';
+import { loadQrCode } from '../../../lib/qr';
 import { ArrowRight, Check, Copy, Loader2, Lock } from 'lucide-react';
 import { cn } from '../../ui/utils';
 import { FOCUS_RING, PrimaryButton, SecondaryButton } from '../../onboarding/chrome';
@@ -81,8 +81,9 @@ export function PortalPanel({ projectId, clientName, readOnly = false }: {
   const hasStoredPin = !!status && status.enabled && status.pinRequired;
 
   useEffect(() => {
-    if (!shareUrl || !qrCanvasRef.current) return;
-    QRCode.toCanvas(qrCanvasRef.current, shareUrl, { width: QR_SIZE, margin: 1 }).catch(() => {
+    const canvas = qrCanvasRef.current;
+    if (!shareUrl || !canvas) return;
+    loadQrCode().then(QRCode => QRCode.toCanvas(canvas, shareUrl, { width: QR_SIZE, margin: 1 })).catch(() => {
       /* QR render failed — the plain link stays usable */
     });
   }, [shareUrl]);

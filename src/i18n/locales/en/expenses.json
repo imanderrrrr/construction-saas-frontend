@@ -265,5 +265,8 @@
   "review.types.per-diem.short": "Per diem",
   "review.types.minor-purchases.short": "Minor purch.",
   "review.types.transportation.short": "Transportation",
-  "review.types.other.short": "Other"
+  "review.types.other.short": "Other",
+  "review.batch.resultTitle": "Approval result",
+  "review.batch.notApproved": "These expenses remain pending:",
+  "review.batch.selfApprovalForbidden": "Supervisors cannot approve their own expenses."
 }

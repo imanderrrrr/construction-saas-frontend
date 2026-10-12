@@ -17,7 +17,8 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@buildtrack/i18n-locales": ["./src/i18n/locales.ts"]
     }
   },
   "include": ["src"],

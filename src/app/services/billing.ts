@@ -93,7 +93,10 @@ export interface BillingStatusResponse {
   lastEventOccurredAt: string | null;
 }
 
+export interface BillingAccess { tier: 'FULL' | 'READ_ONLY' | 'BLOCKED'; code: string | null; enforced: boolean; fieldWorkAllowed: boolean }
+
 export const BillingService = {
+  getAccess: () => api<BillingAccess>('/api/v1/billing/access'),
   /**
    * Read the local billing snapshot for the authenticated tenant.
    * No tenant or checkout fields are sent; the backend resolves scope from

@@ -19,6 +19,7 @@ async function warehouse(page: Page) {
   await page.route('**/api/v1/warehouse/consumables?*', json([supply]));
   await page.route('**/api/v1/warehouse/consumables/2/dispatches', json([]));
   await page.route('**/api/v1/warehouse/consumables/dispatches?*', json(paged([])));
+  await page.route('**/api/v1/warehouse/consumables/dispatches/summary', json({ totalDispatches: 0, totalUnits: 0, projectCount: 0 }));
   await page.route('**/api/v1/warehouse/projects?*', json(paged([project])));
   await page.route('**/api/v1/admin/users?*', json(paged([{ id: 7, username: 'ana', fullName: 'Ana López', role: 'WORKER', status: 'ACTIVE' }])));
 }

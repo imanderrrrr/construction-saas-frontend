@@ -243,7 +243,7 @@
   "receivable.loadError.title": "No pudimos traer tus cuentas por cobrar.",
   "receivable.loadError.body": "Inténtalo de nuevo. Nada de lo que tienes registrado se perdió.",
   "receivable.edit.title": "Editar documento",
-  "receivable.edit.requiredFields": "El número y el cliente son obligatorios",
+  "receivable.edit.requiredFields": "El número, el cliente y las fechas son obligatorios",
   "receivable.edit.failed": "No se pudo actualizar el documento",
   "receivable.edit.duplicate": "Ese número ya está en uso",
   "receivable.edit.amountsHint": "Los importes no se editan: elimina el documento y créalo de nuevo mientras no tenga pagos.",
@@ -844,5 +844,9 @@
   "overview.netMovement": "Neto de estos movimientos",
   "overview.netFormula": "Cobrado − pagado",
   "overview.guideFinance": "Guía de Finanzas",
-  "payable.subcontractorInvoice": "Factura de subcontratista #{{number}}"
+  "payable.subcontractorInvoice": "Factura de subcontratista #{{number}}",
+  "void.confirmTitle": "Anular pago o cobro",
+  "void.confirm": "Confirmar anulación",
+  "void.explanation": "Se recalculará el saldo. El movimiento original quedará en el historial.",
+  "void.reason": "Motivo (opcional)"
 }

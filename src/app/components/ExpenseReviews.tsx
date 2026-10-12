@@ -30,7 +30,7 @@ import { ErrorBanner } from './ErrorBanner';
 import {
   getSupervisorExpenses, getSupervisorSummary, supervisorBatchApprove,
   approveExpense, observeExpense, rejectExpense,
-  receiptUrl, type ExpenseResponse, type ExpenseSummaryResponse,
+  receiptUrl, type ExpenseResponse, type ExpenseSummaryResponse, type BatchApproveResponse,
 } from '../services/expenses';
 import { listActiveUsers, type UserDTO } from '../services/users';
 import { businessToday, nDaysAgo } from '../helpers/dateTime';
@@ -42,6 +42,7 @@ type ExpenseStatus = 'Pending' | 'Approved' | 'Observed' | 'Rejected';
 
 interface ExpenseRecord {
   id: string;
+  version: number;
   workerName: string;
   date: string;
   type: string;
@@ -76,6 +77,7 @@ const TYPE_ICONS: Record<string, React.ElementType> = {
 function mapExpense(e: ExpenseResponse): ExpenseRecord {
   return {
     id: String(e.id),
+    version: e.version ?? 0,
     workerName: e.workerName ?? e.workerUsername,
     date: e.expenseDate,
     type: TYPE_KEY_MAP[e.expenseType] ?? e.expenseType.toLowerCase(),
@@ -394,6 +396,8 @@ export function ExpenseReviews() {
 
   // Modal: Batch approve
   const [showBatch,     setShowBatch]     = useState(false);
+  const [batchRows, setBatchRows] = useState<ExpenseRecord[]>([]);
+  const [batchResult, setBatchResult] = useState<BatchApproveResponse | null>(null);
 
   // Receipt image loading
   const receiptImage   = useReceiptImage(receiptTarget);
@@ -431,17 +435,18 @@ export function ExpenseReviews() {
 
   // Derived
   const pendingExpenses = useMemo(() => expenses.filter(e => e.status === 'Pending'), [expenses]);
-  const pendingTotal    = useMemo(() => pendingExpenses.reduce((s, e) => s + e.amount, 0), [pendingExpenses]);
+  const previewRows = showBatch ? batchRows : pendingExpenses;
+  const pendingTotal = previewRows.reduce((sum, e) => sum + e.amount, 0);
 
   const pendingByWorker = useMemo(() => {
     const map: Record<string, { count: number; total: number }> = {};
-    pendingExpenses.forEach(e => {
+    previewRows.forEach(e => {
       if (!map[e.workerName]) map[e.workerName] = { count: 0, total: 0 };
       map[e.workerName].count += 1;
       map[e.workerName].total += e.amount;
     });
     return map;
-  }, [pendingExpenses]);
+  }, [previewRows]);
 
   // Filter handlers
   function handleApply() {
@@ -515,9 +520,10 @@ export function ExpenseReviews() {
   // Batch approve
   async function handleBatchApprove() {
     try {
-      const res = await supervisorBatchApprove();
+      const res = await supervisorBatchApprove(batchRows.map(e => ({ id: Number(e.id), version: e.version })));
       setExpandedId(null); setShowBatch(false);
-      toast.success(t('review.toast.batchApproved', { count: res.approvedCount }));
+      if ((res.skipped ?? []).length > 0) setBatchResult(res);
+      else toast.success(t('review.toast.batchApproved', { count: res.approvedCount }));
       fetchExpenses();
       getSupervisorSummary().then(setSummary).catch(err => toast.error(err?.message));
     } catch (err: any) { toast.error(t('review.toast.batchFailed'), { description: err?.message }); }
@@ -546,7 +552,7 @@ export function ExpenseReviews() {
           <p className="text-[11px] text-[#71717A] mt-0.5">{t('review.subtitle')}</p>
         </div>
         <Button
-          onClick={() => setShowBatch(true)}
+          onClick={() => { setBatchRows([...pendingExpenses]); setShowBatch(true); }}
           disabled={pendingExpenses.length === 0}
           className="bg-emerald-600 hover:bg-emerald-700 text-white h-9 px-4 text-xs gap-2 flex-shrink-0 disabled:opacity-50 w-full sm:w-auto"
         >
@@ -979,7 +985,7 @@ export function ExpenseReviews() {
               <Trans
                 i18nKey="review.dialog.batchDesc"
                 t={t}
-                values={{ count: pendingExpenses.length, amount: fmtAmount(pendingTotal) }}
+                values={{ count: batchRows.length, amount: fmtAmount(pendingTotal) }}
                 components={{ strong: <strong /> }}
               />
             </AlertDialogDescription>
@@ -1012,6 +1018,28 @@ export function ExpenseReviews() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={batchResult !== null} onOpenChange={open => { if (!open) setBatchResult(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('review.batch.resultTitle')}</DialogTitle>
+            <DialogDescription>{t('review.toast.batchApproved', { count: batchResult?.approvedCount ?? 0 })}</DialogDescription>
+          </DialogHeader>
+          <p>{t('review.batch.notApproved')}</p>
+          <ul className="space-y-2 max-h-72 overflow-auto">
+            {(batchResult?.skipped ?? []).map(row => (
+              <li key={row.expenseId}>
+                <strong>#{row.expenseId}</strong>{' · '}
+                {row.code === 'EXPENSE_SELF_APPROVAL_FORBIDDEN'
+                  ? t('review.batch.selfApprovalForbidden') : row.reason ?? row.code}
+              </li>
+            ))}
+          </ul>
+          <DialogFooter>
+            <Button onClick={() => setBatchResult(null)}>{t('review.dialog.cancel')}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Receipt preview dialog */}
       <Dialog open={receiptTarget !== null} onOpenChange={open => { if (!open) setReceiptTarget(null); }}>
