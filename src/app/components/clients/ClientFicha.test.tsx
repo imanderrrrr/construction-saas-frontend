@@ -155,6 +155,24 @@ describe('ClientFicha', () => {
     click(buttonByText(container, 'Desactivar'));
     expect(handlers.onToggleStatus).toHaveBeenCalledTimes(1);
   });
+  it('ClientFicha claims clients-ficha-finanzas in finance mode with all its anchors', async () => {
+    act(() => root.render(<><ClientFicha client={ANDES} {...handlers} readOnly /><ScopeProbe /></>));
+    await flush();
+    // Its own tour: the admin's tells you to edit and to create jobsites.
+    expect(container.querySelector('[data-testid="scope"]')?.textContent).toBe('clients-ficha-finanzas');
+    for (const stop of ['bar', 'tabs', 'shortcuts']) {
+      expect(container.querySelector(`[data-tour="sec.clients-ficha-finanzas.${stop}"]`), stop).not.toBeNull();
+    }
+    expect(container.querySelector('[data-tour^="sec.clients-ficha."]')).toBeNull();
+  });
+
+  it('the admin ficha keeps its own tour', async () => {
+    await render();
+    expect(container.querySelector('[data-testid="scope"]')?.textContent).toBe('clients-ficha');
+    expect(container.querySelector('[data-tour="sec.clients-ficha.bar"]')).not.toBeNull();
+    expect(container.querySelector('[data-tour*="finanzas"]')).toBeNull();
+  });
+
   it('finance sees billing details and jobsites without editing or project creation', async () => {
     act(() => root.render(<ClientFicha client={ANDES} {...handlers} readOnly />));
     await flush();
