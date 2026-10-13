@@ -316,6 +316,8 @@
   "rev.submitting": "Guardando…",
   "rev.error.comment": "Sin comentario no se puede observar.",
   "rev.error.server": "No pudimos guardar tu revisión. Inténtalo otra vez.",
+  "rev.error.dueBeforeReceipt": "El vencimiento no puede ser anterior a hoy: la cuenta en Cuentas por pagar se recibe el día en que apruebas.",
+  "error.inPayables": "En Cuentas por pagar ya está la factura {{number}} de {{vendor}}. Para no pagarla dos veces, no se creó otra cuenta: revisa primero esa.",
   "rev.reviewed.title": "{{status}} · {{date}}",
   "rev.reviewed.body": "Ya revisaste esta factura. Está a la espera de pago.",
   "rev.reviewedObserved.body": "Ya la devolviste observada. Espera a que el subcontratista la corrija y la reenvíe desde su app.",
@@ -338,6 +340,8 @@
   "pay.submitting": "Registrando…",
   "pay.error.title": "No pudimos registrar el pago.",
   "pay.error.hint": "Revisa tu conexión y reintenta con los mismos datos. El mismo pago no se registrará dos veces.",
+  "pay.error.quickbooks": "Esta factura está en QuickBooks: registra el pago allá y aparecerá aquí solo.",
+  "pay.error.requestConflict": "Este pago ya se registró con otros datos. Recarga la página para ver lo que quedó registrado.",
 
   "range": "{{start}}–{{end}} de {{total}}",
   "perPage": "Por página",

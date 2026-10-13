@@ -316,6 +316,8 @@
   "rev.submitting": "Saving…",
   "rev.error.comment": "You need a comment to send it back.",
   "rev.error.server": "We couldn't save your review. Try again.",
+  "rev.error.dueBeforeReceipt": "The due date can't be before today: the bill in accounts payable is received the day you approve.",
+  "error.inPayables": "Accounts payable already has invoice {{number}} from {{vendor}}. To avoid paying it twice, no second bill was created: check that bill first.",
   "rev.reviewed.title": "{{status}} · {{date}}",
   "rev.reviewed.body": "You've already reviewed this invoice. It's waiting for payment.",
   "rev.reviewedObserved.body": "You've already sent it back. It's waiting for the subcontractor to fix and resubmit it from their app.",
@@ -338,6 +340,8 @@
   "pay.submitting": "Recording…",
   "pay.error.title": "We couldn't record the payment.",
   "pay.error.hint": "Check your connection and retry with the same details. The same payment will not be recorded twice.",
+  "pay.error.quickbooks": "This invoice is in QuickBooks: record the payment there and it will show up here on its own.",
+  "pay.error.requestConflict": "This payment was already recorded with different details. Reload the page to see what was recorded.",
 
   "range": "{{start}}–{{end}} of {{total}}",
   "perPage": "Per page",
