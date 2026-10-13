@@ -52,8 +52,14 @@ vi.mock('./pages/WarehouseDashboard', () => ({
 vi.mock('./pages/WorkerDashboard', () => ({
   WorkerDashboard: () => <div data-testid="worker-dash">worker</div>,
 }));
+vi.mock('./pages/AdminDashboard', () => ({
+  AdminDashboard: ({ initialSection }: { initialSection?: string }) => (
+    <div data-testid="admin-dash">admin:{String(initialSection)}</div>
+  ),
+}));
 
 import { routes } from './routes';
+import { peekSectionIntent, resetSectionIntents } from './lib/sectionIntent';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -130,7 +136,7 @@ describe('routes – formerly ComingSoon, now real modules', () => {
   });
   it.each([
     ['/finance/clients', 'clients'], ['/finance/receivables', 'accounts-receivable'],
-    ['/finance/payables', 'accounts-payable'], ['/finance/invoices', 'invoices'],
+    ['/finance/payables', 'accounts-payable'],
     ['/finance/labor-cost', 'labor-cost'], ['/finance/payroll', 'labor-payroll'], ['/finance/supervisor-hours', 'supervisor-hours'],
   ])('%s opens the financial section for FINANCE', async (path, section) => {
     await renderPath(root, path);
@@ -142,6 +148,27 @@ describe('routes – formerly ComingSoon, now real modules', () => {
     await renderPath(root, path);
     expect(container.querySelector('[data-testid="finance-dash"]')).toBeNull();
     expect(container.querySelector('[data-testid="worker-dash"]')).toBeTruthy();
+  });
+
+  // Facturas joined Cobros (2026-10-12): its old addresses — bookmarks, links,
+  // the redesign's own paths — open Cobros with the issue window.
+  it.each([
+    ['FINANCE', '/finance/invoices', 'finance-dash'], ['FINANCE', '/finance/documents', 'finance-dash'],
+    ['ADMIN', '/admin/documentos', 'admin-dash'], ['ADMIN', '/admin/invoices', 'admin-dash'],
+  ])('%s: %s opens Cobros with the issue window', async (role, path, dash) => {
+    resetSectionIntents();
+    auth.ref.role = role;
+    await renderPath(root, path);
+    expect(container.querySelector(`[data-testid="${dash}"]`)?.textContent).toContain('accounts-receivable');
+    expect(peekSectionIntent('accounts-receivable')).toEqual({ openIssue: true });
+  });
+
+  it('a role that may not issue is bounced by the guard and asks for no issue window', async () => {
+    resetSectionIntents();
+    auth.ref.role = 'WORKER';
+    await renderPath(root, '/finance/invoices');
+    expect(container.querySelector('[data-testid="worker-dash"]')).toBeTruthy();
+    expect(peekSectionIntent('accounts-receivable')).toBeNull();
   });
 
 });

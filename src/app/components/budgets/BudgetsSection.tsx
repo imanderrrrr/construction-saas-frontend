@@ -505,7 +505,7 @@ export function BudgetsSection({ readOnly = false, onNavigate }: {
             consumption={consumption}
             onRetrySplit={() => consumption.retry(consumedByProject)}
             onOpenWorks={row => { setView('works'); openDetail(row); }}
-            onOpenInvoices={onNavigate ? () => onNavigate('invoices') : undefined}
+            onOpenInvoices={onNavigate ? () => onNavigate('accounts-receivable') : undefined}
           />
         )}
       </div>

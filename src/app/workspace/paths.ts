@@ -15,7 +15,7 @@ export const WORKSPACE_PATHS: Record<WorkspaceRole, Record<string, string>> = {
     hours: '/admin/informes/horas', 'labor-cost': '/admin/informes/costos',
     'expense-report': '/admin/informes/gastos', 'invoice-branding': '/admin/configuracion/documentos',
     audit: '/admin/configuracion/actividad', billing: '/admin/configuracion/suscripcion',
-    quickbooks: '/admin/configuracion/quickbooks', invoices: '/admin/documentos',
+    quickbooks: '/admin/configuracion/quickbooks',
   },
   FINANCE: {
     dashboard: '/finance/dashboard', clients: '/finance/clients',
@@ -23,7 +23,7 @@ export const WORKSPACE_PATHS: Record<WorkspaceRole, Record<string, string>> = {
     budgets: '/finance/budgets', 'approved-expenses': '/finance/expenses',
     'labor-cost': '/finance/labor-cost', 'labor-payroll': '/finance/payroll',
     'supervisor-hours': '/finance/supervisor-hours', 'tm-office': '/finance/change-orders',
-    'expense-report': '/finance/reports/expenses', invoices: '/finance/documents',
+    'expense-report': '/finance/reports/expenses',
   },
   SUPERVISOR: {
     dashboard: '/supervisor/dashboard', projects: '/supervisor/obras', 'task-board': '/supervisor/tareas',

@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { AuthService } from '../services/auth';
 
-import { Building2, LayoutDashboard, Users, FolderOpen, Shield, Clock, CalendarClock, ClipboardList, Receipt, FileBarChart, Wallet, Wrench, Banknote, HardHat, ArrowDownToLine, ArrowUpFromLine, UserRound, Briefcase, CreditCard, FileSignature, HelpCircle, PenLine, PlugZap, FileText } from 'lucide-react';
+import { Building2, LayoutDashboard, Users, FolderOpen, Shield, Clock, CalendarClock, ClipboardList, Receipt, FileBarChart, Wallet, Wrench, Banknote, HardHat, ArrowDownToLine, ArrowUpFromLine, UserRound, Briefcase, CreditCard, FileSignature, HelpCircle, PenLine, PlugZap } from 'lucide-react';
 import { OnboardingTour } from '../components/onboarding/OnboardingTour';
 import { SectionTour } from '../components/onboarding/SectionTour';
 import { BillingSection } from '../components/BillingSection';
@@ -154,10 +154,6 @@ const InvoiceBrandingSettings = lazyWithRetry(() =>
   import('../components/InvoiceBrandingSettings').then(m => ({ default: m.InvoiceBrandingSettings }))
 );
 
-const InvoiceManager = lazyWithRetry(() =>
-  import('../components/InvoiceManager').then(m => ({ default: m.InvoiceManager }))
-);
-
 // Lazy-loaded QuickBooks Online connection (the tenant's own company)
 const QuickBooksSection = lazyWithRetry(() =>
   import('../components/quickbooks/QuickBooksSection').then(m => ({ default: m.QuickBooksSection }))
@@ -171,7 +167,7 @@ type ActiveSection =
   | 'budgets'
   | 'tool-inventory' | 'tool-report'
   | 'labor-cost' | 'labor-payroll'
-  | 'invoices' | 'invoice-branding'
+  | 'invoice-branding'
   | 'accounts-receivable' | 'accounts-payable'
   | 'office-expenses'
   | 'tm-field' | 'tm-office'
@@ -240,7 +236,6 @@ const NAV_FINANCE: NavItem[] = [
   { key: 'expense-report',       labelKey: 'admin:nav.expenseReport',       icon: FileBarChart    },
   { key: 'office-expenses',      labelKey: 'admin:nav.officeExpenses',      icon: Building2       },
   { key: 'accounts-receivable',  labelKey: 'admin:nav.accountsReceivable',  icon: ArrowDownToLine },
-  { key: 'invoices',             labelKey: 'admin:nav.invoices',            icon: FileText },
   { key: 'accounts-payable',     labelKey: 'admin:nav.accountsPayable',     icon: ArrowUpFromLine },
   { key: 'tm-office',            labelKey: 'tm:nav.office',                icon: FileSignature   },
   { key: 'quickbooks',           labelKey: 'admin:nav.quickbooks',          icon: PlugZap         },
@@ -263,7 +258,6 @@ const SECTION_META: Record<ActiveSection, { titleKey: string; subtitleKey: strin
   'tool-report':     { titleKey: 'admin:section.toolReport.title',      subtitleKey: 'admin:section.toolReport.subtitle'      },
   'labor-cost':           { titleKey: 'admin:section.laborCost.title',           subtitleKey: 'admin:section.laborCost.subtitle'           },
   'labor-payroll':        { titleKey: 'admin:section.laborPayroll.title',        subtitleKey: 'admin:section.laborPayroll.subtitle'        },
-  'invoices':             { titleKey: 'admin:section.invoices.title',             subtitleKey: 'admin:section.invoices.subtitle'             },
   'invoice-branding':     { titleKey: 'admin:section.invoiceBranding.title',      subtitleKey: 'admin:section.invoiceBranding.subtitle'      },
   'accounts-receivable':  { titleKey: 'admin:section.accountsReceivable.title',  subtitleKey: 'admin:section.accountsReceivable.subtitle'  },
   'accounts-payable':     { titleKey: 'admin:section.accountsPayable.title',     subtitleKey: 'admin:section.accountsPayable.subtitle'     },
@@ -287,7 +281,18 @@ export function AdminDashboard({ initialSection = 'dashboard' }: { initialSectio
   const [activeSection, navigateSection] = useSectionNavigation('ADMIN', returnedOutcome ? 'quickbooks' : initialSection);
   const [qbOutcome, setQbOutcome] = useState<QuickBooksOutcome | null>(() => returnedOutcome
     ?? (new URLSearchParams(location.search).has('quickbooks') ? null : peekSectionIntent('quickbooks')?.outcome ?? null));
-  const handleNavigate = (section: string) => { clearSectionIntent('quickbooks'); setQbOutcome(null); navigateSection(section); };
+  const handleNavigate = (section: string) => {
+    clearSectionIntent('quickbooks'); setQbOutcome(null);
+    // Facturas joined Cobros (2026-10-12): whatever still asks for it — an
+    // old favorite, a link — means "issue a document", so Cobros opens with
+    // the issue window up.
+    if (section === 'invoices') {
+      setSectionIntent('accounts-receivable', { openIssue: true });
+      navigateSection('accounts-receivable');
+      return;
+    }
+    navigateSection(section);
+  };
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.has('quickbooks')) {
@@ -306,15 +311,15 @@ export function AdminDashboard({ initialSection = 'dashboard' }: { initialSectio
     users: 'team', 'time-approvals': 'team',
     'accounts-receivable': 'finance', 'accounts-payable': 'finance', expenses: 'finance', 'office-expenses': 'finance', budgets: 'finance', 'labor-payroll': 'finance', 'tm-office': 'finance',
     'tool-inventory': 'inventory', hours: 'reports', 'labor-cost': 'reports', 'expense-report': 'reports', 'tool-report': 'reports',
-    invoices: 'finance', 'invoice-branding': 'settings', billing: 'settings', audit: 'settings', quickbooks: 'settings',
+    'invoice-branding': 'settings', billing: 'settings', audit: 'settings', quickbooks: 'settings',
   };
   const order = ['dashboard', 'projects', 'clients', 'subcontractors', 'schedules', 'tm-field', 'users', 'time-approvals',
-    'accounts-receivable', 'invoices', 'accounts-payable', 'expenses', 'office-expenses', 'budgets', 'labor-payroll', 'tm-office',
+    'accounts-receivable', 'accounts-payable', 'expenses', 'office-expenses', 'budgets', 'labor-payroll', 'tm-office',
     'tool-inventory', 'hours', 'labor-cost', 'expense-report', 'tool-report', 'invoice-branding', 'billing', 'audit', 'quickbooks'];
   const navItems = order.flatMap(key => {
     const item = NAV_ITEMS.find(i => i.key === key);
     return item ? [{ key, label: key === 'dashboard' ? t('common:workspace.home') : t(item.labelKey), icon: item.icon, group: areaFor[key],
-      parent: key === 'office-expenses' ? 'expenses' : ['tm-office', 'invoices'].includes(key) ? 'accounts-receivable' : undefined }] : [];
+      parent: key === 'office-expenses' ? 'expenses' : key === 'tm-office' ? 'accounts-receivable' : undefined }] : [];
   });
   const navGroups = [
     { key: 'works', label: t('common:workspace.works'), icon: FolderOpen },
@@ -331,7 +336,6 @@ export function AdminDashboard({ initialSection = 'dashboard' }: { initialSectio
       topbarExtra={<button data-tour="help" type="button" onClick={() => activeSection === 'dashboard' ? setTourReplay(n => n + 1) : setIntroReplay(n => n + 1)} title={t('admin:tour.helpButton')} className="p-2 text-[#5A5346] focus-visible:outline-2 focus-visible:outline-[#F97316]"><HelpCircle className="size-4" /></button>}>
       <SectionTour autoStart={false} section={activeSection} username={username} replayNonce={introReplay} sectionLabel={t(meta.titleKey)} />
           {activeSection === 'dashboard'    && <DashboardContent onNavigate={handleNavigate} />}
-          {activeSection === 'invoices' && <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div role="status" className="animate-pulse h-64" />}><InvoiceManager onNavigate={handleNavigate} /></Suspense></SectionErrorBoundary>}
           {activeSection === 'billing'      && <BillingSection />}
           {activeSection === 'tm-field'     && (
             <SectionErrorBoundary resetKey={activeSection}><Suspense fallback={<div className="animate-pulse h-64 bg-white rounded-xl border border-[#D4D4D8]" />}>
