@@ -281,18 +281,7 @@ export function AdminDashboard({ initialSection = 'dashboard' }: { initialSectio
   const [activeSection, navigateSection] = useSectionNavigation('ADMIN', returnedOutcome ? 'quickbooks' : initialSection);
   const [qbOutcome, setQbOutcome] = useState<QuickBooksOutcome | null>(() => returnedOutcome
     ?? (new URLSearchParams(location.search).has('quickbooks') ? null : peekSectionIntent('quickbooks')?.outcome ?? null));
-  const handleNavigate = (section: string) => {
-    clearSectionIntent('quickbooks'); setQbOutcome(null);
-    // Facturas joined Cobros (2026-10-12): whatever still asks for it — an
-    // old favorite, a link — means "issue a document", so Cobros opens with
-    // the issue window up.
-    if (section === 'invoices') {
-      setSectionIntent('accounts-receivable', { openIssue: true });
-      navigateSection('accounts-receivable');
-      return;
-    }
-    navigateSection(section);
-  };
+  const handleNavigate = (section: string) => { clearSectionIntent('quickbooks'); setQbOutcome(null); navigateSection(section); };
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.has('quickbooks')) {

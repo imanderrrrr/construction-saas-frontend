@@ -20,10 +20,7 @@ vi.mock('../services/auth', () => ({
 }));
 vi.mock('../components/AppShell', () => ({
   AppShell: ({ children, navItems, onNavigate }: { children: React.ReactNode; navItems: { key: string; label: string }[]; onNavigate: (section: string) => void }) => (
-    <div data-testid="app-shell"><nav>{navItems.map(item => <button key={item.key} data-section={item.key} onClick={() => onNavigate(item.key)}>{item.label}</button>)}</nav>
-      {/* A favorite or recent the shell kept from before Facturas joined Cobros. */}
-      <button data-testid="old-invoices-favorite" onClick={() => onNavigate('invoices')}>old favorite</button>
-      {children}</div>
+    <div data-testid="app-shell"><nav>{navItems.map(item => <button key={item.key} data-section={item.key} onClick={() => onNavigate(item.key)}>{item.label}</button>)}</nav>{children}</div>
   ),
 }));
 vi.mock('../components/StatCard', () => ({ StatCard: () => <div data-testid="stat-card" /> }));
@@ -60,7 +57,6 @@ vi.mock('../components/labor/LaborPayrollScreen', () => ({ LaborPayrollScreen: (
 vi.mock('../components/approvals/ApprovalsInbox', () => ({ ApprovalsInbox: ({ mode }: { mode: string }) => <div data-testid="section-supervisor-hours" data-mode={mode} /> }));
 
 import { FinanceDashboard } from './FinanceDashboard';
-import { peekSectionIntent, resetSectionIntents } from '../lib/sectionIntent';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -141,17 +137,6 @@ describe('FinanceDashboard – initialSection deep-linking', () => {
     await flush();
     expect(container.querySelector('[data-section="invoices"]')).toBeNull();
     expect(container.querySelector('[data-section="accounts-receivable"]')).toBeTruthy();
-  });
-
-  it('an old «Facturas» favorite opens Cobros with the issue window', async () => {
-    resetSectionIntents();
-    await act(async () => root.render(<FinanceDashboard />));
-    await flush();
-    await act(async () => (container.querySelector('[data-testid="old-invoices-favorite"]') as HTMLButtonElement).click());
-    await flush();
-    expect(router.navigate).toHaveBeenCalledWith('/finance/receivables');
-    expect(container.querySelector('[data-testid="section-receivables"]')).toBeTruthy();
-    expect(peekSectionIntent('accounts-receivable')).toEqual({ openIssue: true });
   });
 
   it('updates the screen when the router changes the initial section', async () => {

@@ -5,7 +5,6 @@ import { useMarkDashboardReady } from '../lib/dashboardReady';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { AuthService } from '../services/auth';
-import { setSectionIntent } from '../lib/sectionIntent';
 import {
   LayoutDashboard, CheckCircle, FileBarChart, Clock,
   Wallet, ArrowDownToLine, ArrowUpFromLine,
@@ -128,14 +127,6 @@ function FinancePanel({ initialSection }: { initialSection?: ActiveSection }) {
 
   const handleLogout   = () => { document.cookie = 'ofjr_session=; Path=/; Max-Age=0'; navigate('/'); AuthService.logout(); };
   const handleNavigate = (section: string, values?: Record<string, string | number | null>) => {
-    // Facturas joined Cobros (2026-10-12): whatever still asks for it — an
-    // old favorite, a link — means "issue a document", so Cobros opens with
-    // the issue window up.
-    if (section === 'invoices') {
-      setSectionIntent('accounts-receivable', { openIssue: true });
-      navigateSection('accounts-receivable');
-      return;
-    }
     const resolved = resolveSection('FINANCE', section);
     if (!(resolved in SECTION_META_KEYS)) return;
     navigateSection(resolved, values);
