@@ -21,6 +21,10 @@ import {
  * The most operational of the three: it's used on pay day, list in hand. Paid
  * and unpaid are separated so hard you can tell them apart across the room,
  * and confirming a payment surfaces any budget overrun BEFORE you commit.
+ *
+ * Finance (`mode="finance"`) confirms payments and downloads «Pagos a Excel»
+ * like the admin does (the backend opens /admin/payroll to it); only the
+ * hourly rates stay out of reach, because they live in Usuarios.
  */
 export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate: (section: string) => void; mode?: 'admin' | 'finance' }) {
   const { t, i18n } = useTranslation(['admin', 'common']);
@@ -134,14 +138,14 @@ export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate:
                 owed, from the hours on screen. This one lists the payments
                 already made in the period — the cheques — which is what gets
                 keyed into QuickBooks. */}
-            {mode === 'admin' && <button onClick={downloadPayments} disabled={exportingPayments}
+            <button onClick={downloadPayments} disabled={exportingPayments}
               title={t('admin:pay.exportPayments.hint')}
               className="inline-flex items-center gap-2 border border-[#DBD0BB] bg-[#FAF7F0] px-4 py-3 font-bt-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-[#0A0A0A] hover:border-[#F97316] hover:text-[#C2410C] disabled:opacity-50">
               {exportingPayments
                 ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 : <FileSpreadsheet className="w-3.5 h-3.5" />}
               {t('admin:pay.exportPayments')}
-            </button>}
+            </button>
           </div>
         }
       />
@@ -225,7 +229,7 @@ export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate:
             {unpaidSorted.length > 0 && (
               <Group title={t('admin:pay.groupUnpaid')} dot="#F97316" bg="#FBF8F2" color="#0A0A0A" count={unpaidSorted.length}>
                 {unpaidSorted.map(w => (
-                  <PayRow key={w.workerId} w={w} paid={false} onPay={() => setPaying(w)} onNavigate={onNavigate} canManageRates={mode === 'admin'} canPay={mode === 'admin'}
+                  <PayRow key={w.workerId} w={w} paid={false} onPay={() => setPaying(w)} onNavigate={onNavigate} canManageRates={mode === 'admin'}
                     lang={lang} blockers={budgetBlockers(w, remainingByProject)} />
                 ))}
               </Group>
@@ -233,7 +237,7 @@ export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate:
             {paid.length > 0 && (
               <Group title={t('admin:pay.groupPaid')} dot="#7A9A7E" bg="#F3F5F1" color="#2E6B34" count={paid.length}>
                 {paid.map(w => (
-                  <PayRow key={w.workerId} w={w} paid onPay={() => {}} onNavigate={onNavigate} canManageRates={mode === 'admin'} canPay={mode === 'admin'} lang={lang} blockers={[]} />
+                  <PayRow key={w.workerId} w={w} paid onPay={() => {}} onNavigate={onNavigate} canManageRates={mode === 'admin'} lang={lang} blockers={[]} />
                 ))}
               </Group>
             )}
@@ -271,9 +275,10 @@ function Group({ title, dot, bg, color, count, children }: {
   );
 }
 
-function PayRow({ w, paid, onPay, onNavigate, lang, blockers, canManageRates, canPay }: {
+function PayRow({ w, paid, onPay, onNavigate, lang, blockers, canManageRates }: {
   w: WorkerHoursSummary; paid: boolean; onPay: () => void; onNavigate: (s: string) => void; lang: string;
-  canManageRates: boolean; canPay: boolean;
+  /** False on the finance panel: rates live in Usuarios, which it does not have. */
+  canManageRates: boolean;
   blockers: { name: string; amount: number; remaining: number }[];
 }) {
   const { t } = useTranslation(['admin', 'finance']);
@@ -285,7 +290,7 @@ function PayRow({ w, paid, onPay, onNavigate, lang, blockers, canManageRates, ca
     : null;
 
   return (
-    <div onClick={() => { if (canPay && !paid && !rateless) onPay(); }}
+    <div onClick={() => { if (!paid && !rateless) onPay(); }}
       className={`grid grid-cols-[40px_minmax(0,1fr)] sm:grid-cols-[40px_minmax(0,1fr)_104px_150px] gap-3.5 items-center px-5 py-4 border-b border-[#F0EBE1] transition-colors ${paid ? '' : 'cursor-pointer hover:bg-[#FBF8F2]'}`}
       style={{ borderLeft: !paid && rateless ? '3px solid #F97316' : '3px solid transparent', opacity: paid ? 0.72 : 1 }}>
       <span className={`w-10 h-10 flex items-center justify-center font-bt-mono text-[13px] font-semibold flex-shrink-0 ${
@@ -333,7 +338,7 @@ function PayRow({ w, paid, onPay, onNavigate, lang, blockers, canManageRates, ca
         </Mono>
       </div>
       <div className="col-start-2 sm:col-start-auto flex justify-end" onClick={e => e.stopPropagation()}>
-        {canPay && !paid && !rateless && (
+        {!paid && !rateless && (
           <button onClick={onPay}
             className="inline-flex items-center gap-2 bg-[#0A0A0A] hover:bg-[#2E6B34] text-[#F5F1E8] px-3.5 py-2.5 font-bt-mono text-[10px] font-semibold uppercase tracking-[0.07em] transition-colors">
             <CreditCard className="w-3.5 h-3.5" />{t('admin:pay.confirm')}
