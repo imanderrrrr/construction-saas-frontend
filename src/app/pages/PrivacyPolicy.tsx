@@ -4,7 +4,7 @@ import { SUPPORT_EMAIL, supportMailto } from '../lib/contact';
 const es: LegalVersion = {
   lang: 'es',
   docTitle: 'Política de Privacidad',
-  updatedLabel: 'Última actualización: 1 de septiembre de 2026 — v2.1',
+  updatedLabel: 'Última actualización: 12 de octubre de 2026 — v2.2',
   tocLabel: 'Contenido',
   meta: [
     { label: 'Proveedor', value: 'Archlogic Systems' },
@@ -19,7 +19,7 @@ const es: LegalVersion = {
         </a>
       ),
     },
-    { label: 'Versión', value: '2.1' },
+    { label: 'Versión', value: '2.2' },
   ],
   sections: [
     {
@@ -80,22 +80,13 @@ const es: LegalVersion = {
             restablecer su propia contraseña.
           </li>
           <li>
-            <strong>Ubicación (GPS):</strong> se usa exclusivamente para verificar la presencia en el sitio de
-            obra asignado (geocerca). Mientras la pantalla de fichaje está abierta, la app lee la ubicación
-            para mostrar la distancia al sitio; las coordenadas se envían al servidor únicamente al registrar
-            entrada o salida, y no se rastrea en segundo plano. Se utiliza ubicación precisa para asegurar la
-            exactitud de la verificación.
+            <strong>Ubicación (GPS):</strong> se usa para verificar la presencia en las obras asignadas (geocerca), registrar la ubicación de las marcas y mostrar mapas y rutas de trabajo. Mientras la pantalla de fichaje está abierta, la app recibe actualizaciones de ubicación para mostrar la posición, la distancia al sitio o al destino de un viaje y avisos de llegada. Las coordenadas se envían al servidor al registrar una marca (entrada, almuerzo, viaje, llegada o salida) o al pedir el camino a un destino, que el servidor calcula con Google sin guardarlo. Al buscar un lugar de destino se envía además una ubicación aproximada (de alrededor de 1 km) para mostrar lugares cercanos. No se rastrea en segundo plano. Los destinos que son lugares no se verifican mediante una geocerca de Google. Las funciones disponibles dependen de la empresa y del servicio conectado.
           </li>
           <li>
-            <strong>Cámara, micrófono y galería:</strong> para capturar recibos de gastos, evidencia del
-            avance de obra y documentos de facturación. La evidencia de avance puede grabarse como video, y esos
-            videos se graban con sonido, por lo que incluyen el audio captado por el micrófono durante la
-            grabación. Las imágenes y los videos se almacenan en servidores seguros y no se comparten con
-            terceros ajenos al servicio.
+            <strong>Cámara, micrófono y galería:</strong> para escanear el QR de acceso, capturar recibos, evidencia de avance de obra y documentos de facturación. Los videos de avance incluyen el sonido captado durante la grabación. El micrófono también permite dictar notas de bitácora cuando la persona activa esa función; el reconocimiento de voz del sistema convierte el audio en texto y puede procesarlo en sus servidores (Apple en iOS, según el idioma y el dispositivo). El texto resultante se incorpora a la nota que la persona edita y guarda. La app no graba audio en segundo plano. Las imágenes, los videos y las notas enviados se almacenan para prestar el servicio a la empresa.
           </li>
           <li>
-            <strong>Registro de jornada:</strong> hora de entrada, hora de salida, proyecto asignado y
-            ubicación del registro.
+            <strong>Registro de jornada:</strong> marcas de entrada, almuerzo, viaje, llegada y salida; proyecto asignado, identificador del destino, ubicación registrada y estado de revisión. También se guardan las notas y evidencias de bitácora enviadas por la persona.
           </li>
           <li>
             <strong>Datos financieros del trabajo:</strong> facturas, montos, conceptos y estados de pago
@@ -144,7 +135,7 @@ const es: LegalVersion = {
           </li>
           <li>
             <strong>Consentimiento:</strong> para el acceso a permisos del dispositivo (ubicación, cámara,
-            micrófono, galería), revocables en cualquier momento desde la configuración del sistema.
+            micrófono, reconocimiento de voz, galería), revocables en cualquier momento desde la configuración del sistema.
           </li>
           <li>
             <strong>Obligación legal:</strong> conservación de registros laborales y fiscales según la ley
@@ -159,8 +150,7 @@ const es: LegalVersion = {
       body: (
         <>
           <p>
-            BuildTrack se apoya en los siguientes proveedores, que procesan datos por cuenta de Archlogic bajo
-            sus propias políticas y acuerdos de tratamiento:
+            Para prestar el servicio utilizamos estos proveedores. El alojamiento procesa datos por cuenta de Archlogic; los mapas y el reconocimiento de voz también pueden procesar datos conforme a las políticas de sus proveedores:
           </p>
           <ul>
             <li>
@@ -176,6 +166,8 @@ const es: LegalVersion = {
             <li>
               <strong>Paddle:</strong> procesamiento de pagos de las suscripciones de los Clientes.
             </li>
+            <li><strong>Google Maps:</strong> mapas dentro de la app, búsqueda de lugares y cálculo de rutas. Sus SDK pueden tratar identificadores del dispositivo, interacciones con el mapa y datos de fallos y rendimiento para funcionalidad y análisis del servicio. La búsqueda y las rutas reciben los datos necesarios de origen y destino. El servidor conserva el identificador del lugar, sin almacenar su nombre, dirección, coordenadas de Google ni el contenido de la ruta. Se aplican los Términos de Google Maps (https://maps.google.com/help/terms_maps.html) y la Política de privacidad de Google (https://policies.google.com/privacy).</li>
+            <li><strong>Reconocimiento de voz del sistema:</strong> convertir la voz en texto mediante el servicio del sistema, con autorización del dispositivo. Según el idioma y el dispositivo, el audio puede enviarse al proveedor del reconocimiento; en iOS se usa el servicio de Apple.</li>
             <li>
               <strong>Google Play Services:</strong> necesario para el funcionamiento de la app en dispositivos
               Android; puede recopilar información e identificadores del dispositivo.
@@ -243,10 +235,9 @@ const es: LegalVersion = {
             del avance de obra, en foto o en video.
           </li>
           <li>
-            <strong>Micrófono:</strong> grabar el sonido de los videos de evidencia de avance de obra. Solo se
-            activa mientras se graba un video desde la app; la aplicación no graba audio en segundo plano ni
-            fuera de esa acción.
+            <strong>Micrófono:</strong> grabar sonido durante videos de evidencia y dictar notas de bitácora cuando la persona inicia esas funciones. No se graba audio en segundo plano.
           </li>
+          <li><strong>Reconocimiento de voz:</strong> convertir la voz en texto mediante el servicio del sistema, con autorización del dispositivo. Según el idioma y el dispositivo, el audio puede enviarse al proveedor del reconocimiento; en iOS se usa el servicio de Apple.</li>
           <li>
             <strong>Galería / almacenamiento:</strong> adjuntar imágenes existentes como evidencia o recibos.
           </li>
@@ -355,7 +346,7 @@ const es: LegalVersion = {
 const en: LegalVersion = {
   lang: 'en',
   docTitle: 'Privacy Policy',
-  updatedLabel: 'Last updated: September 1, 2026 — v2.1',
+  updatedLabel: 'Last updated: October 12, 2026 — v2.2',
   tocLabel: 'Contents',
   meta: [
     { label: 'Provider', value: 'Archlogic Systems' },
@@ -370,7 +361,7 @@ const en: LegalVersion = {
         </a>
       ),
     },
-    { label: 'Version', value: '2.1' },
+    { label: 'Version', value: '2.2' },
   ],
   sections: [
     {
@@ -434,21 +425,13 @@ const en: LegalVersion = {
             is typed by the administrator registering the company, so that they can reset their own password.
           </li>
           <li>
-            <strong>Location (GPS):</strong> used exclusively to verify presence at the assigned construction
-            site (geofence). While the time-tracking screen is open, the app reads location data to show the
-            distance to the site; coordinates are sent to the server only when clocking in or out, and it is
-            not tracked in the background. Precise location is used to ensure verification accuracy.
+            <strong>Location (GPS):</strong> used to verify presence at assigned construction sites (geofence), record the location of time events and display work maps and routes. While the time-tracking screen is open, the app receives location updates to show position, distance to the site or trip destination and arrival prompts. Coordinates are sent to the server when recording a time event (check-in, lunch, trip, arrival or check-out) or requesting the way to a destination, which the server works out with Google without storing it. Place search also sends an approximate location (around 1 km) to show nearby destinations. The app does not track location in the background. Place destinations are not verified against a Google geofence. Available features depend on the company and connected service.
           </li>
           <li>
-            <strong>Camera, microphone and gallery:</strong> to capture expense receipts, evidence of
-            construction progress, and invoicing documents. Progress evidence may be recorded as video, and such
-            videos are recorded with sound, so they include the audio picked up by the microphone while
-            recording. Images and videos are stored on secure servers and are not shared with third parties
-            outside the service.
+            <strong>Camera, microphone and gallery:</strong> used to scan the sign-in QR, capture receipts, construction-progress evidence and invoicing documents. Progress videos include sound captured during recording. The microphone also supports dictated site-log notes when the user starts that feature; system speech recognition converts audio to text and may process it on its servers (Apple on iOS, depending on language and device). The resulting text is added to the note the user edits and saves. The app does not record audio in the background. Submitted images, videos and notes are stored to provide the service to the company.
           </li>
           <li>
-            <strong>Work records:</strong> clock-in time, clock-out time, assigned project, and check-in
-            location.
+            <strong>Work records:</strong> check-in, lunch, trip, arrival and check-out events; assigned project, destination identifier, recorded location and review status. Submitted site-log notes and evidence are also stored.
           </li>
           <li>
             <strong>Work-related financial data:</strong> invoices, amounts, descriptions, and payment statuses
@@ -494,7 +477,7 @@ const en: LegalVersion = {
             <strong>Legitimate interest:</strong> platform security, fraud prevention, and service improvement.
           </li>
           <li>
-            <strong>Consent:</strong> for access to device permissions (location, camera, microphone, gallery),
+            <strong>Consent:</strong> for access to device permissions (location, camera, microphone, speech recognition, gallery),
             revocable at any time from system settings.
           </li>
           <li>
@@ -510,8 +493,7 @@ const en: LegalVersion = {
       body: (
         <>
           <p>
-            BuildTrack relies on the following providers, which process data on Archlogic's behalf under
-            their own policies and data processing agreements:
+            To provide the service we use these providers. Hosting processes data on behalf of Archlogic; maps and speech recognition may also process data under their providers’ policies:
           </p>
           <ul>
             <li>
@@ -526,6 +508,8 @@ const en: LegalVersion = {
             <li>
               <strong>Paddle:</strong> payment processing for Customers' subscriptions.
             </li>
+            <li><strong>Google Maps:</strong> in-app maps, place search and route calculation. Its SDKs may process device identifiers, map interactions and crash and performance data for service functionality and analytics. Search and routing receive the origin and destination data needed for the request. The server retains the place identifier without storing its Google name, address, coordinates or route content. Google Maps Terms (https://maps.google.com/help/terms_maps.html) and Google Privacy Policy (https://policies.google.com/privacy) apply.</li>
+            <li><strong>System speech recognition:</strong> convert voice to text using the system service, with device authorization. Depending on language and device, audio may be sent to the recognition provider; iOS uses Apple’s service.</li>
             <li>
               <strong>Google Play Services:</strong> required for the app to operate on Android devices; may
               collect device information and identifiers.
@@ -594,10 +578,9 @@ const en: LegalVersion = {
             progress, as photos or video.
           </li>
           <li>
-            <strong>Microphone:</strong> record the sound of progress-evidence videos. It is active only while a
-            video is being recorded from the app; the app does not record audio in the background or outside
-            that action.
+            <strong>Microphone:</strong> record sound during progress videos and dictate site-log notes when the user starts those functions. Audio is not recorded in the background.
           </li>
+          <li><strong>Speech recognition:</strong> convert voice to text using the system service, with device authorization. Depending on language and device, audio may be sent to the recognition provider; iOS uses Apple’s service.</li>
           <li>
             <strong>Gallery / storage:</strong> attach existing images as evidence or receipts.
           </li>
