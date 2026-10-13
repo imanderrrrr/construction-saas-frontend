@@ -1,5 +1,6 @@
 import { useScreenState, useProjectFilter } from '../../workspace/WorkspaceState';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useTourScopeWhileMounted } from '../../lib/tourScope';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, ArrowRight, ChevronRight, X } from 'lucide-react';
 import { getAdminHoursReport, type AdminHoursReportResponse, type WorkerHoursSummary } from '../../services/time';
@@ -18,9 +19,29 @@ const SHADES = ['#0A0A0A', '#5A5346', '#A69C8D', '#CDBFA6', '#DED4C2'];
  * with money already paid — hence the permanent stamp; (2) a total that lies
  * because someone has no hourly rate, so their hours silently cost zero.
  */
+/**
+ * A block of the screen that is also a tour stop, one set per panel: finance
+ * tours the same stops under `labor-cost-finanzas`, with copy for what it can
+ * do there. Written out literally: the registry guardian
+ * (onboarding/sectionTourSteps.test.ts) greps for the attribute and cannot
+ * follow a template.
+ */
+function CostStop({ finance, stop, className, children }: {
+  finance: boolean; stop: 'kpis' | 'list'; className: string; children: ReactNode;
+}) {
+  if (finance && stop === 'kpis') return <div className={className} data-tour="sec.labor-cost-finanzas.kpis">{children}</div>;
+  if (finance) return <div className={className} data-tour="sec.labor-cost-finanzas.list">{children}</div>;
+  if (stop === 'kpis') return <div className={className} data-tour="sec.labor-cost.kpis">{children}</div>;
+  return <div className={className} data-tour="sec.labor-cost.list">{children}</div>;
+}
+
 export function LaborCostScreen({ onNavigate, mode = 'admin' }: { onNavigate: (section: string) => void; mode?: 'admin' | 'finance' }) {
   const { t, i18n } = useTranslation(['admin', 'common']);
   const lang = i18n.language;
+  const finance = mode === 'finance';
+  // Finance tours this screen under its own key (lib/tourScope): the admin's
+  // copy sends people to Usuarios to set rates.
+  useTourScopeWhileMounted(finance ? 'labor-cost-finanzas' : null, t('admin:cost.title'));
 
   const [range, setRange] = useScreenState<LaborRange>('periodo', 'week', 'replace', LABOR_RANGES);
   const [q, setQ] = useScreenState('q', '');
@@ -95,6 +116,13 @@ export function LaborCostScreen({ onNavigate, mode = 'admin' }: { onNavigate: (s
 
   const sorted = [...costed].sort((a, b) => (projectedCost(b) ?? 0) - (projectedCost(a) ?? 0));
 
+  const filterProps = {
+    q, onQ: setQ, range, onRange: setRange,
+    from: customFrom, to: customTo, onFrom: setCustomFrom, onTo: setCustomTo,
+    project, onProject: setProject, projects, projectsCatalog: projectCatalog,
+    chips, onClear: () => { setQ(''); setProject(''); setRange('week'); },
+  };
+
   return (
     <div className="relative p-4 md:p-6 max-w-[1400px] mx-auto space-y-4">
       <LaborHeader
@@ -114,7 +142,7 @@ export function LaborCostScreen({ onNavigate, mode = 'admin' }: { onNavigate: (s
       />
 
       {/* Indicators */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 bg-white border border-[#E4E4E7]" data-tour="sec.labor-cost.kpis">
+      <CostStop finance={finance} stop="kpis" className="grid grid-cols-1 sm:grid-cols-3 bg-white border border-[#E4E4E7]">
         <div className="p-4 md:px-5 sm:border-r border-[#EDE7DB]">
           <div className="flex items-baseline">
             <span className="font-bt-display font-bold text-2xl text-[#8A8175] self-start mt-1">$</span>
@@ -139,7 +167,7 @@ export function LaborCostScreen({ onNavigate, mode = 'admin' }: { onNavigate: (s
           </div>
           <Mono className="block text-[10.5px] text-[#5A5346] mt-1.5">{t('admin:cost.ind.rateless')}</Mono>
         </div>
-      </div>
+      </CostStop>
 
       {/* Hero: where did the cost go */}
       {!loading && byProject.length > 0 && (
@@ -183,16 +211,12 @@ export function LaborCostScreen({ onNavigate, mode = 'admin' }: { onNavigate: (s
         </div>
       )}
 
-      <LaborFilters
-        tourAnchor="sec.labor-cost.filters"
-        q={q} onQ={setQ} range={range} onRange={setRange}
-        from={customFrom} to={customTo} onFrom={setCustomFrom} onTo={setCustomTo}
-        project={project} onProject={setProject} projects={projects} projectsCatalog={projectCatalog}
-        chips={chips} onClear={() => { setQ(''); setProject(''); setRange('week'); }}
-      />
+      {finance
+        ? <LaborFilters tourAnchor="sec.labor-cost-finanzas.filters" {...filterProps} />
+        : <LaborFilters tourAnchor="sec.labor-cost.filters" {...filterProps} />}
 
       {/* List */}
-      <div className="bg-white border border-[#E4E4E7] min-h-[300px]" data-tour="sec.labor-cost.list">
+      <CostStop finance={finance} stop="list" className="bg-white border border-[#E4E4E7] min-h-[300px]">
         {loading ? <LaborSkeleton /> : error ? (
           <div className="py-16 text-center">
             <p className="text-sm text-[#71717A]">{t('admin:lab.error')}</p>
@@ -233,7 +257,7 @@ export function LaborCostScreen({ onNavigate, mode = 'admin' }: { onNavigate: (s
             )}
           </>
         )}
-      </div>
+      </CostStop>
 
       {open && <CostDrawer worker={open} lang={lang} onClose={() => setOpen(null)} onNavigate={onNavigate} canManageRates={mode === 'admin'} />}
     </div>

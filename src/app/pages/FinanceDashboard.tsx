@@ -82,6 +82,14 @@ type ActiveSection =
 const ONBOARDING_KEY: Partial<Record<ActiveSection, string>> = {
   dashboard: 'finance-overview',
   'tm-office': 'tm-office',
+  // The screens with copy written for this panel. Each also claims its key
+  // while mounted (lib/tourScope; the client ficha claims its own on top), but
+  // only a mounted SectionTour shows it — mapping it here mounts the tour and
+  // offers its «?».
+  clients: 'clients-finanzas',
+  'labor-cost': 'labor-cost-finanzas',
+  'labor-payroll': 'labor-payroll-finanzas',
+  'supervisor-hours': 'supervisor-hours-finanzas',
 };
 // Presupuestos is the exception the comment above describes in reverse: the
 // screen itself claims the tour with `pushTourScope`, under a finance-only key

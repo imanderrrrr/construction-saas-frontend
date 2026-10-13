@@ -56,8 +56,15 @@ vi.mock('./RecordDrawer', () => ({ RecordDrawer: () => null }));
 vi.mock('../phase2/ModalCreateDay', () => ({ ModalCreateDay: ({ open, subjectRole }: { open: boolean; subjectRole?: string }) => open ? <div data-testid="manual-day" data-subject-role={subjectRole} /> : null }));
 
 import { ApprovalsInbox } from './ApprovalsInbox';
+import { resetTourScope, useTourScope } from '../../lib/tourScope';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
+/** Which tour the screen claimed (lib/tourScope). */
+function ScopeProbe() {
+  const scope = useTourScope();
+  return <span data-testid="scope">{scope?.key ?? 'none'}</span>;
+}
 
 const todayIso = new Date().toISOString().slice(0, 10);
 
@@ -358,6 +365,27 @@ describe('ApprovalsInbox — bulk approve with an open shift (or a transit on th
       expect(mocks.toast.warning).not.toHaveBeenCalled();
     });
   });
+  // Its own guided tour, with every stop in a block that exists even before
+  // the queue loads; the admin's tour keeps its keys.
+  it('ApprovalsInbox claims supervisor-hours-finanzas in finance mode with all its anchors, also while loading', async () => {
+    resetTourScope();
+    mocks.getAllTimeRecords.mockReturnValue(new Promise(() => {}));
+    await act(async () => { root.render(<><ApprovalsInbox mode="finance" /><ScopeProbe /></>); });
+    expect(container.querySelector('[data-testid="scope"]')?.textContent).toBe('supervisor-hours-finanzas');
+    for (const stop of ['kpis', 'filters', 'queue', 'create-day']) {
+      expect(container.querySelector(`[data-tour="sec.supervisor-hours-finanzas.${stop}"]`), stop).not.toBeNull();
+    }
+    expect(container.querySelector('[data-tour^="sec.time-approvals."]')).toBeNull();
+  });
+
+  it('the admin panel claims nothing new on the approvals inbox', async () => {
+    resetTourScope();
+    await act(async () => { root.render(<><ApprovalsInbox /><ScopeProbe /></>); });
+    expect(container.querySelector('[data-testid="scope"]')?.textContent).toBe('none');
+    expect(container.querySelector('[data-tour="sec.time-approvals.queue"]')).not.toBeNull();
+    expect(container.querySelector('[data-tour*="finanzas"]')).toBeNull();
+  });
+
   it('scopes the finance inbox to supervisor records and hides the role selector', async () => {
     await act(async () => root.render(<ApprovalsInbox mode="finance" />));
     expect(mocks.getAllTimeRecords).toHaveBeenCalledWith(expect.objectContaining({ role: 'SUPERVISOR', status: 'PENDING' }));
