@@ -493,6 +493,7 @@ export function ApprovalsInbox({ mode = 'admin' }: { mode?: 'admin' | 'superviso
           recordId={openId}
           onClose={() => setOpenId(null)}
           onChanged={() => { setOpenId(null); load(); }}
+          onUpdated={() => { void load(); }}
           mode={mode}
         />
       )}

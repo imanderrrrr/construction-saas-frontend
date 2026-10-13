@@ -1,5 +1,5 @@
 import { businessDateTimeToISO } from '../../helpers/dateTime';
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, AlertCircle, AlertTriangle, Clock, CalendarPlus, Info } from 'lucide-react';
 import { toast } from 'sonner';
@@ -21,6 +21,7 @@ import {
 import { listActiveUsers, type UserDTO } from '../../services/users';
 import { businessToday } from '../../helpers/dateTime';
 import { ApiError } from '../../lib/api';
+import { PaperNote } from '../projects/bt';
 
 // Types
 
@@ -72,6 +73,7 @@ export function ModalCreateDay({ open, onClose, onCreated, subjectRole }: ModalC
 
   const [users, setUsers]           = useState<UserDTO[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
+  const [usersFailed, setUsersFailed] = useState(false);
   const [userId, setUserId]         = useState('');
   const [workDate, setWorkDate]     = useState(businessToday);
   const [context, setContext]       = useState<ManualMarkContextResponse | null>(null);
@@ -82,7 +84,21 @@ export function ModalCreateDay({ open, onClose, onCreated, subjectRole }: ModalC
   const [error, setError]           = useState('');
   const [loading, setLoading]       = useState(false);
 
-  // Load selectable subjects (workers + supervisors — supervisors punch too).
+  // Selectable subjects (workers + supervisors — supervisors punch too). A
+  // list that does not load is said in the window, with a retry: a toast
+  // fades and leaves an empty picker behind.
+  const loadUsers = useCallback(() => {
+    setUsersLoading(true);
+    setUsersFailed(false);
+    const usersRequest = subjectRole
+      ? listActiveUsers(subjectRole)
+      : Promise.all([listActiveUsers('WORKER'), listActiveUsers('SUPERVISOR')]).then(([workers, supervisors]) => [...workers, ...supervisors]);
+    usersRequest
+      .then(setUsers)
+      .catch(() => { setUsers([]); setUsersFailed(true); })
+      .finally(() => setUsersLoading(false));
+  }, [subjectRole]);
+
   useEffect(() => {
     if (!open) return;
     setUserId('');
@@ -93,18 +109,8 @@ export function ModalCreateDay({ open, onClose, onCreated, subjectRole }: ModalC
     setTimes({});
     setError('');
     setLoading(false);
-    setUsersLoading(true);
-    const usersRequest = subjectRole
-      ? listActiveUsers(subjectRole)
-      : Promise.all([listActiveUsers('WORKER'), listActiveUsers('SUPERVISOR')]).then(([workers, supervisors]) => [...workers, ...supervisors]);
-    usersRequest
-      .then(setUsers)
-      .catch(() => {
-        setUsers([]);
-        toast.error(t('manualMarks.usersLoadFailed', 'Could not load the user list.'));
-      })
-      .finally(() => setUsersLoading(false));
-  }, [open, subjectRole]);
+    loadUsers();
+  }, [open, loadUsers]);
 
   // User + date chosen → fetch context (assigned projects, paid flag, existing records).
   useEffect(() => {
@@ -211,6 +217,16 @@ export function ModalCreateDay({ open, onClose, onCreated, subjectRole }: ModalC
                 ))}
               </SelectContent>
             </Select>
+            {usersFailed && (
+              <div data-testid="create-day-users-failed">
+                <PaperNote tone="red" className="flex items-center justify-between gap-3">
+                  <span>{t('manualMarks.usersLoadFailed', 'Could not load the user list.')}</span>
+                  <Button type="button" variant="outline" size="sm" onClick={loadUsers} className="rounded-none border-[#0A0A0A] flex-shrink-0">
+                    {t('common:buttons.retry', 'Retry')}
+                  </Button>
+                </PaperNote>
+              </div>
+            )}
           </div>
 
           {/* Date */}
