@@ -77,6 +77,8 @@ type ActiveSection =
  * is the same screen under the same key on both panels.
  */
 const ONBOARDING_KEY: Partial<Record<ActiveSection, string>> = {
+  // Cobros shares Administration's copy; «Ver cómo», after issuing, opens it.
+  'accounts-receivable': 'accounts-receivable',
   dashboard: 'finance-overview',
   'tm-office': 'tm-office',
 };
