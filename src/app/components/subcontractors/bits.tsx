@@ -37,8 +37,8 @@ export function JobStatusChip({ status, onDark = false, className }: { status: J
 }
 
 /**
- * Approved is the only solid-ink chip of the section: it is the one state in
- * which the system expects you to move money.
+ * Approved and paid in part are the solid-ink chips of the section: the two
+ * states in which the system expects you to move money.
  *
  * An unknown status renders its raw wire value rather than a translation key.
  */
@@ -46,7 +46,7 @@ export function InvoiceStatusChip({ status, className }: { status: InvoiceStatus
   const { t, i18n } = useTranslation(['subcontractors']);
   const key = `subcontractors:invoiceStatus.${status}`;
   const label = i18n.exists(key) ? t(key) : status;
-  const look = status === 'APPROVED'
+  const look = status === 'APPROVED' || status === 'PENDING_PAYMENT'
     ? 'px-2 py-1 bg-[#0A0A0A] text-[#F5F1E8] font-semibold'
     : status === 'OBSERVED'
       ? 'px-2 py-1 bg-[#FBEDE0] text-[#C2410C] font-semibold'

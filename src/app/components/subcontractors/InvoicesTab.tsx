@@ -29,6 +29,14 @@ import type { RefData } from './refData';
 
 const GRID = 'grid grid-cols-[1fr_1.75fr_1.1fr_1.1fr_.85fr_1fr_.8fr_120px] gap-3 items-center';
 
+/**
+ * Each figure counts more than one status, so pressing one filters by all it
+ * counts: a corrected invoice waits for review again in IN_REVIEW, and a
+ * partial payment moves an invoice to PENDING_PAYMENT while it still owes.
+ */
+const FIGURE_FILTERS = { TO_REVIEW: 'SUBMITTED,IN_REVIEW', TO_PAY: 'APPROVED,PENDING_PAYMENT' } as const;
+type FigureFilter = keyof typeof FIGURE_FILTERS;
+
 export function InvoicesTab({ summary, summaryState, refData, onReview, onPay, flashInvoiceId }: {
   summary: SubcontractorsSummary | null;
   summaryState: 'loading' | 'ready' | 'failed';
@@ -48,7 +56,7 @@ export function InvoicesTab({ summary, summaryState, refData, onReview, onPay, f
   const [search, setSearch] = useScreenState('q-facturas', '');
   const [debouncedSearch, setDebouncedSearch] = useState(search);
   const [subFilter, setSubFilter] = useState<number | ''>('');
-  const [statusFilter, setStatusFilter] = useScreenState<'' | InvoiceStatus>('estado-facturas', '');
+  const [statusFilter, setStatusFilter] = useScreenState<'' | InvoiceStatus | FigureFilter>('estado-facturas', '');
   const [page, setPage] = useScreenState('pagina-facturas', 0);
   const [pageSize, setPageSize] = useScreenState('tamano-facturas', 20);
   const [totalElements, setTotalElements] = useState(0);
@@ -68,7 +76,7 @@ export function InvoicesTab({ summary, summaryState, refData, onReview, onPay, f
     try {
       const res = await listInvoices({
         subcontractorId: subFilter || undefined,
-        status: statusFilter || undefined,
+        status: (statusFilter in FIGURE_FILTERS ? FIGURE_FILTERS[statusFilter as FigureFilter] : statusFilter) || undefined,
         search: debouncedSearch || undefined,
         page,
         size: pageSize,
@@ -110,8 +118,8 @@ export function InvoicesTab({ summary, summaryState, refData, onReview, onPay, f
             value: summary?.invoicesToReview,
             label: t('subcontractors:inv.kpi.toReview'),
             tone: 'orange',
-            pressed: statusFilter === 'SUBMITTED',
-            onClick: () => { setStatusFilter(p => (p === 'SUBMITTED' ? '' : 'SUBMITTED')); setPage(0); },
+            pressed: statusFilter === 'TO_REVIEW',
+            onClick: () => { setStatusFilter(p => (p === 'TO_REVIEW' ? '' : 'TO_REVIEW')); setPage(0); },
           },
           {
             key: 'toPay',
@@ -124,8 +132,8 @@ export function InvoicesTab({ summary, summaryState, refData, onReview, onPay, f
                 )}
               </>
             ),
-            pressed: statusFilter === 'APPROVED',
-            onClick: () => { setStatusFilter(p => (p === 'APPROVED' ? '' : 'APPROVED')); setPage(0); },
+            pressed: statusFilter === 'TO_PAY',
+            onClick: () => { setStatusFilter(p => (p === 'TO_PAY' ? '' : 'TO_PAY')); setPage(0); },
           },
           {
             key: 'paidMonth',
@@ -346,6 +354,11 @@ function InvoiceRow({ invoice, lang, lead, flash, onReview, onPay }: {
         )}
         {invoice.status === 'APPROVED' && (
           <Mono className="block text-[9.5px] tracking-[0.06em] text-[#5A5346] mt-[3px] truncate">{t('subcontractors:inv.row.readyToPay')}</Mono>
+        )}
+        {invoice.status === 'PENDING_PAYMENT' && invoice.payableId != null && (
+          <Mono className="block text-[9.5px] tracking-[0.06em] text-[#5A5346] mt-[3px] truncate">
+            {t('subcontractors:inv.row.paidInPart', { amount: fmtMoney(invoice.amountCents - (invoice.paidAmountCents ?? 0)) })}
+          </Mono>
         )}
       </div>
       {invoice.projectName
