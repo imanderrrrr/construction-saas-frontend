@@ -6,8 +6,10 @@ import { toast } from 'sonner';
 import {
   approveEvent, approveRecord, correctEvent, correctRecord, editEventTime,
   getTimeRecord, rejectRecord, resolveTransitDispute, type TimeRecordResponse,
-  addManualMarks,
+  addManualMarks, type ManualMarkInput,
 } from '../../services/time';
+import { SecondaryButton } from '../onboarding/chrome';
+import { PaperNote } from '../projects/bt';
 import { ModalAddMark } from '../phase2/ModalAddMark';
 import { TIME_EVENT_SEQUENCE } from '../../types';
 import { fmtDateTime } from '../../helpers/dateTime';
@@ -22,10 +24,13 @@ import {
  * question an admin actually asks is "does this day make sense?", not "what
  * rows are in the table".
  */
-export function RecordDrawer({ recordId, onClose, onChanged, mode = 'admin' }: {
+export function RecordDrawer({ recordId, onClose, onChanged, onUpdated, mode = 'admin' }: {
   recordId: number;
   onClose: () => void;
+  /** The day was decided (approved / observed / rejected): the drawer closes and the list reloads. */
   onChanged: () => void;
+  /** The day changed but stays open (marks were added): the list behind catches up. */
+  onUpdated?: () => void;
   mode?: 'admin' | 'finance' | 'supervisor';
 }) {
   const { t, i18n } = useTranslation(['admin', 'common', 'time']);
@@ -39,15 +44,24 @@ export function RecordDrawer({ recordId, onClose, onChanged, mode = 'admin' }: {
   const [timeValue, setTimeValue] = useState('');
   const [disputeMinutes, setDisputeMinutes] = useState('');
   const [addMarksOpen, setAddMarksOpen] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const load = useCallback(() => {
-    getTimeRecord(recordId).then(setRecord).catch(() => setRecord(null));
+    getTimeRecord(recordId)
+      .then(r => { setRecord(r); setLoadFailed(false); })
+      // Said, with a retry: a spinner that never ends reads as "still loading".
+      .catch(() => { setRecord(null); setLoadFailed(true); });
   }, [recordId]);
 
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !addMarksOpen) onClose(); };
+    const onKey = (e: KeyboardEvent) => {
+      // While the add-marks window is open, Escape is its own: it closes that
+      // window, not the drawer underneath. Nor is a key another layer handled.
+      if (e.key !== 'Escape' || e.defaultPrevented || addMarksOpen) return;
+      onClose();
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose, addMarksOpen]);
@@ -65,12 +79,30 @@ export function RecordDrawer({ recordId, onClose, onChanged, mode = 'admin' }: {
     finally { setBusy(null); }
   }
 
+  /** The marks go in; the window closes itself once this resolves, and its errors stay in it. */
+  async function addMarks(marks: ManualMarkInput[]) {
+    await addManualMarks(recordId, marks);
+    toast.success(t('admin:approvals.marksAdded'));
+    load();
+    onUpdated?.();
+  }
+
   if (!record) {
     return (
       <div className="fixed inset-0 z-[80]">
         <div onClick={onClose} className="absolute inset-0 bg-[#0B0A09]/40" />
-        <aside className="absolute top-0 right-0 bottom-0 w-[492px] max-w-[94%] bg-white border-l border-[#CDBFA6] flex items-center justify-center">
-          <Loader2 className="w-5 h-5 animate-spin text-[#A69C8D]" />
+        <aside className="absolute top-0 right-0 bottom-0 w-[492px] max-w-[94%] bg-white border-l border-[#CDBFA6] flex items-center justify-center p-6">
+          {loadFailed ? (
+            <div className="w-full" data-testid="record-load-failed">
+              <PaperNote tone="red">{t('admin:apr.d.loadError')}</PaperNote>
+              <div className="flex justify-end gap-2 mt-3">
+                <SecondaryButton onClick={onClose}>{t('common:buttons.close')}</SecondaryButton>
+                <SecondaryButton onClick={() => { setLoadFailed(false); load(); }} className="border-[#0A0A0A]">{t('common:buttons.retry')}</SecondaryButton>
+              </div>
+            </div>
+          ) : (
+            <Loader2 className="w-5 h-5 animate-spin text-[#A69C8D]" />
+          )}
         </aside>
       </div>
     );
@@ -400,7 +432,7 @@ export function RecordDrawer({ recordId, onClose, onChanged, mode = 'admin' }: {
         workDate={record.workDate}
         missingTypes={missingTypes}
         onClose={() => setAddMarksOpen(false)}
-        onSubmit={async marks => { await addManualMarks(record.id, marks); setAddMarksOpen(false); onChanged(); }}
+        onSubmit={addMarks}
       />}
     </div>
   );
