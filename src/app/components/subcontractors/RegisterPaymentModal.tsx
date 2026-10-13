@@ -140,6 +140,9 @@ export function RegisterPaymentModal({ open, onOpenChange, invoice, onPaid }: {
       </div>
 
       <PaperNote className="mt-4">{t('subcontractors:pay.note')}</PaperNote>
+      {invoice.legacyUnlinked && (
+        <PaperNote className="mt-3">{t('subcontractors:pay.legacyUnlinked')}</PaperNote>
+      )}
 
       {error && (
         <PaperNote tone="red" className="mt-3">

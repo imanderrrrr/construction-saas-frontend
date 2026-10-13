@@ -336,6 +336,7 @@
   "pay.referenceHint": "Optional · transfer no., check… max {{max}}",
   "pay.referencePlaceholder": "TRF-99421",
   "pay.note": "Record the payment you have made. The invoice balance and project budget update by this amount.",
+  "pay.legacyUnlinked": "This invoice was approved before invoices had their bill in accounts payable. Recording the payment creates that bill; if the office already typed it in by hand, you will be told, so it is not paid twice.",
   "pay.submit": "Record payment",
   "pay.submitting": "Recording…",
   "pay.error.title": "We couldn't record the payment.",

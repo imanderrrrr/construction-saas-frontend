@@ -262,6 +262,15 @@ describe('subcontractor windows', () => {
       expect(doc().textContent).toContain('Revisa tu conexión y reintenta con los mismos datos.');
     });
 
+    it('paying a legacy invoice warns that its bill will be created', async () => {
+      await act(async () => root.render(<RegisterPaymentModal open onOpenChange={() => {}} invoice={invoice({ id: 407, amountCents: 10000, status: 'APPROVED', legacyUnlinked: true })} onPaid={onPaid} />));
+      await flush();
+      expect(doc().textContent).toContain('Esta factura se aprobó antes de que las facturas tuvieran su cuenta en Cuentas por pagar');
+      await act(async () => root.render(<RegisterPaymentModal open onOpenChange={() => {}} invoice={invoice({ id: 408, amountCents: 10000, status: 'APPROVED', legacyUnlinked: false })} onPaid={onPaid} />));
+      await flush();
+      expect(doc().textContent).not.toContain('Esta factura se aprobó antes de que las facturas tuvieran su cuenta en Cuentas por pagar');
+    });
+
     it('rejects an amount above the remaining balance before submitting', async () => {
       svc.registerPayment.mockReset();
       await render();

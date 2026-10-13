@@ -336,6 +336,7 @@
   "pay.referenceHint": "Opcional · n.º de transferencia, cheque… máx. {{max}}",
   "pay.referencePlaceholder": "TRF-99421",
   "pay.note": "Registra el pago que ya realizaste. El saldo de la factura y el presupuesto de la obra se actualizan con este importe.",
+  "pay.legacyUnlinked": "Esta factura se aprobó antes de que las facturas tuvieran su cuenta en Cuentas por pagar. Al registrar el pago se crea esa cuenta; si la oficina ya la tecleó a mano, te avisaremos para que no se pague dos veces.",
   "pay.submit": "Registrar pago",
   "pay.submitting": "Registrando…",
   "pay.error.title": "No pudimos registrar el pago.",
