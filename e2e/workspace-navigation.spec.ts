@@ -102,9 +102,10 @@ test.describe('Web navigation by role', () => {
     await setSession(context, 'ADMIN'); await installHermeticBase(page, { role: 'ADMIN', username: 'tester' });
     await page.route('**/api/v1/finance/receivables?*', json({ content: [], totalPages: 1, totalElements: 0 }));
     await page.goto('/admin/cobros?obra=13');
-    await page.locator('#workspace-content button').filter({ hasText: /Issue invoice/ }).first().click();
-    await expect(page).toHaveURL(/\/admin\/documentos$/);
-    await expect(page.locator('[data-tour="sec.invoices.new"]')).toBeEnabled();
+    // Invoices joined Billing (2026-10-12): the issue window opens right here.
+    await page.getByTestId('issue-document').click();
+    await expect(page).toHaveURL(/\/admin\/cobros\?obra=13$/);
+    await expect(page.locator('[data-tour="sec.invoices-emitir.type"]')).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Work areas' }).getByRole('button')).toHaveCount(6);
   });
   test('Site log opens the chosen worksite and protects notes when changing the worksite', async ({ page, context }) => {

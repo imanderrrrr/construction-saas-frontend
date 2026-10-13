@@ -18,8 +18,7 @@ const CHIP = 'inline-flex items-center font-bt-mono text-[9.5px] uppercase track
  *
  * `overdue` never exists in the database — ReceivableServiceImpl derives it on
  * read from the due date and the business zone — so it arrives per row but
- * cannot be filtered or counted server-side. See the note on the status filter
- * in InvoiceManager.
+ * cannot be filtered or counted server-side.
  */
 export type ReceivableUiStatus = 'pending' | 'partial' | 'paid' | 'overdue' | 'pending_approval' | 'rejected';
 
