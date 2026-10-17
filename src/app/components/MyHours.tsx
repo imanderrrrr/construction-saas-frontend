@@ -1,5 +1,5 @@
 import { useScreenState } from '../workspace/WorkspaceState';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Clock, AlertTriangle, CalendarCheck, Filter as FilterIcon,
@@ -13,7 +13,7 @@ import {
 } from './ui/table';
 import { EmptyState } from './EmptyState';
 import { Skeleton } from './ui/skeleton';
-import { getMyRecords, getMyWorkerSummary } from '../services/time';
+import { getMyRecordsPage, getMyWorkerSummary } from '../services/time';
 import type { TimeRecordResponse, WorkerSummaryResponse } from '../services/time';
 import { businessToday } from '../helpers/dateTime';
 
@@ -336,8 +336,10 @@ export function MyHours() {
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
   const [currentPage, setCurrentPage]     = useScreenState('pagina', 1);
 
-  // Data state
+  // Data state: one server page of the applied period, and the period's totals.
   const [records, setRecords]               = useState<TimeEntry[]>([]);
+  const [totalElements, setTotalElements]   = useState(0);
+  const [totalPages, setTotalPages]         = useState(1);
   const [recordsLoading, setRecordsLoading] = useState(true);
   const [recordsError, setRecordsError]     = useState<string | null>(null);
   const [summary, setSummary]               = useState<WorkerSummaryResponse | null>(null);
@@ -354,21 +356,41 @@ export function MyHours() {
     return () => { cancelled = true; };
   }, []);
 
-  // Fetch records
+  // Fetch one page. Only the newest request may write: a slow answer for the
+  // previous filter or page must not replace the one the worker is looking at.
+  const requestSeq = useRef(0);
   const fetchRecords = useCallback(async () => {
+    const seq = ++requestSeq.current;
     setRecordsLoading(true);
     setRecordsError(null);
     try {
-      const data = await getMyRecords({ dateFrom: appliedFrom, dateTo: appliedTo });
-      setRecords(data.map(r => toTimeEntry(r, i18n.language)).sort((a, b) => b.date.localeCompare(a.date)));
+      const res = await getMyRecordsPage({
+        dateFrom: appliedFrom,
+        dateTo: appliedTo,
+        page: currentPage - 1,
+        size: ITEMS_PER_PAGE,
+      });
+      if (seq !== requestSeq.current) return;
+      setRecords(res.content.map(r => toTimeEntry(r, i18n.language)));
+      setTotalElements(res.totalElements);
+      setTotalPages(Math.max(1, res.totalPages));
     } catch (err) {
+      if (seq !== requestSeq.current) return;
       setRecordsError(err instanceof Error ? err.message : t('time:toast.loadRecordsError', 'Failed to load records'));
     } finally {
-      setRecordsLoading(false);
+      if (seq === requestSeq.current) setRecordsLoading(false);
     }
-  }, [appliedFrom, appliedTo, i18n.language, t]);
+  }, [appliedFrom, appliedTo, currentPage, i18n.language, t]);
 
   useEffect(() => { fetchRecords(); }, [fetchRecords]);
+
+  // A page past the end (a stale `pagina` in the URL, or records that went
+  // away since) moves to the last page that exists instead of an empty table.
+  useEffect(() => {
+    if (!recordsLoading && !recordsError && records.length === 0 && totalElements > 0 && currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [recordsLoading, recordsError, records.length, totalElements, currentPage, totalPages, setCurrentPage]);
 
   // Apply / Reset
   function handleApply() {
@@ -402,12 +424,6 @@ export function MyHours() {
   function toggleRow(id: string) {
     setExpandedRowId(prev => (prev === id ? null : id));
   }
-
-  const totalPages       = Math.max(1, Math.ceil(records.length / ITEMS_PER_PAGE));
-  const paginatedEntries = records.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE,
-  );
 
   // Render
   return (
@@ -519,7 +535,7 @@ export function MyHours() {
           {' '}{t('myHours.to')}{' '}
           <span className="font-medium text-[#0A0A0A]">{formatDateLabel(appliedTo, i18n.language)}</span>
           {!recordsLoading && !recordsError && (
-            <> · {t('myHours.recordsFound', { count: records.length })}</>
+            <> · {t('myHours.recordsFound', { count: totalElements })}</>
           )}
         </p>
       </div>
@@ -533,7 +549,7 @@ export function MyHours() {
           <span className="text-sm font-semibold text-[#0A0A0A]">{t('myHours.table.date')}</span>
           {!recordsLoading && !recordsError && (
             <span className="text-xs text-[#71717A] ml-2">
-              {t('myHours.recordsFound', { count: records.length })}
+              {t('myHours.recordsFound', { count: totalElements })}
             </span>
           )}
           <Button
@@ -582,7 +598,7 @@ export function MyHours() {
         )}
 
         {/* Empty state */}
-        {!recordsLoading && !recordsError && records.length === 0 && (
+        {!recordsLoading && !recordsError && totalElements === 0 && (
           <div className="py-8">
             <EmptyState
               icon={CalendarDays}
@@ -593,7 +609,7 @@ export function MyHours() {
         )}
 
         {/* Desktop table */}
-        {!recordsLoading && !recordsError && paginatedEntries.length > 0 && (
+        {!recordsLoading && !recordsError && records.length > 0 && (
           <div className="hidden md:block overflow-x-auto">
             <Table>
               <TableHeader>
@@ -610,7 +626,7 @@ export function MyHours() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedEntries.flatMap(entry => {
+                {records.flatMap(entry => {
                   const isExpanded = expandedRowId === entry.id;
                   return [
                     <TableRow
@@ -662,9 +678,9 @@ export function MyHours() {
         )}
 
         {/* Mobile cards */}
-        {!recordsLoading && !recordsError && paginatedEntries.length > 0 && (
+        {!recordsLoading && !recordsError && records.length > 0 && (
           <div className="md:hidden divide-y divide-[#D4D4D8]">
-            {paginatedEntries.map(entry => (
+            {records.map(entry => (
               <div key={entry.id} className="px-4 py-4">
                 <button
                   onClick={() => toggleRow(entry.id)}
@@ -714,7 +730,7 @@ export function MyHours() {
         )}
 
         {/* Pagination */}
-        {!recordsLoading && !recordsError && records.length > ITEMS_PER_PAGE && (
+        {!recordsLoading && !recordsError && totalElements > ITEMS_PER_PAGE && (
           <Pagination
             currentPage={currentPage}
             totalPages={totalPages}

@@ -783,6 +783,8 @@ export async function installManualApi(page: Page, lang: Lang = 'es') {
     pendingApprovals: 2, lateArrivalsThisWeek: 1, daysWorkedThisWeek: 3,
   }));
   await page.route(re('worker/time-records'), json(TIME_RECORDS.filter(r => r.workerId === 3)));
+  // My Hours reads the paged route (GET /worker/time-records/page) since the history is paged on the server.
+  await page.route(re('worker/time-records/page'), json(pageOf(TIME_RECORDS.filter(r => r.workerId === 3), 10)));
   await page.route(re('worker/tools/summary'), json(TOOL_SUMMARY));
   await page.route(re('worker/tools'), json(ASSIGNMENTS.filter(a => a.workerId === 3)));
 
