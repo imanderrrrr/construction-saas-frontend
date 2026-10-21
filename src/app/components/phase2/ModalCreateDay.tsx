@@ -35,7 +35,7 @@ interface ModalCreateDayProps {
 /** The four standard punches — IN_TRANSIT is out of scope for manual creation. */
 const MANUAL_TYPES = TIME_EVENT_SEQUENCE.filter(type => type !== 'IN_TRANSIT') as TimeEventType[];
 
-// Helpers (same conversion logic as ModalCorrect / ModalEditTime)
+// Helpers (same conversion logic as ModalEditTime)
 
 function buildIso(workDate: string, timeValue: string): string {
   return businessDateTimeToISO(workDate, timeValue);
