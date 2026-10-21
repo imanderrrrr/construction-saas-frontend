@@ -426,6 +426,7 @@
   "payable.info.category": "Category",
   "payable.info.description": "Description",
   "payable.info.notes": "Notes",
+  "payable.info.linkedHint": "This bill comes from a subcontractor invoice: its vendor, category and number follow that invoice. Here you change the description and notes.",
   "payable.info.invoiceNumber": "Invoice number",
   "payable.info.invoiceNumberBillHint": "This is still a bill. Convert it to an invoice to assign an invoice number.",
   "payable.info.updated": "Info of {{bill}} updated",

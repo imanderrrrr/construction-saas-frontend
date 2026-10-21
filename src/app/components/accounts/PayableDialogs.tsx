@@ -642,19 +642,23 @@ export function EditBillInfoDialog({ bill, vendors, onClose, onSaved }: {
     setInvoiceNumber(bill.invoiceNumber ?? '');
   }
   if (!bill) return null;
+  // The bill of a subcontractor invoice: its vendor, category and number
+  // follow that invoice (the server refuses to change them), so they are shown
+  // locked and never sent; its description and notes are the office's own.
+  const linked = !!bill.subcontractorInvoiceId;
 
   async function submit() {
     if (!bill) return;
     const who = vendor.trim();
     if (!who) { toast.error(t('finance:payable.info.vendorRequired')); return; }
     const payload: { vendor?: string; category?: string; description?: string | null; notes?: string | null; invoiceNumber?: string } = {};
-    if (who !== bill.vendor) payload.vendor = who;
-    if (category && category !== bill.category) payload.category = category;
+    if (!linked && who !== bill.vendor) payload.vendor = who;
+    if (!linked && category && category !== bill.category) payload.category = category;
     const d = description.trim();
     if (d !== (bill.description ?? '')) payload.description = d;
     const n = notes.trim();
     if (n !== (bill.notes ?? '')) payload.notes = n;
-    if (bill.documentType === 'INVOICE') {
+    if (!linked && bill.documentType === 'INVOICE') {
       const inv = invoiceNumber.trim();
       if (inv && inv !== (bill.invoiceNumber ?? '')) payload.invoiceNumber = inv;
     }
@@ -684,15 +688,16 @@ export function EditBillInfoDialog({ bill, vendors, onClose, onSaved }: {
       <DialogContent className={WINDOW}>
         <Head kicker={bill.billNumber} title={t('finance:payable.info.title')} />
         <div className={SHEET}>
+          {linked && <PaperNote tone="none">{t('finance:payable.info.linkedHint')}</PaperNote>}
           <div>
             <FieldLabel htmlFor="ap-info-vendor">{t('finance:payable.info.vendor')}</FieldLabel>
             <input id="ap-info-vendor" value={vendor} list="ap-info-vendors" maxLength={FIELD_LIMITS.SHORT_NAME}
-              onChange={e => setVendor(e.target.value)} className={INPUT} />
+              readOnly={linked} onChange={e => setVendor(e.target.value)} className={cn(INPUT, linked && 'bg-[#FAF7F0] text-[#5A5346]')} />
             <datalist id="ap-info-vendors">{vendors.map(v => <option key={v} value={v} />)}</datalist>
           </div>
           <div>
             <FieldLabel htmlFor="ap-info-category">{t('finance:payable.info.category')}</FieldLabel>
-            <MonoSelect id="ap-info-category" value={category} onChange={e => setCategory(e.target.value)} className="w-full h-10">
+            <MonoSelect id="ap-info-category" value={category} disabled={linked} onChange={e => setCategory(e.target.value)} className="w-full h-10 disabled:opacity-70 disabled:cursor-not-allowed">
               {(Object.keys(CATEGORY_KEY_MAP) as BillCategory[]).map(c => (
                 <option key={c} value={c}>{t(`finance:${CATEGORY_KEY_MAP[c]}`)}</option>
               ))}
@@ -711,7 +716,7 @@ export function EditBillInfoDialog({ bill, vendors, onClose, onSaved }: {
             <div>
               <FieldLabel htmlFor="ap-info-invoice">{t('finance:payable.info.invoiceNumber')}</FieldLabel>
               <input id="ap-info-invoice" value={invoiceNumber} maxLength={FIELD_LIMITS.DOCUMENT_NUMBER}
-                onChange={e => setInvoiceNumber(e.target.value)} className={cn(INPUT, INPUT_MONO)} />
+                readOnly={linked} onChange={e => setInvoiceNumber(e.target.value)} className={cn(INPUT, INPUT_MONO, linked && 'bg-[#FAF7F0] text-[#5A5346]')} />
             </div>
           ) : (
             <PaperNote tone="none">{t('finance:payable.info.invoiceNumberBillHint')}</PaperNote>

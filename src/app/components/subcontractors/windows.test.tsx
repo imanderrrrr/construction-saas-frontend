@@ -29,6 +29,7 @@ vi.mock('../../services/subcontractors', async (importOriginal) => ({
 }));
 
 import i18n from '../../../i18n';
+import { ApiError } from '../../lib/api';
 import { ChangeStatusModal } from './ChangeStatusModal';
 import { ReviewInvoiceModal } from './ReviewInvoiceModal';
 import { RegisterPaymentModal } from './RegisterPaymentModal';
@@ -146,6 +147,33 @@ describe('subcontractor windows', () => {
       expect(svc.reviewInvoice).toHaveBeenCalledWith(418, expect.objectContaining({ budgetLineItemId: 9, action: 'APPROVE' }));
     });
 
+    const approve = async () => {
+      click(buttonByText(doc(), 'Aprobar')); await flush();
+      click(buttonByText(doc(), 'Aprobar factura')); await flush();
+    };
+
+    it('approving an invoice already typed in payables explains which bill to check', async () => {
+      svc.reviewInvoice.mockRejectedValue(new ApiError(409, 'Accounts payable already has invoice F-2026-0418…',
+        { vendor: 'Herrería Xelajú S.A.', invoiceNumber: 'F-2026-0418' }, 'SUBCONTRACTOR_INVOICE_IN_PAYABLES'));
+      await render(invoice({ id: 418, status: 'IN_REVIEW' }));
+      await approve();
+      expect(doc().textContent).toContain('En Cuentas por pagar ya está la factura F-2026-0418 de Herrería Xelajú S.A.');
+      expect(doc().textContent).not.toContain('No pudimos guardar tu revisión');
+
+      // A server without the details: the invoice's own number and name.
+      svc.reviewInvoice.mockRejectedValue(new ApiError(409, 'Accounts payable already has invoice…', undefined, 'SUBCONTRACTOR_INVOICE_IN_PAYABLES'));
+      click(buttonByText(doc(), 'Aprobar factura')); await flush();
+      expect(doc().textContent).toContain('En Cuentas por pagar ya está la factura F-2026-0418 de Herrería Xelajú.');
+    });
+
+    it('an approval due date before receipt is explained', async () => {
+      svc.reviewInvoice.mockRejectedValue(new ApiError(400, 'Due date must be on or after received date', undefined, 'INVALID_DATES'));
+      await render(invoice({ id: 418, status: 'IN_REVIEW' }));
+      await approve();
+      expect(doc().textContent).toContain('El vencimiento no puede ser anterior a hoy');
+      expect(doc().textContent).not.toContain('No pudimos guardar tu revisión');
+    });
+
     it('says an invoice with no file can still be approved', async () => {
       await render(invoice({ id: 402, status: 'SUBMITTED', hasFile: false, fileContentType: null }));
       expect(doc().textContent).toContain('Esta factura no trae archivo.');
@@ -200,6 +228,49 @@ describe('subcontractor windows', () => {
       expect(svc.registerPayment).toHaveBeenCalledWith(418, expect.objectContaining({ amountCents: 4000, method: 'Cash', requestKey: expect.any(String) }));
       expect(onPaid).toHaveBeenCalledWith(expect.objectContaining({ outstandingCents: 2000 }));
     });
+    const pay = async () => { click(buttonByText(doc(), 'Registrar pago')); await flush(); };
+
+    it('paying an invoice whose payments come from QuickBooks says so', async () => {
+      svc.registerPayment.mockReset().mockRejectedValue(new ApiError(409, 'This document is in QuickBooks…', undefined, 'QUICKBOOKS_PAYMENTS_IN_QBO'));
+      await render();
+      await pay();
+      expect(doc().textContent).toContain('Esta factura está en QuickBooks: registra el pago allá');
+    });
+
+    it('a payment request conflict asks to reload', async () => {
+      svc.registerPayment.mockReset().mockRejectedValue(new ApiError(409, 'This payment request key was already used…', undefined, 'PAYMENT_REQUEST_CONFLICT'));
+      await render();
+      await pay();
+      expect(doc().textContent).toContain('Recarga la página');
+    });
+
+    it('paying a legacy invoice already typed in payables explains which bill to check', async () => {
+      svc.registerPayment.mockReset().mockRejectedValue(new ApiError(409, 'Accounts payable already has invoice…',
+        { vendor: 'Herrería Xelajú', invoiceNumber: 'F-2026-0418' }, 'SUBCONTRACTOR_INVOICE_IN_PAYABLES'));
+      await render();
+      await pay();
+      expect(doc().textContent).toContain('En Cuentas por pagar ya está la factura F-2026-0418 de Herrería Xelajú.');
+    });
+
+    it('any other refusal says what the server said, and a dropped connection the generic hint', async () => {
+      svc.registerPayment.mockReset().mockRejectedValueOnce(new ApiError(409, 'El proyecto está cerrado.', undefined, 'PROJECT_CLOSED'))
+        .mockRejectedValueOnce(new Error('timeout'));
+      await render();
+      await pay();
+      expect(doc().textContent).toContain('El proyecto está cerrado.');
+      await pay();
+      expect(doc().textContent).toContain('Revisa tu conexión y reintenta con los mismos datos.');
+    });
+
+    it('paying a legacy invoice warns that its bill will be created', async () => {
+      await act(async () => root.render(<RegisterPaymentModal open onOpenChange={() => {}} invoice={invoice({ id: 407, amountCents: 10000, status: 'APPROVED', legacyUnlinked: true })} onPaid={onPaid} />));
+      await flush();
+      expect(doc().textContent).toContain('Esta factura se aprobó antes de que las facturas tuvieran su cuenta en Cuentas por pagar');
+      await act(async () => root.render(<RegisterPaymentModal open onOpenChange={() => {}} invoice={invoice({ id: 408, amountCents: 10000, status: 'APPROVED', legacyUnlinked: false })} onPaid={onPaid} />));
+      await flush();
+      expect(doc().textContent).not.toContain('Esta factura se aprobó antes de que las facturas tuvieran su cuenta en Cuentas por pagar');
+    });
+
     it('rejects an amount above the remaining balance before submitting', async () => {
       svc.registerPayment.mockReset();
       await render();

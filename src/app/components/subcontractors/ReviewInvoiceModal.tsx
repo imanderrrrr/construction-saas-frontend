@@ -14,6 +14,7 @@ import { FOCUS_RING, PrimaryButton, SecondaryButton } from '../onboarding/chrome
 import { EmptyWord, FieldError, FieldHint, FieldLabel, INPUT, INPUT_ERROR, Mono, PaperNote } from '../projects/bt';
 import { fmtMoney, InvoiceStatusChip, softDate, stampDateTime } from './bits';
 import { BudgetLineItemSelector } from '../budgets/wbs/BudgetLineItemSelector';
+import { invoiceRefusalText } from './refusals';
 
 /**
  * 08 — review an invoice.
@@ -76,8 +77,8 @@ export function ReviewInvoiceModal({ open, onOpenChange, invoice, agreedAmountCe
       const updated = await reviewInvoice(invoice.id, { action: decision, comment: comment.trim() || null, dueDate: decision === 'APPROVE' ? dueDate : undefined, ...(decision === 'APPROVE' && budgetLineItemId != null ? { budgetLineItemId } : {}) });
       onReviewed(updated);
       onOpenChange(false);
-    } catch {
-      setError(t('subcontractors:rev.error.server'));
+    } catch (err) {
+      setError(invoiceRefusalText(err, invoice, t, t('subcontractors:rev.error.server')));
     } finally {
       setSaving(false);
     }

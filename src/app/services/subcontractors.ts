@@ -153,6 +153,11 @@ export interface SubcontractorInvoiceDTO {
   payableStatus?: 'PENDING' | 'PARTIAL' | 'PAID' | 'OVERDUE' | null;
   paidAmountCents?: number;
   outstandingCents?: number;
+  /**
+   * Approved before invoices had their bill in Pagar, and still waiting on
+   * money: paying it creates that bill. Absent on an older server.
+   */
+  legacyUnlinked?: boolean;
   paidAt: string | null;
   paymentReference: string | null;
   createdAt: string;

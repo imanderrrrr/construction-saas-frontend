@@ -232,7 +232,9 @@ export function PayableDetailPanel({ bill, project, canManage, today, dateLocale
                 <DropdownMenuItem disabled={!!bill.subcontractorInvoiceId} className={MENU_ITEM} onClick={() => onEditAmounts(bill)}>
                   <Pencil className="w-3 h-3 mr-2" />{t('finance:payable.edit.action')}
                 </DropdownMenuItem>
-                <DropdownMenuItem disabled={!!bill.subcontractorInvoiceId} className={MENU_ITEM} onClick={() => onEditInfo(bill)}>
+                {/* The bill of a subcontractor invoice too: its description and
+                    notes are the office's; the window locks what follows the invoice. */}
+                <DropdownMenuItem className={MENU_ITEM} onClick={() => onEditInfo(bill)}>
                   <FileText className="w-3 h-3 mr-2" />{t('finance:payable.info.action')}
                 </DropdownMenuItem>
                 {bill.documentType === 'BILL' && (
