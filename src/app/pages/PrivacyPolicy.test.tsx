@@ -15,8 +15,8 @@ vi.mock('react-router', () => ({
 // guarded by `test/legal_v22_disclosures_test.dart` over there). Nothing
 // compares the two copies, so each repo pins the same v2.2 facts:
 //
-//  - Open-Meteo receives the site's coordinates and the device's IP address
-//    when the site log detects the weather (the app calls it directly).
+//  - The site log's weather goes through our server to MET Norway, which
+//    gets the site's rounded coordinates and never the device's IP address.
 //  - A client representative who signs or declines a T&M ticket has their
 //    name, title, signature image, IP address and browser or device recorded.
 //  - The Google Maps SDK in the app collects data for analytics, so the
@@ -62,18 +62,18 @@ describe('PrivacyPolicy v2.2', () => {
     expect(en).toContain('October 21, 2026 — v2.2');
   });
 
-  it('names Open-Meteo, what it receives and what it does not', () => {
+  it('names MET Norway, what it receives and what it does not', () => {
     const { es, en } = renderVersions();
     for (const v of [es, en]) {
-      expect(v).toContain('Open-Meteo');
-      expect(v).toContain('api.open-meteo.com');
+      expect(v).toContain('MET Norway');
+      expect(v).not.toContain('Open-Meteo');
     }
     expect(es).toContain('coordenadas registradas de la obra');
-    expect(es).toContain('dirección IP del dispositivo');
-    expect(es).toContain('no la ubicación del dispositivo');
+    expect(es).toContain('redondeadas a unos 11 metros');
+    expect(es).toContain('MET Norway no recibe la dirección IP del dispositivo');
     expect(en).toContain('recorded coordinates of the site');
-    expect(en).toContain("device's IP address");
-    expect(en).toContain("not the device's location");
+    expect(en).toContain('rounded to about 11 meters');
+    expect(en).toContain("MET Norway does not receive the device's IP address");
   });
 
   it('lists what is recorded about a T&M signer', () => {
