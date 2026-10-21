@@ -145,7 +145,7 @@ const esSections: LegalSection[] = [
         <p>Usted acepta no:</p>
         <ul>
           <li><strong>Falsificar registros:</strong> enviar marcas de tiempo falsas, ubicaciones fabricadas, gastos fraudulentos o documentación engañosa.</li>
-          <li><strong>Manipular la ubicación:</strong> usar GPS falso, VPN u otros métodos para falsear su ubicación al fichar.</li>
+          <li><strong>Manipular la ubicación:</strong> usar ubicaciones simuladas o información falsa para engañar la verificación al fichar.</li>
           <li>Compartir credenciales o usar la cuenta de otra persona.</li>
           <li><strong>Realizar ingeniería inversa:</strong> descompilar o intentar extraer el código de la plataforma.</li>
           <li><strong>Eludir la seguridad:</strong> intentar sortear o interferir con las funciones de seguridad.</li>
@@ -164,7 +164,7 @@ const esSections: LegalSection[] = [
     title: 'Contenido del usuario',
     body: (
       <p>
-        Usted y su Cliente conservan la propiedad de las fotos, documentos y textos enviados a través de
+        Usted y su Cliente conservan la propiedad de las fotos, videos, documentos y textos enviados a través de
         BuildTrack. Al enviar contenido, usted otorga a Archlogic una licencia no exclusiva, libre de
         regalías y mundial para alojar, procesar y mostrar dicho contenido con el único fin de prestar el
         servicio por cuenta de su Cliente.
@@ -175,12 +175,11 @@ const esSections: LegalSection[] = [
     num: 11,
     title: 'Servicios de ubicación',
     body: (
-      <p>
-        BuildTrack usa la ubicación de su dispositivo para verificar su presencia en los sitios de trabajo
-        al fichar. Mientras tiene abierta la pantalla de fichaje, la app lee su ubicación para mostrarle la
-        distancia al sitio; las coordenadas se envían al servidor únicamente cuando usted registra entrada o
-        salida, y la app no rastrea su ubicación en segundo plano.
-      </p>
+      <>
+        <p>La ubicación en BuildTrack se usa para verificar la presencia en las obras asignadas (geocerca), registrar la ubicación de las marcas y mostrar mapas y rutas de trabajo. Mientras la pantalla de fichaje está abierta, la app recibe actualizaciones de ubicación para mostrar la posición, la distancia al sitio o al destino de un viaje y avisos de llegada. Las coordenadas se envían al servidor al registrar una marca (entrada, almuerzo, viaje, llegada o salida) o al pedir el camino a un destino, que el servidor calcula con Google sin guardarlo. Al buscar un lugar de destino se envía además una ubicación aproximada (de alrededor de 1 km) para mostrar lugares cercanos. No se rastrea en segundo plano. Los destinos que son lugares no se verifican mediante una geocerca de Google. Las funciones disponibles dependen de la empresa y del servicio conectado.</p>
+        <p>El dictado de notas es opcional y usa el reconocimiento de voz del sistema, que puede enviar audio a su proveedor para convertirlo en texto.</p>
+        <p>Los mapas de la app son de Google Maps. Al usarlos, usted acepta los <a className="ld-a" href="https://maps.google.com/help/terms_maps.html" target="_blank" rel="noopener noreferrer">Términos adicionales del servicio de Google Maps/Google Earth</a> y la <a className="ld-a" href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Política de privacidad de Google</a>.</p>
+      </>
     ),
   },
   {
@@ -409,7 +408,7 @@ const enSections: LegalSection[] = [
         <p>You agree not to:</p>
         <ul>
           <li><strong>Falsify records:</strong> submit false time entries, fabricated locations, fraudulent expenses, or misleading documentation.</li>
-          <li><strong>Manipulate location:</strong> use fake GPS, VPN, or other methods to falsify your location when clocking in.</li>
+          <li><strong>Manipulate location:</strong> use simulated locations or false information to deceive verification when clocking in.</li>
           <li>Share credentials or use another person’s account.</li>
           <li><strong>Reverse engineer:</strong> decompile or attempt to extract the platform’s code.</li>
           <li><strong>Circumvent security:</strong> attempt to bypass or interfere with security features.</li>
@@ -428,7 +427,7 @@ const enSections: LegalSection[] = [
     title: 'User content',
     body: (
       <p>
-        You and your Customer retain ownership of the photos, documents, and text submitted through
+        You and your Customer retain ownership of the photos, videos, documents, and text submitted through
         BuildTrack. By submitting content, you grant Archlogic a non-exclusive, royalty-free, worldwide
         license to host, process, and display that content for the sole purpose of providing the service on
         behalf of your Customer.
@@ -439,12 +438,11 @@ const enSections: LegalSection[] = [
     num: 11,
     title: 'Location services',
     body: (
-      <p>
-        BuildTrack uses your device’s location to verify your presence at job sites when clocking in.
-        While the time-tracking screen is open, the app reads your location to show your distance to the site;
-        coordinates are sent to the server only when you clock in or out, and the app does not track your
-        location in the background.
-      </p>
+      <>
+        <p>Location is used to verify presence at assigned construction sites (geofence), record the location of time events and display work maps and routes. While the time-tracking screen is open, the app receives location updates to show position, distance to the site or trip destination and arrival prompts. Coordinates are sent to the server when recording a time event (check-in, lunch, trip, arrival or check-out) or requesting the way to a destination, which the server works out with Google without storing it. Place search also sends an approximate location (around 1 km) to show nearby destinations. The app does not track location in the background. Place destinations are not verified against a Google geofence. Available features depend on the company and connected service.</p>
+        <p>Note dictation is optional and uses system speech recognition, which may send audio to its provider to convert it into text.</p>
+        <p>The app’s maps are provided by Google Maps. By using them you agree to the <a className="ld-a" href="https://maps.google.com/help/terms_maps.html" target="_blank" rel="noopener noreferrer">Google Maps/Google Earth Additional Terms of Service</a> and the <a className="ld-a" href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Google Privacy Policy</a>.</p>
+      </>
     ),
   },
   {
@@ -542,7 +540,7 @@ const enSections: LegalSection[] = [
 const es: LegalVersion = {
   lang: 'es',
   docTitle: 'Términos de Servicio',
-  updatedLabel: 'Última actualización: 1 de septiembre de 2026 — v2.1',
+  updatedLabel: 'Última actualización: 21 de octubre de 2026 — v2.2',
   tocLabel: 'Contenido',
   meta: [
     { label: 'Proveedor', value: 'Archlogic Systems' },
@@ -550,7 +548,7 @@ const es: LegalVersion = {
     { label: 'Domicilio', value: '2a calle, zona 3, Huehuetenango, Guatemala' },
     { label: 'Ley aplicable', value: 'República de Guatemala' },
     { label: 'Contacto', value: CONTACT },
-    { label: 'Versión', value: '2.1' },
+    { label: 'Versión', value: '2.2' },
   ],
   sections: esSections,
   signature: <>Archlogic Systems — 2a calle, zona 3, Huehuetenango, Guatemala</>,
@@ -559,7 +557,7 @@ const es: LegalVersion = {
 const en: LegalVersion = {
   lang: 'en',
   docTitle: 'Terms of Service',
-  updatedLabel: 'Last updated: September 1, 2026 — v2.1',
+  updatedLabel: 'Last updated: October 21, 2026 — v2.2',
   tocLabel: 'Contents',
   meta: [
     { label: 'Provider', value: 'Archlogic Systems' },
@@ -567,7 +565,7 @@ const en: LegalVersion = {
     { label: 'Address', value: '2a calle, zona 3, Huehuetenango, Guatemala' },
     { label: 'Governing law', value: 'Republic of Guatemala' },
     { label: 'Contact', value: CONTACT },
-    { label: 'Version', value: '2.1' },
+    { label: 'Version', value: '2.2' },
   ],
   sections: enSections,
   signature: <>Archlogic Systems — 2a calle, zona 3, Huehuetenango, Guatemala</>,
