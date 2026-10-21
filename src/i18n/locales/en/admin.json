@@ -2911,6 +2911,7 @@
   "apr.reviewed.OBSERVED": "flagged the day",
   "apr.reviewed.REJECTED": "rejected the day",
   "apr.d.title": "Day · detail",
+  "apr.d.loadError": "We couldn't load this workday. Check your connection and retry.",
   "apr.d.timeline": "The day's timeline",
   "apr.d.inside": "On site · {{meters}} m",
   "apr.d.outside": "Off site · {{meters}} m",
