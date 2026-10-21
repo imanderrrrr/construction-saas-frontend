@@ -75,12 +75,10 @@ const es: LegalVersion = {
           <li>
             <strong>Datos de cuenta:</strong> nombre de usuario, nombre completo y rol asignado (trabajador,
             subcontratista, supervisor, administrador, etc.). La aplicación móvil no solicita ni transmite
-            correo electrónico ni número de teléfono. El correo electrónico se recoge únicamente en el alta web
-            de la empresa, donde lo escribe la persona administradora que la registra, para permitirle
-            restablecer su propia contraseña.
+            correo electrónico ni número de teléfono. En el panel web, el correo electrónico se usa en el alta de la empresa, donde lo escribe la persona administradora que la registra para poder restablecer su propia contraseña, y cuando la empresa decide enviar por correo una invitación o un enlace de firma.
           </li>
           <li>
-            <strong>Ubicación (GPS):</strong> se usa para verificar la presencia en las obras asignadas (geocerca), registrar la ubicación de las marcas y mostrar mapas y rutas de trabajo. Mientras la pantalla de fichaje está abierta, la app recibe actualizaciones de ubicación para mostrar la posición, la distancia al sitio o al destino de un viaje y avisos de llegada. Las coordenadas se envían al servidor al registrar una marca (entrada, almuerzo, viaje, llegada o salida) o al pedir el camino a un destino, que el servidor calcula con Google sin guardarlo. Al buscar un lugar de destino se envía además una ubicación aproximada (de alrededor de 1 km) para mostrar lugares cercanos. No se rastrea en segundo plano. Los destinos que son lugares no se verifican mediante una geocerca de Google. Las funciones disponibles dependen de la empresa y del servicio conectado.
+            <strong>Ubicación (GPS):</strong> se usa para verificar la presencia en las obras asignadas (geocerca), registrar la ubicación de las marcas y mostrar mapas y rutas de trabajo. Mientras la pantalla de fichaje está abierta, la app recibe actualizaciones de ubicación para mostrar la posición, la distancia al sitio o al destino de un viaje y avisos de llegada. Las coordenadas se envían al servidor al registrar una marca (entrada, almuerzo, viaje, llegada o salida) o al pedir el camino a un destino, que el servidor calcula con Google sin guardarlo. Al buscar un lugar de destino se envía además una ubicación aproximada (de alrededor de 1 km) para mostrar lugares cercanos. No se rastrea en segundo plano. Los destinos que son lugares no se verifican mediante una geocerca de Google. Las funciones disponibles dependen de la empresa y del servicio conectado. Si la persona elige abrir el camino en Google Maps o Waze, esa app recibe las coordenadas del destino y las trata según su propia política.
           </li>
           <li>
             <strong>Cámara, micrófono y galería:</strong> para escanear el QR de acceso, capturar recibos, evidencia de avance de obra y documentos de facturación. Los videos de avance incluyen el sonido captado durante la grabación. El micrófono también permite dictar notas de bitácora cuando la persona activa esa función; el reconocimiento de voz del sistema convierte el audio en texto y puede procesarlo en sus servidores (Apple en iOS, según el idioma y el dispositivo). El texto resultante se incorpora a la nota que la persona edita y guarda. La app no graba audio en segundo plano. Las imágenes, los videos y las notas enviados se almacenan para prestar el servicio a la empresa.
@@ -96,7 +94,7 @@ const es: LegalVersion = {
             <strong>Clima de la bitácora:</strong> cuando la persona pide en la bitácora detectar el clima automáticamente, la app consulta el clima actual directamente a Open-Meteo (api.open-meteo.com) enviando las coordenadas registradas de la obra, no la ubicación del dispositivo. Como en cualquier conexión a internet, Open-Meteo recibe también la dirección IP del dispositivo. La consulta no incluye el nombre ni otros datos de la cuenta.
           </li>
           <li>
-            <strong>Firmas de tickets T&amp;M:</strong> cuando un representante del cliente de la obra firma o rechaza un ticket de trabajo por administración (T&amp;M), en el dispositivo del supervisor o mediante un enlace, se registran su nombre, su cargo, la imagen de su firma manuscrita (o el motivo del rechazo), la fecha y hora, la dirección IP y el navegador o dispositivo usado, junto con una copia del documento firmado. Si firma en el dispositivo del supervisor, la IP y el dispositivo registrados son los de ese teléfono. Estos datos se conservan como evidencia del documento por cuenta de la empresa Cliente.
+            <strong>Firmas de documentos:</strong> cuando un representante del cliente firma un documento que la empresa le presenta (un ticket de trabajo por administración T&amp;M o una factura de cobro), en el dispositivo del supervisor o mediante un enlace, se registran su nombre, su cargo, la imagen de su firma manuscrita, la fecha y hora, la dirección IP y el navegador o dispositivo usado, junto con una copia del documento firmado. Si lo rechaza desde el enlace, se registran el motivo, la fecha y hora, la dirección IP y el navegador. Si el enlace se envía por correo, se guardan además el nombre y el correo del destinatario. Si firma en el dispositivo del supervisor, la IP y el dispositivo registrados son los de ese teléfono. Estos datos se conservan como evidencia del documento por cuenta de la empresa Cliente.
           </li>
           <li>
             <strong>Datos de facturación de la suscripción</strong> (solo para el Cliente que contrata): los
@@ -156,7 +154,7 @@ const es: LegalVersion = {
       body: (
         <>
           <p>
-            Para prestar el servicio utilizamos estos proveedores. El alojamiento procesa datos por cuenta de Archlogic; los mapas, el reconocimiento de voz y el servicio de clima también pueden procesar datos conforme a las políticas de sus proveedores:
+            Para prestar el servicio utilizamos estos proveedores. El alojamiento y el envío de correo procesan datos por cuenta de Archlogic; los mapas, el reconocimiento de voz y el servicio de clima también pueden procesar datos conforme a las políticas de sus proveedores:
           </p>
           <ul>
             <li>
@@ -172,6 +170,7 @@ const es: LegalVersion = {
             <li>
               <strong>Paddle:</strong> procesamiento de pagos de las suscripciones de los Clientes.
             </li>
+            <li><strong>Brevo:</strong> envío de correos transaccionales (invitaciones, restablecimiento de contraseña y enlaces de firma); recibe la dirección de correo del destinatario y el contenido del mensaje.</li>
             <li><strong>Google Maps:</strong> mapas dentro de la app, búsqueda de lugares y cálculo de rutas. Sus SDK pueden tratar identificadores del dispositivo, interacciones con el mapa y datos de fallos y rendimiento para funcionalidad y análisis del servicio. La búsqueda y las rutas reciben los datos necesarios de origen y destino. El servidor conserva el identificador del lugar, sin almacenar su nombre, dirección, coordenadas de Google ni el contenido de la ruta. Se aplican los <a className="ld-a" href="https://maps.google.com/help/terms_maps.html" target="_blank" rel="noopener noreferrer">Términos de Google Maps</a> y la <a className="ld-a" href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Política de privacidad de Google</a>.</li>
             <li><strong>Reconocimiento de voz del sistema:</strong> convertir la voz en texto mediante el servicio del sistema, con autorización del dispositivo. Según el idioma y el dispositivo, el audio puede enviarse al proveedor del reconocimiento; en iOS se usa el servicio de Apple.</li>
             <li><strong>Open-Meteo:</strong> datos meteorológicos para la bitácora. Recibe las coordenadas de la obra y la dirección IP del dispositivo, sin datos de la cuenta. Se aplica su <a className="ld-a" href="https://open-meteo.com/en/terms#privacy" target="_blank" rel="noopener noreferrer">política de privacidad</a>.</li>
@@ -198,7 +197,7 @@ const es: LegalVersion = {
           </p>
           <ul>
             <li>La empresa Cliente (empleador o contratante) que administra la cuenta del usuario, en el marco de su relación.</li>
-            <li>Los proveedores de la sección 6: los de alojamiento, bajo acuerdos de confidencialidad y tratamiento de datos; los demás, conforme a sus propias políticas.</li>
+            <li>Los proveedores de la sección 6: los de alojamiento y correo, bajo acuerdos de confidencialidad y tratamiento de datos; los demás, conforme a sus propias políticas.</li>
             <li>Autoridades competentes cuando la ley lo exija.</li>
           </ul>
         </>
@@ -234,8 +233,7 @@ const es: LegalVersion = {
       body: (
         <ul>
           <li>
-            <strong>Ubicación precisa (GPS):</strong> verificar la presencia en el sitio de obra al fichar
-            (geocerca).
+            <strong>Ubicación precisa (GPS):</strong> verificar la presencia en las obras, registrar la ubicación de las marcas y mostrar mapas y rutas mientras se usa la app.
           </li>
           <li>
             <strong>Cámara:</strong> escanear el código QR de inicio de sesión y capturar recibos y evidencia
@@ -328,9 +326,10 @@ const es: LegalVersion = {
           La aplicación móvil no utiliza cookies ni incluye herramientas propias de publicidad o analítica. El
           SDK de Google Maps integrado en la app puede recopilar identificadores del dispositivo y datos de uso,
           fallos y rendimiento con fines de análisis del servicio de mapas (ver sección 6). El panel web usa
-          cookies técnicas imprescindibles para la sesión y la protección contra falsificación de solicitudes, y
-          el almacenamiento local del navegador para preferencias de la interfaz, como las guías ya vistas; no
-          emplea cookies de seguimiento, publicidad ni analítica de terceros.
+          cookies técnicas para la sesión, la protección contra falsificación de solicitudes y recordar la
+          empresa con la que se inició sesión, y el almacenamiento del navegador para preferencias de la
+          interfaz y pasos en curso, como las guías ya vistas o el alta de la empresa; no emplea cookies de
+          seguimiento, publicidad ni analítica de terceros.
         </p>
       ),
     },
@@ -431,11 +430,10 @@ const en: LegalVersion = {
           <li>
             <strong>Account data:</strong> username, full name, and assigned role (worker, subcontractor,
             supervisor, administrator, etc.). The mobile app neither asks for nor transmits an email address or
-            a phone number. An email address is collected only during the company&rsquo;s web sign-up, where it
-            is typed by the administrator registering the company, so that they can reset their own password.
+            a phone number. In the web panel, an email address is used during the company&rsquo;s sign-up, where it is typed by the administrator registering the company so that they can reset their own password, and when the company chooses to send an invitation or a signature link by email.
           </li>
           <li>
-            <strong>Location (GPS):</strong> used to verify presence at assigned construction sites (geofence), record the location of time events and display work maps and routes. While the time-tracking screen is open, the app receives location updates to show position, distance to the site or trip destination and arrival prompts. Coordinates are sent to the server when recording a time event (check-in, lunch, trip, arrival or check-out) or requesting the way to a destination, which the server works out with Google without storing it. Place search also sends an approximate location (around 1 km) to show nearby destinations. The app does not track location in the background. Place destinations are not verified against a Google geofence. Available features depend on the company and connected service.
+            <strong>Location (GPS):</strong> used to verify presence at assigned construction sites (geofence), record the location of time events and display work maps and routes. While the time-tracking screen is open, the app receives location updates to show position, distance to the site or trip destination and arrival prompts. Coordinates are sent to the server when recording a time event (check-in, lunch, trip, arrival or check-out) or requesting the way to a destination, which the server works out with Google without storing it. Place search also sends an approximate location (around 1 km) to show nearby destinations. The app does not track location in the background. Place destinations are not verified against a Google geofence. Available features depend on the company and connected service. If the user chooses to open the route in Google Maps or Waze, that app receives the destination coordinates and handles them under its own policy.
           </li>
           <li>
             <strong>Camera, microphone and gallery:</strong> used to scan the sign-in QR, capture receipts, construction-progress evidence and invoicing documents. Progress videos include sound captured during recording. The microphone also supports dictated site-log notes when the user starts that feature; system speech recognition converts audio to text and may process it on its servers (Apple on iOS, depending on language and device). The resulting text is added to the note the user edits and saves. The app does not record audio in the background. Submitted images, videos and notes are stored to provide the service to the company.
@@ -451,7 +449,7 @@ const en: LegalVersion = {
             <strong>Site-log weather:</strong> when the user asks the site log to detect the weather automatically, the app requests the current weather directly from Open-Meteo (api.open-meteo.com), sending the recorded coordinates of the site, not the device's location. As with any internet connection, Open-Meteo also receives the device's IP address. The request includes no name or other account data.
           </li>
           <li>
-            <strong>T&amp;M ticket signatures:</strong> when a representative of the project's client signs or declines a time-and-materials (T&amp;M) ticket, on the supervisor's device or through a link, the platform records their name, title, an image of their handwritten signature (or the reason for declining), the date and time, the IP address and the browser or device used, together with a copy of the signed document. When signing on the supervisor's device, the recorded IP address and device are those of that phone. This data is kept as evidence of the document on behalf of the Customer company.
+            <strong>Document signatures:</strong> when a client representative signs a document the company presents to them (a time-and-materials (T&amp;M) ticket or a receivable invoice), on the supervisor's device or through a link, the platform records their name, title, an image of their handwritten signature, the date and time, the IP address and the browser or device used, together with a copy of the signed document. If they decline it from the link, the reason, date and time, IP address and browser are recorded. If the link is sent by email, the recipient's name and email address are also kept. When signing on the supervisor's device, the recorded IP address and device are those of that phone. This data is kept as evidence of the document on behalf of the Customer company.
           </li>
           <li>
             <strong>Subscription billing data</strong> (only for the subscribing Customer): payments are
@@ -509,7 +507,7 @@ const en: LegalVersion = {
       body: (
         <>
           <p>
-            To provide the service we use these providers. Hosting processes data on behalf of Archlogic; maps, speech recognition and the weather service may also process data under their providers’ policies:
+            To provide the service we use these providers. Hosting and email delivery process data on behalf of Archlogic; maps, speech recognition and the weather service may also process data under their providers’ policies:
           </p>
           <ul>
             <li>
@@ -524,6 +522,7 @@ const en: LegalVersion = {
             <li>
               <strong>Paddle:</strong> payment processing for Customers' subscriptions.
             </li>
+            <li><strong>Brevo:</strong> transactional email delivery (invitations, password resets and signature links); it receives the recipient's email address and the message content.</li>
             <li><strong>Google Maps:</strong> in-app maps, place search and route calculation. Its SDKs may process device identifiers, map interactions and crash and performance data for service functionality and analytics. Search and routing receive the origin and destination data needed for the request. The server retains the place identifier without storing its Google name, address, coordinates or route content. <a className="ld-a" href="https://maps.google.com/help/terms_maps.html" target="_blank" rel="noopener noreferrer">Google Maps Terms</a> and <a className="ld-a" href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Google Privacy Policy</a> apply.</li>
             <li><strong>System speech recognition:</strong> convert voice to text using the system service, with device authorization. Depending on language and device, audio may be sent to the recognition provider; iOS uses Apple’s service.</li>
             <li><strong>Open-Meteo:</strong> weather data for the site log. It receives the site's coordinates and the device's IP address, with no account data. Its <a className="ld-a" href="https://open-meteo.com/en/terms#privacy" target="_blank" rel="noopener noreferrer">privacy policy</a> applies.</li>
@@ -551,7 +550,7 @@ const en: LegalVersion = {
           </p>
           <ul>
             <li>The Customer company (employer or contractor) that administers the user's account, within their relationship.</li>
-            <li>The providers listed in section 6: hosting providers under confidentiality and data processing agreements; the others under their own policies.</li>
+            <li>The providers listed in section 6: hosting and email providers under confidentiality and data processing agreements; the others under their own policies.</li>
             <li>Competent authorities when required by law.</li>
           </ul>
         </>
@@ -587,8 +586,7 @@ const en: LegalVersion = {
       body: (
         <ul>
           <li>
-            <strong>Precise location (GPS):</strong> verify presence at the construction site when clocking in
-            (geofence).
+            <strong>Precise location (GPS):</strong> verify presence at job sites, record time-event locations and show maps and routes while the app is in use.
           </li>
           <li>
             <strong>Camera:</strong> scan the sign-in QR code and capture receipts and evidence of construction
@@ -681,10 +679,11 @@ const en: LegalVersion = {
         <p>
           The mobile application does not use cookies and includes no advertising or analytics tools of its
           own. The Google Maps SDK built into the app may collect device identifiers and usage, crash and
-          performance data to analyze the maps service (see section 6). The web panel uses strictly necessary
-          cookies for the session and for protection against request forgery, and browser local storage for
-          interface preferences such as guides already seen; it does not use tracking, advertising or
-          third-party analytics cookies.
+          performance data to analyze the maps service (see section 6). The web panel uses technical
+          cookies for the session, for protection against request forgery and to remember the company last
+          signed in to, and browser storage for interface preferences and steps in progress, such as guides
+          already seen or company sign-up; it does not use tracking, advertising or third-party analytics
+          cookies.
         </p>
       ),
     },

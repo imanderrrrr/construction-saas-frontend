@@ -23,6 +23,9 @@ vi.mock('react-router', () => ({
 //    cookies section cannot deny third-party analytics without saying so.
 //  - This panel authenticates with HttpOnly cookies; local storage holds
 //    interface preferences, not session tokens.
+//  - Brevo sends the platform's emails, and the app can hand a route to
+//    Google Maps or Waze.
+//  - Section 10 describes the location permission the way section 3 does.
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -47,6 +50,8 @@ function renderVersions() {
     en: text('#priv-en'),
     cookiesEs: text('#priv-es-14'),
     cookiesEn: text('#priv-en-14'),
+    permissionsEs: text('#priv-es-10'),
+    permissionsEn: text('#priv-en-10'),
   };
 }
 
@@ -77,6 +82,31 @@ describe('PrivacyPolicy v2.2', () => {
     expect(es).toContain('la dirección IP y el navegador o dispositivo');
     expect(en).toContain('their name, title, an image of their handwritten signature');
     expect(en).toContain('the IP address and the browser or device');
+    expect(es).toContain('Si lo rechaza desde el enlace, se registran el motivo');
+    expect(en).toContain('If they decline it from the link, the reason');
+  });
+
+  it('names Brevo and the Google Maps / Waze hand-off', () => {
+    const { es, en } = renderVersions();
+    expect(es).toContain('Brevo');
+    expect(en).toContain('Brevo');
+    expect(es).toContain('abrir el camino en Google Maps o Waze');
+    expect(en).toContain('open the route in Google Maps or Waze');
+  });
+
+  it('describes the location permission like section 3 does', () => {
+    const { permissionsEs, permissionsEn } = renderVersions();
+    expect(permissionsEs).toContain('registrar la ubicación de las marcas');
+    expect(permissionsEn).toContain('record time-event locations');
+    expect(permissionsEs).not.toContain('al fichar (geocerca)');
+    expect(permissionsEn).not.toContain('when clocking in (geofence)');
+  });
+
+  it('does not say email comes only from the company sign-up', () => {
+    const { es, en } = renderVersions();
+    expect(es).not.toContain('únicamente en el alta web');
+    expect(es).toContain('una invitación o un enlace de firma');
+    expect(en).toContain('an invitation or a signature link by email');
   });
 
   it('does not deny the Maps SDK analytics in the cookies section', () => {
@@ -90,7 +120,7 @@ describe('PrivacyPolicy v2.2', () => {
     expect(es).not.toContain('únicamente para los tokens de sesión');
     expect(en).not.toContain('solely for session tokens');
     expect(cookiesEs).toContain('cookies técnicas');
-    expect(cookiesEn).toContain('strictly necessary cookies');
+    expect(cookiesEn).toContain('technical cookies');
   });
 
   it('does not put every provider under a processing agreement', () => {
