@@ -23,7 +23,6 @@ vi.mock('../components/AppShell', () => ({
     <div data-testid="app-shell"><nav>{navItems.map(item => <button key={item.key} data-section={item.key} onClick={() => onNavigate(item.key)}>{item.label}</button>)}</nav>{children}</div>
   ),
 }));
-vi.mock('../components/InvoiceManager', () => ({ InvoiceManager: () => <div data-testid="section-invoices" /> }));
 vi.mock('../components/StatCard', () => ({ StatCard: () => <div data-testid="stat-card" /> }));
 vi.mock('../components/ui/sonner', () => ({ Toaster: () => <span data-testid="toaster" /> }));
 vi.mock('../services/expenses', () => ({
@@ -125,7 +124,6 @@ describe('FinanceDashboard – initialSection deep-linking', () => {
     expect(container.querySelector('[data-section="clients"]')).toBeTruthy();
     expect(container.querySelector('[data-section="accounts-receivable"]')).toBeTruthy();
     expect(container.querySelector('[data-section="accounts-payable"]')).toBeTruthy();
-    expect(container.querySelector('[data-section="invoices"]')).toBeTruthy();
     await act(async () => (container.querySelector('[data-section="clients"]') as HTMLButtonElement).click());
     expect(router.navigate).toHaveBeenCalledWith('/finance/clients');
     await act(async () => root.render(<FinanceDashboard initialSection="clients" />));
@@ -134,10 +132,11 @@ describe('FinanceDashboard – initialSection deep-linking', () => {
     expect(container.querySelector('[data-testid="section-clients"]')?.getAttribute('data-projectsection')).toBe('budgets');
   });
 
-  it('keeps document issuance accessible within collections', async () => {
-    await act(async () => root.render(<FinanceDashboard initialSection="invoices" />));
+  it('the Facturas section is gone from the finance panel', async () => {
+    await act(async () => root.render(<FinanceDashboard />));
     await flush();
-    expect(container.querySelector('[data-testid="section-invoices"]')).toBeTruthy();
+    expect(container.querySelector('[data-section="invoices"]')).toBeNull();
+    expect(container.querySelector('[data-section="accounts-receivable"]')).toBeTruthy();
   });
 
   it('updates the screen when the router changes the initial section', async () => {

@@ -69,6 +69,12 @@ describe('section tour registry', () => {
     }
   });
 
+  it('the Cobros tour has the issue stop, right after the header', () => {
+    // Facturas joined Cobros (2026-10-12): «Emitir documento» is where it lives now.
+    expect(SECTION_TOUR_STEPS['accounts-receivable'].slice(0, 2)).toEqual(['header', 'new']);
+    expect(SECTION_TOUR_STEPS).not.toHaveProperty('invoices');
+  });
+
   it('has no orphan anchors — every sec.* anchor is a registered step', () => {
     const registered = new Set(steps.map(s => s.anchor));
     const orphans = [...anchors].filter(a => !registered.has(a));

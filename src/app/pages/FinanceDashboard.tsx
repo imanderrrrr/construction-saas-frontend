@@ -16,9 +16,6 @@ import { SectionTour } from '../components/onboarding/SectionTour';
 import { ClientsSection } from '../components/clients/ClientsSection';
 import { FinanceOverview } from '../components/finance/FinanceOverview';
 import { Toaster } from '../components/ui/sonner';
-const InvoiceManager = lazy(() =>
-  import('../components/InvoiceManager').then(m => ({ default: m.InvoiceManager }))
-);
 // The same screens as Administration; permissions live in the shared components.
 const FinanceExpenses = lazy(() =>
   import('../components/expenses/ExpensesSection').then(m => ({ default: () => <m.ExpensesSection readOnly /> }))
@@ -60,7 +57,6 @@ const SupervisorApprovals = lazy(() =>
 type ActiveSection =
   | 'dashboard'
   | 'clients'
-  | 'invoices'
   | 'approved-expenses'
   | 'expense-report'
   | 'accounts-receivable'
@@ -80,6 +76,8 @@ type ActiveSection =
  * is the same screen under the same key on both panels.
  */
 const ONBOARDING_KEY: Partial<Record<ActiveSection, string>> = {
+  // Cobros shares Administration's copy; «Ver cómo», after issuing, opens it.
+  'accounts-receivable': 'accounts-receivable',
   dashboard: 'finance-overview',
   'tm-office': 'tm-office',
 };
@@ -92,7 +90,6 @@ const SECTION_META_KEYS: Record<ActiveSection, { titleKey: string; subtitleKey: 
   'clients':              { titleKey: 'finance:section.clients.title', subtitleKey: 'finance:section.clients.subtitle' },
   'dashboard':            { titleKey: 'finance:section.dashboard.title',            subtitleKey: 'finance:section.dashboard.subtitle'            },
   'tm-office':            { titleKey: 'tm:section.office.title',                    subtitleKey: 'tm:section.office.subtitle'                    },
-  'invoices':             { titleKey: 'finance:section.invoices.title',             subtitleKey: 'finance:section.invoices.subtitle'             },
   'accounts-receivable':  { titleKey: 'finance:section.accountsReceivable.title',   subtitleKey: 'finance:section.accountsReceivable.subtitle'   },
   'accounts-payable':     { titleKey: 'finance:section.accountsPayable.title',      subtitleKey: 'finance:section.accountsPayable.subtitle'      },
   'approved-expenses':    { titleKey: 'finance:section.approvedExpenses.title',     subtitleKey: 'finance:section.approvedExpenses.subtitle'     },
@@ -138,7 +135,6 @@ function FinancePanel({ initialSection }: { initialSection?: ActiveSection }) {
   const navItems: AppShellNavItem[] = [
     { key: 'dashboard', label: t('common:workspace.home'), icon: LayoutDashboard },
     { key: 'accounts-receivable', label: t('finance:nav.accountsReceivable'), icon: ArrowDownToLine, group: 'collections' },
-    { key: 'invoices', label: t('finance:nav.invoices'), icon: FileSignature, group: 'collections', parent: 'accounts-receivable' },
     { key: 'clients', label: t('finance:nav.clients'), icon: UserRound, group: 'collections' },
     { key: 'tm-office', label: t('tm:nav.office'), icon: FileSignature, group: 'collections' },
     { key: 'accounts-payable', label: t('finance:nav.accountsPayable'), icon: ArrowUpFromLine, group: 'payments' },
@@ -193,7 +189,6 @@ function FinancePanel({ initialSection }: { initialSection?: ActiveSection }) {
         {activeSection === 'dashboard' && (
           <FinanceOverview username={username} onNavigate={handleNavigate} onStartTutorial={() => setIntroReplay(n => n + 1)} />
         )}
-        {activeSection === 'invoices' && <Suspense fallback={<LoadingSkeleton />}><InvoiceManager onNavigate={handleNavigate} canManageBranding={false} /></Suspense>}
         {activeSection === 'clients' && (
           <Suspense fallback={<LoadingSkeleton />}>
             <ClientsSection readOnly projectSection="budgets" onNavigate={handleNavigate} />

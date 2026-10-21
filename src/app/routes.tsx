@@ -12,6 +12,7 @@ import { WhatsNewModal }       from './components/WhatsNewModal';
 import { CanonicalRole, ROLE_DASHBOARD_ROUTES } from './types';
 import { WorkspaceStateProvider } from './workspace/WorkspaceState';
 import { WORKSPACE_PATHS, type WorkspaceRole } from './workspace/paths';
+import { setSectionIntent } from './lib/sectionIntent';
 
 // Pages: one chunk each, fetched with their translations when the route
 // renders (AUD-019). The guards below run first, so a visitor who is not let
@@ -97,6 +98,19 @@ function GuardedPage({
   );
 }
 
+/**
+ * The old Facturas section's addresses — bookmarks, links, the redesign's own
+ * paths. Facturas joined Cobros (2026-10-12): they open Cobros with the issue
+ * window up. The intent is written once, on the first render (React may run
+ * the initializer twice; writing the same intent twice is harmless), and
+ * always inside the role guard, so a role that is bounced never leaves one
+ * behind for a later visit.
+ */
+function IssueDocumentRedirect({ to }: { to: string }) {
+  React.useState(() => setSectionIntent('accounts-receivable', { openIssue: true }));
+  return <Navigate to={to} replace />;
+}
+
 // Role dashboard redirect
 // Landing after login — redirects to role-appropriate dashboard.
 function RoleRedirect() {
@@ -109,7 +123,7 @@ function RoleRedirect() {
 // `routes` is exported separately from `router` so tests can mount any path
 // with createMemoryRouter without spinning up a real browser history.
 
-const LEGACY_WORKSPACE_PATHS = new Set(["/admin/billing", "/admin/dashboard", "/finance/budgets", "/finance/clients", "/finance/dashboard", "/finance/expenses", "/finance/invoices", "/finance/labor-cost", "/finance/payables", "/finance/payroll", "/finance/receivables", "/finance/supervisor-hours", "/supervisor/dashboard", "/supervisor/time-approvals", "/warehouse/dashboard", "/warehouse/inventory", "/worker/dashboard", "/worker/time"]);
+const LEGACY_WORKSPACE_PATHS = new Set(["/admin/billing", "/admin/dashboard", "/finance/budgets", "/finance/clients", "/finance/dashboard", "/finance/expenses", "/finance/labor-cost", "/finance/payables", "/finance/payroll", "/finance/receivables", "/finance/supervisor-hours", "/supervisor/dashboard", "/supervisor/time-approvals", "/warehouse/dashboard", "/warehouse/inventory", "/worker/dashboard", "/worker/time"]);
 
 export const routes = [
 
@@ -234,7 +248,6 @@ export const routes = [
     ['/finance/clients', 'clients'],
     ['/finance/receivables', 'accounts-receivable'],
     ['/finance/payables', 'accounts-payable'],
-    ['/finance/invoices', 'invoices'],
     ['/finance/labor-cost', 'labor-cost'],
     ['/finance/payroll', 'labor-payroll'],
     ['/finance/supervisor-hours', 'supervisor-hours'],
@@ -243,6 +256,18 @@ export const routes = [
     element: (
       <GuardedPage allowedRoles={['FINANCE']}>
         <FinanceDashboard initialSection={initialSection} />
+      </GuardedPage>
+    ),
+  })),
+
+  ...([
+    ['/admin/documentos', 'ADMIN'], ['/admin/invoices', 'ADMIN'],
+    ['/finance/documents', 'FINANCE'], ['/finance/invoices', 'FINANCE'],
+  ] as const).map(([path, role]) => ({
+    path,
+    element: (
+      <GuardedPage allowedRoles={[role]}>
+        <IssueDocumentRedirect to={WORKSPACE_PATHS[role]['accounts-receivable']} />
       </GuardedPage>
     ),
   })),

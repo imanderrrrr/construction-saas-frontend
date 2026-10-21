@@ -156,10 +156,10 @@ describe('AdminDashboard – billing entry points', () => {
     expect(buttonsWithText(container, 'admin:nav.billing').filter(btn => btn.dataset.testid !== 'dropdown-item')).toHaveLength(0);
   });
 
-  it('groups document issuance under collections and migrates legacy favorites', async () => {
+  it('the Facturas section is gone from the admin panel, and a legacy favorite migrates to Cobros', async () => {
     await renderDashboard(root);
     await act(async () => { buttonsWithText(container, 'common:workspace.finance')[0].click(); });
-    expect(buttonsWithText(container, 'admin:nav.invoices')).toHaveLength(1);
+    expect(buttonsWithText(container, 'admin:nav.invoices')).toHaveLength(0);
     expect(buttonsWithText(container, 'admin:nav.accountsReceivable')).toHaveLength(1);
     expect(mocks.navigate).toHaveBeenCalledWith('/admin/cobros');
     expect(migrateFavorites(['invoices', 'accounts-receivable', 'budget-report', 'budgets'])).toEqual(['accounts-receivable', 'budgets']);
