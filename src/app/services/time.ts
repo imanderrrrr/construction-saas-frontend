@@ -1,6 +1,6 @@
 ﻿// OFJR Construction — Time Tracking Service (real API)
 // Worker time events + assigned‑projects endpoints.
-import { api } from '../lib/api';
+import { api, ApiError } from '../lib/api';
 import { drainPages } from '../lib/paging';
 import type { WorkerProject, TimeEventType, LocationStatus, WorkerState, BudgetWarning } from '../types';
 
@@ -125,6 +125,45 @@ export function getMyRecords(params?: {
   if (params?.projectId) qs.set('projectId', String(params.projectId));
   const q = qs.toString();
   return api<TimeRecordResponse[]>(`/api/v1/worker/time-records${q ? `?${q}` : ''}`);
+}
+
+/**
+ * One page of the worker's own records: newest day first, then record id, at
+ * most 100 per page. `totalElements` counts the whole filtered period, so a
+ * screen can say "N records" without loading them all.
+ *
+ * A backend without the paged route (deployed before it) answers 404: then the
+ * unpaged list for the same filters is sliced here in the same order, so the
+ * screen never depends on which side was deployed first.
+ */
+export async function getMyRecordsPage(params: {
+  dateFrom?: string;
+  dateTo?: string;
+  projectId?: number;
+  page: number;
+  size: number;
+}): Promise<PageResponse<TimeRecordResponse>> {
+  const qs = new URLSearchParams();
+  if (params.dateFrom) qs.set('dateFrom', params.dateFrom);
+  if (params.dateTo)   qs.set('dateTo', params.dateTo);
+  if (params.projectId) qs.set('projectId', String(params.projectId));
+  qs.set('page', String(params.page));
+  qs.set('size', String(params.size));
+  try {
+    return await api<PageResponse<TimeRecordResponse>>(`/api/v1/worker/time-records/page?${qs}`);
+  } catch (err) {
+    if (!(err instanceof ApiError) || err.status !== 404) throw err;
+    const all = (await getMyRecords(params))
+      .slice()
+      .sort((a, b) => b.workDate.localeCompare(a.workDate) || a.id - b.id);
+    return {
+      content: all.slice(params.page * params.size, (params.page + 1) * params.size),
+      page: params.page,
+      size: params.size,
+      totalElements: all.length,
+      totalPages: Math.ceil(all.length / params.size),
+    };
+  }
 }
 
 /** Get KPI summary for the authenticated worker's current calendar week. */
