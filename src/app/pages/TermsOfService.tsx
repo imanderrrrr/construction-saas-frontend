@@ -540,7 +540,7 @@ const enSections: LegalSection[] = [
 const es: LegalVersion = {
   lang: 'es',
   docTitle: 'Términos de Servicio',
-  updatedLabel: 'Última actualización: 12 de octubre de 2026 — v2.2',
+  updatedLabel: 'Última actualización: 21 de octubre de 2026 — v2.2',
   tocLabel: 'Contenido',
   meta: [
     { label: 'Proveedor', value: 'Archlogic Systems' },
@@ -557,7 +557,7 @@ const es: LegalVersion = {
 const en: LegalVersion = {
   lang: 'en',
   docTitle: 'Terms of Service',
-  updatedLabel: 'Last updated: October 12, 2026 — v2.2',
+  updatedLabel: 'Last updated: October 21, 2026 — v2.2',
   tocLabel: 'Contents',
   meta: [
     { label: 'Provider', value: 'Archlogic Systems' },

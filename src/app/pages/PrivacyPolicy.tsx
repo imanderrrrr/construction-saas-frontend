@@ -4,7 +4,7 @@ import { SUPPORT_EMAIL, supportMailto } from '../lib/contact';
 const es: LegalVersion = {
   lang: 'es',
   docTitle: 'Política de Privacidad',
-  updatedLabel: 'Última actualización: 12 de octubre de 2026 — v2.2',
+  updatedLabel: 'Última actualización: 21 de octubre de 2026 — v2.2',
   tocLabel: 'Contenido',
   meta: [
     { label: 'Proveedor', value: 'Archlogic Systems' },
@@ -93,6 +93,12 @@ const es: LegalVersion = {
             relacionados con la actividad del usuario en la plataforma.
           </li>
           <li>
+            <strong>Clima de la bitácora:</strong> cuando la persona pide en la bitácora detectar el clima automáticamente, la app consulta el clima actual directamente a Open-Meteo (api.open-meteo.com) enviando las coordenadas registradas de la obra, no la ubicación del dispositivo. Como en cualquier conexión a internet, Open-Meteo recibe también la dirección IP del dispositivo. La consulta no incluye el nombre ni otros datos de la cuenta.
+          </li>
+          <li>
+            <strong>Firmas de tickets T&amp;M:</strong> cuando un representante del cliente de la obra firma o rechaza un ticket de trabajo por administración (T&amp;M), en el dispositivo del supervisor o mediante un enlace, se registran su nombre, su cargo, la imagen de su firma manuscrita (o el motivo del rechazo), la fecha y hora, la dirección IP y el navegador o dispositivo usado, junto con una copia del documento firmado. Si firma en el dispositivo del supervisor, la IP y el dispositivo registrados son los de ese teléfono. Estos datos se conservan como evidencia del documento por cuenta de la empresa Cliente.
+          </li>
+          <li>
             <strong>Datos de facturación de la suscripción</strong> (solo para el Cliente que contrata): los
             pagos se procesan a través de Paddle; Archlogic no almacena números completos de tarjeta.
           </li>
@@ -150,7 +156,7 @@ const es: LegalVersion = {
       body: (
         <>
           <p>
-            Para prestar el servicio utilizamos estos proveedores. El alojamiento procesa datos por cuenta de Archlogic; los mapas y el reconocimiento de voz también pueden procesar datos conforme a las políticas de sus proveedores:
+            Para prestar el servicio utilizamos estos proveedores. El alojamiento procesa datos por cuenta de Archlogic; los mapas, el reconocimiento de voz y el servicio de clima también pueden procesar datos conforme a las políticas de sus proveedores:
           </p>
           <ul>
             <li>
@@ -166,8 +172,9 @@ const es: LegalVersion = {
             <li>
               <strong>Paddle:</strong> procesamiento de pagos de las suscripciones de los Clientes.
             </li>
-            <li><strong>Google Maps:</strong> mapas dentro de la app, búsqueda de lugares y cálculo de rutas. Sus SDK pueden tratar identificadores del dispositivo, interacciones con el mapa y datos de fallos y rendimiento para funcionalidad y análisis del servicio. La búsqueda y las rutas reciben los datos necesarios de origen y destino. El servidor conserva el identificador del lugar, sin almacenar su nombre, dirección, coordenadas de Google ni el contenido de la ruta. Se aplican los Términos de Google Maps (https://maps.google.com/help/terms_maps.html) y la Política de privacidad de Google (https://policies.google.com/privacy).</li>
+            <li><strong>Google Maps:</strong> mapas dentro de la app, búsqueda de lugares y cálculo de rutas. Sus SDK pueden tratar identificadores del dispositivo, interacciones con el mapa y datos de fallos y rendimiento para funcionalidad y análisis del servicio. La búsqueda y las rutas reciben los datos necesarios de origen y destino. El servidor conserva el identificador del lugar, sin almacenar su nombre, dirección, coordenadas de Google ni el contenido de la ruta. Se aplican los <a className="ld-a" href="https://maps.google.com/help/terms_maps.html" target="_blank" rel="noopener noreferrer">Términos de Google Maps</a> y la <a className="ld-a" href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Política de privacidad de Google</a>.</li>
             <li><strong>Reconocimiento de voz del sistema:</strong> convertir la voz en texto mediante el servicio del sistema, con autorización del dispositivo. Según el idioma y el dispositivo, el audio puede enviarse al proveedor del reconocimiento; en iOS se usa el servicio de Apple.</li>
+            <li><strong>Open-Meteo:</strong> datos meteorológicos para la bitácora. Recibe las coordenadas de la obra y la dirección IP del dispositivo, sin datos de la cuenta. Se aplica su <a className="ld-a" href="https://open-meteo.com/en/terms#privacy" target="_blank" rel="noopener noreferrer">política de privacidad</a>.</li>
             <li>
               <strong>Google Play Services:</strong> necesario para el funcionamiento de la app en dispositivos
               Android; puede recopilar información e identificadores del dispositivo.
@@ -191,7 +198,7 @@ const es: LegalVersion = {
           </p>
           <ul>
             <li>La empresa Cliente (empleador o contratante) que administra la cuenta del usuario, en el marco de su relación.</li>
-            <li>Los proveedores de infraestructura de la sección 6, que operan bajo acuerdos de confidencialidad y tratamiento de datos.</li>
+            <li>Los proveedores de la sección 6: los de alojamiento, bajo acuerdos de confidencialidad y tratamiento de datos; los demás, conforme a sus propias políticas.</li>
             <li>Autoridades competentes cuando la ley lo exija.</li>
           </ul>
         </>
@@ -318,9 +325,12 @@ const es: LegalVersion = {
       title: 'Cookies y tecnologías de seguimiento',
       body: (
         <p>
-          La aplicación móvil no utiliza cookies. El panel web usa almacenamiento local del navegador
-          únicamente para los tokens de sesión y no emplea cookies de seguimiento, publicidad ni analítica de
-          terceros.
+          La aplicación móvil no utiliza cookies ni incluye herramientas propias de publicidad o analítica. El
+          SDK de Google Maps integrado en la app puede recopilar identificadores del dispositivo y datos de uso,
+          fallos y rendimiento con fines de análisis del servicio de mapas (ver sección 6). El panel web usa
+          cookies técnicas imprescindibles para la sesión y la protección contra falsificación de solicitudes, y
+          el almacenamiento local del navegador para preferencias de la interfaz, como las guías ya vistas; no
+          emplea cookies de seguimiento, publicidad ni analítica de terceros.
         </p>
       ),
     },
@@ -346,7 +356,7 @@ const es: LegalVersion = {
 const en: LegalVersion = {
   lang: 'en',
   docTitle: 'Privacy Policy',
-  updatedLabel: 'Last updated: October 12, 2026 — v2.2',
+  updatedLabel: 'Last updated: October 21, 2026 — v2.2',
   tocLabel: 'Contents',
   meta: [
     { label: 'Provider', value: 'Archlogic Systems' },
@@ -438,6 +448,12 @@ const en: LegalVersion = {
             related to the user's activity on the platform.
           </li>
           <li>
+            <strong>Site-log weather:</strong> when the user asks the site log to detect the weather automatically, the app requests the current weather directly from Open-Meteo (api.open-meteo.com), sending the recorded coordinates of the site, not the device's location. As with any internet connection, Open-Meteo also receives the device's IP address. The request includes no name or other account data.
+          </li>
+          <li>
+            <strong>T&amp;M ticket signatures:</strong> when a representative of the project's client signs or declines a time-and-materials (T&amp;M) ticket, on the supervisor's device or through a link, the platform records their name, title, an image of their handwritten signature (or the reason for declining), the date and time, the IP address and the browser or device used, together with a copy of the signed document. When signing on the supervisor's device, the recorded IP address and device are those of that phone. This data is kept as evidence of the document on behalf of the Customer company.
+          </li>
+          <li>
             <strong>Subscription billing data</strong> (only for the subscribing Customer): payments are
             processed through Paddle; Archlogic does not store full card numbers.
           </li>
@@ -493,7 +509,7 @@ const en: LegalVersion = {
       body: (
         <>
           <p>
-            To provide the service we use these providers. Hosting processes data on behalf of Archlogic; maps and speech recognition may also process data under their providers’ policies:
+            To provide the service we use these providers. Hosting processes data on behalf of Archlogic; maps, speech recognition and the weather service may also process data under their providers’ policies:
           </p>
           <ul>
             <li>
@@ -508,8 +524,9 @@ const en: LegalVersion = {
             <li>
               <strong>Paddle:</strong> payment processing for Customers' subscriptions.
             </li>
-            <li><strong>Google Maps:</strong> in-app maps, place search and route calculation. Its SDKs may process device identifiers, map interactions and crash and performance data for service functionality and analytics. Search and routing receive the origin and destination data needed for the request. The server retains the place identifier without storing its Google name, address, coordinates or route content. Google Maps Terms (https://maps.google.com/help/terms_maps.html) and Google Privacy Policy (https://policies.google.com/privacy) apply.</li>
+            <li><strong>Google Maps:</strong> in-app maps, place search and route calculation. Its SDKs may process device identifiers, map interactions and crash and performance data for service functionality and analytics. Search and routing receive the origin and destination data needed for the request. The server retains the place identifier without storing its Google name, address, coordinates or route content. <a className="ld-a" href="https://maps.google.com/help/terms_maps.html" target="_blank" rel="noopener noreferrer">Google Maps Terms</a> and <a className="ld-a" href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Google Privacy Policy</a> apply.</li>
             <li><strong>System speech recognition:</strong> convert voice to text using the system service, with device authorization. Depending on language and device, audio may be sent to the recognition provider; iOS uses Apple’s service.</li>
+            <li><strong>Open-Meteo:</strong> weather data for the site log. It receives the site's coordinates and the device's IP address, with no account data. Its <a className="ld-a" href="https://open-meteo.com/en/terms#privacy" target="_blank" rel="noopener noreferrer">privacy policy</a> applies.</li>
             <li>
               <strong>Google Play Services:</strong> required for the app to operate on Android devices; may
               collect device information and identifiers.
@@ -534,7 +551,7 @@ const en: LegalVersion = {
           </p>
           <ul>
             <li>The Customer company (employer or contractor) that administers the user's account, within their relationship.</li>
-            <li>The infrastructure providers listed in section 6, operating under confidentiality and data processing agreements.</li>
+            <li>The providers listed in section 6: hosting providers under confidentiality and data processing agreements; the others under their own policies.</li>
             <li>Competent authorities when required by law.</li>
           </ul>
         </>
@@ -662,8 +679,12 @@ const en: LegalVersion = {
       title: 'Cookies and tracking technologies',
       body: (
         <p>
-          The mobile application does not use cookies. The web panel uses browser local storage solely for
-          session tokens and does not employ tracking cookies, advertising, or third-party analytics.
+          The mobile application does not use cookies and includes no advertising or analytics tools of its
+          own. The Google Maps SDK built into the app may collect device identifiers and usage, crash and
+          performance data to analyze the maps service (see section 6). The web panel uses strictly necessary
+          cookies for the session and for protection against request forgery, and browser local storage for
+          interface preferences such as guides already seen; it does not use tracking, advertising or
+          third-party analytics cookies.
         </p>
       ),
     },
