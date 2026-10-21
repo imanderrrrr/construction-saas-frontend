@@ -3,12 +3,13 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AdminHoursReportResponse, WorkerHoursSummary } from '../../services/time';
 
-const mocks = vi.hoisted(() => ({ report: vi.fn(), confirm: vi.fn(), preview: vi.fn(), navigate: vi.fn() }));
+const mocks = vi.hoisted(() => ({ report: vi.fn(), confirm: vi.fn(), preview: vi.fn(), navigate: vi.fn(), exportPayments: vi.fn() }));
 vi.mock('react-i18next', () => {
   const t = (key: string) => key;
   return { useTranslation: () => ({ t, i18n: { language: 'es' } }), initReactI18next: { type: '3rdParty', init: () => {} } };
 });
-vi.mock('../../services/time', () => ({ getAdminHoursReport: mocks.report, confirmPayment: mocks.confirm, previewPayment: mocks.preview, exportPayrollPayments: vi.fn() }));
+vi.mock('../../services/time', () => ({ getAdminHoursReport: mocks.report, confirmPayment: mocks.confirm, previewPayment: mocks.preview }));
+vi.mock('../../services/payroll', () => ({ exportPayrollPayments: mocks.exportPayments }));
 // A page as the server sends it: the catalog walks pages by `totalPages` (AUD-055).
 vi.mock('../../services/projects', () => {
   const page = { content: [{ id: 1, name: 'Obra Demo', status: 'ACTIVE', remainingBudgetCents: 100000 }], page: 0, size: 100, totalElements: 1, totalPages: 1 };
@@ -55,16 +56,21 @@ describe('new labor screens in Finance', () => {
     expect(mocks.navigate).toHaveBeenCalledWith('supervisor-hours');
   });
 
-  it('uses unpaid hours for payroll without offering admin payment actions', async () => {
+  it('finance confirms payroll and exports payments', async () => {
     await act(async () => root.render(<LaborPayrollScreen mode="finance" onNavigate={mocks.navigate} />));
     expect(host.querySelector('[data-tour="sec.labor-payroll.kpis"]')?.textContent).toContain('30.00');
+    expect(host.textContent).toContain('Ana Demo');
+    await act(async () => button('admin:pay.exportPayments').click());
+    expect(mocks.exportPayments).toHaveBeenCalledWith({ dateFrom: expect.any(String), dateTo: expect.any(String) });
+    await act(async () => button('admin:pay.confirm').click());
+    expect(host.textContent).toContain('admin:pay.d.title');
+    expect(mocks.preview).toHaveBeenCalledWith({ workerId: 1, periodFrom: expect.any(String), periodTo: expect.any(String), projectId: null });
+  });
+
+  it('finance cannot manage rates', async () => {
+    await act(async () => root.render(<LaborPayrollScreen mode="finance" onNavigate={mocks.navigate} />));
     expect(host.textContent).toContain('finance:labor.rateAdmin');
     expect(button('admin:cost.setRate')).toBeUndefined();
-    expect(button('admin:pay.confirm')).toBeUndefined();
-    expect(button('admin:pay.exportPayments')).toBeUndefined();
-    expect(host.textContent).not.toContain('admin:pay.d.title');
-    expect(host.textContent).toContain('Ana Demo');
-    expect(mocks.confirm).not.toHaveBeenCalled();
   });
 
   it('shows approved unpaid records outside the selected period without adding them to payable totals', async () => {
