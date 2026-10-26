@@ -234,4 +234,15 @@ describe('Landing — public CTAs and content rules', () => {
       expect(video.controls).toBe(true);
     }
   });
+
+  // Only the closed button ships with the landing; the panel loads on click.
+  it('renders the assistant button', async () => {
+    await render();
+    const button = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('assistant.fab.label'),
+    );
+    expect(button).toBeDefined();
+    expect(button!.getAttribute('aria-expanded')).toBe('false');
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+  });
 });

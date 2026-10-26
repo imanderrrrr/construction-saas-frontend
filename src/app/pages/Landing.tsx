@@ -2,6 +2,7 @@ import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
+import { AssistantLauncher } from '../components/landing/AssistantLauncher';
 import { BlueprintGrid } from '../components/landing/BlueprintGrid';
 import { BuildTrackLogo } from '../components/landing/BuildTrackLogo';
 import { DemoVideos } from '../components/landing/DemoVideos';
@@ -697,6 +698,8 @@ export function Landing() {
           </div>
         </div>
       </footer>
+
+      <AssistantLauncher />
     </div>
   );
 }

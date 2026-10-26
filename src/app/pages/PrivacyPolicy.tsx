@@ -4,7 +4,7 @@ import { SUPPORT_EMAIL, supportMailto } from '../lib/contact';
 const es: LegalVersion = {
   lang: 'es',
   docTitle: 'Política de Privacidad',
-  updatedLabel: 'Última actualización: 1 de septiembre de 2026 — v2.1',
+  updatedLabel: 'Última actualización: 26 de octubre de 2026 — v2.3',
   tocLabel: 'Contenido',
   meta: [
     { label: 'Proveedor', value: 'Archlogic Systems' },
@@ -19,7 +19,7 @@ const es: LegalVersion = {
         </a>
       ),
     },
-    { label: 'Versión', value: '2.1' },
+    { label: 'Versión', value: '2.3' },
   ],
   sections: [
     {
@@ -38,6 +38,10 @@ const es: LegalVersion = {
           <p>
             Como es una plataforma que usan varias empresas a la vez, distingue dos situaciones según quién
             decide sobre los datos, que se detallan en la sección 2.
+          </p>
+          <p>
+            Esta política también cubre el sitio web público de BuildTrack (buildtrackfield.com), incluidos su
+            asistente de inteligencia artificial (IA) y su formulario de contacto.
           </p>
         </>
       ),
@@ -62,6 +66,10 @@ const es: LegalVersion = {
               del administrador que contrata BuildTrack, facturación de la suscripción y datos técnicos y de
               seguridad del servicio): respecto a estos, Archlogic es el responsable del tratamiento.
             </li>
+            <li>
+              <strong>Datos del sitio web público</strong> (mensajes al asistente de IA y datos que se dejan en el
+              formulario de contacto): Archlogic es el responsable del tratamiento.
+            </li>
           </ul>
           <p>Esta distinción determina a quién dirigirse para ejercer derechos (ver sección 12).</p>
         </>
@@ -75,31 +83,26 @@ const es: LegalVersion = {
           <li>
             <strong>Datos de cuenta:</strong> nombre de usuario, nombre completo y rol asignado (trabajador,
             subcontratista, supervisor, administrador, etc.). La aplicación móvil no solicita ni transmite
-            correo electrónico ni número de teléfono. El correo electrónico se recoge únicamente en el alta web
-            de la empresa, donde lo escribe la persona administradora que la registra, para permitirle
-            restablecer su propia contraseña.
+            correo electrónico ni número de teléfono. En el panel web, el correo electrónico se usa en el alta de la empresa, donde lo escribe la persona administradora que la registra para poder restablecer su propia contraseña, y cuando la empresa decide enviar por correo una invitación o un enlace de firma.
           </li>
           <li>
-            <strong>Ubicación (GPS):</strong> se usa exclusivamente para verificar la presencia en el sitio de
-            obra asignado (geocerca). Mientras la pantalla de fichaje está abierta, la app lee la ubicación
-            para mostrar la distancia al sitio; las coordenadas se envían al servidor únicamente al registrar
-            entrada o salida, y no se rastrea en segundo plano. Se utiliza ubicación precisa para asegurar la
-            exactitud de la verificación.
+            <strong>Ubicación (GPS):</strong> se usa para verificar la presencia en las obras asignadas (geocerca), registrar la ubicación de las marcas y mostrar mapas y rutas de trabajo. Mientras la pantalla de fichaje está abierta, la app recibe actualizaciones de ubicación para mostrar la posición, la distancia al sitio o al destino de un viaje y avisos de llegada. Las coordenadas se envían al servidor al registrar una marca (entrada, almuerzo, viaje, llegada o salida) o al pedir el camino a un destino, que el servidor calcula con Google sin guardarlo. Al buscar un lugar de destino se envía además una ubicación aproximada (de alrededor de 1 km) para mostrar lugares cercanos. No se rastrea en segundo plano. Los destinos que son lugares no se verifican mediante una geocerca de Google. Las funciones disponibles dependen de la empresa y del servicio conectado. Si la persona elige abrir el camino en Google Maps o Waze, esa app recibe las coordenadas del destino y las trata según su propia política.
           </li>
           <li>
-            <strong>Cámara, micrófono y galería:</strong> para capturar recibos de gastos, evidencia del
-            avance de obra y documentos de facturación. La evidencia de avance puede grabarse como video, y esos
-            videos se graban con sonido, por lo que incluyen el audio captado por el micrófono durante la
-            grabación. Las imágenes y los videos se almacenan en servidores seguros y no se comparten con
-            terceros ajenos al servicio.
+            <strong>Cámara, micrófono y galería:</strong> para escanear el QR de acceso, capturar recibos, evidencia de avance de obra y documentos de facturación. Los videos de avance incluyen el sonido captado durante la grabación. El micrófono también permite dictar notas de bitácora cuando la persona activa esa función; el reconocimiento de voz del sistema convierte el audio en texto y puede procesarlo en sus servidores (Apple en iOS, según el idioma y el dispositivo). El texto resultante se incorpora a la nota que la persona edita y guarda. La app no graba audio en segundo plano. Las imágenes, los videos y las notas enviados se almacenan para prestar el servicio a la empresa.
           </li>
           <li>
-            <strong>Registro de jornada:</strong> hora de entrada, hora de salida, proyecto asignado y
-            ubicación del registro.
+            <strong>Registro de jornada:</strong> marcas de entrada, almuerzo, viaje, llegada y salida; proyecto asignado, identificador del destino, ubicación registrada y estado de revisión. También se guardan las notas y evidencias de bitácora enviadas por la persona.
           </li>
           <li>
             <strong>Datos financieros del trabajo:</strong> facturas, montos, conceptos y estados de pago
             relacionados con la actividad del usuario en la plataforma.
+          </li>
+          <li>
+            <strong>Clima de la bitácora:</strong> cuando la persona pide en la bitácora detectar el clima automáticamente, nuestro servidor consulta el clima actual al Instituto Meteorológico de Noruega (MET Norway) enviando las coordenadas registradas de la obra, redondeadas a unos 11 metros, no la ubicación del dispositivo. La consulta sale de nuestro servidor, por lo que MET Norway no recibe la dirección IP del dispositivo, el nombre ni otros datos de la cuenta.
+          </li>
+          <li>
+            <strong>Firmas de documentos:</strong> cuando un representante del cliente firma un documento que la empresa le presenta (un ticket de trabajo por administración T&amp;M o una factura de cobro), en el dispositivo del supervisor o mediante un enlace, se registran su nombre, su cargo, la imagen de su firma manuscrita, la fecha y hora, la dirección IP y el navegador o dispositivo usado, junto con una copia del documento firmado. Si lo rechaza desde el enlace, se registran el motivo, la fecha y hora, la dirección IP y el navegador. Si el enlace se envía por correo, se guardan además el nombre y el correo del destinatario. Si firma en el dispositivo del supervisor, la IP y el dispositivo registrados son los de ese teléfono. Estos datos se conservan como evidencia del documento por cuenta de la empresa Cliente.
           </li>
           <li>
             <strong>Datos de facturación de la suscripción</strong> (solo para el Cliente que contrata): los
@@ -109,6 +112,17 @@ const es: LegalVersion = {
             <strong>Datos técnicos:</strong> dirección IP, tipo de dispositivo, sistema operativo, versión de
             la aplicación e identificadores de diagnóstico, recopilados automáticamente para seguridad y
             diagnóstico.
+          </li>
+          <li>
+            <strong>Asistente de IA y formulario de contacto del sitio web:</strong> los mensajes que usted escribe
+            al asistente se envían a nuestro servidor y a Anthropic, el proveedor del modelo de IA, para generar la
+            respuesta. No guardamos el contenido de las conversaciones: la conversación existe solo en su navegador
+            mientras la ventana está abierta. No escriba datos personales en el chat. Si deja sus datos en el
+            formulario de contacto, guardamos su nombre, su empresa, su correo o teléfono, su interés (una
+            demostración o la beta), el idioma, si llegó por el asistente o por el formulario, la fecha y la
+            versión del texto de consentimiento que aceptó, y enviamos esos datos por correo a nuestro equipo.
+            Para comprobar que quien escribe es una persona usamos Cloudflare Turnstile. Su dirección IP se usa
+            de forma temporal para limitar la cantidad de mensajes y envíos, y no se guarda con el contacto.
           </li>
         </ul>
       ),
@@ -125,6 +139,10 @@ const es: LegalVersion = {
           <li>Administrar la suscripción del Cliente y su facturación.</li>
           <li>Enviar notificaciones relacionadas con la actividad en la plataforma.</li>
           <li>Mantener la seguridad, prevenir el fraude y mejorar el servicio.</li>
+          <li>
+            Responder preguntas sobre BuildTrack en el sitio web y contactar a quien pide una demostración o
+            unirse a la beta.
+          </li>
         </ul>
       ),
     },
@@ -140,11 +158,13 @@ const es: LegalVersion = {
           </li>
           <li>
             <strong>Interés legítimo:</strong> seguridad de la plataforma, prevención de fraude y mejora del
-            servicio.
+            servicio; responder las preguntas de los visitantes del sitio web y proteger el sitio contra el abuso.
           </li>
           <li>
             <strong>Consentimiento:</strong> para el acceso a permisos del dispositivo (ubicación, cámara,
-            micrófono, galería), revocables en cualquier momento desde la configuración del sistema.
+            micrófono, reconocimiento de voz, galería), revocables en cualquier momento desde la configuración del sistema,
+            y para contactarlo cuando deja sus datos en el formulario del sitio web, mediante su casilla de
+            consentimiento.
           </li>
           <li>
             <strong>Obligación legal:</strong> conservación de registros laborales y fiscales según la ley
@@ -159,8 +179,7 @@ const es: LegalVersion = {
       body: (
         <>
           <p>
-            BuildTrack se apoya en los siguientes proveedores, que procesan datos por cuenta de Archlogic bajo
-            sus propias políticas y acuerdos de tratamiento:
+            Para prestar el servicio utilizamos estos proveedores. El alojamiento y el envío de correo procesan datos por cuenta de Archlogic; los mapas, el reconocimiento de voz, el servicio de clima, el modelo de IA y la verificación anti-bot también pueden procesar datos conforme a las políticas de sus proveedores:
           </p>
           <ul>
             <li>
@@ -176,6 +195,12 @@ const es: LegalVersion = {
             <li>
               <strong>Paddle:</strong> procesamiento de pagos de las suscripciones de los Clientes.
             </li>
+            <li><strong>Brevo:</strong> envío de correos transaccionales (invitaciones, restablecimiento de contraseña, enlaces de firma y el aviso a nuestro equipo de cada contacto del sitio web); recibe la dirección de correo del destinatario y el contenido del mensaje.</li>
+            <li><strong>Anthropic:</strong> modelo de IA del asistente del sitio web. Recibe de nuestro servidor los mensajes de la conversación, sin su dirección IP ni los datos del formulario de contacto, y los trata para generar la respuesta conforme a sus condiciones comerciales. Se aplica la <a className="ld-a" href="https://www.anthropic.com/legal/privacy" target="_blank" rel="noopener noreferrer">Política de privacidad de Anthropic</a>.</li>
+            <li><strong>Cloudflare Turnstile:</strong> verificación anti-bot del asistente y del formulario de contacto del sitio web. Al iniciar una conversación o enviar el formulario, Cloudflare recibe datos técnicos del navegador y de la conexión, incluida la dirección IP, para comprobar que se trata de una persona. Se aplica la <a className="ld-a" href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer">Política de privacidad de Cloudflare</a>.</li>
+            <li><strong>Google Maps:</strong> mapas dentro de la app, búsqueda de lugares y cálculo de rutas. Sus SDK pueden tratar identificadores del dispositivo, interacciones con el mapa y datos de fallos y rendimiento para funcionalidad y análisis del servicio. La búsqueda y las rutas reciben los datos necesarios de origen y destino. El servidor conserva el identificador del lugar, sin almacenar su nombre, dirección, coordenadas de Google ni el contenido de la ruta. Se aplican los <a className="ld-a" href="https://maps.google.com/help/terms_maps.html" target="_blank" rel="noopener noreferrer">Términos de Google Maps</a> y la <a className="ld-a" href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Política de privacidad de Google</a>.</li>
+            <li><strong>Reconocimiento de voz del sistema:</strong> convertir la voz en texto mediante el servicio del sistema, con autorización del dispositivo. Según el idioma y el dispositivo, el audio puede enviarse al proveedor del reconocimiento; en iOS se usa el servicio de Apple.</li>
+            <li><strong>MET Norway (Instituto Meteorológico de Noruega):</strong> datos meteorológicos para la bitácora. Recibe de nuestro servidor las coordenadas de la obra, sin la dirección IP del dispositivo ni datos de la cuenta. Se aplican sus <a className="ld-a" href="https://api.met.no/doc/TermsOfService" target="_blank" rel="noopener noreferrer">condiciones</a>.</li>
             <li>
               <strong>Google Play Services:</strong> necesario para el funcionamiento de la app en dispositivos
               Android; puede recopilar información e identificadores del dispositivo.
@@ -199,7 +224,7 @@ const es: LegalVersion = {
           </p>
           <ul>
             <li>La empresa Cliente (empleador o contratante) que administra la cuenta del usuario, en el marco de su relación.</li>
-            <li>Los proveedores de infraestructura de la sección 6, que operan bajo acuerdos de confidencialidad y tratamiento de datos.</li>
+            <li>Los proveedores de la sección 6: los de alojamiento y correo, bajo acuerdos de confidencialidad y tratamiento de datos; los demás, conforme a sus propias políticas.</li>
             <li>Autoridades competentes cuando la ley lo exija.</li>
           </ul>
         </>
@@ -211,7 +236,7 @@ const es: LegalVersion = {
       body: (
         <p>
           Los datos pueden almacenarse y procesarse en servidores ubicados fuera de Guatemala y de su país de
-          residencia, incluyendo Estados Unidos (Render, AWS/Supabase, Vercel) y las jurisdicciones de
+          residencia, incluyendo Estados Unidos (Render, AWS/Supabase, Vercel, Anthropic, Cloudflare) y las jurisdicciones de
           procesamiento de pagos de Paddle. Estas transferencias se realizan bajo las cláusulas contractuales y
           las políticas de protección de datos de cada proveedor.
         </p>
@@ -235,18 +260,16 @@ const es: LegalVersion = {
       body: (
         <ul>
           <li>
-            <strong>Ubicación precisa (GPS):</strong> verificar la presencia en el sitio de obra al fichar
-            (geocerca).
+            <strong>Ubicación precisa (GPS):</strong> verificar la presencia en las obras, registrar la ubicación de las marcas y mostrar mapas y rutas mientras se usa la app.
           </li>
           <li>
             <strong>Cámara:</strong> escanear el código QR de inicio de sesión y capturar recibos y evidencia
             del avance de obra, en foto o en video.
           </li>
           <li>
-            <strong>Micrófono:</strong> grabar el sonido de los videos de evidencia de avance de obra. Solo se
-            activa mientras se graba un video desde la app; la aplicación no graba audio en segundo plano ni
-            fuera de esa acción.
+            <strong>Micrófono:</strong> grabar sonido durante videos de evidencia y dictar notas de bitácora cuando la persona inicia esas funciones. No se graba audio en segundo plano.
           </li>
+          <li><strong>Reconocimiento de voz:</strong> convertir la voz en texto mediante el servicio del sistema, con autorización del dispositivo. Según el idioma y el dispositivo, el audio puede enviarse al proveedor del reconocimiento; en iOS se usa el servicio de Apple.</li>
           <li>
             <strong>Galería / almacenamiento:</strong> adjuntar imágenes existentes como evidencia o recibos.
           </li>
@@ -280,6 +303,14 @@ const es: LegalVersion = {
             responsable, según las obligaciones legales, laborales y fiscales que le apliquen; transcurridos, se
             eliminan de forma segura.
           </p>
+          <p>
+            Los contactos dejados en el formulario del sitio web se eliminan automáticamente a los 12 meses; puede
+            pedir que se borren antes escribiendo a{' '}
+            <a className="ld-a" href={supportMailto()}>
+              {SUPPORT_EMAIL}
+            </a>
+            . El contenido de las conversaciones con el asistente no se guarda en nuestros servidores.
+          </p>
         </>
       ),
     },
@@ -300,7 +331,7 @@ const es: LegalVersion = {
             </li>
             <li>
               Para datos de los que Archlogic es responsable (cuenta de administración, facturación de la
-              suscripción), escriba a{' '}
+              suscripción, contactos y mensajes del sitio web), escriba a{' '}
               <a className="ld-a" href={supportMailto()}>
                 {SUPPORT_EMAIL}
               </a>{' '}
@@ -327,9 +358,15 @@ const es: LegalVersion = {
       title: 'Cookies y tecnologías de seguimiento',
       body: (
         <p>
-          La aplicación móvil no utiliza cookies. El panel web usa almacenamiento local del navegador
-          únicamente para los tokens de sesión y no emplea cookies de seguimiento, publicidad ni analítica de
-          terceros.
+          La aplicación móvil no utiliza cookies ni incluye herramientas propias de publicidad o analítica. El
+          SDK de Google Maps integrado en la app puede recopilar identificadores del dispositivo y datos de uso,
+          fallos y rendimiento con fines de análisis del servicio de mapas (ver sección 6). El panel web usa
+          cookies técnicas para la sesión, la protección contra falsificación de solicitudes y recordar la
+          empresa con la que se inició sesión, y el almacenamiento del navegador para preferencias de la
+          interfaz y pasos en curso, como las guías ya vistas o el alta de la empresa; no emplea cookies de
+          seguimiento, publicidad ni analítica de terceros. En el sitio web público, el asistente guarda la
+          conversación solo en la memoria de la ventana, y la verificación de Cloudflare Turnstile se carga
+          únicamente al iniciar una conversación o enviar el formulario.
         </p>
       ),
     },
@@ -355,7 +392,7 @@ const es: LegalVersion = {
 const en: LegalVersion = {
   lang: 'en',
   docTitle: 'Privacy Policy',
-  updatedLabel: 'Last updated: September 1, 2026 — v2.1',
+  updatedLabel: 'Last updated: October 26, 2026 — v2.3',
   tocLabel: 'Contents',
   meta: [
     { label: 'Provider', value: 'Archlogic Systems' },
@@ -370,7 +407,7 @@ const en: LegalVersion = {
         </a>
       ),
     },
-    { label: 'Version', value: '2.1' },
+    { label: 'Version', value: '2.3' },
   ],
   sections: [
     {
@@ -389,6 +426,10 @@ const en: LegalVersion = {
             Because it is a platform used by multiple companies at once, it distinguishes two situations
             depending
             on who decides about the data, detailed in section 2.
+          </p>
+          <p>
+            This policy also covers the public BuildTrack website (buildtrackfield.com), including its artificial
+            intelligence (AI) assistant and its contact form.
           </p>
         </>
       ),
@@ -417,6 +458,10 @@ const en: LegalVersion = {
               service):
               with respect to these, Archlogic is the data controller.
             </li>
+            <li>
+              <strong>Public website data</strong> (messages to the AI assistant and details left in the contact
+              form): Archlogic is the data controller.
+            </li>
           </ul>
           <p>This distinction determines whom to contact to exercise rights (see section 12).</p>
         </>
@@ -430,29 +475,26 @@ const en: LegalVersion = {
           <li>
             <strong>Account data:</strong> username, full name, and assigned role (worker, subcontractor,
             supervisor, administrator, etc.). The mobile app neither asks for nor transmits an email address or
-            a phone number. An email address is collected only during the company&rsquo;s web sign-up, where it
-            is typed by the administrator registering the company, so that they can reset their own password.
+            a phone number. In the web panel, an email address is used during the company&rsquo;s sign-up, where it is typed by the administrator registering the company so that they can reset their own password, and when the company chooses to send an invitation or a signature link by email.
           </li>
           <li>
-            <strong>Location (GPS):</strong> used exclusively to verify presence at the assigned construction
-            site (geofence). While the time-tracking screen is open, the app reads location data to show the
-            distance to the site; coordinates are sent to the server only when clocking in or out, and it is
-            not tracked in the background. Precise location is used to ensure verification accuracy.
+            <strong>Location (GPS):</strong> used to verify presence at assigned construction sites (geofence), record the location of time events and display work maps and routes. While the time-tracking screen is open, the app receives location updates to show position, distance to the site or trip destination and arrival prompts. Coordinates are sent to the server when recording a time event (check-in, lunch, trip, arrival or check-out) or requesting the way to a destination, which the server works out with Google without storing it. Place search also sends an approximate location (around 1 km) to show nearby destinations. The app does not track location in the background. Place destinations are not verified against a Google geofence. Available features depend on the company and connected service. If the user chooses to open the route in Google Maps or Waze, that app receives the destination coordinates and handles them under its own policy.
           </li>
           <li>
-            <strong>Camera, microphone and gallery:</strong> to capture expense receipts, evidence of
-            construction progress, and invoicing documents. Progress evidence may be recorded as video, and such
-            videos are recorded with sound, so they include the audio picked up by the microphone while
-            recording. Images and videos are stored on secure servers and are not shared with third parties
-            outside the service.
+            <strong>Camera, microphone and gallery:</strong> used to scan the sign-in QR, capture receipts, construction-progress evidence and invoicing documents. Progress videos include sound captured during recording. The microphone also supports dictated site-log notes when the user starts that feature; system speech recognition converts audio to text and may process it on its servers (Apple on iOS, depending on language and device). The resulting text is added to the note the user edits and saves. The app does not record audio in the background. Submitted images, videos and notes are stored to provide the service to the company.
           </li>
           <li>
-            <strong>Work records:</strong> clock-in time, clock-out time, assigned project, and check-in
-            location.
+            <strong>Work records:</strong> check-in, lunch, trip, arrival and check-out events; assigned project, destination identifier, recorded location and review status. Submitted site-log notes and evidence are also stored.
           </li>
           <li>
             <strong>Work-related financial data:</strong> invoices, amounts, descriptions, and payment statuses
             related to the user's activity on the platform.
+          </li>
+          <li>
+            <strong>Site-log weather:</strong> when the user asks the site log to detect the weather automatically, our server requests the current weather from the Norwegian Meteorological Institute (MET Norway), sending the recorded coordinates of the site, rounded to about 11 meters, not the device's location. The request comes from our server, so MET Norway does not receive the device's IP address, name or other account data.
+          </li>
+          <li>
+            <strong>Document signatures:</strong> when a client representative signs a document the company presents to them (a time-and-materials (T&amp;M) ticket or a receivable invoice), on the supervisor's device or through a link, the platform records their name, title, an image of their handwritten signature, the date and time, the IP address and the browser or device used, together with a copy of the signed document. If they decline it from the link, the reason, date and time, IP address and browser are recorded. If the link is sent by email, the recipient's name and email address are also kept. When signing on the supervisor's device, the recorded IP address and device are those of that phone. This data is kept as evidence of the document on behalf of the Customer company.
           </li>
           <li>
             <strong>Subscription billing data</strong> (only for the subscribing Customer): payments are
@@ -461,6 +503,17 @@ const en: LegalVersion = {
           <li>
             <strong>Technical data:</strong> IP address, device type, operating system, app version, and
             diagnostic identifiers, collected automatically for security and diagnostics.
+          </li>
+          <li>
+            <strong>Website AI assistant and contact form:</strong> the messages you type to the assistant
+            are sent to our server and to Anthropic, the AI model provider, to generate the answer. We do not keep
+            the content of conversations: the conversation exists only in your browser while the window is open.
+            Don't type personal details in the chat. If you leave your details in the contact form, we keep
+            your name, company, email or phone, your interest (a demo or the beta), the language, whether you came
+            through the assistant or the form, the date and the version of the consent text you accepted, and we
+            send those details by email to our team. We use Cloudflare Turnstile to check that the person writing
+            is human. Your IP address is used temporarily to limit the number of messages and submissions, and it
+            is not stored with the contact.
           </li>
         </ul>
       ),
@@ -477,6 +530,10 @@ const en: LegalVersion = {
           <li>Administer the Customer's subscription and billing.</li>
           <li>Send notifications related to platform activity.</li>
           <li>Maintain security, prevent fraud, and improve the service.</li>
+          <li>
+            Answer questions about BuildTrack on the website and contact those who ask for a demo or to join the
+            beta.
+          </li>
         </ul>
       ),
     },
@@ -491,11 +548,13 @@ const en: LegalVersion = {
             for the subscription relationship between the Customer and Archlogic.
           </li>
           <li>
-            <strong>Legitimate interest:</strong> platform security, fraud prevention, and service improvement.
+            <strong>Legitimate interest:</strong> platform security, fraud prevention, and service improvement;
+            answering website visitors' questions and protecting the site against abuse.
           </li>
           <li>
-            <strong>Consent:</strong> for access to device permissions (location, camera, microphone, gallery),
-            revocable at any time from system settings.
+            <strong>Consent:</strong> for access to device permissions (location, camera, microphone, speech recognition, gallery),
+            revocable at any time from system settings, and for contacting you when you leave your details in the
+            website form, through its consent box.
           </li>
           <li>
             <strong>Legal obligation:</strong> retention of labor and tax records as required by the law
@@ -510,8 +569,7 @@ const en: LegalVersion = {
       body: (
         <>
           <p>
-            BuildTrack relies on the following providers, which process data on Archlogic's behalf under
-            their own policies and data processing agreements:
+            To provide the service we use these providers. Hosting and email delivery process data on behalf of Archlogic; maps, speech recognition, the weather service, the AI model and the anti-bot check may also process data under their providers’ policies:
           </p>
           <ul>
             <li>
@@ -526,6 +584,12 @@ const en: LegalVersion = {
             <li>
               <strong>Paddle:</strong> payment processing for Customers' subscriptions.
             </li>
+            <li><strong>Brevo:</strong> transactional email delivery (invitations, password resets, signature links and the notice to our team of each contact from the website); it receives the recipient's email address and the message content.</li>
+            <li><strong>Anthropic:</strong> AI model of the website assistant. It receives the conversation's messages from our server, without your IP address or the contact form details, and processes them to generate the answer under its commercial terms. The <a className="ld-a" href="https://www.anthropic.com/legal/privacy" target="_blank" rel="noopener noreferrer">Anthropic Privacy Policy</a> applies.</li>
+            <li><strong>Cloudflare Turnstile:</strong> anti-bot check for the website assistant and contact form. When a conversation starts or the form is sent, Cloudflare receives technical data about the browser and the connection, including the IP address, to check that a person is there. The <a className="ld-a" href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer">Cloudflare Privacy Policy</a> applies.</li>
+            <li><strong>Google Maps:</strong> in-app maps, place search and route calculation. Its SDKs may process device identifiers, map interactions and crash and performance data for service functionality and analytics. Search and routing receive the origin and destination data needed for the request. The server retains the place identifier without storing its Google name, address, coordinates or route content. <a className="ld-a" href="https://maps.google.com/help/terms_maps.html" target="_blank" rel="noopener noreferrer">Google Maps Terms</a> and <a className="ld-a" href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Google Privacy Policy</a> apply.</li>
+            <li><strong>System speech recognition:</strong> convert voice to text using the system service, with device authorization. Depending on language and device, audio may be sent to the recognition provider; iOS uses Apple’s service.</li>
+            <li><strong>MET Norway (Norwegian Meteorological Institute):</strong> weather data for the site log. It receives the site's coordinates from our server, without the device's IP address or any account data. Its <a className="ld-a" href="https://api.met.no/doc/TermsOfService" target="_blank" rel="noopener noreferrer">terms</a> apply.</li>
             <li>
               <strong>Google Play Services:</strong> required for the app to operate on Android devices; may
               collect device information and identifiers.
@@ -550,7 +614,7 @@ const en: LegalVersion = {
           </p>
           <ul>
             <li>The Customer company (employer or contractor) that administers the user's account, within their relationship.</li>
-            <li>The infrastructure providers listed in section 6, operating under confidentiality and data processing agreements.</li>
+            <li>The providers listed in section 6: hosting and email providers under confidentiality and data processing agreements; the others under their own policies.</li>
             <li>Competent authorities when required by law.</li>
           </ul>
         </>
@@ -562,7 +626,7 @@ const en: LegalVersion = {
       body: (
         <p>
           Data may be stored and processed on servers located outside Guatemala and your country of residence,
-          including the United States (Render, AWS/Supabase, Vercel) and Paddle's payment processing
+          including the United States (Render, AWS/Supabase, Vercel, Anthropic, Cloudflare) and Paddle's payment processing
           jurisdictions. These transfers are carried out under each provider's contractual clauses and
           data protection policies.
         </p>
@@ -586,18 +650,16 @@ const en: LegalVersion = {
       body: (
         <ul>
           <li>
-            <strong>Precise location (GPS):</strong> verify presence at the construction site when clocking in
-            (geofence).
+            <strong>Precise location (GPS):</strong> verify presence at job sites, record time-event locations and show maps and routes while the app is in use.
           </li>
           <li>
             <strong>Camera:</strong> scan the sign-in QR code and capture receipts and evidence of construction
             progress, as photos or video.
           </li>
           <li>
-            <strong>Microphone:</strong> record the sound of progress-evidence videos. It is active only while a
-            video is being recorded from the app; the app does not record audio in the background or outside
-            that action.
+            <strong>Microphone:</strong> record sound during progress videos and dictate site-log notes when the user starts those functions. Audio is not recorded in the background.
           </li>
+          <li><strong>Speech recognition:</strong> convert voice to text using the system service, with device authorization. Depending on language and device, audio may be sent to the recognition provider; iOS uses Apple’s service.</li>
           <li>
             <strong>Gallery / storage:</strong> attach existing images as evidence or receipts.
           </li>
@@ -631,6 +693,14 @@ const en: LegalVersion = {
             controller, according to the legal, labor, and tax obligations applicable to it; once elapsed, the
             records are securely deleted.
           </p>
+          <p>
+            Contacts left in the website form are deleted automatically after 12 months; you can ask for earlier
+            deletion by writing to{' '}
+            <a className="ld-a" href={supportMailto()}>
+              {SUPPORT_EMAIL}
+            </a>
+            . The content of conversations with the assistant is not stored on our servers.
+          </p>
         </>
       ),
     },
@@ -651,8 +721,8 @@ const en: LegalVersion = {
               as the controller. Archlogic will assist it in its capacity as processor.
             </li>
             <li>
-              For data of which Archlogic is the controller (administration account, subscription billing),
-              email{' '}
+              For data of which Archlogic is the controller (administration account, subscription billing,
+              website contacts and messages), email{' '}
               <a className="ld-a" href={supportMailto()}>
                 {SUPPORT_EMAIL}
               </a>{' '}
@@ -679,8 +749,14 @@ const en: LegalVersion = {
       title: 'Cookies and tracking technologies',
       body: (
         <p>
-          The mobile application does not use cookies. The web panel uses browser local storage solely for
-          session tokens and does not employ tracking cookies, advertising, or third-party analytics.
+          The mobile application does not use cookies and includes no advertising or analytics tools of its
+          own. The Google Maps SDK built into the app may collect device identifiers and usage, crash and
+          performance data to analyze the maps service (see section 6). The web panel uses technical
+          cookies for the session, for protection against request forgery and to remember the company last
+          signed in to, and browser storage for interface preferences and steps in progress, such as guides
+          already seen or company sign-up; it does not use tracking, advertising or third-party analytics
+          cookies. On the public website, the assistant keeps the conversation only in the window's memory, and
+          the Cloudflare Turnstile check loads only when a conversation starts or the form is sent.
         </p>
       ),
     },

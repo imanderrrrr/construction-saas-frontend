@@ -15,6 +15,8 @@ type Props = {
   textPx?: number;
   /** Wordmark colour: bone on dark backgrounds, ink on light ones. */
   tone?: 'on-dark' | 'on-light';
+  /** Only the squircle, without "BuildTrack" (the assistant panel's header). */
+  markOnly?: boolean;
   className?: string;
 };
 
@@ -22,6 +24,7 @@ export function BuildTrackLogo({
   boxPx = 32,
   textPx = 20,
   tone = 'on-dark',
+  markOnly = false,
   className = '',
 }: Props) {
   return (
@@ -42,14 +45,16 @@ export function BuildTrackLogo({
           <rect x="2.8" y="16" width="18.4" height="2.9" rx="1.45" fill="#FFFFFF" />
         </svg>
       </span>
-      <span
-        className={`font-bt-wordmark font-bold tracking-[-0.005em] ${
-          tone === 'on-dark' ? 'text-bt-bone' : 'text-bt-ink'
-        }`}
-        style={{ fontSize: textPx }}
-      >
-        Build<span className="text-bt-orange">Track</span>
-      </span>
+      {!markOnly && (
+        <span
+          className={`font-bt-wordmark font-bold tracking-[-0.005em] ${
+            tone === 'on-dark' ? 'text-bt-bone' : 'text-bt-ink'
+          }`}
+          style={{ fontSize: textPx }}
+        >
+          Build<span className="text-bt-orange">Track</span>
+        </span>
+      )}
     </span>
   );
 }
