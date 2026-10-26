@@ -29,8 +29,12 @@ const headCx = colHeadCx.replace('text-bt-muted-2', 'text-bt-muted');
 const retentionCx = microLabelCx.replace('text-bt-muted-2', 'text-bt-muted');
 const interestChipCx = chipCx.replace('inline-block', 'inline-flex items-center gap-1.5');
 
-/** Name 150 · Company 230 · Contact 230 · Interest 100 · Language 100 · Source 80 · Received 130 · actions 50. */
-const COLUMN_WIDTHS = [150, 230, 230, 100, 100, 80, 130, 50];
+/**
+ * Name 150 · Company and Contact share what is left · Interest 100 · Language 90 · Source 80 · Received 130 ·
+ * actions 56. The design's 230 + 230 assumed a 1072 px content column; at a 1440 px window the console gives
+ * about 980, and fixed widths would push Received and the delete button out of the card.
+ */
+const COLUMN_WIDTHS: Array<number | undefined> = [150, undefined, undefined, 100, 90, 80, 130, 56];
 
 const SUBTITLE = 'Contacts left on the public landing page, through the assistant or the contact form.';
 
