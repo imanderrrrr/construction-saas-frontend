@@ -1,3 +1,5 @@
+import { actionName, categoryName, statusName } from './tools/bits';
+import { warehouseDate } from '../lib/warehouseDate';
 import { useScreenState } from '../workspace/WorkspaceState';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -51,7 +53,7 @@ interface LogEntry {
   date: string;
   toolCode: string;
   toolName: string;
-  action: 'Assigned' | 'Returned';
+  action: string;
   worker: string;
   project: string;
   condition: string;
@@ -74,11 +76,11 @@ const CONDITION_KEYS: Record<string, string> = {
 // Helpers
 
 function fmtDate(iso: string): string {
-  return new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return warehouseDate(iso);
 }
 
 function fmtDateShort(iso: string): string {
-  return new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return warehouseDate(iso, true);
 }
 
 function getDaysOutColor(days: number): string {
@@ -89,13 +91,9 @@ function getDaysOutColor(days: number): string {
 
 // Sub-components
 
-function ActionBadge({ action }: { action: 'Assigned' | 'Returned' }) {
-  const { t } = useTranslation('inventory');
-  return action === 'Assigned' ? (
-    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full font-bt-mono text-[11px] font-semibold border bg-[#F97316]/10 text-[#F97316] border-[#F97316]/20">{t('assignment.action.assigned')}</span>
-  ) : (
-    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full font-bt-mono text-[11px] font-semibold border bg-amber-50 text-amber-700 border-amber-200">{t('assignment.action.returned')}</span>
-  );
+function ActionBadge({ action }: { action: string }) {
+  const { t } = useTranslation('tools');
+  return <span data-testid="assignment-action" className="inline-flex px-2.5 py-0.5 rounded-full text-[11px] border bg-amber-50 text-amber-800">{actionName(t, action)}</span>;
 }
 
 function Pagination({ current, total, onPage }: { current: number; total: number; onPage: (p: number) => void }) {
@@ -298,7 +296,7 @@ function AssignModal({ open, workers, onClose, onAssign }: {
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-[#8A8175] uppercase tracking-wide">{t('assignment.dialog.notes')}</label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
-              maxLength={FIELD_LIMITS.LONG_TEXT}
+              maxLength={FIELD_LIMITS.NOTE}
               placeholder={t('assignment.dialog.assignmentNotes')}
               className="w-full rounded-md border border-[#DBD0BB] bg-white px-3 py-2 text-sm placeholder:text-[#8A8175] focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none" />
           </div>
@@ -369,7 +367,7 @@ function ReturnModal({ open, activeAssignments, onClose, onReturn }: {
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-[#8A8175] uppercase tracking-wide">{t('assignment.dialog.notes')}</label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
-              maxLength={FIELD_LIMITS.LONG_TEXT}
+              maxLength={FIELD_LIMITS.NOTE}
               placeholder={t('assignment.dialog.returnObservations')}
               className="w-full rounded-md border border-[#DBD0BB] bg-white px-3 py-2 text-sm placeholder:text-[#8A8175] focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none" />
           </div>
@@ -426,7 +424,7 @@ export function ToolAssignment() {
       listActiveUsers('WORKER'),
     ]).then(([active, log, summary, userList]) => {
       setActiveAssignments(active.map(a => ({ ...a, id: String(a.id) })));
-      setAssignmentLog(log.content.map(l => ({ ...l, id: String(l.id), action: l.action as 'Assigned' | 'Returned' })));
+      setAssignmentLog(log.content.map(l => ({ ...l, id: String(l.id), action: l.actionId || l.action })));
       setLogTotalPages(Math.max(1, log.totalPages));
       setSummaryData(summary);
       setWorkers(userList);
@@ -438,7 +436,7 @@ export function ToolAssignment() {
   // Refetch log when page changes
   useEffect(() => {
     getAssignmentLog({ page: logPage - 1, size: ITEMS_PER_PAGE }).then(log => {
-      setAssignmentLog(log.content.map(l => ({ ...l, id: String(l.id), action: l.action as 'Assigned' | 'Returned' })));
+      setAssignmentLog(log.content.map(l => ({ ...l, id: String(l.id), action: l.actionId || l.action })));
       setLogTotalPages(Math.max(1, log.totalPages));
     }).catch(err => toast.error(err?.message));
   }, [logPage]);
@@ -557,14 +555,14 @@ export function ToolAssignment() {
                             <p className="text-sm font-semibold text-[#0A0A0A]">{a.toolName}</p>
                             <p className="text-[11px] font-bt-mono text-[#8A8175]">{a.toolCode}</p>
                           </div>
-                          {a.status === 'PENDING_ACCEPTANCE' && (
+                          {a.status !== 'ASSIGNED' && (
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-amber-50 text-amber-700 border-amber-200">
-                              {t('assignment.pendingAcceptance')}
+                              {statusName(t, a.status === 'PENDING_ACCEPTANCE' ? 'Pending Acceptance' : a.status === 'RETURN_PENDING' ? 'Return Pending' : 'Lost')}
                             </span>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="py-3 text-sm text-[#8A8175]">{a.category}</TableCell>
+                      <TableCell className="py-3 text-sm text-[#8A8175]">{categoryName(t, a.category)}</TableCell>
                       <TableCell className="py-3">
                         <div className="flex items-center gap-2">
                           <div className="w-6 h-6 bg-[#F97316]/10 rounded-full flex items-center justify-center flex-shrink-0">
@@ -606,9 +604,9 @@ export function ToolAssignment() {
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-semibold text-[#0A0A0A]">{a.toolName}</p>
-                      {a.status === 'PENDING_ACCEPTANCE' && (
+                      {a.status !== 'ASSIGNED' && (
                         <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-semibold border bg-amber-50 text-amber-700 border-amber-200">
-                          {t('assignment.pendingAcceptance')}
+                          {statusName(t, a.status === 'PENDING_ACCEPTANCE' ? 'Pending Acceptance' : a.status === 'RETURN_PENDING' ? 'Return Pending' : 'Lost')}
                         </span>
                       )}
                     </div>

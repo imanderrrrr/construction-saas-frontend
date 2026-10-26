@@ -38,7 +38,7 @@
   "tab.consumable": "Consumables",
 
   "kpi.total": "Tools · total",
-  "kpi.total.note": "Sum of the six states",
+  "kpi.total.note": "Sum of the seven states",
   "kpi.available": "Available",
   "kpi.assigned": "Assigned",
   "kpi.pendingAcceptance": "Awaiting acceptance",
@@ -57,7 +57,7 @@
 
   "search.placeholder": "Search by code or name…",
   "filter.category": "Category · all",
-  "filter.status": "Status · all six",
+  "filter.status": "Status · all seven",
   "filter.worker": "Worker · all",
   "filter.workerOn": "Worker · {{name}}",
   "filter.workerNote": "Worker filter on · the “leaving the company: what do they have” one",
@@ -229,5 +229,10 @@
 
   "readOnly": "To assign or return, talk to the warehouse",
   "action.assignReturn": "Assignments and returns",
-  "action.dispatch": "Dispatch supplies"
+  "action.dispatch": "Dispatch supplies",
+  "status.returnPending": "Awaiting warehouse receipt",
+  "action.lost": "Loss reported",
+  "action.recovered": "Recovered at warehouse",
+  "table.lastRestocked": "Last restocked",
+  "fixStatus.lossCustody": "Reporting a loss keeps the holder and project. It records no return. Recovery requires physical receipt in Assignments."
 }

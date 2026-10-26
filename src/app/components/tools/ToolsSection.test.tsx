@@ -85,7 +85,7 @@ describe('ToolsSection', () => {
   it('takes the seven figures from the summary, not from the page it loaded', async () => {
     await mount();
     const values = figures(container).map(f => f.querySelector('.tabular-nums')!.textContent);
-    expect(values).toEqual(['214', '96', '74', '14', '18', '8', '4']);
+    expect(values).toEqual(['214', '96', '74', '14', '0', '18', '8', '4']);
     // Three rows on screen, and the strip still says 214.
     expect(container.querySelectorAll('[data-testid^="tool-row-"]').length).toBe(3);
   });

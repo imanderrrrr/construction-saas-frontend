@@ -229,6 +229,7 @@ export function ToolsSection({ onNavigate, mode = 'admin', view }: {
         state={summaryState} value={toolSummary?.pendingAcceptance} label={t('tools:kpi.pendingAcceptance')} note={t('tools:kpi.pendingAcceptance.note')} tone="orange"
         pressed={status === 'Pending Acceptance'} onClick={() => { setStatus(s => (s === 'Pending Acceptance' ? '' : 'Pending Acceptance')); setToolsPage(0); }}
       />
+      <Figure state={summaryState} value={toolSummary?.returnPending ?? 0} label={t('tools:status.returnPending')} tone="red" />
       <Figure
         state={summaryState} value={toolSummary?.inReview} label={t('tools:kpi.inReview')}
         pressed={status === 'In Review'} onClick={() => { setStatus(s => (s === 'In Review' ? '' : 'In Review')); setToolsPage(0); }}

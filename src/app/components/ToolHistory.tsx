@@ -1,3 +1,5 @@
+import { actionName } from './tools/bits';
+import { warehouseDate } from '../lib/warehouseDate';
 import { useScreenState } from '../workspace/WorkspaceState';
 import { SectionHeader } from './workspace/SectionChrome';
 import React, { useState, useEffect } from 'react';
@@ -17,7 +19,7 @@ import { CatalogNote } from './workspace/CatalogNote';
 
 // Types
 
-type HistoryAction = 'Registered' | 'Assigned' | 'Returned' | 'Status Changed' | 'Reported';
+type HistoryAction = string;
 
 interface HistoryEntry {
   id: string;
@@ -31,13 +33,13 @@ interface HistoryEntry {
   notes: string;
 }
 
-const ACTIONS: HistoryAction[] = ['Registered', 'Assigned', 'Returned', 'Status Changed', 'Reported'];
+const ACTIONS: HistoryAction[] = ['REGISTERED', 'ACCEPTANCE_PENDING', 'ACCEPTED', 'REJECTED', 'RETURNED', 'LOST', 'RECOVERED', 'STATUS_CHANGED', 'REPORTED'];
 const ITEMS_PER_PAGE = 10;
 
 // Helpers
 
 function fmtDate(iso: string): string {
-  return new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return warehouseDate(iso);
 }
 
 function getDotColor(action: HistoryAction): string {
@@ -64,16 +66,8 @@ function getLineColor(action: HistoryAction): string {
 
 // Sub-components
 
-const ACTION_KEYS: Record<HistoryAction, string> = {
-  'Registered': 'tools.history.actions.registered',
-  'Assigned': 'tools.history.actions.assigned',
-  'Returned': 'tools.history.actions.returned',
-  'Status Changed': 'tools.history.actions.statusChanged',
-  'Reported': 'tools.history.actions.reported',
-};
-
 function ActionBadge({ action }: { action: HistoryAction }) {
-  const { t } = useTranslation('inventory');
+  const { t } = useTranslation('tools');
   const cfg: Record<HistoryAction, string> = {
     'Registered':     'bg-emerald-50 text-emerald-700 border-emerald-200',
     'Assigned':       'bg-[#F97316]/10 text-[#F97316] border-[#F97316]/20',
@@ -83,9 +77,7 @@ function ActionBadge({ action }: { action: HistoryAction }) {
   };
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full font-bt-mono text-[11px] font-semibold border whitespace-nowrap ${cfg[action] ?? 'bg-[#FAF7F0] text-[#8A8175] border-[#DBD0BB]'}`}>
-      {/* The row's action is cast from the server string (see the mapper): an
-          unmapped one would hand `t` an undefined key and leave the badge blank. */}
-      {ACTION_KEYS[action] ? t(ACTION_KEYS[action]) : action}
+      {actionName(t, action)}
     </span>
   );
 }
@@ -131,7 +123,7 @@ export function ToolHistory() {
   const [totalElements, setTotalElements] = useState(0);
   const [loading, setLoading] = useState(true);
   const [toolOptions, setToolOptions] = useState<Catalog<{ code: string; name: string }>>(NO_OPTIONS);
-  const [workers, setWorkers] = useState<Catalog<{ username: string; label: string }>>(NO_OPTIONS);
+  const [workers, setWorkers] = useState<Catalog<{ id: string; label: string }>>(NO_OPTIONS);
 
   // The filter options are whole catalogs (AUD-055). They used to be the first
   // 100 tools, and the "Person" list was whoever HOLDS one of those 100 today —
@@ -139,14 +131,14 @@ export function ToolHistory() {
   // could not be filtered, and the value sent was the display name while the
   // server matches the username, which made the filter silently match nobody
   // and return everything. Every tool, whatever its state now, and every
-  // worker, active or not: both still have a history. The value is the username.
+  // person, active or not (including a worker whose role changed): both still have a history. The value is the stable user id.
   useEffect(() => {
     let cancelled = false;
     toolCatalog()
       .then(c => { if (!cancelled) setToolOptions({ ...c, items: c.items.map(tool => ({ code: tool.code, name: tool.name })) }); })
       .catch(err => toast.error(err?.message));
-    userCatalog({ role: 'WORKER' })
-      .then(c => { if (!cancelled) setWorkers({ ...c, items: c.items.map(u => ({ username: u.username, label: u.fullName ?? u.username })) }); })
+    userCatalog()
+      .then(c => { if (!cancelled) setWorkers({ ...c, items: c.items.map(u => ({ id: String(u.id), label: u.fullName ?? u.username })) }); })
       .catch(err => toast.error(err?.message));
     return () => { cancelled = true; };
   }, []);
@@ -159,7 +151,7 @@ export function ToolHistory() {
     const params: any = { page: currentPage - 1, size: ITEMS_PER_PAGE };
     if (appliedTool !== 'all') params.toolCode = appliedTool;
     if (appliedAction !== 'all') params.action = appliedAction;
-    if (appliedWorker !== 'all') params.worker = appliedWorker;
+    if (appliedWorker !== 'all') params.workerId = Number(appliedWorker);
     if (appliedFrom) params.dateFrom = appliedFrom;
     if (appliedTo) params.dateTo = appliedTo;
     getGlobalToolHistory(params)
@@ -167,7 +159,7 @@ export function ToolHistory() {
         if (cancelled) return;
         setEntries(res.content.map(e => ({
           id: String(e.id), date: e.date, time: e.time,
-          action: (e.action ?? 'Registered') as HistoryAction,
+          action: e.actionId || e.action || 'REGISTERED',
           toolCode: e.toolCode ?? '', toolName: e.toolName ?? '',
           worker: e.worker ?? '', project: e.project ?? '',
           notes: e.notes ?? '',
@@ -232,7 +224,7 @@ export function ToolHistory() {
               <SelectTrigger className="rounded-none h-9 border-[#DBD0BB] text-sm"><SelectValue placeholder={t('tools.history.allActions')} /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t('tools.history.allActions')}</SelectItem>
-                {ACTIONS.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+                {ACTIONS.map(a => <SelectItem key={a} value={a}>{actionName(t, a)}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -243,7 +235,7 @@ export function ToolHistory() {
               <SelectTrigger className="rounded-none h-9 border-[#DBD0BB] text-sm"><SelectValue placeholder={t('tools.history.allWorkers')} /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t('tools.history.allWorkers')}</SelectItem>
-                {workers.items.map(w => <SelectItem key={w.username} value={w.username}>{w.label}</SelectItem>)}
+                {workers.items.map(w => <SelectItem key={w.id} value={w.id}>{w.label}</SelectItem>)}
               </SelectContent>
             </Select>
             <CatalogNote shown={workers.items.length} total={workers.total} truncated={workers.truncated} />

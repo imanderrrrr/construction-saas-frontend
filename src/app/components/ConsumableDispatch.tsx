@@ -1,3 +1,5 @@
+import { ApiError } from '../lib/api';
+import { warehouseDate } from '../lib/warehouseDate';
 import { useScreenState } from '../workspace/WorkspaceState';
 import { money } from './budgets/bits';
 // ConsumableDispatch.tsx — Dispatch consumable supplies to projects
@@ -67,7 +69,7 @@ function mapDispatchResponse(d: DispatchResponse): DispatchItem {
 }
 
 function fmtDate(iso: string) {
-  return new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return warehouseDate(iso);
 }
 
 /** Page buttons around the current one, with the first and the last always reachable. */
@@ -95,6 +97,8 @@ export function ConsumableDispatch() {
   const [projects, setProjects] = useState<Catalog<WarehouseProjectResponse>>(NO_PROJECTS);
   const [workers, setWorkers] = useState<UserDTO[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [listFailed, setListFailed] = useState(false);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [page, setPage] = useScreenState('pagina', 1);
   const [modalOpen, setModalOpen] = useState(false);
@@ -102,7 +106,7 @@ export function ConsumableDispatch() {
   const pageRequest = useRef(0);
 
   const loadData = useCallback(() => {
-    setLoading(true);
+    setLoading(true); setLoadFailed(false);
     Promise.all([
       getDispatchSummary(),
       listConsumables(),
@@ -115,7 +119,7 @@ export function ConsumableDispatch() {
         setProjects(projectCatalog);
         setWorkers(userList);
       })
-      .catch(() => toast.error(t('inventory:toast.loadDispatchError', 'Failed to load dispatch data')))
+      .catch(() => { setLoadFailed(true); })
       .finally(() => setLoading(false));
     setReloads(n => n + 1);
   }, []);
@@ -131,6 +135,7 @@ export function ConsumableDispatch() {
     if (reloads === 0) return;
     const mine = ++pageRequest.current;
     const key = `${page}:${reloads}`;
+    setListFailed(false);
     getAllDispatches({ page: page - 1, size: ITEMS_PER_PAGE })
       .then(res => {
         if (mine !== pageRequest.current) return;
@@ -143,7 +148,8 @@ export function ConsumableDispatch() {
       })
       .catch(() => {
         if (mine !== pageRequest.current) return;
-        toast.error(pageError);
+        setListFailed(true);
+        setPaged([]);
         setLoadedKey(key);
       });
   }, [page, reloads, setPage, pageError]);
@@ -155,7 +161,7 @@ export function ConsumableDispatch() {
   const totalUnits = summary?.totalUnits ?? 0;
   const uniqueProjects = summary?.projectCount ?? 0;
 
-  const handleDispatch = (
+  const handleDispatch = async (
     consumableCode: string,
     consumableName: string,
     unit: string,
@@ -165,27 +171,36 @@ export function ConsumableDispatch() {
     requestedById: number,
     requestedByName: string,
     notes: string,
-    budgetLineItemId?: number | null,
+    budgetLineItemId: number | null | undefined,
+    requestKey: string,
   ) => {
-    dispatchConsumable({
-      consumableCode,
-      consumableName,
-      unit,
-      quantity,
-      projectId,
-      project: projectName,
-      requestedById,
-      requestedBy: requestedByName,
-      notes: notes || undefined,
-      ...(budgetLineItemId != null ? { budgetLineItemId } : {}),
-    })
-      .then(res => {
-        setModalOpen(false);
-        toast.success(t('inventory:toast.dispatched', 'Dispatched {{quantity}} {{unit}} of {{name}} → {{project}}', { quantity: res.quantity, unit: res.unit, name: res.consumableName, project: res.project }));
-        loadData();
-      })
-      .catch(() => toast.error(t('inventory:toast.dispatchError', 'Failed to dispatch supply. Check stock and try again.')));
+    try {
+      const res = await dispatchConsumable({
+        requestKey,
+        consumableCode,
+        consumableName,
+        unit,
+        quantity,
+        projectId,
+        project: projectName,
+        requestedById,
+        requestedBy: requestedByName,
+        notes: notes || undefined,
+        ...(budgetLineItemId != null ? { budgetLineItemId } : {}),
+      });
+      setModalOpen(false);
+      setPage(1);
+      toast.success(t('inventory:toast.dispatched', 'Dispatched {{quantity}} {{unit}} of {{name}} → {{project}}', { quantity: res.quantity, unit: res.unit, name: res.consumableName, project: res.project }));
+      loadData();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t('toast.dispatchError'));
+      throw error;
+    }
   };
+
+  if (loadFailed) return <div role="alert" className="border border-red-300 p-5">
+    <p>{pageError}</p><Button onClick={loadData}>{t('common:buttons.retry')}</Button>
+  </div>;
 
   return (
     <div className="space-y-6 max-w-6xl">
@@ -201,9 +216,10 @@ export function ConsumableDispatch() {
           <ArrowRight className="w-4 h-4" /> {t('dispatch.dispatchSupply')}
         </Button>} />
 
+      {listFailed && <div role="alert" className="border border-red-300 p-4">{pageError} <Button onClick={() => setReloads(n => n + 1)}>{t('common:buttons.retry')}</Button></div>}
       {/* Table */}
       <div className="bg-white border border-[#DBD0BB] overflow-hidden">
-        {loading || (pageLoading && paged.length === 0) ? (
+        {listFailed ? null : loading || pageLoading ? (
           <div className="flex items-center justify-center py-24">
             <Loader2 className="w-6 h-6 text-amber-500 animate-spin" />
           </div>
@@ -319,7 +335,7 @@ export function ConsumableDispatch() {
 
 // ── Dispatch Modal ────────────────────────────────────────────────────────────
 
-function DispatchModal({
+export function DispatchModal({
   open, onClose, consumables, projects, workers, onDispatch,
 }: {
   open: boolean;
@@ -337,8 +353,9 @@ function DispatchModal({
     requestedById: number,
     requestedByName: string,
     notes: string,
-    budgetLineItemId?: number | null,
-  ) => void;
+    budgetLineItemId: number | null | undefined,
+    requestKey: string,
+  ) => Promise<void>;
 }) {
   const { t } = useTranslation('inventory');
   const [selectedConsumableId, setSelectedConsumableId] = useState('');
@@ -347,6 +364,10 @@ function DispatchModal({
   const [budgetLineItemId, setBudgetLineItemId] = useState<number | null>(null);
   const [workerId, setWorkerId] = useState('');
   const [notes, setNotes] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [noteError, setNoteError] = useState(false);
+  const intent = useRef<{ fingerprint: string; key: string } | null>(null);
 
   const selected = consumables.find(c => String(c.id) === selectedConsumableId);
   const selectedProject = projects.items.find(p => String(p.id) === projectId);
@@ -355,34 +376,44 @@ function DispatchModal({
   const maxQty = selected?.currentStock ?? 0;
   const projectClosed = selectedProject?.status === 'CLOSED';
   const qtyNum = Number(qty);
-  const canSubmit = selected && qtyNum > 0 && qtyNum <= maxQty && selectedProject && !projectClosed && selectedWorker;
+  const canSubmit = !busy && notes.length <= FIELD_LIMITS.NOTE && selected && Number.isSafeInteger(qtyNum) && qtyNum > 0 && qtyNum <= maxQty && selectedProject && !projectClosed && selectedWorker;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!canSubmit || !selected || !selectedProject || !selectedWorker) return;
-    onDispatch(
-      selected.code,
-      selected.name,
-      selected.unit,
-      qtyNum,
-      selectedProject.id,
-      selectedProject.name,
-      selectedWorker.id,
-      selectedWorker.fullName ?? selectedWorker.username,
-      notes.trim(),
-      budgetLineItemId,
-    );
-    setSelectedConsumableId(''); setQty(''); setProjectId(''); setWorkerId(''); setNotes('');
-    setBudgetLineItemId(null);
+    const fingerprint = JSON.stringify([selected.id, qtyNum, selectedProject.id, selectedWorker.id, notes.trim(), budgetLineItemId]);
+    if (intent.current?.fingerprint !== fingerprint) intent.current = { fingerprint, key: crypto.randomUUID() };
+    setBusy(true); setError(null); setNoteError(false);
+    try {
+      await onDispatch(
+        selected.code,
+        selected.name,
+        selected.unit,
+        qtyNum,
+        selectedProject.id,
+        selectedProject.name,
+        selectedWorker.id,
+        selectedWorker.fullName ?? selectedWorker.username,
+        notes.trim(),
+        budgetLineItemId,
+        intent.current.key,
+      );
+      intent.current = null;
+    } catch (err) {
+      if (err instanceof ApiError && err.status >= 400 && err.status < 500) intent.current = null;
+      setNoteError(err instanceof ApiError && Boolean(err.details?.notes));
+      setError(err instanceof Error ? err.message : t('toast.dispatchError'));
+    } finally { setBusy(false); }
   };
 
   return (
-    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+    <Dialog open={open} onOpenChange={v => { if (!v && !busy) onClose(); }}>
       <DialogContent className="rounded-none sm:max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto" aria-describedby="dispatch-desc">
         <DialogHeader>
           <DialogTitle className="font-bt-display uppercase text-2xl">{t('dispatch.dialog.title')}</DialogTitle>
           <DialogDescription id="dispatch-desc">{t('dispatch.dialog.description')}</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 py-2">
+        {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+        <fieldset disabled={busy} className="space-y-4 py-2">
           {/* Supply selector */}
           <div>
             <label className="font-bt-mono text-[11px] font-semibold text-[#8A8175] uppercase tracking-wide">{`${t('dispatch.dialog.supply')} *`}</label>
@@ -404,7 +435,7 @@ function DispatchModal({
           <div>
             <label className="font-bt-mono text-[11px] font-semibold text-[#8A8175] uppercase tracking-wide">{`${t('dispatch.dialog.quantity')} *`}</label>
             <Input
-              type="number" min={1} max={maxQty}
+              type="number" min={1} step={1} max={maxQty}
               value={qty} onChange={e => setQty(e.target.value)}
               className="mt-1 h-9 border-[#DBD0BB] text-sm"
               placeholder={selected ? t('dispatch.dialog.maxQty', { max: maxQty }) : t('dispatch.dialog.selectFirst')}
@@ -413,6 +444,7 @@ function DispatchModal({
             {selected && (
               <p className="text-[11px] text-[#8A8175] mt-1">
                 {t('dispatch.dialog.available', { stock: selected.currentStock, unit: selected.unit })}
+                {qty && !Number.isSafeInteger(qtyNum) && <span role="alert" className="text-red-600 ml-1">{t('dispatch.dialog.wholeQuantity')}</span>}
                 {qtyNum > maxQty && <span className="text-red-600 ml-1">{t('dispatch.dialog.exceedsStock')}</span>}
               </p>
             )}
@@ -465,13 +497,16 @@ function DispatchModal({
             <label className="font-bt-mono text-[11px] font-semibold text-[#8A8175] uppercase tracking-wide">{t('dispatch.dialog.notes')}</label>
             <textarea
               value={notes} onChange={e => setNotes(e.target.value)}
+              aria-invalid={noteError || notes.length > FIELD_LIMITS.NOTE}
+              aria-describedby="dispatch-notes-limit"
               className="mt-1 w-full border border-[#DBD0BB] rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/30 resize-none"
-              rows={2} maxLength={FIELD_LIMITS.LONG_TEXT} placeholder={t('dispatch.dialog.notesPlaceholder')}
+              rows={2} maxLength={FIELD_LIMITS.NOTE} placeholder={t('dispatch.dialog.notesPlaceholder')}
             />
+            <p id="dispatch-notes-limit" className={noteError ? 'text-xs text-red-700' : 'text-xs text-[#8A8175]'}>{t('dispatch.dialog.notesLimit', { count: notes.length, max: FIELD_LIMITS.NOTE })}</p>
           </div>
-        </div>
+        </fieldset>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} className="rounded-none border-[#DBD0BB]">{t('buttons.cancel', { ns: 'common' })}</Button>
+          <Button variant="outline" disabled={busy} onClick={onClose} className="rounded-none border-[#DBD0BB]">{t('buttons.cancel', { ns: 'common' })}</Button>
           <Button disabled={!canSubmit} onClick={handleSubmit} className="rounded-none bg-[#0A0A0A] hover:bg-[#F97316] text-[#F5F1E8] hover:text-[#0A0A0A]">{t('dispatch.dialog.submit')}</Button>
         </DialogFooter>
       </DialogContent>

@@ -73,9 +73,9 @@ describe('pathsFrom', () => {
     }
   });
 
-  it('offers nothing at all while the tool is out', () => {
-    expect(pathsFrom('Assigned')).toEqual([]);
-    expect(pathsFrom('Pending Acceptance')).toEqual([]);
+  it('offers only a loss incident while the tool is out', () => {
+    expect(pathsFrom('Assigned')).toEqual(['Lost']);
+    expect(pathsFrom('Pending Acceptance')).toEqual(['Lost']);
   });
 
   it('offers the three legal paths from each status that has them', () => {

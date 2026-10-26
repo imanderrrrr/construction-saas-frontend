@@ -81,7 +81,7 @@ export function ConsumablesTable({ state, consumables, lang, filterCount, total,
         <span>{t('tools:table.supply')}</span>
         <span>{t('tools:table.stock')}</span>
         <span>{t('tools:table.light')}</span>
-        <span>{t('tools:table.lastDispatch')}</span>
+        <span>{t('tools:table.lastRestocked')}</span>
         <span className="text-right">{t('tools:table.minimum')}</span>
       </div>
 

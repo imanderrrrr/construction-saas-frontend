@@ -184,5 +184,6 @@
   "billing.blocked": "Acceso suspendido por facturación. Contacta al administrador para reactivarlo.",
   "billing.recover": "Actualizar facturación",
   "billing.unavailable": "No pudimos consultar el acceso. Conservamos esta pantalla; vuelve a intentar.",
-  "billing.readOnly": "Solo consulta por facturación. El fichaje sigue disponible."
+  "billing.readOnly": "Solo consulta por facturación. El fichaje sigue disponible.",
+  "dialog.description": "Detalles del formulario"
 }

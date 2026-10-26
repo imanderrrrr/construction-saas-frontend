@@ -63,7 +63,7 @@ export function ConsumableFormModal({ open, onOpenChange, onSaved, consumable = 
     if (!name.trim()) next.name = t('tools:consumable.err.name');
     if (!unit.trim()) next.unit = t('tools:consumable.err.unit');
     if (moneyInputCents(unitCost) == null) next.numbers = t('inventory:consumables.dialog.invalidCost');
-    if (stockNumber < 0 || minimumNumber < 0) next.numbers = t('tools:consumable.err.negative');
+    if (!Number.isSafeInteger(stockNumber) || !Number.isSafeInteger(minimumNumber) || stockNumber < 0 || minimumNumber < 0) next.numbers = t('tools:consumable.err.negative');
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
@@ -129,7 +129,7 @@ export function ConsumableFormModal({ open, onOpenChange, onSaved, consumable = 
 
       {(warehouse || consumable) && <div className="mt-[14px]">
         <FieldLabel htmlFor="cs-category">{t('inventory:consumables.dialog.category')}</FieldLabel>
-        <input id="cs-category" value={category} onChange={e => setCategory(e.target.value)} maxLength={FIELD_LIMITS.ENUM_TOKEN} className={INPUT} />
+        <input id="cs-category" value={category} onChange={e => setCategory(e.target.value)} maxLength={FIELD_LIMITS.CODE} className={INPUT} />
       </div>}
       {warehouse && <div className="mt-[14px]">
         <FieldLabel htmlFor="cs-notes">{t('inventory:consumables.dialog.notes')}</FieldLabel>
@@ -138,7 +138,7 @@ export function ConsumableFormModal({ open, onOpenChange, onSaved, consumable = 
 
       <div className="mt-[14px]">
         <FieldLabel htmlFor="cs-unit" required>{t('tools:consumable.unit')}</FieldLabel>
-        <input id="cs-unit" value={unit} onChange={e => setUnit(e.target.value)} maxLength={FIELD_LIMITS.ENUM_TOKEN} className={cn(INPUT, 'bg-[#FAF7F0]', errors.unit && INPUT_ERROR)} />
+        <input id="cs-unit" disabled={consumable != null} value={unit} onChange={e => setUnit(e.target.value)} maxLength={FIELD_LIMITS.CODE} className={cn(INPUT, 'bg-[#FAF7F0]', errors.unit && INPUT_ERROR)} />
         {errors.unit ? <FieldError>{errors.unit}</FieldError> : <FieldHint>{t('tools:consumable.unit.hint')}</FieldHint>}
       </div>
 
