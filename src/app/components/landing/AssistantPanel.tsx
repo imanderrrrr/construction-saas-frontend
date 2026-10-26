@@ -39,6 +39,27 @@ const HEADER_BUTTON =
 
 type Sheet = 'chat' | 'unavailable' | 'form' | 'done';
 
+/** Below the `sm` breakpoint the panel is a full-screen sheet, and a modal one. */
+const NARROW_SCREEN = '(max-width: 639px)';
+
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function matchesNarrowScreen(): boolean {
+  return typeof window.matchMedia === 'function' && window.matchMedia(NARROW_SCREEN).matches;
+}
+
+function useNarrowScreen(): boolean {
+  const [narrow, setNarrow] = useState(matchesNarrowScreen);
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const query = window.matchMedia(NARROW_SCREEN);
+    const update = () => setNarrow(query.matches);
+    query.addEventListener?.('change', update);
+    return () => query.removeEventListener?.('change', update);
+  }, []);
+  return narrow;
+}
+
 function Header({
   lead,
   title,
@@ -100,8 +121,10 @@ function Arrow({ size = 18, back = false }: { size?: number; back?: boolean }) {
  */
 export function AssistantPanel({ onClose, deps }: { onClose: () => void; deps?: Partial<AssistantDeps> }) {
   const { t, i18n } = useTranslation('landing');
+  const dialogRef = useRef<HTMLDivElement>(null);
   const turnstileHost = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
+  const narrow = useNarrowScreen();
   const [challenge, setChallenge] = useState(false);
   const [draft, setDraft] = useState('');
 
@@ -119,6 +142,22 @@ export function AssistantPanel({ onClose, deps }: { onClose: () => void; deps?: 
   const sheet: Sheet = chat.view === 'chat' && chat.notice === 'unavailable' ? 'unavailable' : chat.view;
   const ended = chat.notice === 'turn_limit';
 
+  // Each sheet hands focus to where the visitor continues: the message box,
+  // the first field of the form, or the way back from the confirmation.
+  useEffect(() => {
+    dialogRef.current?.querySelector<HTMLElement>('[data-autofocus]')?.focus();
+  }, [sheet]);
+
+  // A full-screen sheet is modal: the page behind must not scroll under it.
+  useEffect(() => {
+    if (!narrow) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [narrow]);
+
   // Keep the newest turn in view.
   useEffect(() => {
     const body = bodyRef.current;
@@ -129,6 +168,28 @@ export function AssistantPanel({ onClose, deps }: { onClose: () => void; deps?: 
     if (ended || chat.sending || !isSendable(draft)) return;
     setDraft('');
     void chat.send(draft);
+  }
+
+  function onDialogKey(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      onClose();
+      return;
+    }
+    // On a phone the sheet is modal, so Tab cycles inside it. On a desktop the
+    // panel sits beside the page and Tab may leave it.
+    if (event.key !== 'Tab' || !narrow || !dialogRef.current) return;
+    const items = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE));
+    if (items.length === 0) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
   }
 
   function onComposerKey(event: KeyboardEvent<HTMLInputElement>) {
@@ -182,9 +243,12 @@ export function AssistantPanel({ onClose, deps }: { onClose: () => void; deps?: 
 
   return (
     <div
+      ref={dialogRef}
       role="dialog"
       aria-label={t('assistant.panel.title')}
+      aria-modal={narrow || undefined}
       aria-busy={chat.submitting || undefined}
+      onKeyDown={onDialogKey}
       className="fixed bottom-6 right-6 z-50 flex h-[620px] max-h-[calc(100dvh-3rem)] w-[380px] flex-col border border-[rgba(23,19,15,0.35)] bg-bt-sheet font-bt-body text-bt-ink shadow-[0_30px_70px_-38px_rgba(23,19,15,0.55)] bt-window-in max-sm:inset-0 max-sm:h-auto max-sm:max-h-none max-sm:w-auto max-sm:border-0 max-sm:shadow-none"
     >
       <Header {...header} closeLabel={t('assistant.panel.close')} onClose={onClose} />
@@ -237,6 +301,7 @@ export function AssistantPanel({ onClose, deps }: { onClose: () => void; deps?: 
           <div className="flex h-14 flex-none border-t border-[rgba(23,19,15,0.3)] bg-bt-sheet">
             <input
               type="text"
+              data-autofocus=""
               aria-label={t('assistant.input.label')}
               placeholder={ended ? t('assistant.input.ended') : t('assistant.input.placeholder')}
               maxLength={MAX_MESSAGE_CHARS}

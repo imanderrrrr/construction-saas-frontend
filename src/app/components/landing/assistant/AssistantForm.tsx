@@ -19,12 +19,15 @@ function Field({
   label,
   error,
   inputRef,
+  autoFocusTarget,
   ...input
 }: {
   id: string;
   label: string;
   error?: string;
   inputRef: RefObject<HTMLInputElement>;
+  /** The field the panel focuses when the form opens. */
+  autoFocusTarget?: boolean;
   value: string;
   placeholder: string;
   maxLength: number;
@@ -42,6 +45,7 @@ function Field({
         ref={inputRef}
         id={id}
         type="text"
+        data-autofocus={autoFocusTarget ? '' : undefined}
         value={input.value}
         placeholder={input.placeholder}
         maxLength={input.maxLength}
@@ -156,6 +160,7 @@ export function AssistantForm({
         <Field
           id={`${id}-name`}
           inputRef={nameRef}
+          autoFocusTarget
           label={t('assistant.form.name.label')}
           placeholder={t('assistant.form.name.placeholder')}
           maxLength={FIELD_LIMITS.PERSON_NAME}

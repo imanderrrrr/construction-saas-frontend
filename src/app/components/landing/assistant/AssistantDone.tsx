@@ -22,7 +22,7 @@ export function AssistantDone({ onBack, onClose }: { onBack: () => void; onClose
         </div>
       </div>
       <div className={ACTION_STRIP}>
-        <button type="button" onClick={onBack} className={BUTTON_SECONDARY}>
+        <button type="button" data-autofocus="" onClick={onBack} className={BUTTON_SECONDARY}>
           {t('assistant.done.back')}
         </button>
         <button type="button" onClick={onClose} className={BUTTON_PRIMARY}>
