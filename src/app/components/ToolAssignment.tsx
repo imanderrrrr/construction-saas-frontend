@@ -73,6 +73,10 @@ const CONDITION_KEYS: Record<string, string> = {
   'Damaged': 'assignment.conditions.damaged',
 };
 
+function conditionName(t: (key: string) => string, condition: string): string {
+  return CONDITION_KEYS[condition] ? t(CONDITION_KEYS[condition]) : condition;
+}
+
 // Helpers
 
 function fmtDate(iso: string): string {
@@ -476,7 +480,7 @@ export function ToolAssignment() {
       notes: notes || undefined,
     }).then(() => {
       setShowReturn(false);
-      toast.success(t('inventory:toast.toolReturned', 'Returned {{code}} {{name}} — condition: {{condition}}', { code: assignment.toolCode, name: assignment.toolName, condition }));
+      toast.success(t('inventory:toast.toolReturned', 'Returned {{code}} {{name}} — condition: {{condition}}', { code: assignment.toolCode, name: assignment.toolName, condition: conditionName(t, condition) }));
       loadAllData();
     }).catch(() => {
       toast.error(t('inventory:toast.returnError', 'Failed to return tool. Please try again.'));
@@ -651,7 +655,7 @@ export function ToolAssignment() {
                       <TableCell className="py-3">
                         {l.condition ? (
                           <span className={`font-bt-mono text-xs font-medium ${l.condition === 'Good' || l.condition === 'Minor wear' ? 'text-emerald-600' : 'text-red-600'}`}>
-                            {l.condition}
+                            {conditionName(t, l.condition)}
                           </span>
                         ) : <span className="text-[#DBD0BB]">—</span>}
                       </TableCell>
@@ -671,7 +675,7 @@ export function ToolAssignment() {
                   </div>
                   <p className="text-sm font-medium text-[#0A0A0A]">{l.toolName} <span className="font-bt-mono text-[#8A8175] text-xs">({l.toolCode})</span></p>
                   <p className="text-xs text-[#8A8175]">{l.worker} · {l.project}</p>
-                  {l.condition && <p className="text-xs text-[#8A8175]">{t('assignment.conditionLabel', { condition: l.condition })}</p>}
+                  {l.condition && <p className="text-xs text-[#8A8175]">{t('assignment.conditionLabel', { condition: conditionName(t, l.condition) })}</p>}
                 </div>
               ))}
             </div>
