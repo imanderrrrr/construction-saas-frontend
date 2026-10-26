@@ -143,6 +143,10 @@ test.describe('Landing assistant', () => {
       await installHermeticBase(page);
       await mockLandingAssistant(page);
       await page.goto('/');
+      // The landing is a lazy route that can arrive after `load` (slow CI runners): a wheel
+      // turned before it renders scrolls nothing and is lost.
+      await expect(page.getByRole('button', { name: 'AI assistant' })).toBeVisible();
+      await page.waitForFunction(() => document.documentElement.scrollHeight > window.innerHeight);
 
       // The page itself scrolls while the assistant is closed…
       await page.mouse.move(180, 400);
