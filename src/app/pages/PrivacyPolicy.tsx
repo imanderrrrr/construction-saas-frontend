@@ -4,7 +4,7 @@ import { SUPPORT_EMAIL, supportMailto } from '../lib/contact';
 const es: LegalVersion = {
   lang: 'es',
   docTitle: 'Política de Privacidad',
-  updatedLabel: 'Última actualización: 21 de octubre de 2026 — v2.2',
+  updatedLabel: 'Última actualización: 26 de octubre de 2026 — v2.3',
   tocLabel: 'Contenido',
   meta: [
     { label: 'Proveedor', value: 'Archlogic Systems' },
@@ -19,7 +19,7 @@ const es: LegalVersion = {
         </a>
       ),
     },
-    { label: 'Versión', value: '2.2' },
+    { label: 'Versión', value: '2.3' },
   ],
   sections: [
     {
@@ -38,6 +38,10 @@ const es: LegalVersion = {
           <p>
             Como es una plataforma que usan varias empresas a la vez, distingue dos situaciones según quién
             decide sobre los datos, que se detallan en la sección 2.
+          </p>
+          <p>
+            Esta política también cubre el sitio web público de BuildTrack (buildtrackfield.com), incluidos su
+            asistente de inteligencia artificial (IA) y su formulario de contacto.
           </p>
         </>
       ),
@@ -61,6 +65,10 @@ const es: LegalVersion = {
               <strong>Datos de la cuenta de administración, de la suscripción y de la plataforma</strong> (datos
               del administrador que contrata BuildTrack, facturación de la suscripción y datos técnicos y de
               seguridad del servicio): respecto a estos, Archlogic es el responsable del tratamiento.
+            </li>
+            <li>
+              <strong>Datos del sitio web público</strong> (mensajes al asistente de IA y datos que se dejan en el
+              formulario de contacto): Archlogic es el responsable del tratamiento.
             </li>
           </ul>
           <p>Esta distinción determina a quién dirigirse para ejercer derechos (ver sección 12).</p>
@@ -105,6 +113,17 @@ const es: LegalVersion = {
             la aplicación e identificadores de diagnóstico, recopilados automáticamente para seguridad y
             diagnóstico.
           </li>
+          <li>
+            <strong>Asistente de IA y formulario de contacto del sitio web:</strong> los mensajes que usted escribe
+            al asistente se envían a nuestro servidor y a Anthropic, el proveedor del modelo de IA, para generar la
+            respuesta. No guardamos el contenido de las conversaciones: la conversación existe solo en su navegador
+            mientras la ventana está abierta. No escriba datos personales en el chat. Si deja sus datos en el
+            formulario de contacto, guardamos su nombre, su empresa, su correo o teléfono, su interés (una
+            demostración o la beta), el idioma, si llegó por el asistente o por el formulario, la fecha y la
+            versión del texto de consentimiento que aceptó, y enviamos esos datos por correo a nuestro equipo.
+            Para comprobar que quien escribe es una persona usamos Cloudflare Turnstile. Su dirección IP se usa
+            de forma temporal para limitar la cantidad de mensajes y envíos, y no se guarda con el contacto.
+          </li>
         </ul>
       ),
     },
@@ -120,6 +139,10 @@ const es: LegalVersion = {
           <li>Administrar la suscripción del Cliente y su facturación.</li>
           <li>Enviar notificaciones relacionadas con la actividad en la plataforma.</li>
           <li>Mantener la seguridad, prevenir el fraude y mejorar el servicio.</li>
+          <li>
+            Responder preguntas sobre BuildTrack en el sitio web y contactar a quien pide una demostración o
+            unirse a la beta.
+          </li>
         </ul>
       ),
     },
@@ -135,11 +158,13 @@ const es: LegalVersion = {
           </li>
           <li>
             <strong>Interés legítimo:</strong> seguridad de la plataforma, prevención de fraude y mejora del
-            servicio.
+            servicio; responder las preguntas de los visitantes del sitio web y proteger el sitio contra el abuso.
           </li>
           <li>
             <strong>Consentimiento:</strong> para el acceso a permisos del dispositivo (ubicación, cámara,
-            micrófono, reconocimiento de voz, galería), revocables en cualquier momento desde la configuración del sistema.
+            micrófono, reconocimiento de voz, galería), revocables en cualquier momento desde la configuración del sistema,
+            y para contactarlo cuando deja sus datos en el formulario del sitio web, mediante su casilla de
+            consentimiento.
           </li>
           <li>
             <strong>Obligación legal:</strong> conservación de registros laborales y fiscales según la ley
@@ -154,7 +179,7 @@ const es: LegalVersion = {
       body: (
         <>
           <p>
-            Para prestar el servicio utilizamos estos proveedores. El alojamiento y el envío de correo procesan datos por cuenta de Archlogic; los mapas, el reconocimiento de voz y el servicio de clima también pueden procesar datos conforme a las políticas de sus proveedores:
+            Para prestar el servicio utilizamos estos proveedores. El alojamiento y el envío de correo procesan datos por cuenta de Archlogic; los mapas, el reconocimiento de voz, el servicio de clima, el modelo de IA y la verificación anti-bot también pueden procesar datos conforme a las políticas de sus proveedores:
           </p>
           <ul>
             <li>
@@ -170,7 +195,9 @@ const es: LegalVersion = {
             <li>
               <strong>Paddle:</strong> procesamiento de pagos de las suscripciones de los Clientes.
             </li>
-            <li><strong>Brevo:</strong> envío de correos transaccionales (invitaciones, restablecimiento de contraseña y enlaces de firma); recibe la dirección de correo del destinatario y el contenido del mensaje.</li>
+            <li><strong>Brevo:</strong> envío de correos transaccionales (invitaciones, restablecimiento de contraseña, enlaces de firma y el aviso a nuestro equipo de cada contacto del sitio web); recibe la dirección de correo del destinatario y el contenido del mensaje.</li>
+            <li><strong>Anthropic:</strong> modelo de IA del asistente del sitio web. Recibe de nuestro servidor los mensajes de la conversación, sin su dirección IP ni los datos del formulario de contacto, y los trata para generar la respuesta conforme a sus condiciones comerciales. Se aplica la <a className="ld-a" href="https://www.anthropic.com/legal/privacy" target="_blank" rel="noopener noreferrer">Política de privacidad de Anthropic</a>.</li>
+            <li><strong>Cloudflare Turnstile:</strong> verificación anti-bot del asistente y del formulario de contacto del sitio web. Al iniciar una conversación o enviar el formulario, Cloudflare recibe datos técnicos del navegador y de la conexión, incluida la dirección IP, para comprobar que se trata de una persona. Se aplica la <a className="ld-a" href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer">Política de privacidad de Cloudflare</a>.</li>
             <li><strong>Google Maps:</strong> mapas dentro de la app, búsqueda de lugares y cálculo de rutas. Sus SDK pueden tratar identificadores del dispositivo, interacciones con el mapa y datos de fallos y rendimiento para funcionalidad y análisis del servicio. La búsqueda y las rutas reciben los datos necesarios de origen y destino. El servidor conserva el identificador del lugar, sin almacenar su nombre, dirección, coordenadas de Google ni el contenido de la ruta. Se aplican los <a className="ld-a" href="https://maps.google.com/help/terms_maps.html" target="_blank" rel="noopener noreferrer">Términos de Google Maps</a> y la <a className="ld-a" href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Política de privacidad de Google</a>.</li>
             <li><strong>Reconocimiento de voz del sistema:</strong> convertir la voz en texto mediante el servicio del sistema, con autorización del dispositivo. Según el idioma y el dispositivo, el audio puede enviarse al proveedor del reconocimiento; en iOS se usa el servicio de Apple.</li>
             <li><strong>MET Norway (Instituto Meteorológico de Noruega):</strong> datos meteorológicos para la bitácora. Recibe de nuestro servidor las coordenadas de la obra, sin la dirección IP del dispositivo ni datos de la cuenta. Se aplican sus <a className="ld-a" href="https://api.met.no/doc/TermsOfService" target="_blank" rel="noopener noreferrer">condiciones</a>.</li>
@@ -209,7 +236,7 @@ const es: LegalVersion = {
       body: (
         <p>
           Los datos pueden almacenarse y procesarse en servidores ubicados fuera de Guatemala y de su país de
-          residencia, incluyendo Estados Unidos (Render, AWS/Supabase, Vercel) y las jurisdicciones de
+          residencia, incluyendo Estados Unidos (Render, AWS/Supabase, Vercel, Anthropic, Cloudflare) y las jurisdicciones de
           procesamiento de pagos de Paddle. Estas transferencias se realizan bajo las cláusulas contractuales y
           las políticas de protección de datos de cada proveedor.
         </p>
@@ -276,6 +303,14 @@ const es: LegalVersion = {
             responsable, según las obligaciones legales, laborales y fiscales que le apliquen; transcurridos, se
             eliminan de forma segura.
           </p>
+          <p>
+            Los contactos dejados en el formulario del sitio web se eliminan automáticamente a los 12 meses; puede
+            pedir que se borren antes escribiendo a{' '}
+            <a className="ld-a" href={supportMailto()}>
+              {SUPPORT_EMAIL}
+            </a>
+            . El contenido de las conversaciones con el asistente no se guarda en nuestros servidores.
+          </p>
         </>
       ),
     },
@@ -296,7 +331,7 @@ const es: LegalVersion = {
             </li>
             <li>
               Para datos de los que Archlogic es responsable (cuenta de administración, facturación de la
-              suscripción), escriba a{' '}
+              suscripción, contactos y mensajes del sitio web), escriba a{' '}
               <a className="ld-a" href={supportMailto()}>
                 {SUPPORT_EMAIL}
               </a>{' '}
@@ -329,7 +364,9 @@ const es: LegalVersion = {
           cookies técnicas para la sesión, la protección contra falsificación de solicitudes y recordar la
           empresa con la que se inició sesión, y el almacenamiento del navegador para preferencias de la
           interfaz y pasos en curso, como las guías ya vistas o el alta de la empresa; no emplea cookies de
-          seguimiento, publicidad ni analítica de terceros.
+          seguimiento, publicidad ni analítica de terceros. En el sitio web público, el asistente guarda la
+          conversación solo en la memoria de la ventana, y la verificación de Cloudflare Turnstile se carga
+          únicamente al iniciar una conversación o enviar el formulario.
         </p>
       ),
     },
@@ -355,7 +392,7 @@ const es: LegalVersion = {
 const en: LegalVersion = {
   lang: 'en',
   docTitle: 'Privacy Policy',
-  updatedLabel: 'Last updated: October 21, 2026 — v2.2',
+  updatedLabel: 'Last updated: October 26, 2026 — v2.3',
   tocLabel: 'Contents',
   meta: [
     { label: 'Provider', value: 'Archlogic Systems' },
@@ -370,7 +407,7 @@ const en: LegalVersion = {
         </a>
       ),
     },
-    { label: 'Version', value: '2.2' },
+    { label: 'Version', value: '2.3' },
   ],
   sections: [
     {
@@ -389,6 +426,10 @@ const en: LegalVersion = {
             Because it is a platform used by multiple companies at once, it distinguishes two situations
             depending
             on who decides about the data, detailed in section 2.
+          </p>
+          <p>
+            This policy also covers the public BuildTrack website (buildtrackfield.com), including its artificial
+            intelligence (AI) assistant and its contact form.
           </p>
         </>
       ),
@@ -416,6 +457,10 @@ const en: LegalVersion = {
               who subscribes to BuildTrack, subscription billing, and technical and security data of the
               service):
               with respect to these, Archlogic is the data controller.
+            </li>
+            <li>
+              <strong>Public website data</strong> (messages to the AI assistant and details left in the contact
+              form): Archlogic is the data controller.
             </li>
           </ul>
           <p>This distinction determines whom to contact to exercise rights (see section 12).</p>
@@ -459,6 +504,17 @@ const en: LegalVersion = {
             <strong>Technical data:</strong> IP address, device type, operating system, app version, and
             diagnostic identifiers, collected automatically for security and diagnostics.
           </li>
+          <li>
+            <strong>Website AI assistant and contact form:</strong> the messages you type to the assistant
+            are sent to our server and to Anthropic, the AI model provider, to generate the answer. We do not keep
+            the content of conversations: the conversation exists only in your browser while the window is open.
+            Don't type personal details in the chat. If you leave your details in the contact form, we keep
+            your name, company, email or phone, your interest (a demo or the beta), the language, whether you came
+            through the assistant or the form, the date and the version of the consent text you accepted, and we
+            send those details by email to our team. We use Cloudflare Turnstile to check that the person writing
+            is human. Your IP address is used temporarily to limit the number of messages and submissions, and it
+            is not stored with the contact.
+          </li>
         </ul>
       ),
     },
@@ -474,6 +530,10 @@ const en: LegalVersion = {
           <li>Administer the Customer's subscription and billing.</li>
           <li>Send notifications related to platform activity.</li>
           <li>Maintain security, prevent fraud, and improve the service.</li>
+          <li>
+            Answer questions about BuildTrack on the website and contact those who ask for a demo or to join the
+            beta.
+          </li>
         </ul>
       ),
     },
@@ -488,11 +548,13 @@ const en: LegalVersion = {
             for the subscription relationship between the Customer and Archlogic.
           </li>
           <li>
-            <strong>Legitimate interest:</strong> platform security, fraud prevention, and service improvement.
+            <strong>Legitimate interest:</strong> platform security, fraud prevention, and service improvement;
+            answering website visitors' questions and protecting the site against abuse.
           </li>
           <li>
             <strong>Consent:</strong> for access to device permissions (location, camera, microphone, speech recognition, gallery),
-            revocable at any time from system settings.
+            revocable at any time from system settings, and for contacting you when you leave your details in the
+            website form, through its consent box.
           </li>
           <li>
             <strong>Legal obligation:</strong> retention of labor and tax records as required by the law
@@ -507,7 +569,7 @@ const en: LegalVersion = {
       body: (
         <>
           <p>
-            To provide the service we use these providers. Hosting and email delivery process data on behalf of Archlogic; maps, speech recognition and the weather service may also process data under their providers’ policies:
+            To provide the service we use these providers. Hosting and email delivery process data on behalf of Archlogic; maps, speech recognition, the weather service, the AI model and the anti-bot check may also process data under their providers’ policies:
           </p>
           <ul>
             <li>
@@ -522,7 +584,9 @@ const en: LegalVersion = {
             <li>
               <strong>Paddle:</strong> payment processing for Customers' subscriptions.
             </li>
-            <li><strong>Brevo:</strong> transactional email delivery (invitations, password resets and signature links); it receives the recipient's email address and the message content.</li>
+            <li><strong>Brevo:</strong> transactional email delivery (invitations, password resets, signature links and the notice to our team of each contact from the website); it receives the recipient's email address and the message content.</li>
+            <li><strong>Anthropic:</strong> AI model of the website assistant. It receives the conversation's messages from our server, without your IP address or the contact form details, and processes them to generate the answer under its commercial terms. The <a className="ld-a" href="https://www.anthropic.com/legal/privacy" target="_blank" rel="noopener noreferrer">Anthropic Privacy Policy</a> applies.</li>
+            <li><strong>Cloudflare Turnstile:</strong> anti-bot check for the website assistant and contact form. When a conversation starts or the form is sent, Cloudflare receives technical data about the browser and the connection, including the IP address, to check that a person is there. The <a className="ld-a" href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer">Cloudflare Privacy Policy</a> applies.</li>
             <li><strong>Google Maps:</strong> in-app maps, place search and route calculation. Its SDKs may process device identifiers, map interactions and crash and performance data for service functionality and analytics. Search and routing receive the origin and destination data needed for the request. The server retains the place identifier without storing its Google name, address, coordinates or route content. <a className="ld-a" href="https://maps.google.com/help/terms_maps.html" target="_blank" rel="noopener noreferrer">Google Maps Terms</a> and <a className="ld-a" href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Google Privacy Policy</a> apply.</li>
             <li><strong>System speech recognition:</strong> convert voice to text using the system service, with device authorization. Depending on language and device, audio may be sent to the recognition provider; iOS uses Apple’s service.</li>
             <li><strong>MET Norway (Norwegian Meteorological Institute):</strong> weather data for the site log. It receives the site's coordinates from our server, without the device's IP address or any account data. Its <a className="ld-a" href="https://api.met.no/doc/TermsOfService" target="_blank" rel="noopener noreferrer">terms</a> apply.</li>
@@ -562,7 +626,7 @@ const en: LegalVersion = {
       body: (
         <p>
           Data may be stored and processed on servers located outside Guatemala and your country of residence,
-          including the United States (Render, AWS/Supabase, Vercel) and Paddle's payment processing
+          including the United States (Render, AWS/Supabase, Vercel, Anthropic, Cloudflare) and Paddle's payment processing
           jurisdictions. These transfers are carried out under each provider's contractual clauses and
           data protection policies.
         </p>
@@ -629,6 +693,14 @@ const en: LegalVersion = {
             controller, according to the legal, labor, and tax obligations applicable to it; once elapsed, the
             records are securely deleted.
           </p>
+          <p>
+            Contacts left in the website form are deleted automatically after 12 months; you can ask for earlier
+            deletion by writing to{' '}
+            <a className="ld-a" href={supportMailto()}>
+              {SUPPORT_EMAIL}
+            </a>
+            . The content of conversations with the assistant is not stored on our servers.
+          </p>
         </>
       ),
     },
@@ -649,8 +721,8 @@ const en: LegalVersion = {
               as the controller. Archlogic will assist it in its capacity as processor.
             </li>
             <li>
-              For data of which Archlogic is the controller (administration account, subscription billing),
-              email{' '}
+              For data of which Archlogic is the controller (administration account, subscription billing,
+              website contacts and messages), email{' '}
               <a className="ld-a" href={supportMailto()}>
                 {SUPPORT_EMAIL}
               </a>{' '}
@@ -683,7 +755,8 @@ const en: LegalVersion = {
           cookies for the session, for protection against request forgery and to remember the company last
           signed in to, and browser storage for interface preferences and steps in progress, such as guides
           already seen or company sign-up; it does not use tracking, advertising or third-party analytics
-          cookies.
+          cookies. On the public website, the assistant keeps the conversation only in the window's memory, and
+          the Cloudflare Turnstile check loads only when a conversation starts or the form is sent.
         </p>
       ),
     },
