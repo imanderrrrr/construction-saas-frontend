@@ -47,6 +47,11 @@
   /* Status semantics (status page + sheet chips) */
   --color-bt-green: #2e7d4f;
   --color-bt-red: #b3402a;
+
+  /* Landing assistant: orange that reads as text on light (5.2:1 on paper —
+     plain orange is 2.4:1) and a field border that clears 3:1 on sheet and paper. */
+  --color-bt-orange-ink: #B23909;
+  --color-bt-field: #857A69;
 }
 
 /* The design ships these as page-level rules. Here they're scoped to
@@ -196,6 +201,8 @@
 @keyframes bt-window-in { from { opacity: 0; transform: scale(.98); } to { opacity: 1; transform: scale(1); } }
 @keyframes bt-drawer-in { from { transform: translateX(100%); } to { transform: none; } }
 @keyframes bt-fade-in { from { opacity: 0; } to { opacity: 1; } }
+/* Landing assistant: the three "typing" squares. */
+@keyframes bt-blink { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
 .bt-window-in { animation: bt-window-in 220ms cubic-bezier(.2,.7,.3,1); }
 .bt-drawer-in { animation: bt-drawer-in 280ms cubic-bezier(.2,.7,.3,1); }
 .bt-fade-in { animation: bt-fade-in 220ms ease-out; }
