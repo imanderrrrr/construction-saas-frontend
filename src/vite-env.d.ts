@@ -3,6 +3,8 @@
 interface ImportMetaEnv {
   readonly VITE_API_URL: string;
   readonly VITE_PLATFORM_API_ORIGIN?: string;
+  /** Public Cloudflare Turnstile site key of the landing assistant; unset turns the assistant into an email notice. */
+  readonly VITE_TURNSTILE_SITE_KEY?: string;
 }
 
 interface ImportMeta {
