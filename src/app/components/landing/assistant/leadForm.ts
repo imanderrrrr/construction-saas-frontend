@@ -39,9 +39,9 @@ function normalizedEmail(contact: string): string {
   return contact.trim().toLowerCase();
 }
 
-/** Spaces, hyphens and parentheses go; a leading "+" stays. */
+/** Spaces, dots, hyphens and parentheses go, as on the server; a leading "+" stays. */
 function normalizedPhone(contact: string): string {
-  return contact.trim().replace(/[\s\-()]/g, '');
+  return contact.trim().replace(/[\s.\-()]/g, '');
 }
 
 /** The contact as the request carries it: exactly one of `email` or `phone`. */

@@ -55,6 +55,14 @@ export class TurnstileFailedError extends Error {
   }
 }
 
+/**
+ * How long a challenge may stay silent before it counts as failed. An invisible
+ * challenge normally answers in a few seconds; one whose frames a proxy blocks
+ * never answers at all, and the chat would sit on "typing" forever. Once the
+ * challenge asks the visitor to click, Turnstile's own timeout takes over.
+ */
+export const TURNSTILE_DEADLINE_MS = 30_000;
+
 let scriptPromise: Promise<TurnstileGlobal> | null = null;
 
 function siteKey(): string {
@@ -109,9 +117,14 @@ export async function requestTurnstileToken(
 
   return new Promise<string>((resolve, reject) => {
     let widgetId: string | undefined;
-    const done = () => {
+    const deadline = setTimeout(() => {
+      done();
+      reject(new TurnstileFailedError('Turnstile challenge did not answer'));
+    }, TURNSTILE_DEADLINE_MS);
+    function done() {
+      clearTimeout(deadline);
       if (widgetId !== undefined) turnstile.remove(widgetId);
-    };
+    }
     try {
       widgetId = turnstile.render(container, {
         sitekey: key,
@@ -129,10 +142,20 @@ export async function requestTurnstileToken(
           done();
           reject(new TurnstileFailedError('Turnstile challenge timed out'));
         },
-        'before-interactive-callback': () => hooks?.onInteractive?.(),
+        'before-interactive-callback': () => {
+          clearTimeout(deadline);
+          hooks?.onInteractive?.();
+        },
       });
     } catch {
+      done();
       reject(new TurnstileUnavailableError('Turnstile could not render'));
+      return;
+    }
+    // Cloudflare returns no id when the invocation failed: no callback will ever come.
+    if (widgetId === undefined) {
+      done();
+      reject(new TurnstileUnavailableError('Turnstile did not render a widget'));
     }
   });
 }

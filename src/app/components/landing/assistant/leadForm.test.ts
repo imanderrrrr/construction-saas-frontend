@@ -22,6 +22,8 @@ describe('splitContact', () => {
     ['(502) 5555 5555', { phone: '50255555555' }],
     ['ANA+obra@Ejemplo.COM ', { email: 'ana+obra@ejemplo.com' }],
     ['  5555-5555  ', { phone: '55555555' }],
+    // The server strips dots too (LeadService.PHONE_FORMATTING).
+    ['555.123.4567', { phone: '5551234567' }],
   ])('%j → %j', (contact, expected) => {
     expect(splitContact(contact)).toEqual(expected);
   });
@@ -36,6 +38,7 @@ describe('validateLead', () => {
     '+502 5555-5555',
     '(502) 5555 5555',
     'ANA+obra@Ejemplo.COM ',
+    '555.123.4567',
   ])('accepts the contact %j', (contact) => {
     expect(validateLead({ ...valid, contact })).toEqual({});
   });

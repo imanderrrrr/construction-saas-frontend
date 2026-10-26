@@ -166,8 +166,14 @@ export function useAssistantChat(language: string, deps: AssistantDeps) {
     setView('form');
   }, []);
 
+  /**
+   * Back to the conversation. An "unavailable" notice is dropped on the way:
+   * the failure may have been passing (model down, a timeout), and the
+   * visitor can try again. The turn limit stays — that conversation is over.
+   */
   const backToChat = useCallback(() => {
     setView('chat');
+    setNotice((current) => (current === 'unavailable' ? null : current));
   }, []);
 
   /** Field errors when the values do not pass; null otherwise (sent, failed with a notice, or ignored). */

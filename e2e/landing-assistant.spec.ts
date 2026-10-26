@@ -116,6 +116,26 @@ test.describe('Landing assistant', () => {
     expect(sent.leads).toHaveLength(1);
   });
 
+  // Review focus 1: a panel chunk that cannot load (offline, or a deploy renamed it).
+  test('when the panel chunk fails to load, the button offers the support email and the page throws nothing', async ({ page }) => {
+    await installHermeticBase(page);
+    await mockLandingAssistant(page);
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    // Dev serves the module by its source path, a build by its hashed chunk name.
+    await page.route(/AssistantPanel[^/]*\.(tsx|js)(\?.*)?$/, route => route.abort());
+    await page.goto('/');
+
+    await page.getByRole('button', { name: 'AI assistant' }).click();
+
+    const notice = page.getByRole('alert');
+    await expect(notice).toContainText("I can't answer right now");
+    await expect(notice.getByRole('link')).toHaveAttribute('href', 'mailto:support@buildtrackfield.com');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
   test.describe('on a phone', () => {
     test.use({ viewport: { width: 375, height: 812 }, hasTouch: true });
 

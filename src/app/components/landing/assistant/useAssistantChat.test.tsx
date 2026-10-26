@@ -351,6 +351,28 @@ describe('useAssistantChat — form', () => {
     expect(hook.formInterest).toBeNull();
   });
 
+  // A 503 may be passing (model down, daily cap, a timeout): going back must show the conversation again.
+  it('backToChat clears an unavailable notice; a turn_limit notice stays', async () => {
+    sendChat.mockRejectedValueOnce(new ApiError(503, 'busy', undefined, 'MODEL_UNAVAILABLE'));
+    await mount();
+    await act(async () => {
+      await hook.send('hola');
+    });
+    expect(hook.notice).toBe('unavailable');
+
+    act(() => hook.backToChat());
+    expect(hook.notice).toBeNull();
+    expect(hook.messages).toEqual([{ role: 'user', content: 'hola' }]);
+
+    sendChat.mockRejectedValueOnce(new ApiError(422, 'limit', undefined, 'TURN_LIMIT'));
+    await act(async () => {
+      await hook.send('otra');
+    });
+    expect(hook.notice).toBe('turn_limit');
+    act(() => hook.backToChat());
+    expect(hook.notice).toBe('turn_limit');
+  });
+
   it('submit with invalid values returns the field errors and does not call the service', async () => {
     await mount();
     let errors: unknown;

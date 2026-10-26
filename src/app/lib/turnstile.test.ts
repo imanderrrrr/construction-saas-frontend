@@ -146,6 +146,50 @@ describe('requestTurnstileToken', () => {
     expect(onInteractive).toHaveBeenCalledTimes(1);
   });
 
+  // Cloudflare documents `undefined` from render() for an unsuccessful invocation: no callback will ever fire.
+  it('a render that returns no widget id rejects TurnstileUnavailableError', async () => {
+    render.mockReturnValueOnce(undefined);
+    const pending = mod.requestTurnstileToken(document.createElement('div'));
+    finishScriptLoad();
+
+    await expect(pending).rejects.toBeInstanceOf(mod.TurnstileUnavailableError);
+  });
+
+  // A silent challenge (its frames blocked by a proxy) must not leave the chat "typing" forever.
+  it('a challenge with no answer before the deadline rejects TurnstileFailedError and removes the widget', async () => {
+    vi.useFakeTimers();
+    try {
+      const pending = mod.requestTurnstileToken(document.createElement('div'));
+      const outcome = pending.catch((e: unknown) => e);
+      finishScriptLoad();
+      await vi.advanceTimersByTimeAsync(mod.TURNSTILE_DEADLINE_MS - 1);
+      expect(remove).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(1);
+      expect(await outcome).toBeInstanceOf(mod.TurnstileFailedError);
+      expect(remove).toHaveBeenCalledWith('widget-1');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('once the challenge turns interactive the deadline no longer applies (Turnstile times it out itself)', async () => {
+    vi.useFakeTimers();
+    try {
+      const pending = mod.requestTurnstileToken(document.createElement('div'), { onInteractive: () => {} });
+      finishScriptLoad();
+      await vi.advanceTimersByTimeAsync(0);
+      renderOptions['before-interactive-callback']();
+      await vi.advanceTimersByTimeAsync(mod.TURNSTILE_DEADLINE_MS * 3);
+      expect(remove).not.toHaveBeenCalled();
+
+      renderOptions.callback('late-token');
+      await expect(pending).resolves.toBe('late-token');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('a script that loads without defining window.turnstile rejects TurnstileUnavailableError', async () => {
     const pending = mod.requestTurnstileToken(document.createElement('div'));
     appended[0].onload?.(new Event('load'));

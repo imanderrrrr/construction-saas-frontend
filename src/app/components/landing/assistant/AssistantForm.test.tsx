@@ -295,6 +295,37 @@ describe('AssistantPanel — form and done views', () => {
     expect(consent().checked).toBe(true);
   });
 
+  it('the unavailable sheet has a way back to the conversation, where sending works again', async () => {
+    sendChat.mockRejectedValueOnce(new ApiError(503, 'busy', undefined, 'MODEL_UNAVAILABLE'));
+    await renderPanel();
+    await click(byText('button', 'assistant.faq.1')!);
+    expect(q('[role="alert"]')!.textContent).toContain('assistant.unavailable.title');
+
+    await click(q<HTMLButtonElement>('button[aria-label="assistant.form.back"]')!);
+
+    expect(q('[role="alert"]')).toBeNull();
+    expect(byText('[data-message="user"]', 'assistant.faq.1')).toBeDefined();
+    const input = q<HTMLInputElement>('input[aria-label="assistant.input.label"]')!;
+    await fill(input, 'otra vez');
+    await act(async () => {
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    });
+    expect(sendChat).toHaveBeenCalledTimes(2);
+    expect(byText('[data-message="assistant"]', 'Hola')).toBeDefined();
+  });
+
+  it('Back to chat after a contact sent from the unavailable sheet shows the conversation, not the sheet again', async () => {
+    sendChat.mockRejectedValueOnce(new ApiError(503, 'off', undefined, 'ASSISTANT_DISABLED'));
+    await renderPanel();
+    await click(byText('button', 'assistant.faq.1')!);
+    await fillValid();
+    await click(submitButton());
+    await click(byText('button', 'assistant.done.back')!);
+
+    expect(q('[role="alert"]')).toBeNull();
+    expect(q('input[aria-label="assistant.input.label"]')).not.toBeNull();
+  });
+
   it('with the chat switched off the unavailable sheet carries the form, and the form still submits', async () => {
     sendChat.mockRejectedValueOnce(new ApiError(503, 'off', undefined, 'ASSISTANT_DISABLED'));
     await renderPanel();

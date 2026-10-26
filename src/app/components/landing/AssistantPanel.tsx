@@ -203,23 +203,21 @@ export function AssistantPanel({ onClose, deps }: { onClose: () => void; deps?: 
       <BuildTrackLogo markOnly boxPx={30} />
     </span>
   );
+  const back = (
+    <button
+      type="button"
+      aria-label={t('assistant.form.back')}
+      onClick={chat.backToChat}
+      className={`${HEADER_BUTTON} border-r`}
+    >
+      <Arrow back />
+    </button>
+  );
   const header = {
     chat: { lead: mark, title: t('assistant.panel.title'), subtitle: t('assistant.panel.disclosure') },
-    unavailable: { lead: mark, title: t('assistant.panel.title'), subtitle: t('assistant.unavailable.tag') },
-    form: {
-      lead: (
-        <button
-          type="button"
-          aria-label={t('assistant.form.back')}
-          onClick={chat.backToChat}
-          className={`${HEADER_BUTTON} border-r`}
-        >
-          <Arrow back />
-        </button>
-      ),
-      title: t('assistant.form.title'),
-      subtitle: t('assistant.form.tag'),
-    },
+    // Board D2 draws the mark here; a way back replaces it, since the failure may be passing.
+    unavailable: { lead: back, title: t('assistant.panel.title'), subtitle: t('assistant.unavailable.tag') },
+    form: { lead: back, title: t('assistant.form.title'), subtitle: t('assistant.form.tag') },
     done: { lead: mark, title: t('assistant.done.title'), subtitle: t('assistant.done.tag') },
   }[sheet];
 
