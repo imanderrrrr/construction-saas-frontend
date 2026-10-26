@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { requestTurnstileToken, TurnstileUnavailableError } from '../../lib/turnstile';
 import { sendChat, submitLead } from '../../services/landingAssistant';
 import { BuildTrackLogo } from './BuildTrackLogo';
+import { AssistantDone } from './assistant/AssistantDone';
+import { AssistantForm } from './assistant/AssistantForm';
 import { AssistantMessages, BotTurn, TurnLabel } from './assistant/AssistantMessages';
 import { AssistantNotice } from './assistant/AssistantNotice';
 import {
@@ -257,15 +259,16 @@ export function AssistantPanel({ onClose, deps }: { onClose: () => void; deps?: 
         </>
       )}
 
-      {sheet === 'unavailable' && (
-        <div className={BODY} style={BODY_GRID}>
-          <AssistantNotice kind="unavailable" />
-        </div>
+      {(sheet === 'form' || sheet === 'unavailable') && (
+        <AssistantForm
+          initialInterest={chat.formInterest}
+          submitting={chat.submitting}
+          notice={sheet === 'unavailable' ? (chat.formNotice ?? 'unavailable') : chat.formNotice}
+          onSubmit={chat.submit}
+        />
       )}
 
-      {sheet === 'form' && <div className={BODY} style={BODY_GRID} />}
-
-      {sheet === 'done' && <div className={BODY} style={BODY_GRID} />}
+      {sheet === 'done' && <AssistantDone onBack={chat.backToChat} onClose={onClose} />}
 
       {/* Turnstile host: outside the views, collapsed unless the challenge needs a click. */}
       <div className={challenge ? 'flex-none border-t border-[rgba(23,19,15,0.3)] bg-bt-paper p-4' : 'h-0 overflow-hidden'}>
