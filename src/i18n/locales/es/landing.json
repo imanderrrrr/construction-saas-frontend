@@ -317,6 +317,7 @@
   "assistant.unavailable.label": "Aviso · chat no disponible",
   "assistant.unavailable.title": "No puedo responder ahora",
   "assistant.unavailable.body": "Déjanos tus datos más abajo o escríbenos a este correo:",
+  "assistant.unavailable.emailOnly": "Escríbenos a este correo:",
   "assistant.limit.label": "Aviso · límite",
   "assistant.limit.title": "Llegaste al límite de esta conversación.",
   "assistant.limit.body": "Déjanos tus datos con los botones de abajo o escríbenos a este correo:",

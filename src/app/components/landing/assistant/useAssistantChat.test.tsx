@@ -208,7 +208,7 @@ describe('useAssistantChat — sending', () => {
 
     expect(hook.view).toBe('form');
     expect(hook.formInterest).toBe('BETA');
-    expect(hook.messages.at(-1)).toEqual({ role: 'assistant', content: 'Te dejo el formulario.' });
+    expect(hook.messages[hook.messages.length - 1]).toEqual({ role: 'assistant', content: 'Te dejo el formulario.' });
   });
 
   it('the 10th visitor message is accepted and the 11th is ignored with notice turn_limit', async () => {

@@ -317,6 +317,7 @@
   "assistant.unavailable.label": "Notice · chat unavailable",
   "assistant.unavailable.title": "I can't answer right now",
   "assistant.unavailable.body": "Leave your details below or email us at:",
+  "assistant.unavailable.emailOnly": "Email us at:",
   "assistant.limit.label": "Notice · limit",
   "assistant.limit.title": "You've reached the limit of this conversation.",
   "assistant.limit.body": "Leave your details with the buttons below or email us at:",
