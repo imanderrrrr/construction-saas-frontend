@@ -170,6 +170,11 @@ const ANONYMOUS_ENDPOINTS = [
   // must render inline on the public page, never bounce the signer to
   // /?session=expired — they have no session to expire.
   '/sign/',
+  // Landing assistant (chat and contact form): anonymous visitors of the
+  // public landing. A stale cookie from an earlier login must not reload the
+  // landing mid-conversation.
+  '/public/assistant/',
+  '/public/leads',
 ];
 
 function isAuthEndpoint(endpoint: string): boolean {
@@ -311,6 +316,11 @@ export async function api<T>(
 
   // Some endpoints return 204 No Content
   if (res.status === 204) return undefined as unknown as T;
+  // …and a few answer 201 Created with no body (the landing's contact form).
+  if (res.status === 201) {
+    const text = await res.text();
+    return (text ? JSON.parse(text) : undefined) as T;
+  }
 
   return res.json() as Promise<T>;
 }

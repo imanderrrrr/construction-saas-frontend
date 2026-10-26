@@ -1,7 +1,7 @@
 import { BrowsingStateProvider } from '../../app/workspace/BrowsingState';
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
-import { Building2, FileClock, LayoutDashboard, LogOut, ShieldCheck, TriangleAlert } from 'lucide-react';
+import { Building2, FileClock, Inbox, LayoutDashboard, LogOut, ShieldCheck, TriangleAlert } from 'lucide-react';
 import { NavLink, useLocation, useNavigate, useOutlet } from 'react-router';
 import { AnimatePresence, motion, MotionConfig } from 'motion/react';
 
@@ -21,6 +21,7 @@ interface NavItem {
 const NAV: NavItem[] = [
   { to: '/platform/overview', label: 'Overview', icon: <LayoutDashboard size={16} strokeWidth={1.8} /> },
   { to: '/platform/tenants', label: 'Tenants', icon: <Building2 size={16} strokeWidth={1.8} /> },
+  { to: '/platform/leads', label: 'Leads', icon: <Inbox size={16} strokeWidth={1.8} /> },
   { to: '/platform/audit', label: 'Audit log', icon: <FileClock size={16} strokeWidth={1.8} /> },
 ];
 

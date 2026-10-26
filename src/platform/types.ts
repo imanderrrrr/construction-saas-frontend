@@ -233,6 +233,19 @@ export interface PlatformAuditEntry {
   createdAt: string;
 }
 
+/** A contact left on the public landing (assistant or contact form). Mirrors `PlatformLeadResponse`. */
+export type PlatformLead = {
+  id: number;
+  createdAt: string;
+  name: string;
+  company: string;
+  email: string | null;
+  phone: string | null;
+  interest: 'DEMO' | 'BETA';
+  locale: 'es' | 'en';
+  source: 'CHAT' | 'FORM';
+};
+
 // Spring Data Page<T> envelope.
 export interface Page<T> {
   content: T[];
