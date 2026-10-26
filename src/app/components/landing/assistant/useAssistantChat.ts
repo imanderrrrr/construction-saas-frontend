@@ -39,6 +39,12 @@ export type AssistantDeps = {
   getTurnstileToken: () => Promise<string>;
 };
 
+/** Something the server would take: not blank, within the limit, with at least one letter or digit. */
+export function isSendable(text: string): boolean {
+  const content = text.trim();
+  return content.length > 0 && content.length <= MAX_MESSAGE_CHARS && /[\p{L}\p{N}]/u.test(content);
+}
+
 function countUserTurns(messages: ChatMessage[]): number {
   return messages.filter((m) => m.role === 'user').length;
 }
@@ -132,8 +138,8 @@ export function useAssistantChat(language: string, deps: AssistantDeps) {
 
   const send = useCallback(
     async (text: string): Promise<void> => {
+      if (!isSendable(text)) return;
       const content = text.trim();
-      if (!content || content.length > MAX_MESSAGE_CHARS) return;
       if (inFlightRef.current) return;
       if (countUserTurns(messagesRef.current) >= MAX_USER_TURNS) {
         setNotice('turn_limit');

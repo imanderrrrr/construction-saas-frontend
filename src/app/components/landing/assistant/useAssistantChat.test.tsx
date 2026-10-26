@@ -7,6 +7,7 @@ import { TurnstileUnavailableError } from '../../../lib/turnstile';
 import type { ChatReply } from '../../../services/landingAssistant';
 import type { LeadFormValues } from './leadForm';
 import {
+  isSendable,
   MAX_MESSAGE_CHARS,
   MAX_USER_TURNS,
   useAssistantChat,
@@ -92,6 +93,20 @@ describe('useAssistantChat — sending', () => {
     expect(sendChat).not.toHaveBeenCalled();
     expect(getTurnstileToken).not.toHaveBeenCalled();
     expect(hook.messages).toEqual([]);
+  });
+
+  // The server answers 400 to a message without a letter or a digit ("???").
+  it('send ignores text with no letter or digit, and isSendable says so', async () => {
+    await mount();
+    await act(async () => {
+      await hook.send('¿¿??  !!');
+    });
+    expect(sendChat).not.toHaveBeenCalled();
+    expect(isSendable('¿¿??')).toBe(false);
+    expect(isSendable('  ')).toBe(false);
+    expect(isSendable('a'.repeat(501))).toBe(false);
+    expect(isSendable('¿Qué es?')).toBe(true);
+    expect(isSendable('42')).toBe(true);
   });
 
   it('a second send while one is in flight is ignored', async () => {
