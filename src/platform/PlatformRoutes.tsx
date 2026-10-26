@@ -13,6 +13,7 @@ export { PlatformOverview } from './pages/PlatformOverview';
 export { PlatformTenants } from './pages/PlatformTenants';
 export { PlatformTenantCreate } from './pages/PlatformTenantCreate';
 export { PlatformTenantDetailPage } from './pages/PlatformTenantDetail';
+export { PlatformLeads } from './pages/PlatformLeads';
 export { PlatformAudit } from './pages/PlatformAudit';
 
 export function PlatformLoginRoute() {

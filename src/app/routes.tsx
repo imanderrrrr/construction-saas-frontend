@@ -48,6 +48,7 @@ const PlatformOverview         = lazyRoute('platform', () => platform().then(m =
 const PlatformTenants          = lazyRoute('platform', () => platform().then(m => m.PlatformTenants));
 const PlatformTenantCreate     = lazyRoute('platform', () => platform().then(m => m.PlatformTenantCreate));
 const PlatformTenantDetailPage = lazyRoute('platform', () => platform().then(m => m.PlatformTenantDetailPage));
+const PlatformLeads            = lazyRoute('platform', () => platform().then(m => m.PlatformLeads));
 const PlatformAudit            = lazyRoute('platform', () => platform().then(m => m.PlatformAudit));
 
 // Protected Route
@@ -298,6 +299,7 @@ export const routes = [
       { path: 'tenants', element: <RoutePage><PlatformTenants /></RoutePage> },
       { path: 'tenants/new', element: <RoutePage><PlatformTenantCreate /></RoutePage> },
       { path: 'tenants/:id', element: <RoutePage><PlatformTenantDetailPage /></RoutePage> },
+      { path: 'leads', element: <RoutePage><PlatformLeads /></RoutePage> },
       { path: 'audit', element: <RoutePage><PlatformAudit /></RoutePage> },
     ],
   },
