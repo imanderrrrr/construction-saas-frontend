@@ -40,11 +40,10 @@ vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: () => {} },
 }));
 
-import { IntroOverlay } from './components/IntroOverlay';
+import { IntroOverlay, INTRO_FADE_OUT_MS, INTRO_STORAGE_KEY } from './components/IntroOverlay';
 import { WelcomeOverlay, WELCOME_MIN_MS, WELCOME_FADE_MS } from './components/WelcomeOverlay';
 import { resetWelcome, startWelcome } from './lib/welcome';
 import { DASHBOARD_READY_ATTR } from './lib/dashboardReady';
-import { INTRO_ANIMATION_DURATION_MS } from './components/IntroAnimation';
 import { OnboardingTour } from './components/onboarding/OnboardingTour';
 import { WhatsNewModal } from './components/WhatsNewModal';
 import { WHATS_NEW_VERSION } from './components/WhatsNewModal';
@@ -52,8 +51,6 @@ import { FIRST_RUN_ORDER, resetFirstRunQueue } from './lib/firstRunQueue';
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
-/** The brand intro runs its animation, then holds, then fades out. */
-const INTRO_TOTAL_MS = INTRO_ANIMATION_DURATION_MS + 1_200 + 800;
 /** The tour waits for the dashboard to paint before the welcome lands. */
 const WELCOME_DELAY_MS = 600;
 
@@ -112,7 +109,9 @@ function plantAnchor(key: string) {
 
 function setViewport(desktop: boolean) {
   window.matchMedia = ((query: string) => ({
-    matches: desktop,
+    // Desktop = wide screen + mouse. Reduced motion is its own question, and
+    // a "yes" to every query would make the intro (rightly) step aside.
+    matches: desktop && !query.includes('prefers-reduced-motion'),
     media: query,
     onchange: null,
     addListener: vi.fn(),
@@ -126,6 +125,7 @@ function setViewport(desktop: boolean) {
 describe('first-run row — intro, then tour, then what\'s new', () => {
   let container: HTMLDivElement;
   let root: Root;
+  let playSpy: { mockRestore: () => void };
 
   /** t() returns keys, so every control is found by its i18n key. */
   const button = (key: string) =>
@@ -147,10 +147,20 @@ describe('first-run row — intro, then tour, then what\'s new', () => {
     expect(el).toBeTruthy();
     await act(async () => { el!.click(); });
   };
+  /** The intro is a real <video>: it plays when the browser says `playing`
+   *  and is over when it says `ended`, then fades. jsdom plays nothing, so the
+   *  events are sent by hand — exactly the ones the browser would. */
+  const playIntro = async () => {
+    const video = document.querySelector<HTMLVideoElement>('.intro-overlay-root video');
+    expect(video, 'the intro has no <video> on screen').toBeTruthy();
+    await act(async () => { video!.dispatchEvent(new Event('playing')); });
+    await act(async () => { video!.dispatchEvent(new Event('ended')); });
+    await advance(INTRO_FADE_OUT_MS);
+  };
   /** Play the intro out, THEN let the tour's paint delay run: the delay only
    *  starts once the intro hands the row over, so these cannot be one step. */
   const reachTheTour = async () => {
-    await advance(INTRO_TOTAL_MS);
+    await playIntro();
     await advance(WELCOME_DELAY_MS);
   };
 
@@ -164,7 +174,8 @@ describe('first-run row — intro, then tour, then what\'s new', () => {
     auth.getRole.mockReturnValue('ADMIN');
     auth.getUsername.mockReturnValue('ana');
     setViewport(true);
-    // IntroAnimation scales itself to its box; jsdom has no ResizeObserver.
+    // jsdom has no media playback and no ResizeObserver.
+    playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play').mockImplementation(() => Promise.resolve());
     globalThis.ResizeObserver = class {
       observe() {} unobserve() {} disconnect() {}
     } as unknown as typeof ResizeObserver;
@@ -179,6 +190,7 @@ describe('first-run row — intro, then tour, then what\'s new', () => {
     container.remove();
     document.querySelectorAll('[data-tour]').forEach(el => el.remove());
     resetFirstRunQueue();
+    playSpy.mockRestore();
     vi.useRealTimers();
   });
 
@@ -187,7 +199,7 @@ describe('first-run row — intro, then tour, then what\'s new', () => {
     // 1 — the brand intro has the screen; nothing opens underneath it.
     expect(visibleNotices()).toEqual(['brandIntro']);
 
-    await advance(INTRO_TOTAL_MS);
+    await playIntro();
     // The intro is done and the tour has only just started its paint delay.
     expect(visibleNotices()).toEqual([]);
 
@@ -250,7 +262,7 @@ describe('first-run row — intro, then tour, then what\'s new', () => {
     await advance(WELCOME_DELAY_MS * 3);
     expect(visibleNotices()).toEqual(['brandIntro']);
 
-    await advance(INTRO_TOTAL_MS);
+    await playIntro();
     expect(visibleNotices()).not.toContain('brandIntro');
   });
 
@@ -272,7 +284,7 @@ describe('first-run row — intro, then tour, then what\'s new', () => {
     await act(async () => startWelcome('Ana Ruiz'));
     expect(visibleNotices()).toEqual(['brandIntro']);
 
-    await advance(INTRO_TOTAL_MS);
+    await playIntro();
     expect(visibleNotices()).toEqual(['welcome']);
 
     // Past the tour's paint delay: still the welcome, alone.
@@ -285,12 +297,13 @@ describe('first-run row — intro, then tour, then what\'s new', () => {
   });
 
   it('leaves the row empty for a user who has already seen everything', async () => {
-    localStorage.setItem('buildtrack:intro-v2-seen', '1');
+    localStorage.setItem(INTRO_STORAGE_KEY, '1');
     localStorage.setItem('bt.onboarding.v3.ana', '2026-01-01T00:00:00.000Z');
     localStorage.setItem('bt.whatsnew.ana', WHATS_NEW_VERSION);
 
     await render();
-    await reachTheTour();
+    // Nothing to play: the tour's paint delay is the only wait.
+    await advance(WELCOME_DELAY_MS);
 
     expect(visibleNotices()).toEqual([]);
   });

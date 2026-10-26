@@ -94,8 +94,8 @@ export async function installHermeticBase(page: Page, opts: BaseOpts = {}) {
       if (!showFirstRun) {
         // Mark the one-time overlays as already seen — an unseeded one holds
         // the first-run row and nothing behind it opens. Keys must track
-        // IntroOverlay.STORAGE_KEY and OnboardingTour.seenKey().
-        localStorage.setItem('buildtrack:intro-v2-seen', '1');
+        // INTRO_STORAGE_KEY (IntroOverlay) and OnboardingTour.seenKey().
+        localStorage.setItem('buildtrack:intro-v3-seen', '1');
         const seenAt = '2026-01-01T00:00:00.000Z';
         localStorage.setItem(`bt.onboarding.v3.${username ?? 'anon'}`, seenAt);
         localStorage.setItem('bt.onboarding.v3.anon', seenAt);
