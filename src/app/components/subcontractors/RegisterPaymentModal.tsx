@@ -8,6 +8,7 @@ import { PrimaryButton, SecondaryButton } from '../onboarding/chrome';
 import { FieldHint, FieldLabel, INPUT, Mono, PaperNote } from '../projects/bt';
 import { fmtMoney, InvoiceStatusChip } from './bits';
 import { businessToday } from '../../helpers/dateTime';
+import { invoiceRefusalText } from './refusals';
 
 /**
  * 09 — record a payment.
@@ -36,7 +37,8 @@ export function RegisterPaymentModal({ open, onOpenChange, invoice, onPaid }: {
   const [method, setMethod] = useState('');
   const [validationError, setValidationError] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(false);
+  /** Why the last attempt failed, in the panel's words; null while there is no failure. */
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -47,7 +49,7 @@ export function RegisterPaymentModal({ open, onOpenChange, invoice, onPaid }: {
     setMethod('');
     setValidationError(false);
     setSaving(false);
-    setError(false);
+    setError(null);
   }, [open, invoice?.id]);
 
   if (!invoice) return null;
@@ -60,13 +62,13 @@ export function RegisterPaymentModal({ open, onOpenChange, invoice, onPaid }: {
     }
     setValidationError(false);
     setSaving(true);
-    setError(false);
+    setError(null);
     try {
       const updated = await registerPayment(invoice.id, { amountCents, date, method, requestKey, paymentReference: reference.trim() || null });
       onPaid(updated);
       onOpenChange(false);
-    } catch {
-      setError(true);
+    } catch (err) {
+      setError(invoiceRefusalText(err, invoice, t, t('subcontractors:pay.error.hint')));
     } finally {
       setSaving(false);
     }
@@ -138,11 +140,14 @@ export function RegisterPaymentModal({ open, onOpenChange, invoice, onPaid }: {
       </div>
 
       <PaperNote className="mt-4">{t('subcontractors:pay.note')}</PaperNote>
+      {invoice.legacyUnlinked && (
+        <PaperNote className="mt-3">{t('subcontractors:pay.legacyUnlinked')}</PaperNote>
+      )}
 
       {error && (
         <PaperNote tone="red" className="mt-3">
           <div className="font-semibold">{t('subcontractors:pay.error.title')}</div>
-          <div className="mt-1">{t('subcontractors:pay.error.hint')}</div>
+          <div className="mt-1">{error}</div>
         </PaperNote>
       )}
     </BtModal>

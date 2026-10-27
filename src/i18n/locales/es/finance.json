@@ -426,6 +426,7 @@
   "payable.info.category": "Categoría",
   "payable.info.description": "Descripción",
   "payable.info.notes": "Notas",
+  "payable.info.linkedHint": "Esta cuenta viene de una factura de subcontratista: el proveedor, la categoría y el número siguen a esa factura. Aquí cambias la descripción y las notas.",
   "payable.info.invoiceNumber": "Número de factura",
   "payable.info.invoiceNumberBillHint": "Todavía es una cuenta. Conviértela en factura para asignarle un número.",
   "payable.info.updated": "Info de {{bill}} actualizada",
