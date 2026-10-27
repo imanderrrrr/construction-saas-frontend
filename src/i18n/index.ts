@@ -44,6 +44,12 @@ const backend: BackendModule = {
 
 if (!bundledResources) i18n.use(backend);
 
+// <html lang> follows the language on screen: screen readers pick their voice
+// from it and search engines index the page in it. index.html ships "es", the
+// fallback, for the moment before this runs. Registered before init because
+// with tables already in memory the first languageChanged fires inside it.
+i18n.on('languageChanged', syncDocumentLanguage);
+
 export const i18nReady = i18n
   .use(LanguageDetector)
   .use(initReactI18next)
@@ -84,6 +90,10 @@ export const i18nReady = i18n
 /** The language the tables are loaded for ('en-US' resolves to 'en'). */
 function activeLanguage(): string {
   return i18n.resolvedLanguage ?? i18n.language ?? 'es';
+}
+
+function syncDocumentLanguage(): void {
+  if (typeof document !== 'undefined') document.documentElement.lang = activeLanguage();
 }
 
 /**
