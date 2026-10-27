@@ -130,7 +130,7 @@ export function DashboardSheet() {
             <div className="grid grid-cols-4 border-y border-bt-rule-2">
               <Kpi
                 label={t('dash.k1')}
-                value="62%"
+                value="7"
                 sub={t('dash.k1sub')}
                 className="border-r border-bt-rule-2 py-3.5 pb-4 pr-4"
               />
