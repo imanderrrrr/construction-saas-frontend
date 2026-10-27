@@ -33,10 +33,13 @@ export const MAX_MESSAGE_CHARS = 500;
 export type AssistantView = 'chat' | 'form' | 'done';
 export type NoticeKind = 'unavailable' | 'rate_limited' | 'verify_failed' | 'turn_limit';
 
+/** What a Turnstile token is for: opening a conversation, or sending the contact form. */
+export type TurnstilePurpose = 'chat' | 'lead';
+
 export type AssistantDeps = {
   sendChat: typeof sendChat;
   submitLead: typeof submitLead;
-  getTurnstileToken: () => Promise<string>;
+  getTurnstileToken: (purpose: TurnstilePurpose) => Promise<string>;
 };
 
 /** Something the server would take: not blank, within the limit, with at least one letter or digit. */
@@ -96,7 +99,7 @@ export function useAssistantChat(language: string, deps: AssistantDeps) {
       for (let attempt = 0; ; attempt++) {
         try {
           const sessionToken = sessionTokenRef.current;
-          const turnstileToken = sessionToken ? undefined : await d.getTurnstileToken();
+          const turnstileToken = sessionToken ? undefined : await d.getTurnstileToken('chat');
           const answer = await d.sendChat({ language: lang, messages: history, sessionToken, turnstileToken });
           sessionTokenRef.current = answer.sessionToken;
           commitMessages([...history, { role: 'assistant', content: answer.reply }]);
@@ -187,7 +190,7 @@ export function useAssistantChat(language: string, deps: AssistantDeps) {
     setSubmitting(true);
     setFormNotice(null);
     try {
-      const turnstileToken = await d.getTurnstileToken();
+      const turnstileToken = await d.getTurnstileToken('lead');
       const source = countUserTurns(messagesRef.current) > 0 ? 'CHAT' : 'FORM';
       await d.submitLead(buildLeadPayload(values, { language: lang, source, turnstileToken }));
       setView('done');

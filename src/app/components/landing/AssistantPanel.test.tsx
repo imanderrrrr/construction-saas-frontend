@@ -20,6 +20,7 @@ vi.mock('../../lib/turnstile', async (importOriginal) => ({
 
 import { ApiError } from '../../lib/api';
 import { supportMailto } from '../../lib/contact';
+import { TurnstileFailedError } from '../../lib/turnstile';
 import type { ChatReply } from '../../services/landingAssistant';
 import { AssistantPanel } from './AssistantPanel';
 import type { AssistantDeps } from './assistant/useAssistantChat';
@@ -321,7 +322,7 @@ describe('AssistantPanel — frame', () => {
     });
     await render({ sendChat, submitLead });
 
-    const host = q('[data-testid="turnstile-host"]')!;
+    const host = q('[data-testid="turnstile-host-chat"]')!;
     expect(host.closest('[data-message="assistant"]')).toBeNull();
 
     await say('hola');
@@ -331,5 +332,57 @@ describe('AssistantPanel — frame', () => {
     expect(card).not.toBeNull();
     expect(card.textContent).toContain('assistant.verify.checking');
     expect(host.className.split(/\s+/)).toEqual(expect.arrayContaining(['w-[300px]', 'h-[65px]', 'max-w-full']));
+  });
+
+  it('a challenge left waiting in the chat stays out of the form, and the form gets a card and a host of its own', async () => {
+    const challenges: Array<{ host: HTMLElement; pass: (token: string) => void; fail: () => void }> = [];
+    requestTurnstileToken.mockImplementation((host: HTMLElement, hooks?: { onInteractive?: () => void }) => {
+      hooks?.onInteractive?.();
+      return new Promise<string>((resolve, reject) => {
+        challenges.push({ host, pass: resolve, fail: () => reject(new TurnstileFailedError()) });
+      });
+    });
+    const checkingCards = () =>
+      all('[data-message="assistant"]').filter((el) => el.textContent?.includes('assistant.verify.checking'));
+    const field = (label: string) => {
+      const el = all('label').find((l) => l.textContent === label) as HTMLLabelElement;
+      return document.getElementById(el.htmlFor) as HTMLInputElement;
+    };
+    const fill = async (el: HTMLInputElement, value: string) => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+      await act(async () => {
+        setter.call(el, value);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    };
+    await render({ sendChat, submitLead });
+
+    await say('hola');
+    expect(checkingCards()).toHaveLength(1);
+
+    await act(async () => byText('button', 'assistant.cta.beta')!.click());
+    expect(checkingCards()).toHaveLength(0);
+
+    await fill(field('assistant.form.name.label'), 'Ana Prueba');
+    await fill(field('assistant.form.company.label'), 'Constructora Ejemplo');
+    await fill(field('assistant.form.contact.label'), 'ana@ejemplo.test');
+    await act(async () => q<HTMLInputElement>('input[type="checkbox"]')!.click());
+    await act(async () => {
+      q('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
+
+    expect(challenges).toHaveLength(2);
+    expect(challenges[1].host).not.toBe(challenges[0].host);
+    expect(checkingCards()).toHaveLength(1);
+    expect(checkingCards()[0].contains(challenges[1].host)).toBe(true);
+
+    // The chat's challenge gives up while the form's is still waiting for its click.
+    await act(async () => challenges[0].fail());
+    expect(checkingCards()).toHaveLength(1);
+    expect(checkingCards()[0].contains(challenges[1].host)).toBe(true);
+
+    await act(async () => challenges[1].pass('turnstile-lead'));
+    expect(submitLead).toHaveBeenCalledWith(expect.objectContaining({ turnstileToken: 'turnstile-lead' }));
+    expect(checkingCards()).toHaveLength(0);
   });
 });
