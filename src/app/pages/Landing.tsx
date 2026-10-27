@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 
@@ -6,6 +7,7 @@ import { AssistantLauncher } from '../components/landing/AssistantLauncher';
 import { BlueprintGrid } from '../components/landing/BlueprintGrid';
 import { BuildTrackLogo } from '../components/landing/BuildTrackLogo';
 import { DemoVideos } from '../components/landing/DemoVideos';
+import { LogoBuildOverlay } from '../components/landing/LogoBuildOverlay';
 import { PhoneMock } from '../components/landing/PhoneMock';
 import { DashboardSheet, PayablesSheet, DailyLogSheet } from '../components/landing/PlatformSheets';
 import { SUPPORT_EMAIL, supportMailto } from '../lib/contact';
@@ -46,6 +48,10 @@ export function Landing() {
   const mailtoDemo = supportMailto(t('demo.emailSubject'));
   const mailtoBeta = supportMailto(t('beta.emailSubject'));
 
+  // The nav logo is where «BuildTrack se construye» lands; it hides while the video stands in for it.
+  const logoMarkRef = useRef<HTMLSpanElement>(null);
+  const [logoStandIn, setLogoStandIn] = useState(false);
+
   return (
     <div className="bt-public bg-bt-paper font-bt-body text-base text-bt-ink">
       {/* ── Hero ─────────────────────────────────────────────────────── */}
@@ -56,8 +62,8 @@ export function Landing() {
           aria-label={t('nav.menu')}
           className={`${SECTION} relative z-[2] flex w-full flex-wrap items-center justify-between gap-6 pb-3.5 pt-[clamp(18px,2.6vh,30px)]`}
         >
-          <Link to="/" aria-label="BuildTrack">
-            <BuildTrackLogo boxPx={32} textPx={20} />
+          <Link to="/" aria-label="BuildTrack" className={logoStandIn ? 'opacity-0' : undefined}>
+            <BuildTrackLogo boxPx={32} textPx={20} markRef={logoMarkRef} />
           </Link>
           <div className="flex flex-wrap items-center gap-[clamp(14px,2.2vw,30px)]">
             <LanguageSwitcher variant="public" />
@@ -700,6 +706,7 @@ export function Landing() {
       </footer>
 
       <AssistantLauncher />
+      <LogoBuildOverlay markRef={logoMarkRef} onStandInChange={setLogoStandIn} />
     </div>
   );
 }

@@ -1,0 +1,845 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1400, height=360" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      /* Transparente: no pongas fondo en html, body ni #root. */
+      html, body { margin: 0; width: 1400px; height: 360px; overflow: hidden; background: transparent; }
+      #root { position: relative; width: 1400px; height: 360px; background: transparent; }
+      #root svg { position: absolute; left: 0; top: 0; overflow: visible; }
+    </style>
+  </head>
+  <body>
+    <!-- Lienzo 1400×360, 5,6 s. Suelo y=324, línea de base y=290. Pieza «excavadora» (prefijo exc-). -->
+    <div id="root" data-composition-id="main" data-start="0" data-duration="5.6" data-width="1400" data-height="360">
+      <svg id="exc-stage" viewBox="0 0 1400 360" width="1400" height="360" aria-hidden="true">
+        <defs id="exc-defs"></defs>
+        <g id="exc-shadow"></g>
+        <g id="exc-mound"></g>
+        <g id="exc-fxBack"></g>
+        <g id="exc-machine">
+          <g id="exc-gArm"></g>
+          <g id="exc-gTrack"></g>
+          <g id="exc-gHouse"></g>
+        </g>
+        <g id="exc-skirt"></g>
+        <g id="exc-clodsBack"></g>
+        <g id="exc-letters">
+          <g id="exc-L0" opacity="0"><path id="exc-P0" fill="#F8F3EB" fill-rule="evenodd" d="M 459.44 234.16 C 458.16 234.46, 456.92 235.39, 456.33 236.47 C 455.73 237.59, 455.76 236.03, 455.76 261.95 C 455.76 287.91, 455.72 286.24, 456.35 287.48 C 456.70 288.17, 457.49 289.00, 458.19 289.40 C 459.29 290.03, 458.94 290.01, 471.66 289.97 C 482.92 289.94, 483.24 289.94, 484.53 289.73 C 488.51 289.08, 491.21 288.01, 493.61 286.14 C 494.61 285.36, 495.06 284.90, 495.94 283.72 C 497.66 281.41, 498.56 278.83, 498.87 275.30 C 499.01 273.69, 498.94 271.00, 498.72 269.80 C 498.19 266.88, 497.03 264.62, 494.96 262.54 C 494.47 262.04, 493.71 261.38, 493.29 261.08 C 492.47 260.49, 490.83 259.57, 489.92 259.19 L 489.37 258.97 490.11 258.55 C 491.28 257.88, 492.05 257.29, 492.91 256.39 C 495.05 254.15, 495.97 251.65, 495.97 248.14 C 495.96 243.13, 494.56 239.54, 491.65 237.09 C 489.75 235.48, 487.20 234.54, 483.73 234.15 C 481.84 233.94, 460.31 233.94, 459.44 234.16 M 466.16 249.70 L 466.16 255.90 473.16 255.90 C 480.79 255.90, 481.01 255.89, 482.23 255.33 C 482.90 255.02, 483.65 254.49, 484.19 253.94 C 484.73 253.39, 485.31 252.17, 485.46 251.29 C 485.62 250.37, 485.54 248.37, 485.32 247.55 C 484.79 245.59, 483.37 244.23, 481.30 243.70 C 480.57 243.51, 480.18 243.50, 473.34 243.50 L 466.16 243.50 466.16 249.70 M 466.16 273.10 L 466.16 280.81 474.24 280.77 C 482.01 280.74, 482.34 280.73, 483.06 280.53 C 484.19 280.23, 484.77 279.97, 485.55 279.46 C 487.37 278.25, 488.37 276.26, 488.52 273.56 C 488.62 271.76, 488.35 270.01, 487.79 268.82 C 487.22 267.60, 485.52 266.27, 484.01 265.87 C 482.40 265.44, 481.50 265.40, 473.66 265.40 L 466.16 265.40 466.16 273.10"/></g>
+          <g id="exc-L1" opacity="0"><path id="exc-P1" fill="#F8F3EB" fill-rule="evenodd" d="M 510.54 247.35 C 509.67 247.57, 509.01 247.95, 508.36 248.60 C 507.69 249.27, 507.32 249.92, 507.11 250.82 C 506.89 251.74, 506.89 273.08, 507.11 275.10 C 507.60 279.70, 509.07 283.11, 511.77 285.94 C 514.18 288.46, 517.17 289.90, 521.36 290.56 C 522.81 290.79, 527.21 290.82, 528.61 290.62 C 534.15 289.80, 537.80 287.68, 540.50 283.71 C 541.99 281.52, 542.97 278.67, 543.38 275.30 C 543.48 274.50, 543.51 271.52, 543.51 262.75 L 543.51 251.25 543.29 250.55 C 542.72 248.74, 541.32 247.53, 539.50 247.27 C 537.88 247.03, 536.30 247.55, 535.26 248.67 C 534.62 249.36, 534.39 249.74, 534.10 250.60 C 533.93 251.12, 533.91 251.89, 533.86 263.00 C 533.80 273.85, 533.78 274.91, 533.62 275.60 C 532.75 279.31, 530.92 281.15, 527.46 281.82 C 526.51 282.00, 523.68 281.97, 522.80 281.77 C 521.89 281.56, 520.88 281.18, 520.20 280.79 C 518.57 279.86, 517.33 277.97, 516.91 275.80 C 516.82 275.33, 516.72 274.86, 516.69 274.75 C 516.65 274.64, 516.60 269.24, 516.56 262.75 C 516.51 251.24, 516.50 250.94, 516.30 250.40 C 515.78 248.97, 514.68 247.87, 513.31 247.42 C 512.69 247.22, 511.20 247.18, 510.54 247.35"/></g>
+          <g id="exc-L2" opacity="0"><path id="exc-P2" fill="#F8F3EB" fill-rule="evenodd" d="M 556.00 232.60 C 554.62 232.85, 553.61 233.41, 553.20 234.16 C 552.79 234.92, 552.69 235.67, 552.74 237.62 C 552.78 239.12, 552.82 239.43, 553.02 239.94 C 553.62 241.50, 555.14 242.10, 558.21 241.97 C 560.54 241.88, 561.82 241.35, 562.38 240.28 C 562.66 239.74, 562.82 238.68, 562.82 237.31 C 562.82 235.07, 562.50 233.99, 561.64 233.33 C 560.88 232.76, 560.11 232.58, 558.17 232.54 C 557.23 232.53, 556.26 232.55, 556.00 232.60 M 556.97 247.26 C 555.35 247.60, 554.21 248.41, 553.55 249.68 C 552.93 250.85, 552.97 249.68, 552.97 268.60 L 552.97 285.95 553.19 286.65 C 553.76 288.46, 555.16 289.67, 556.98 289.93 C 558.60 290.17, 560.18 289.65, 561.22 288.53 C 561.88 287.83, 562.11 287.43, 562.39 286.55 C 562.56 285.98, 562.57 285.17, 562.57 268.70 C 562.57 254.41, 562.55 251.36, 562.43 250.90 C 562.11 249.62, 561.16 248.33, 560.13 247.76 C 559.31 247.32, 557.83 247.09, 556.97 247.26"/></g>
+          <g id="exc-L3" opacity="0"><path id="exc-P3" fill="#F8F3EB" fill-rule="evenodd" d="M 576.48 230.96 C 575.21 231.26, 574.02 232.14, 573.40 233.23 C 572.75 234.36, 572.79 232.56, 572.82 260.70 C 572.85 286.12, 572.85 286.25, 573.05 286.80 C 573.62 288.34, 574.87 289.51, 576.32 289.85 C 578.47 290.36, 580.75 289.41, 581.80 287.57 C 582.45 286.44, 582.41 288.24, 582.38 260.10 C 582.35 236.60, 582.33 234.51, 582.18 234.09 C 581.70 232.75, 580.93 231.82, 579.85 231.30 C 578.82 230.80, 577.63 230.68, 576.48 230.96"/></g>
+        </g>
+        <g id="exc-clodsFront"></g>
+        <g id="exc-fxFront"></g>
+      </svg>
+    </div>
+    <script>
+/* ====================================================================================================
+   EXCAVADORA — pieza del logo animado «BuildTrack se construye»
+   Todo el movimiento es una función pura del tiempo: un solo tween de GSAP recorre 0 → 5,6 s y en cada
+   instante `render(t)` calcula la cinemática (cuerpo, orugas, pluma, brazo, cuchara, cilindros por
+   distancia entre pivotes), las partículas (polvo, humo, terrones), la carga y las letras.
+   Sin Math.random (PRNG con semilla), sin Date, sin repeat:-1.
+   ==================================================================================================== */
+(function () {
+  'use strict';
+  const NS = 'http://www.w3.org/2000/svg';
+  const D2R = Math.PI / 180;
+  const GROUND = 324, SLAB = 290, MX = 118;           // suelo, cara superior de la losa, X final del cuerpo
+  const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
+  const mix = (a, b, p) => a + (b - a) * p;
+  const ramp = (t, a, b) => clamp((t - a) / (b - a), 0, 1);
+  const f2 = (v) => (Math.round(v * 100) / 100).toString();
+  const $ = (id) => document.getElementById(id);
+  const EZ = {};
+  const E = (n) => EZ[n] || (EZ[n] = gsap.parseEase(n));
+  function seg(k, t) {                                  // pista de fotogramas clave: [tiempo, valor, ease del tramo que llega]
+    if (t <= k[0][0]) return k[0][1];
+    for (let i = 1; i < k.length; i++) {
+      if (t <= k[i][0]) {
+        const a = k[i - 1], b = k[i];
+        return a[1] + (b[1] - a[1]) * E(b[2] || 'none')((t - a[0]) / (b[0] - a[0]));
+      }
+    }
+    return k[k.length - 1][1];
+  }
+  function rng(seed) {                                  // mulberry32
+    let a = seed >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  /* ---------------- paleta ---------------- */
+  const Y1 = '#FFD35C', Y2 = '#F6B21C', Y3 = '#D68A06', Y4 = '#A86A00', YO = '#6E4300';
+  const S0 = '#1A1612', S1 = '#CFC6B6', S2 = '#A79B88', S3 = '#7D7263', S4 = '#4A423A', S5 = '#2B2621';
+  const T1 = '#A07848', T2 = '#7A5636', T3 = '#4E3622', T4 = '#35251A';
+  const GL1 = '#BFE3EE', GL2 = '#8DC3D6', GL3 = '#4F8CA3', RUB = '#0D0B09';
+
+  /* ====================================================================================================
+     CINEMÁTICA Y GUION (puro, sin DOM)
+     Coordenadas locales de la máquina: u hacia delante, v hacia abajo, origen = suelo bajo el centro de las orugas.
+     ==================================================================================================== */
+  /*PURE-START*/
+  const P0 = { u: 58, v: -74 };                         // pie de la pluma
+  const L1 = 210, L2 = 170, LT = 100;                   // pluma, brazo, pivote→punta del diente
+  const W2 = (x, y) => [x - MX, y - GROUND];
+
+  // posición del cuerpo
+  const XK = [[0, -300], [0.62, MX, 'power2.out'], [2.76, MX], [3.58, -236, 'power2.in']];
+  // pivote de la cuchara (muñeca) en coordenadas del lienzo, como si el cuerpo ya estuviera en MX
+  const WXK = [[0, 226], [0.20, 226], [0.46, 250, 'power2.inOut'], [0.56, 246, 'power2.in'], [0.72, 228, 'power2.inOut'],
+    [0.84, 325, 'power2.out'], [1.00, 428, 'power1.inOut'], [1.12, 445, 'power2.inOut'], [1.14, 445],
+    [1.34, 250, 'power2.inOut'], [1.38, 246], [1.52, 228, 'power2.inOut'],
+    [1.60, 325, 'power2.out'], [1.68, 430, 'power1.inOut'], [1.82, 502, 'power2.inOut'], [1.90, 502],
+    [2.08, 460, 'power2.out'], [2.30, 290, 'power2.inOut'], [2.44, 226, 'power2.inOut']];
+  const WYK = [[0, 240], [0.20, 240], [0.46, 190, 'power2.inOut'], [0.56, 214, 'power2.in'], [0.72, 198, 'power2.out'],
+    [0.84, 134, 'power2.out'], [0.98, 130], [1.12, 240, 'power2.inOut'], [1.14, 240],
+    [1.22, 168, 'power2.out'], [1.32, 190, 'power2.inOut'], [1.38, 214, 'power2.in'], [1.52, 198, 'power2.out'],
+    [1.60, 134, 'power2.out'], [1.68, 128], [1.82, 241, 'power2.inOut'], [1.90, 241],
+    [2.08, 150, 'power2.out'], [2.16, 112, 'power2.out'], [2.30, 126], [2.44, 240, 'power2.in']];
+  const A3K = [[0, 150], [0.20, 150], [0.46, 108, 'power2.out'], [0.56, 100, 'power2.in'], [0.72, 152, 'power2.inOut'], [0.90, 152],
+    [1.12, 20, 'power2.inOut'], [1.14, 20], [1.17, 4, 'power2.out'], [1.20, 18, 'power2.inOut'], [1.24, 6, 'power2.out'], [1.32, 108, 'power2.inOut'], [1.38, 100, 'power2.in'], [1.52, 152, 'power2.inOut'], [1.60, 152],
+    [1.82, 20, 'power2.inOut'], [1.86, 20], [1.89, 4, 'power2.out'], [1.92, 18, 'power2.inOut'], [1.96, 6, 'power2.out'], [2.08, 70, 'power2.inOut'], [2.44, 150, 'power2.inOut']];
+  const FLIP = [2.46, 2.78];                            // media vuelta de la torreta
+
+  function swingX(t) {
+    const s = Math.cos(Math.PI * E('power2.inOut')(ramp(t, FLIP[0], FLIP[1])));
+    return Math.abs(s) < 0.04 ? (s < 0 ? -0.04 : 0.04) : s;
+  }
+  function spring(fn, t, f, z, T) {                     // respuesta de un muelle amortiguado (ganancia 1)
+    const w0 = 2 * Math.PI * f, wd = w0 * Math.sqrt(1 - z * z), n = 28, dt = T / n;
+    let acc = 0;
+    for (let i = 0; i < n; i++) {
+      const tau = (i + 0.5) * dt;
+      acc += (w0 * w0 / wd) * Math.exp(-z * w0 * tau) * Math.sin(wd * tau) * fn(t - tau) * dt;
+    }
+    return acc;
+  }
+  const accX = (t) => { const h = 0.012; return clamp((seg(XK, t + h) - 2 * seg(XK, t) + seg(XK, t - h)) / (h * h), -2200, 2200); };
+  const reachIn = (t) => clamp((seg(WXK, t) - MX - 120) / 180, 0, 1.4);
+  const accW = (t) => { const h = 0.01; return clamp((seg(WXK, t + h) - 2 * seg(WXK, t) + seg(WXK, t - h)) / (h * h), -30000, 30000); };
+  const pitchIn = (t) => -0.00055 * accX(t) + 0.5 * reachIn(t) - 0.00003 * accW(t);
+  const LOADS = [[0.62, 1.12], [1.46, 1.84]];           // la cuchara va cargada
+  const loadF = (t) => { let v = 0; for (const [a, b] of LOADS) v = Math.max(v, ramp(t, a, a + 0.1) * (1 - ramp(t, b - 0.05, b + 0.05))); return v; };
+  const pulse = (t, a, b, h) => (t > a && t < b ? h * Math.sin(Math.PI * (t - a) / (b - a)) : 0);
+  const sinkIn = (t) => 2.3 * loadF(t) - pulse(t, 0.55, 0.62, 1.4) - pulse(t, 1.37, 1.44, 1.2);
+
+  function stateAt(t) {
+    return {
+      t, X: seg(XK, t), Wu: seg(WXK, t) - MX, Wv: seg(WYK, t) - GROUND, a3: seg(A3K, t),
+      sx: swingX(t),
+      pitch: spring(pitchIn, t, 4.2, 0.30, 0.8),
+      dy: spring(sinkIn, t, 5.5, 0.38, 0.7),
+    };
+  }
+  function toWorld(S, u, v) {
+    const x = u * S.sx, c = Math.cos(S.pitch * D2R), s = Math.sin(S.pitch * D2R);
+    return { x: S.X + x * c - v * s, y: GROUND + S.dy + x * s + v * c };
+  }
+  function toLocal(S, x, y) {
+    const c = Math.cos(S.pitch * D2R), s = Math.sin(S.pitch * D2R), dx = x - S.X, dy = y - GROUND - S.dy;
+    return { u: (dx * c + dy * s) / S.sx, v: -dx * s + dy * c };
+  }
+  // cinemática inversa pluma+brazo (codo hacia arriba) → ángulos y puntos
+  function armAt(S) {
+    const dx = S.Wu - P0.u, dy = S.Wv - P0.v;
+    const d = clamp(Math.hypot(dx, dy), Math.abs(L1 - L2) + 2, L1 + L2 - 1);
+    const base = Math.atan2(dy, dx);
+    const A = Math.acos(clamp((L1 * L1 + d * d - L2 * L2) / (2 * L1 * d), -1, 1));
+    const a1 = base - A;
+    const E1u = P0.u + L1 * Math.cos(a1), E1v = P0.v + L1 * Math.sin(a1);
+    const Wu = P0.u + d * Math.cos(base), Wv = P0.v + d * Math.sin(base);
+    const a2 = Math.atan2(Wv - E1v, Wu - E1u);
+    return { a1, a2, a3: S.a3 * D2R, E1u, E1v, Wu, Wv, reach: d };
+  }
+  const rotp = (a, x, y) => ({ x: x * Math.cos(a) - y * Math.sin(a), y: x * Math.sin(a) + y * Math.cos(a) });
+  // eslabón H + biela: todo en el marco del brazo
+  const KPT = { x: 150, y: -14 }, CBS = { x: 50, y: -28 };
+  const D_R = 30, D_DEG = -35, A_R = 30, A_DEG = -150, DOGL = 40, B1 = { x: -3, y: -38 };
+  function linkAt(A) {
+    const rel = A.a3 - A.a2;
+    const b = rotp(rel, B1.x, B1.y), Bx = L2 + b.x, By = b.y;
+    let ux = Bx - KPT.x, uy = By - KPT.y;
+    let d = Math.hypot(ux, uy);
+    const dmin = Math.abs(DOGL - D_R) + 0.5, dmax = D_R + DOGL - 0.5;
+    const ok = d >= dmin && d <= dmax;
+    const dd = clamp(d, dmin, dmax);
+    ux /= d; uy /= d;
+    const a = (D_R * D_R - DOGL * DOGL + dd * dd) / (2 * dd);
+    const h = Math.sqrt(Math.max(0, D_R * D_R - a * a));
+    const Dx = KPT.x + ux * a + uy * h, Dy = KPT.y + uy * a - ux * h;     // lado «arriba» del eslabón
+    const phi = Math.atan2(Dy - KPT.y, Dx - KPT.x) - D_DEG * D2R;
+    const ap = rotp(phi, A_R * Math.cos(A_DEG * D2R), A_R * Math.sin(A_DEG * D2R));
+    return { phi, Dx, Dy, Bx, By, Ax: KPT.x + ap.x, Ay: KPT.y + ap.y, ok, d };
+  }
+  // puntos de anclaje de los cilindros
+  const HB = { u: 28, v: -81 };                         // base del cilindro de la pluma (tras la cabina)
+  const BB = { x: 132, y: 18 }, BA = { x: 156, y: -40 };  // pluma: vientre y lomo
+  const SA = { x: -24, y: -24 };                        // brazo: cola
+  function cylsAt(A, K) {
+    const c1 = Math.cos(A.a1), s1 = Math.sin(A.a1), c2 = Math.cos(A.a2), s2 = Math.sin(A.a2);
+    const P = (a, x, y) => ({ u: a.u + (x * (a.c) - y * (a.s)), v: a.v + (x * (a.s) + y * (a.c)) });
+    const boom = { u: P0.u, v: P0.v, c: c1, s: s1 }, stick = { u: A.E1u, v: A.E1v, c: c2, s: s2 };
+    const bb = P(boom, BB.x, BB.y), ba = P(boom, BA.x, BA.y), sa = P(stick, SA.x, SA.y);
+    const cb = P(stick, CBS.x, CBS.y), ka = P(stick, K.Ax, K.Ay);
+    return {
+      boom: { a: HB, b: bb, L: Math.hypot(bb.u - HB.u, bb.v - HB.v) },
+      arm: { a: ba, b: sa, L: Math.hypot(sa.u - ba.u, sa.v - ba.v) },
+      buck: { a: cb, b: ka, L: Math.hypot(ka.u - cb.u, ka.v - cb.v) },
+    };
+  }
+  /*PURE-END*/
+
+  /* ---------------- depuración ---------------- */
+  const STATS = { cyl: { boom: [1e9, 0], arm: [1e9, 0], buck: [1e9, 0] }, maxReach: 0, bad: [], a1: [9, -9], a2: [9, -9], rel: [9, -9] };
+  (function scan() {
+    for (let t = 0; t <= 3.8; t += 1 / 60) {
+      const S = stateAt(t), A = armAt(S), K = linkAt(A), C = cylsAt(A, K);
+      for (const k of ['boom', 'arm', 'buck']) { STATS.cyl[k][0] = Math.min(STATS.cyl[k][0], C[k].L); STATS.cyl[k][1] = Math.max(STATS.cyl[k][1], C[k].L); }
+      STATS.maxReach = Math.max(STATS.maxReach, A.reach);
+      if (!K.ok) STATS.bad.push(+t.toFixed(2));
+      STATS.a1 = [Math.min(STATS.a1[0], A.a1 / D2R), Math.max(STATS.a1[1], A.a1 / D2R)];
+      STATS.a2 = [Math.min(STATS.a2[0], A.a2 / D2R), Math.max(STATS.a2[1], A.a2 / D2R)];
+      STATS.rel = [Math.min(STATS.rel[0], (A.a3 - A.a2) / D2R), Math.max(STATS.rel[1], (A.a3 - A.a2) / D2R)];
+    }
+  })();
+  const LB = { boom: 0.8 * STATS.cyl.boom[0], arm: 0.8 * STATS.cyl.arm[0], buck: 0.8 * STATS.cyl.buck[0] };
+
+  /* ====================================================================================================
+     DEFINICIONES (degradados)
+     ==================================================================================================== */
+  const defs = $('exc-defs');
+  function hard(id, cols, stops, vertical) {
+    let s = '<linearGradient id="' + id + '" x1="0" y1="0" x2="' + (vertical === false ? 1 : 0) + '" y2="' + (vertical === false ? 0 : 1) + '">';
+    s += '<stop offset="0" stop-color="' + cols[0] + '"/><stop offset="' + stops[0] + '" stop-color="' + cols[0] + '"/>';
+    s += '<stop offset="' + stops[0] + '" stop-color="' + cols[1] + '"/><stop offset="' + stops[1] + '" stop-color="' + cols[1] + '"/>';
+    s += '<stop offset="' + stops[1] + '" stop-color="' + cols[2] + '"/><stop offset="1" stop-color="' + cols[2] + '"/></linearGradient>';
+    return s;
+  }
+  defs.innerHTML =
+    hard('exc-gY', [Y1, Y2, Y3], [0.2, 0.74]) +
+    hard('exc-gYd', ['#E8A41B', '#C98A0B', '#9B6600'], [0.2, 0.7]) +
+    hard('exc-gSteel', [S1, S2, S3], [0.22, 0.7]) +
+    hard('exc-gDark', [S3, S4, S5], [0.25, 0.7]) +
+    hard('exc-gSoil', [T1, T2, T3], [0.22, 0.7]) +
+    '<linearGradient id="exc-gGlass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + GL1 + '"/><stop offset="0.55" stop-color="' + GL2 + '"/><stop offset="1" stop-color="' + GL3 + '"/></linearGradient>' +
+    '<radialGradient id="exc-gDust"><stop offset="0" stop-color="#CDB48A" stop-opacity="0.85"/><stop offset="0.55" stop-color="#B8A07A" stop-opacity="0.45"/><stop offset="1" stop-color="#A89070" stop-opacity="0"/></radialGradient>' +
+    '<radialGradient id="exc-gPale"><stop offset="0" stop-color="#E9E0D0" stop-opacity="0.8"/><stop offset="0.55" stop-color="#CFC6B6" stop-opacity="0.4"/><stop offset="1" stop-color="#BDB3A2" stop-opacity="0"/></radialGradient>' +
+    '<radialGradient id="exc-gSmoke"><stop offset="0" stop-color="#9A9186" stop-opacity="0.78"/><stop offset="0.6" stop-color="#6F675D" stop-opacity="0.46"/><stop offset="1" stop-color="#55504A" stop-opacity="0"/></radialGradient>' +
+    '<linearGradient id="exc-gAO" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0.5"/><stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient>' +
+    '<radialGradient id="exc-gAmber"><stop offset="0" stop-color="#FFD27A" stop-opacity="0.9"/><stop offset="1" stop-color="#FFB020" stop-opacity="0"/></radialGradient>' +
+    '<radialGradient id="exc-gShadow"><stop offset="0" stop-color="#000" stop-opacity="0.62"/><stop offset="0.6" stop-color="#000" stop-opacity="0.32"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>' +
+    '<radialGradient id="exc-gGlow"><stop offset="0" stop-color="#FFF4C7" stop-opacity="0.75"/><stop offset="1" stop-color="#FFE9A0" stop-opacity="0"/></radialGradient>';
+
+  /* ====================================================================================================
+     PARTES ESTÁTICAS
+     ==================================================================================================== */
+  // utilidades de dibujo ---------------------------------------------------------------------------
+  function ybox(id, d, x0, x1, y0, y1, hl, sh, extra) {   // pieza amarilla con 3 tonos de borde duro (recortada por su contorno)
+    return '<clipPath id="exc-c' + id + '"><path d="' + d + '"/></clipPath>' +
+      '<g clip-path="url(#exc-c' + id + ')"><path d="' + d + '" fill="' + Y2 + '"/>' +
+      '<rect x="' + x0 + '" y="' + y0 + '" width="' + (x1 - x0) + '" height="' + hl + '" fill="' + Y1 + '"/>' +
+      '<rect x="' + x0 + '" y="' + (y1 - sh) + '" width="' + (x1 - x0) + '" height="' + sh + '" fill="' + Y3 + '"/>' + (extra || '') + '</g>' +
+      '<path d="' + d + '" fill="none" stroke="' + YO + '" stroke-width="1.1" stroke-linejoin="round"/>';
+  }
+  function pin(x, y, r) {
+    return '<circle cx="' + x + '" cy="' + y + '" r="' + r + '" fill="' + S5 + '"/><circle cx="' + x + '" cy="' + y + '" r="' + (r * 0.62) + '" fill="' + S2 + '"/><circle cx="' + (x - r * 0.18) + '" cy="' + (y - r * 0.2) + '" r="' + (r * 0.26) + '" fill="' + S1 + '"/>';
+  }
+  function stadium(cx1, cx2, cy, R) {
+    return 'M ' + cx1 + ' ' + (cy - R) + ' H ' + cx2 + ' A ' + R + ' ' + R + ' 0 0 1 ' + cx2 + ' ' + (cy + R) + ' H ' + cx1 + ' A ' + R + ' ' + R + ' 0 0 1 ' + cx1 + ' ' + (cy - R) + ' Z';
+  }
+  function gear(n, rin, rout) {
+    let d = '';
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * 2 * Math.PI, w = (Math.PI / n);
+      const p = [[rin, a - w * 0.9], [rout, a - w * 0.42], [rout, a + w * 0.42], [rin, a + w * 0.9]];
+      p.forEach((q, j) => { d += (i === 0 && j === 0 ? 'M ' : 'L ') + f2(q[0] * Math.cos(q[1])) + ' ' + f2(q[0] * Math.sin(q[1])) + ' '; });
+    }
+    return d + 'Z';
+  }
+
+  /* ---------------- orugas ---------------- */
+  const WHEELS = [];                                      // {id, r}: giran con la distancia recorrida
+  (function buildTrack() {
+    let s = '';
+    s += '<path d="M -73 -29 Q -73 -42 -60 -42 L 60 -42 Q 73 -42 73 -29 L 73 -23 Q 73 -15 64 -15 L -64 -15 Q -73 -15 -73 -23 Z" fill="url(#exc-gYd)" stroke="' + YO + '" stroke-width="1"/>';
+    s += '<path d="M -62 -39.5 L 62 -39.5" stroke="' + Y1 + '" stroke-opacity=".7" stroke-width="1.6"/>';
+    // rodillos inferiores
+    [-42, -21, 0, 21, 42].forEach((x, i) => {
+      s += '<g transform="translate(' + x + ' -12.5)"><circle r="7.4" fill="' + S5 + '" stroke="' + S0 + '" stroke-width="1"/><circle r="5.4" fill="url(#exc-gDark)"/>' +
+        '<g id="exc-roll' + i + '"><path d="M -4.2 0 H 4.2 M 0 -4.2 V 4.2" stroke="' + S2 + '" stroke-width="1.3"/><circle r="1.9" fill="' + S1 + '"/></g></g>';
+      WHEELS.push({ id: 'exc-roll' + i, r: 7.4 });
+    });
+    // rodillos superiores
+    [-26, 26].forEach((x, i) => {
+      s += '<g transform="translate(' + x + ' -43.5)"><circle r="4.4" fill="' + S5 + '" stroke="' + S0 + '" stroke-width="1"/><circle r="3.1" fill="' + S3 + '"/><g id="exc-car' + i + '"><path d="M -2.4 0 H 2.4" stroke="' + S1 + '" stroke-width="1.2"/></g></g>';
+      WHEELS.push({ id: 'exc-car' + i, r: 4.4 });
+    });
+    // rueda guía (delantera)
+    s += '<g transform="translate(62 -26)"><circle r="20.4" fill="' + S5 + '"/><circle r="18.2" fill="url(#exc-gDark)" stroke="' + S0 + '" stroke-width="1"/><circle r="14" fill="none" stroke="' + S2 + '" stroke-width="1.1" opacity=".7"/>' +
+      '<g id="exc-idler"><circle r="8.6" fill="url(#exc-gYd)" stroke="' + YO + '" stroke-width="1"/>' +
+      [0, 1, 2, 3, 4, 5].map((i) => '<circle cx="' + f2(5.4 * Math.cos(i * Math.PI / 3)) + '" cy="' + f2(5.4 * Math.sin(i * Math.PI / 3)) + '" r="1.1" fill="' + S4 + '"/>').join('') +
+      '<path d="M -13 0 H -9.6 M 9.6 0 H 13 M 0 -13 V -9.6 M 0 9.6 V 13" stroke="' + S1 + '" stroke-width="2"/><circle r="2.6" fill="' + S1 + '"/></g></g>';
+    WHEELS.push({ id: 'exc-idler', r: 20.4 });
+    // rueda motriz (trasera)
+    s += '<g transform="translate(-62 -26)"><circle r="17" fill="' + S5 + '"/>' +
+      '<g id="exc-sprocket"><path d="' + gear(11, 16.4, 21.4) + '" fill="url(#exc-gDark)" stroke="' + S0 + '" stroke-width="1" stroke-linejoin="round"/>' +
+      '<circle r="12.6" fill="none" stroke="' + S2 + '" stroke-width="1" opacity=".6"/><circle r="8.6" fill="url(#exc-gYd)" stroke="' + YO + '" stroke-width="1"/>' +
+      [0, 1, 2, 3, 4].map((i) => '<circle cx="' + f2(5.2 * Math.cos(i * 2 * Math.PI / 5)) + '" cy="' + f2(5.2 * Math.sin(i * 2 * Math.PI / 5)) + '" r="1.2" fill="' + S4 + '"/>').join('') + '<circle r="2.4" fill="' + S1 + '"/></g></g>';
+    WHEELS.push({ id: 'exc-sprocket', r: 21 });
+    // cadena: zapatas como tramos de trazo a lo largo de un estadio (avanzan con la máquina)
+    s += '<path id="exc-chainBase" d="' + stadium(-62, 62, -26, 23) + '" fill="none" stroke="' + S0 + '" stroke-width="7.6"/>';
+    s += '<path id="exc-chainShoe" d="' + stadium(-62, 62, -26, 23) + '" fill="none" stroke="' + S4 + '" stroke-width="6.4"/>';
+    s += '<path id="exc-chainOut" d="' + stadium(-62, 62, -26, 25.6) + '" fill="none" stroke="#8C8070" stroke-width="1.7"/>';
+    s += '<path id="exc-chainPin" d="' + stadium(-62, 62, -26, 20.6) + '" fill="none" stroke="' + S2 + '" stroke-width="1.5" stroke-linecap="round"/>';
+    s += '<rect x="-80" y="-53" width="162" height="10" fill="url(#exc-gAO)"/>';
+    $('exc-gTrack').innerHTML = s;
+  })();
+  const CHAINS = ['exc-chainShoe', 'exc-chainOut', 'exc-chainPin'].map((id) => $(id));
+  (function dashes() {
+    const N = 49, len0 = CHAINS[0].getTotalLength();
+    CHAINS.forEach((c, i) => {
+      const len = c.getTotalLength(), per = len / N;
+      c._k = len / len0; c._per = per;
+      c.setAttribute('stroke-dasharray', i === 2 ? '0.01 ' + f2(per - 0.01) : f2(per * 0.8) + ' ' + f2(per * 0.2));
+    });
+  })();
+
+  /* ---------------- casa (torreta): contrapeso, capó, cabina, operario ---------------- */
+  (function buildHouse() {
+    let s = '';
+    // chasis / plataforma + anillo de giro
+    s += '<path d="M -52 -62 H 56 V -52 H -52 Z" fill="url(#exc-gDark)" stroke="' + S0 + '" stroke-width="1"/>';
+    for (let i = 0; i < 11; i++) s += '<circle cx="' + (-47 + i * 9.6) + '" cy="-57" r="1.5" fill="' + S2 + '"/>';
+    s += '<path d="M -97 -60 L 76 -60 L 76 -70 L -97 -70 Z" fill="' + Y4 + '" stroke="' + YO + '" stroke-width="1"/><path d="M -97 -69 L 76 -69" stroke="' + Y2 + '" stroke-width="1.6"/>';
+    // contrapeso
+    const cw = 'M -62 -70 L -93 -70 Q -105 -70 -105 -82 L -102 -106 Q -101 -118 -88 -118 L -62 -118 Z';
+    s += ybox('cw', cw, -106, -62, -118, -70, 9, 12,
+      '<rect x="-106" y="-118" width="6" height="48" fill="' + Y1 + '" opacity=".55"/>' +
+      '<path d="M -104 -84 H -62 M -103 -96 H -62" stroke="' + Y3 + '" stroke-width="1.3"/>' +
+      '<rect x="-106" y="-77" width="46" height="7" fill="' + S5 + '"/>' + (function () { let q = ''; for (let k = 0; k < 12; k++) q += '<path d="M ' + (-105 + k * 4) + ' -70 L ' + (-102 + k * 4) + ' -77 L ' + (-100 + k * 4) + ' -77 L ' + (-103 + k * 4) + ' -70 Z" fill="' + Y2 + '"/>'; return q; })() + '<rect x="-106" y="-77" width="46" height="1.4" fill="' + S3 + '"/>' +
+      [-98, -84, -70].map((x) => '<circle cx="' + x + '" cy="-73.5" r="1.3" fill="' + S2 + '"/>').join('') +
+      '<path d="M -86 -118 q 4 -7 8 0 M -72 -118 q 4 -7 8 0" fill="none" stroke="' + S4 + '" stroke-width="2.4"/>');
+    s += '<rect x="-106.4" y="-100" width="3.4" height="9" rx="1" fill="#E0463C"/><rect x="-106.4" y="-100" width="3.4" height="3" rx="1" fill="#FF8C7E"/>';
+    // capó
+    const hood = 'M -62 -70 L -3 -70 L -3 -101 Q -3 -106 -9 -106.5 L -54 -111 Q -62 -111 -62 -103 Z';
+    let lv = '';
+    for (let i = 0; i < 7; i++) { const x = -50 + i * 6.6; lv += '<path d="M ' + f2(x) + ' -99 L ' + f2(x + 3.6) + ' -99 L ' + f2(x + 0.6) + ' -80 L ' + f2(x - 3) + ' -80 Z" fill="' + Y4 + '" opacity=".85"/><path d="M ' + f2(x - 3) + ' -80 L ' + f2(x + 0.6) + ' -80" stroke="' + Y1 + '" stroke-width="1" opacity=".9"/>'; }
+    s += ybox('hood', hood, -62, -3, -112, -70, 9, 13, lv + '<rect x="-12" y="-92" width="6" height="2.6" rx="1" fill="' + S4 + '"/><path d="M -62 -86 L -3 -86" stroke="' + Y3 + '" stroke-width="0.8" opacity=".6"/>');
+    // escape + pasamanos
+    s += '<g transform="translate(-41 -110)"><rect x="-3.2" y="-26" width="6.4" height="26" rx="1.4" fill="url(#exc-gDark)" stroke="' + S0 + '" stroke-width=".8"/><rect x="-3.2" y="-26" width="2" height="26" fill="' + S2 + '" opacity=".8"/>' +
+      '<rect x="-4.6" y="-9" width="9.2" height="2.6" rx="1" fill="' + S3 + '"/><path d="M -4.4 -26.5 L 4.6 -30.5 L 4.6 -26 Z" fill="' + S4 + '" stroke="' + S0 + '" stroke-width=".8" stroke-linejoin="round"/></g>';
+    s += '<path d="M -58 -112 V -124 L -12 -122 V -107" fill="none" stroke="' + S5 + '" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/><path d="M -58 -112 V -124 L -12 -122 V -107" fill="none" stroke="' + S2 + '" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/>';
+    // soporte del pie de la pluma
+    s += '<path d="M 43 -62 L 43 -74 A 15 15 0 0 1 73 -74 L 73 -62 Z" fill="url(#exc-gDark)" stroke="' + S0 + '" stroke-width="1"/><path d="M 46 -64 L 46 -74 A 12 12 0 0 1 70 -74" fill="none" stroke="' + S3 + '" stroke-width="1.2"/>' + pin(58, -74, 7.8);
+    // cabina
+    const cab = 'M -6 -70 L -6 -135 Q -6 -141 0 -141 L 40 -141 Q 44 -141 45.5 -137 L 52 -95 L 52 -70 Z';
+    s += '<g id="exc-cab">' + ybox('cab', cab, -8, 54, -142, -70, 8, 13,
+      '<path d="M -6 -88.5 H 52" stroke="' + Y3 + '" stroke-width="1.2"/><path d="M 26 -88 V -70" stroke="' + Y3 + '" stroke-width="1.2"/><rect x="36" y="-82" width="8" height="2.8" rx="1.2" fill="' + S4 + '"/><rect x="36" y="-82" width="8" height="1.1" fill="' + S2 + '"/>' +
+      '<rect x="-4.4" y="-84" width="2.4" height="9" rx="1" fill="' + S4 + '"/>');
+    // cristal + interior
+    const gl = 'M 1.5 -134 L 38 -134 L 44.6 -100 L 44.6 -90 L 1.5 -90 Z';
+    s += '<clipPath id="exc-cGlass"><path d="' + gl + '"/></clipPath><path d="' + gl + '" fill="#1E3440"/>';
+    s += '<g clip-path="url(#exc-cGlass)">' +
+      '<rect x="-4" y="-120" width="11" height="31" fill="' + S5 + '"/><rect x="4" y="-98" width="22" height="9" rx="2" fill="' + S4 + '"/><rect x="6" y="-100" width="19" height="3" rx="1.5" fill="' + S3 + '"/>' +
+      '<path d="M 2 -124 L 30 -108 L 30 -90 L 2 -90 Z" fill="#17323F" opacity=".5"/>' +
+      '<g id="exc-opBody"><path d="M 5 -114 C 9 -119 18 -118 21 -112 L 28 -98 L 17 -94 L 6 -95 Z" fill="#35566E"/><path d="M 5 -114 C 9 -119 18 -118 21 -112 L 22 -109 L 8 -111 Z" fill="#46708B"/>' +
+      '<path d="M 6 -97 L 18 -95 L 18 -92 L 6 -92 Z" fill="#E6C13A"/>' +
+      '<g id="exc-opHead"><rect x="13" y="-126" width="4" height="6" fill="#C98F66"/><circle cx="15.5" cy="-125" r="6.6" fill="#E3AE86"/><circle cx="19" cy="-124" r="0.9" fill="' + S5 + '"/><path d="M 8.4 -126 Q 8.4 -136 16 -136 Q 23.4 -136 23.4 -127 L 26.4 -126.2 L 26.4 -124.8 L 8.4 -124.8 Z" fill="#E4EBEE"/><path d="M 8.4 -126 Q 8.6 -134 15 -135 L 15 -126 Z" fill="#C3CED4"/><path d="M 8.4 -126 Q 8.4 -136 16 -136 Q 23.4 -136 23.4 -127" fill="none" stroke="#9FB0B8" stroke-width=".7"/></g>' +
+      '<path id="exc-opArm" d="M 14 -108 L 30 -97" stroke="#35566E" stroke-width="5.4" stroke-linecap="round" fill="none"/><circle id="exc-opHand" cx="30" cy="-97" r="2.9" fill="#E3AE86"/></g>' +
+      '<g id="exc-lever" transform="translate(31 -90)"><rect x="-1.2" y="-12" width="2.4" height="12" fill="' + S5 + '"/><circle cy="-12.5" r="2.6" fill="' + S4 + '"/></g>' +
+      '</g>';
+    s += '<path d="' + gl + '" fill="url(#exc-gGlass)" opacity=".34"/>';
+    s += '<g clip-path="url(#exc-cGlass)"><path d="M 5 -134 L 17 -134 L 3 -90 L -9 -90 Z" fill="#fff" opacity=".28"/><path d="M 22 -134 L 27 -134 L 13 -90 L 8 -90 Z" fill="#fff" opacity=".18"/><path d="M 1.5 -134 L 38 -134 L 38.6 -131 L 1.5 -131 Z" fill="#fff" opacity=".4"/></g>';
+    s += '<path d="' + gl + '" fill="none" stroke="' + S5 + '" stroke-width="1.6" stroke-linejoin="round"/><path d="M 20 -134 V -90" stroke="' + S5 + '" stroke-width="1.1" opacity=".5"/>';
+    // techo, faro y retrovisor
+    s += '<rect x="-11" y="-150" width="62" height="10" rx="3.4" fill="' + Y2 + '" stroke="' + YO + '" stroke-width="1.1"/><rect x="-10" y="-149" width="60" height="3.4" rx="1.6" fill="' + Y1 + '"/><rect x="-10" y="-143.4" width="60" height="3" fill="' + Y3 + '"/>';
+    s += '<circle cx="48" cy="-146" r="11" fill="url(#exc-gGlow)"/><rect x="44" y="-153.4" width="9" height="5.4" rx="1.6" fill="' + S4 + '" stroke="' + S0 + '" stroke-width=".8"/><rect x="45.4" y="-152.4" width="6" height="3" rx="1" fill="#FFF4C7"/>';
+    s += '<path d="M 46 -112 L 60 -121" stroke="' + S5 + '" stroke-width="1.8" stroke-linecap="round"/><rect x="58" y="-130" width="5.6" height="12" rx="2" fill="' + S4 + '" stroke="' + S0 + '" stroke-width=".8"/><rect x="59.4" y="-128.6" width="2.4" height="9" rx="1" fill="' + GL2 + '"/>';
+    s += '<g id="exc-ant" transform="translate(-4 -150)"><path d="M 0 0 L 0 -30" stroke="' + S5 + '" stroke-width="1.3" stroke-linecap="round"/><circle cy="-30.5" r="1.9" fill="#E0463C"/></g>';
+    s += '<g transform="translate(40 -150)"><circle id="exc-beaconG" r="10" fill="url(#exc-gAmber)" opacity="0"/><path d="M -4 0 Q -4 -6 0 -6 Q 4 -6 4 0 Z" fill="#FFB020" stroke="#8A5600" stroke-width=".8"/><path d="M -2.2 -1 Q -2 -4 0.4 -4.6" fill="none" stroke="#FFF0C4" stroke-width="1"/></g>';
+    s += '</g>';
+    // peldaño
+    s += '<rect x="22" y="-70" width="34" height="3.4" rx="1" fill="' + S4 + '"/><rect x="22" y="-70" width="34" height="1.2" fill="' + S2 + '"/>';
+    $('exc-gHouse').innerHTML = s;
+  })();
+
+  /* ---------------- brazo: pluma, brazo, cuchara, cilindros, eslabones ---------------- */
+  const BOOM_D = 'M 0 -21 C 26 -26 52 -39 96 -40 C 138 -41 176 -27 207 -17 L 207 17 C 176 18 138 15 100 11 C 62 8 30 15 0 21 Z';
+  const BOOM_T = 'M 0 -21 C 26 -26 52 -39 96 -40 C 138 -41 176 -27 207 -17';
+  const BOOM_B = 'M 0 21 C 30 15 62 8 100 11 C 138 15 176 18 207 17';
+  const STICK_D = 'M -30 -12 C -22 -26 -2 -31 22 -27 C 70 -22 120 -17 160 -13 L 170 -13 L 170 13 C 120 15 70 18 30 21 C 8 24 -16 21 -26 11 Z';
+  const STICK_T = 'M -30 -12 C -22 -26 -2 -31 22 -27 C 70 -22 120 -17 160 -13 L 170 -13';
+  const STICK_B = 'M -26 11 C -16 21 8 24 30 21 C 70 18 120 15 170 13';
+  const BUCK_D = 'M -8 12 C -18 0 -20 -26 -6 -42 C 12 -58 54 -58 72 -32 C 79 -21 83 -8 86 8 L 89 12 Z';
+  const BUCK_BACK = 'M -8 12 C -18 0 -20 -26 -6 -42 C 12 -58 54 -58 72 -32 C 79 -21 83 -8 86 8';
+  function cylMarkup(id) {
+    return '<g id="' + id + '"><rect id="' + id + 'Rod" x="0" y="-2.7" width="10" height="5.4" fill="#E4DDCF"/><rect id="' + id + 'RodH" x="0" y="-2.7" width="10" height="1.5" fill="#fff" opacity=".8"/>' +
+      '<rect id="' + id + 'Bar" x="0" y="-6" width="10" height="12" rx="2.4" fill="' + S4 + '" stroke="' + S0 + '" stroke-width=".9"/><rect id="' + id + 'BarH" x="2" y="-4.9" width="8" height="2.5" rx="1.2" fill="' + S2 + '"/>' +
+      '<rect id="' + id + 'Gl" x="0" y="-7.2" width="6" height="14.4" rx="1.6" fill="' + S5 + '"/>' +
+      '<circle r="5.6" fill="' + S5 + '"/><circle r="3.4" fill="' + S2 + '"/><circle id="' + id + 'Eye" r="4.6" fill="' + S5 + '"/><circle id="' + id + 'Eye2" r="2.6" fill="' + S2 + '"/></g>';
+  }
+  (function buildArm() {
+    let s = '';
+    // brazo (stick)
+    s += '<g id="exc-stick">' + '<clipPath id="exc-cStick"><path d="' + STICK_D + '"/></clipPath><path d="' + STICK_D + '" fill="' + Y2 + '"/>' +
+      '<g clip-path="url(#exc-cStick)"><path d="' + STICK_T + '" fill="none" stroke="' + Y1 + '" stroke-width="12"/><path d="' + STICK_B + '" fill="none" stroke="' + Y3 + '" stroke-width="15"/>' +
+      '<path d="M 70 -17 V 18 M 118 -14 V 15" stroke="' + Y3 + '" stroke-width="1.2" opacity=".8"/><path d="' + STICK_T + '" transform="translate(0 9)" fill="none" stroke="#FFEAB0" stroke-width="1.4" opacity=".75"/>' +
+      '<path id="exc-glS" d="M 0 -50 L 8 -50 L -3 40 L -11 40 Z" fill="#fff" opacity=".4"/></g>' +
+      '<path d="' + STICK_D + '" fill="none" stroke="' + YO + '" stroke-width="1.1" stroke-linejoin="round"/>' +
+      '<path d="M 44 -26 L 45 -34 L 57 -34 L 58 -26 Z" fill="' + S4 + '" stroke="' + S0 + '" stroke-width=".8"/>' + pin(CBS.x, CBS.y - 1, 3.4) +
+      '<path d="M 143 -13 L 144 -21 L 157 -21 L 158 -13 Z" fill="' + S4 + '" stroke="' + S0 + '" stroke-width=".8"/>' +
+      '<path d="M -32 -14 L -31 -29 L -17 -29 L -16 -17 Z" fill="' + S4 + '" stroke="' + S0 + '" stroke-width=".8"/>' +
+      '<circle cx="0" cy="0" r="15" fill="' + Y2 + '" stroke="' + YO + '" stroke-width="1.1"/><path d="M -12 -6 A 13.5 13.5 0 0 1 6 -12.5" fill="none" stroke="' + Y1 + '" stroke-width="2.4"/>' + pin(0, 0, 7.4) +
+      '<circle cx="' + L2 + '" cy="0" r="13.4" fill="' + Y2 + '" stroke="' + YO + '" stroke-width="1.1"/>' + pin(L2, 0, 6.8) + pin(SA.x, SA.y, 3.6) +
+      '</g>';
+    $('exc-gArm').innerHTML = '';
+    // contenedores en orden de pintado
+    $('exc-gArm').innerHTML =
+      s + cylMarkup('exc-cylBuck') +
+      '<g id="exc-boom"><clipPath id="exc-cBoom"><path d="' + BOOM_D + '"/></clipPath><path d="' + BOOM_D + '" fill="' + Y2 + '"/>' +
+      '<g clip-path="url(#exc-cBoom)"><path d="' + BOOM_T + '" fill="none" stroke="' + Y1 + '" stroke-width="14"/><path d="' + BOOM_B + '" fill="none" stroke="' + Y3 + '" stroke-width="17"/>' +
+      '<path d="M 60 -34 V 12 M 128 -36 V 14 M 170 -26 V 16" stroke="' + Y3 + '" stroke-width="1.2" opacity=".8"/><path d="' + BOOM_T + '" transform="translate(0 10)" fill="none" stroke="#FFEAB0" stroke-width="1.5" opacity=".75"/>' +
+      '<path id="exc-glB" d="M 0 -60 L 9 -60 L -3 40 L -12 40 Z" fill="#fff" opacity=".4"/></g>' +
+      '<path d="' + BOOM_D + '" fill="none" stroke="' + YO + '" stroke-width="1.1" stroke-linejoin="round"/>' +
+      '<path d="M 16 -28 C 50 -44 100 -50 142 -47" fill="none" stroke="' + S0 + '" stroke-width="3.2" stroke-linecap="round"/><path d="M 16 -28.8 C 50 -44.8 100 -50.8 142 -47.8" fill="none" stroke="#5A5148" stroke-width="0.9" stroke-linecap="round"/>' +
+      [[40, -40], [86, -48.5], [128, -49]].map((q) => '<rect x="' + (q[0] - 2.6) + '" y="' + (q[1] - 1) + '" width="5.2" height="8" rx="1.2" fill="' + S4 + '" stroke="' + S0 + '" stroke-width=".6"/>').join('') +
+      '<path d="M 147 -34 L 149 -44 L 163 -44 L 165 -35 Z" fill="' + S4 + '" stroke="' + S0 + '" stroke-width=".8"/>' + pin(BA.x, BA.y, 3.6) +
+      '<path d="M 122 12 L 124 23 L 140 23 L 142 12 Z" fill="' + S4 + '" stroke="' + S0 + '" stroke-width=".8"/>' + pin(BB.x, BB.y, 3.6) +
+      '<circle cx="0" cy="0" r="21" fill="' + Y2 + '" stroke="' + YO + '" stroke-width="1.1"/><path d="M -17 -10 A 19 19 0 0 1 4 -19" fill="none" stroke="' + Y1 + '" stroke-width="3"/>' +
+      '<circle cx="210" cy="0" r="17" fill="' + Y2 + '" stroke="' + YO + '" stroke-width="1.1"/><path d="M 196 -9 A 16 16 0 0 1 214 -15" fill="none" stroke="' + Y1 + '" stroke-width="2.6"/>' + pin(210, 0, 8) + '</g>' +
+      cylMarkup('exc-cylBoom') + cylMarkup('exc-cylArm') +
+      // cuchara
+      '<g id="exc-bucket"><g id="exc-heap"></g>' +
+      '<clipPath id="exc-cBuck"><path d="' + BUCK_D + '"/></clipPath><path d="' + BUCK_D + '" fill="' + S3 + '"/>' +
+      '<g clip-path="url(#exc-cBuck)"><path d="' + BUCK_BACK + '" fill="none" stroke="' + S1 + '" stroke-width="15"/><path d="M -8 12 L 89 12" fill="none" stroke="' + S4 + '" stroke-width="12"/>' +
+      '<g id="exc-bmud" opacity="0"><path d="M 60 -36 C 74 -22 80 -6 84 8 L 66 4 C 60 -8 56 -22 50 -34 Z" fill="' + T2 + '"/><path d="M 40 -52 C 52 -52 62 -46 68 -38 L 56 -34 Z" fill="' + T3 + '"/><circle cx="72" cy="-12" r="4" fill="' + T3 + '"/><circle cx="30" cy="-48" r="3" fill="' + T2 + '"/><path d="M 20 -50 C 30 -56 44 -56 52 -52 L 44 -46 Z" fill="' + T1 + '" opacity=".7"/></g>' +
+      '<path d="M -4 -6 C -8 -22 4 -40 20 -44 C 34 -48 56 -46 66 -30" fill="none" stroke="' + S4 + '" stroke-width="1.3" opacity=".75"/><path d="M 4 4 C 0 -8 4 -22 12 -30 C 26 -38 46 -36 56 -22" fill="none" stroke="' + S4 + '" stroke-width="1.2" opacity=".6"/></g>' +
+      '<path d="M 70 -32 C 77 -21 82 -8 85 8 L 88 12" fill="none" stroke="' + S5 + '" stroke-width="5.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M 70.5 -32 C 77 -21 82 -8 85 8" fill="none" stroke="' + S2 + '" stroke-width="1.5"/>' +
+      [-24, -12, 0].map((k, i) => '<circle cx="' + f2(76.4 + (k + 24) * 0.0) + '" cy="' + (k + 2) + '" r="1.4" fill="' + S1 + '"/>').join('') +
+      '<path d="' + BUCK_D + '" fill="none" stroke="' + S5 + '" stroke-width="1.2" stroke-linejoin="round"/>' +
+      '<g transform="translate(-8 -13)"><path d="M 82 6 L 104 14 L 86 19 L 81 12 Z" fill="' + S4 + '" stroke="' + S0 + '" stroke-width=".8"/></g>' +
+      '<g transform="translate(-4 -7)"><path d="M 82 6 L 104 14 L 86 19 L 81 12 Z" fill="' + S3 + '" stroke="' + S0 + '" stroke-width=".8"/></g>' +
+      '<path d="M 84 4 L 106 12 L 87 17 L 82 10 Z" fill="' + S1 + '" stroke="' + S0 + '" stroke-width=".8" stroke-linejoin="round"/><path d="M 85 6 L 101 11.4" stroke="#fff" stroke-width="1.1" opacity=".7"/>' +
+      '<circle cx="' + B1.x + '" cy="' + B1.y + '" r="6.4" fill="' + S4 + '" stroke="' + S0 + '" stroke-width=".8"/>' + pin(B1.x, B1.y, 3.6) +
+      '<circle cx="0" cy="0" r="10.4" fill="' + S4 + '" stroke="' + S0 + '" stroke-width=".8"/>' + pin(0, 0, 5.6) + '</g>' +
+      // eslabón H + biela (marco del brazo)
+      '<g id="exc-link"><g id="exc-plate"><path d="M 0 0 L ' + f2(A_R * Math.cos(A_DEG * D2R)) + ' ' + f2(A_R * Math.sin(A_DEG * D2R)) + ' L ' + f2(D_R * Math.cos(D_DEG * D2R)) + ' ' + f2(D_R * Math.sin(D_DEG * D2R)) + ' Z" fill="' + S4 + '" stroke="' + S4 + '" stroke-width="9" stroke-linejoin="round"/>' +
+      '<path d="M 0 0 L ' + f2(A_R * Math.cos(A_DEG * D2R)) + ' ' + f2(A_R * Math.sin(A_DEG * D2R)) + ' L ' + f2(D_R * Math.cos(D_DEG * D2R)) + ' ' + f2(D_R * Math.sin(D_DEG * D2R)) + ' Z" fill="' + S3 + '" stroke="' + S2 + '" stroke-width="3.4" stroke-linejoin="round"/>' +
+      pin(0, 0, 4.2) + pin(A_R * Math.cos(A_DEG * D2R), A_R * Math.sin(A_DEG * D2R), 3.8) + pin(D_R * Math.cos(D_DEG * D2R), D_R * Math.sin(D_DEG * D2R), 3.8) + '</g>' +
+      '<path id="exc-dogA" d="M 0 0 L 10 0" stroke="' + S5 + '" stroke-width="8.4" stroke-linecap="round"/><path id="exc-dogB" d="M 0 0 L 10 0" stroke="' + S2 + '" stroke-width="4.6" stroke-linecap="round"/><g id="exc-dogPins"></g></g>';
+  })();
+  const gBoom = $('exc-boom'), gStick = $('exc-stick'), gBucket = $('exc-bucket'), gLink = $('exc-link'), gPlate = $('exc-plate');
+  const dogA = $('exc-dogA'), dogB = $('exc-dogB');
+  dogA.parentNode.insertAdjacentHTML('beforeend', '<g id="exc-dogE1"></g><g id="exc-dogE2"></g>');
+  $('exc-dogE1').innerHTML = pin(0, 0, 3.8); $('exc-dogE2').innerHTML = pin(0, 0, 3.8);
+  const CYL = {};
+  ['Boom', 'Arm', 'Buck'].forEach((n) => {
+    const id = 'exc-cyl' + n, k = n.toLowerCase();
+    CYL[k] = { g: $(id), rod: $(id + 'Rod'), rodH: $(id + 'RodH'), bar: $(id + 'Bar'), barH: $(id + 'BarH'), gl: $(id + 'Gl'), eye: $(id + 'Eye'), eye2: $(id + 'Eye2'), lb: LB[k] };
+    const c = CYL[k];
+    c.bar.setAttribute('width', f2(c.lb)); c.barH.setAttribute('width', f2(c.lb - 4));
+    c.gl.setAttribute('x', f2(c.lb - 6)); c.rod.setAttribute('x', f2(c.lb - 14)); c.rodH.setAttribute('x', f2(c.lb - 14));
+  });
+
+  /* ---------------- sombra, tierra y fuerzas externas ---------------- */
+  $('exc-shadow').innerHTML = '<ellipse id="exc-shd1" cx="0" cy="325" rx="118" ry="9.5" fill="url(#exc-gShadow)"/><ellipse id="exc-shd2" cx="0" cy="324.6" rx="84" ry="3.4" fill="#000" opacity=".34"/>';
+  const shd1 = $('exc-shd1'), shd2 = $('exc-shd2');
+
+  /* ---- montículo: perfiles de altura (3 estados) ---- */
+  const MX0 = 203, MXS = 90 / 11;
+  const H0 = [0, 12, 28, 44, 57, 66, 70, 64, 52, 34, 16, 0];
+  const H1 = [0, 12, 28, 42, 50, 42, 30, 22, 16, 10, 5, 0];
+  const H2 = [0, 5, 10, 12, 11, 9, 8, 6, 5, 3, 1.5, 0];
+  function smoothPath(pts, close) {
+    let d = 'M ' + f2(pts[0][0]) + ' ' + f2(pts[0][1]);
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)];
+      d += ' C ' + f2(p1[0] + (p2[0] - p0[0]) / 6) + ' ' + f2(p1[1] + (p2[1] - p0[1]) / 6) + ' ' + f2(p2[0] - (p3[0] - p1[0]) / 6) + ' ' + f2(p2[1] - (p3[1] - p1[1]) / 6) + ' ' + f2(p2[0]) + ' ' + f2(p2[1]);
+    }
+    return d + (close ? ' Z' : '');
+  }
+  (function buildMound() {
+    let sp = '';
+    const r = rng(11);
+    for (let i = 0; i < 46; i++) { const x = 200 + r() * 102, y = 296 + r() * 28, w = 1.4 + r() * 3.4; sp += '<ellipse cx="' + f2(x) + '" cy="' + f2(y) + '" rx="' + f2(w) + '" ry="' + f2(w * 0.7) + '" fill="' + (r() < 0.5 ? T3 : T1) + '" opacity="' + f2(0.35 + r() * 0.4) + '"/>'; }
+    let rocks = '';
+    [[214, 316, 5.4], [236, 319, 4.4], [266, 317, 6.2], [284, 320, 4]].forEach((q, i) => { rocks += '<path d="M ' + (q[0] - q[2]) + ' ' + (q[1] + q[2] * 0.6) + ' L ' + (q[0] - q[2] * 0.6) + ' ' + (q[1] - q[2] * 0.5) + ' L ' + (q[0] + q[2] * 0.4) + ' ' + (q[1] - q[2] * 0.7) + ' L ' + (q[0] + q[2]) + ' ' + (q[1] + q[2] * 0.6) + ' Z" fill="' + S3 + '" stroke="' + S5 + '" stroke-width=".8"/><path d="M ' + (q[0] - q[2] * 0.6) + ' ' + (q[1] - q[2] * 0.5) + ' L ' + (q[0] + q[2] * 0.4) + ' ' + (q[1] - q[2] * 0.7) + ' L ' + (q[0] + q[2] * 0.1) + ' ' + (q[1] - q[2] * 0.1) + ' Z" fill="' + S2 + '"/>'; });
+    $('exc-mound').innerHTML = '<clipPath id="exc-cMound"><path id="exc-mClip" d=""/></clipPath><g id="exc-mG">' +
+      '<g clip-path="url(#exc-cMound)"><rect x="196" y="240" width="112" height="86" fill="' + T2 + '"/><path id="exc-mTop" d="" fill="none" stroke="' + T1 + '" stroke-width="16"/><rect x="196" y="310" width="112" height="14" fill="' + T3 + '"/>' + sp + rocks +
+      '<path id="exc-mTop2" d="" fill="none" stroke="#C9A06A" stroke-width="2" opacity=".7"/></g>' +
+      '<path id="exc-mEdge" d="" fill="none" stroke="' + T4 + '" stroke-width="1.2" stroke-linejoin="round"/></g>';
+    $('exc-skirt').innerHTML = '<g id="exc-skG"><path id="exc-sk" d="M 199 325 Q 202 316 211 317 Q 215 309 226 312 Q 232 304 244 309 Q 252 303 262 309 Q 271 304 281 310 Q 291 307 297 315 Q 304 316 305 325 Z" fill="' + T2 + '" stroke="' + T4 + '" stroke-width="1.1" stroke-linejoin="round"/>' +
+      '<path d="M 202 319 Q 212 312 224 315 Q 232 308 244 312 Q 252 307 262 312 Q 272 307 282 313 Q 291 310 298 318" fill="none" stroke="' + T1 + '" stroke-width="2.6" stroke-linecap="round"/><path d="M 200 325 H 305 V 321 H 200 Z" fill="' + T3 + '"/>' +
+      '<circle cx="216" cy="319" r="2.6" fill="' + T1 + '"/><circle cx="238" cy="316" r="2.2" fill="' + T3 + '"/><circle cx="258" cy="317.4" r="3" fill="' + T1 + '"/><circle cx="276" cy="318" r="2.4" fill="' + T3 + '"/></g>';
+  })();
+  const mG = $('exc-mG'), mClip = $('exc-mClip'), mTop = $('exc-mTop'), mTop2 = $('exc-mTop2'), mEdge = $('exc-mEdge'), skG = $('exc-skG');
+  function moundAt(t) {
+    // rises 0.04→0.42; scoop 1: 0.60→0.74; scoop 2: 1.44→1.60; sinks 2.16→2.9
+    const rise = E('back.out(1.5)')(ramp(t, 0.04, 0.42));
+    const a = E('power2.out')(ramp(t, 0.60, 0.74)), b = E('power2.out')(ramp(t, 1.40, 1.54));
+    const sink = E('power2.in')(ramp(t, 2.0, 2.6));
+    const pts = [];
+    for (let k = 0; k < 12; k++) {
+      let h = mix(H0[k], H1[k], a); h = mix(h, H2[k], b);
+      pts.push([MX0 + k * MXS, GROUND - h * Math.max(0, rise) * (1 - sink)]);
+    }
+    return { pts, vis: rise > 0.001 && sink < 0.999, rise, sink, a, b };
+  }
+
+  /* ====================================================================================================
+     CARGA: letras, anclajes en la cuchara, terrones
+     ==================================================================================================== */
+  const HINTS = [];
+  const LET = [
+    { i: 0, ch: 'B', x0: 455.72, x1: 499.01 }, { i: 1, ch: 'u', x0: 506.89, x1: 543.51 },
+    { i: 2, ch: 'i', x0: 552.69, x1: 562.82 }, { i: 3, ch: 'l', x0: 572.75, x1: 582.45 },
+  ];
+  LET.forEach((L) => { L.cx = (L.x0 + L.x1) / 2; L.g = $('exc-L' + L.i); });
+  // tierra pegada a la letra (recortada por su contorno) y sombra de caída sobre la losa
+  (function buildLetterFx() {
+    const HGT = [56, 44, 58, 60];
+    LET.forEach((L) => {
+      const r = rng(31 + L.i), top = SLAB - 0.58 * HGT[L.i], pts = [];
+      for (let k = 0; k <= 8; k++) pts.push([L.x0 - 3 + k * (L.x1 - L.x0 + 6) / 8, top + (r() - 0.5) * 9]);
+      const edge = smoothPath(pts, false);
+      let sp = '';
+      for (let k = 0; k < 9; k++) sp += '<circle cx="' + f2(L.x0 + r() * (L.x1 - L.x0)) + '" cy="' + f2(top + 4 + r() * (SLAB - top)) + '" r="' + f2(0.9 + r() * 1.6) + '" fill="' + (r() < 0.5 ? T3 : T1) + '"/>';
+      defs.insertAdjacentHTML('beforeend', '<clipPath id="exc-cl' + L.i + '"><use href="#exc-P' + L.i + '"/></clipPath>');
+      L.g.insertAdjacentHTML('beforeend', '<g id="exc-sm' + L.i + '" clip-path="url(#exc-cl' + L.i + ')"><path d="' + edge + ' L ' + f2(L.x1 + 3) + ' 296 L ' + f2(L.x0 - 3) + ' 296 Z" fill="' + T2 + '"/><path d="' + edge + '" fill="none" stroke="' + T1 + '" stroke-width="3.2"/><path d="' + edge + '" transform="translate(0 6)" fill="none" stroke="' + T3 + '" stroke-width="2.4" opacity=".7"/>' + sp + '</g>');
+      L.sm = $('exc-sm' + L.i);
+      $('exc-shadow').insertAdjacentHTML('beforeend', '<ellipse id="exc-lsh' + L.i + '" cx="' + f2(L.cx) + '" cy="290.6" rx="' + f2((L.x1 - L.x0) * 0.55) + '" ry="2.6" fill="#000" opacity="0"/>');
+      L.sh = $('exc-lsh' + L.i);
+    });
+    // letras asomando del montículo
+    $('exc-mound').insertAdjacentHTML('afterend', '<g id="exc-hints"></g>');
+    const hs = [[0, 231, 16, 7, 0.3, 0.64], [1, 244, 12, 5, 0.34, 1.44], [2, 254, 5.4, 7, 0.36, 1.44], [3, 263, 5.4, 9, 0.38, 1.44]];
+    hs.forEach((q) => {
+      const x = q[1], w = q[2], hh = q[3], rr = Math.min(w / 2, 3.4);
+      $('exc-hints').insertAdjacentHTML('beforeend', '<path id="exc-hint' + q[0] + '" d="M ' + f2(x - w / 2) + ' 3 V ' + f2(-hh + rr) + ' Q ' + f2(x - w / 2) + ' ' + (-hh) + ' ' + f2(x - w / 2 + rr) + ' ' + (-hh) + ' H ' + f2(x + w / 2 - rr) + ' Q ' + f2(x + w / 2) + ' ' + (-hh) + ' ' + f2(x + w / 2) + ' ' + f2(-hh + rr) + ' V 3 Z" fill="#F8F3EB" opacity="0"/>');
+      HINTS.push({ el: $('exc-hint' + q[0]), x, t0: q[4], t1: q[5] });
+    });
+  })();
+  const H_REL = 11;                                       // altura de suelta sobre la losa
+  const GRAV = 2600;
+  const CYC = [
+    { pick: 0.66, letters: [0], rel: [1.115] },
+    { pick: 1.46, letters: [1, 2, 3], rel: [1.80, 1.825, 1.85] },
+  ];
+  function anchorWorld(S, A, xa, ya) {
+    const c = Math.cos(A.a3), s = Math.sin(A.a3);
+    return toWorld(S, A.Wu + c * xa - s * ya, A.Wv + s * xa + c * ya);
+  }
+  CYC.forEach((C) => {
+    C.letters.forEach((li, j) => {
+      const L = LET[li], tr = C.rel[j], S = stateAt(tr), A = armAt(S);
+      const q = toLocal(S, L.cx, SLAB - H_REL), du = q.u - A.Wu, dv = q.v - A.Wv, c = Math.cos(A.a3), s = Math.sin(A.a3);
+      L.xa = du * c + dv * s; L.ya = -du * s + dv * c;
+      L.pick = C.pick; L.rel = tr; L.a3rel = S.a3;
+      const e = 0.01, p1 = anchorWorld(stateAt(tr - e), armAt(stateAt(tr - e)), L.xa, L.ya), p2 = anchorWorld(stateAt(tr + e), armAt(stateAt(tr + e)), L.xa, L.ya);
+      const vy0 = clamp((p2.y - p1.y) / (2 * e), -140, 140) * 0.5;
+      L.vy0 = vy0;
+      L.Tf = (-vy0 + Math.sqrt(vy0 * vy0 + 2 * GRAV * H_REL)) / GRAV;     // tiempo de caída hasta la losa
+      L.land = tr + L.Tf; L.ready = L.land + 0.2;
+    });
+  });
+  function letterPose(L, t) {
+    if (t < L.pick) return null;
+    if (t < L.rel) {
+      const S = stateAt(t), A = armAt(S), P = anchorWorld(S, A, L.xa, L.ya);
+      const lean = clamp(-0.075 * (S.a3 - L.a3rel), -12, 12);
+      return { dx: P.x - L.cx, dy: P.y - SLAB, rot: lean * ramp(t, L.pick, L.pick + 0.15), sx: 1, sy: 1, op: ramp(t, L.pick, L.pick + 0.05) };
+    }
+    const tau = t - L.rel;
+    if (tau < L.Tf) return { dx: 0, dy: -H_REL + L.vy0 * tau + 0.5 * GRAV * tau * tau, rot: 0, sx: 1, sy: 1, op: 1 };
+    const s = t - L.land;
+    if (s > 0.46) return 'done';
+    const q = Math.exp(-16 * s) * Math.cos(2 * Math.PI * 5 * s);
+    return { dx: 0, dy: 0, rot: 0, sx: 1 + 0.07 * q, sy: 1 - 0.13 * q, op: 1 };
+  }
+
+  // terrones (pool): del montón de la cuchara y escombros del escarbado
+  const CLODS = [];
+  (function buildClods() {
+    const r = rng(23);
+    const shapes = [];
+    for (let k = 0; k < 7; k++) {
+      const n = 7; let d = '', d2 = '', d3 = '';
+      const pp = [];
+      for (let i = 0; i < n; i++) { const a = (i / n) * 2 * Math.PI + r() * 0.5, rad = 0.72 + r() * 0.4; pp.push([Math.cos(a) * rad, Math.sin(a) * rad]); }
+      pp.forEach((p, i) => { d += (i ? 'L ' : 'M ') + f2(p[0]) + ' ' + f2(p[1]) + ' '; });
+      d += 'Z';
+      d2 = 'M ' + f2(pp[0][0]) + ' ' + f2(pp[0][1]) + ' L ' + f2(pp[1][0]) + ' ' + f2(pp[1][1]) + ' L ' + f2(pp[2][0] * 0.5) + ' ' + f2(pp[2][1] * 0.5) + ' L ' + f2(pp[6][0]) + ' ' + f2(pp[6][1]) + ' Z';
+      d3 = 'M ' + f2(pp[3][0]) + ' ' + f2(pp[3][1]) + ' L ' + f2(pp[4][0]) + ' ' + f2(pp[4][1]) + ' L ' + f2(pp[5][0]) + ' ' + f2(pp[5][1]) + ' L ' + f2(pp[4][0] * 0.3) + ' ' + f2(pp[4][1] * 0.3) + ' Z';
+      shapes.push([d, d2, d3]);
+    }
+    CLODS.shapes = shapes;
+    // montón en la cuchara: anclados al marco de la cuchara cerca de cada letra
+    CYC.forEach((C, ci) => {
+      const n = ci === 0 ? 11 : 16;
+      for (let k = 0; k < n; k++) {
+        const L = LET[C.letters[k % C.letters.length]];
+        const relMax = Math.max.apply(null, C.rel), relMin = Math.min.apply(null, C.rel);
+        CLODS.push({
+          kind: 'cargo', cyc: ci, xl: L.xa + (r() - 0.5) * 40, yl: L.ya - 6 + r() * 26, size: 6 + r() * 6.4, shape: k % 7, rot0: r() * 360,
+          t0: C.pick - 0.05 + r() * 0.07, td: relMin - 0.07 + r() * (relMax - relMin + 0.08), vx: (r() - 0.35) * 90, vy: (r() - 0.7) * 70, vr: (r() - 0.5) * 500,
+        });
+      }
+    });
+    // escombros del escarbado (salpican al clavar y al arrastrar)
+    [[0.54, 0.58, 0.62, 0.66, 0.70], [1.36, 1.40, 1.44, 1.48, 1.52]].forEach((times) => {
+      times.forEach((tt, k) => {
+        for (let m = 0; m < 2; m++) CLODS.push({ kind: 'spray', t0: tt, td: tt, size: 2.4 + r() * 3.2, shape: (k + m) % 7, rot0: r() * 360, vx: 40 + r() * 120 - (k > 2 ? 60 : 0), vy: -150 - r() * 140, vr: (r() - 0.5) * 700 });
+      });
+    });
+    // posiciones iniciales y velocidades (marcos congelados en td)
+    CLODS.forEach((c) => {
+      const S = stateAt(c.td), A = armAt(S);
+      let p;
+      if (c.kind === 'cargo') {
+        p = anchorWorld(S, A, c.xl, c.yl);
+        const e = 0.01, pa = anchorWorld(stateAt(c.td - e), armAt(stateAt(c.td - e)), c.xl, c.yl), pb = anchorWorld(stateAt(c.td + e), armAt(stateAt(c.td + e)), c.xl, c.yl);
+        c.vx += clamp((pb.x - pa.x) / (2 * e) * 0.35, -220, 220); c.vy += clamp((pb.y - pa.y) / (2 * e) * 0.35, -200, 330);
+      } else p = anchorWorld(S, A, 94, 8);
+      c.x0 = p.x; c.y0 = p.y;
+      const onSlab = (xx) => xx > 447 && xx < 858;
+      if (c.y0 > (onSlab(c.x0) ? SLAB : GROUND) - c.size * 0.55 - 2) c.y0 = (onSlab(c.x0) ? SLAB : GROUND) - c.size * 0.55 - 2;
+      // aterrizaje: se resuelve con y(τ)=suelo (el suelo depende de la x de caída)
+      let tau = 0.3;
+      for (let it = 0; it < 4; it++) { const xx = c.x0 + c.vx * tau; const fl = (onSlab(xx) ? SLAB : GROUND) - c.size * 0.55; const disc = c.vy * c.vy + 2 * GRAV * (fl - c.y0); tau = disc > 0 ? (-c.vy + Math.sqrt(disc)) / GRAV : 0.3; }
+      c.tl = c.td + tau; c.xl2 = c.x0 + c.vx * tau; c.floor = (onSlab(c.xl2) ? SLAB : GROUND) - c.size * 0.55;
+      c.hold = 0.05 + (c.size > 8 ? 0.03 : 0); c.fade = 0.15;
+      c.end = c.tl + c.hold + c.fade;
+    });
+    const fb = $('exc-clodsBack'), ff = $('exc-clodsFront');
+    CLODS.forEach((c, i) => {
+      const sh = CLODS.shapes[c.shape];
+      const g = document.createElementNS(NS, 'g');
+      g.setAttribute('id', 'exc-clod' + i);
+      g.innerHTML = '<path d="' + sh[0] + '" fill="' + (c.kind === 'cargo' ? T2 : T1) + '" stroke="' + T4 + '" stroke-width="0.14" stroke-linejoin="round"/><path d="' + sh[1] + '" fill="' + T1 + '"/><path d="' + sh[2] + '" fill="' + T3 + '"/>';
+      g.setAttribute('opacity', '0');
+      (c.kind === 'cargo' ? ff : fb).appendChild(g);
+      c.el = g; c.layer = c.kind === 'cargo' ? 'f' : 'b';
+    });
+  })();
+  function clodAt(c, t) {
+    if (t < c.t0 || t > c.end) return null;
+    if (t < c.td) {
+      const S = stateAt(t), A = armAt(S), p = anchorWorld(S, A, c.xl, c.yl);
+      const k = E('back.out(2)')(ramp(t, c.t0, c.t0 + 0.07));
+      return { x: p.x, y: p.y, rot: c.rot0 + (S.a3 - 120) * 0.2, s: c.size * k, back: false };
+    }
+    if (t < c.tl) {
+      const tau = t - c.td;
+      return { x: c.x0 + c.vx * tau, y: c.y0 + c.vy * tau + 0.5 * GRAV * tau * tau, rot: c.rot0 + c.vr * tau, s: c.size, back: true };
+    }
+    const s = t - c.tl, fade = 1 - E('power2.in')(ramp(s, c.hold, c.hold + c.fade));
+    const bounce = s < 0.07 ? -Math.abs(Math.sin(s / 0.07 * Math.PI)) * 3.2 : 0;
+    return { x: c.xl2 + c.vx * 0.06 * Math.min(s, 0.12), y: c.floor + bounce, rot: c.rot0 + c.vr * (c.tl - c.td) + 40 * Math.min(s, 0.12), s: c.size * fade * (1 + 0.1 * (1 - fade)), back: true };
+  }
+  // montón continuo dentro de la cuchara (detrás de las letras)
+  (function buildHeap() {
+    $('exc-heap').innerHTML = '<g id="exc-heapS"><path d="M -10 12 C -4 38 34 46 56 38 C 74 33 86 24 92 12 Z" fill="' + T2 + '" stroke="' + T4 + '" stroke-width="1" stroke-linejoin="round"/><path d="M -6 16 C 2 36 34 42 56 34 C 70 31 80 24 86 16" fill="none" stroke="' + T1 + '" stroke-width="3.4" stroke-linecap="round"/><path d="M 10 22 q 6 4 12 0 M 44 28 q 6 3 12 -1" fill="none" stroke="' + T3 + '" stroke-width="2" stroke-linecap="round"/></g>';
+  })();
+  const heapS = $('exc-heapS');
+  function heapAt(t) {
+    let h = 0;
+    CYC.forEach((C) => { const a = Math.min.apply(null, C.rel); h = Math.max(h, E('back.out(1.4)')(ramp(t, C.pick - 0.05, C.pick + 0.08)) * (1 - E('power2.in')(ramp(t, a - 0.08, a + 0.04)))); });
+    return h;
+  }
+
+  /* ====================================================================================================
+     PARTÍCULAS: polvo, humo, polvo de impacto
+     ==================================================================================================== */
+  const PUFFS = [];
+  (function buildPuffs() {
+    const r = rng(5);
+    const add = (o) => { PUFFS.push(o); };
+    const emit = (t, x, y, o) => add(Object.assign({ t0: t, x, y, vx: 0, vy: 0, ay: 0, r0: 3, r1: 12, a: 0.6, life: 0.5, kind: 'dust', layer: 'f' }, o));
+    // 1) humo del escape (mundo): sale de la chimenea con la torreta; el paso se acorta con la velocidad para que la estela sea continua
+    const vX = (t) => Math.abs(seg(XK, t + 0.01) - seg(XK, t - 0.01)) / 0.02;
+    for (let t = 0.0; t < 3.4; t += clamp(14 / Math.max(vX(t), 1), 0.016, 0.075)) {
+      const S = stateAt(t), p = toWorld(S, -41, -142), act = clamp(Math.abs(seg(WYK, t + 0.05) - seg(WYK, t - 0.05)) / 20, 0, 1) + (t < 0.7 ? 0.5 : 0);
+      emit(t, p.x + (r() - 0.5) * 2, p.y, { vx: -16 - r() * 16 + (t < 0.7 ? -60 : 0) + (t > 2.6 ? 40 : 0), vy: -46 - r() * 22 - act * 26, r0: 4.4 + act, r1: 12 + act * 7 + r() * 3, a: 0.75 + act * 0.2, life: 0.95 + r() * 0.3, kind: 'smoke', layer: 'f' });
+    }
+    // 2) polvo de oruga al entrar y al salir, y al frenar
+    for (let t = 0.03; t < 0.66; t += clamp(10 / Math.max(vX(t), 1), 0.012, 0.04)) {
+      const X = seg(XK, t), sp = vX(t);
+      if (sp < 80) continue;
+      emit(t, X - 86, 321, { vx: -30 - r() * 40 - sp * 0.05, vy: -14 - r() * 18, r0: 4, r1: 15 + sp * 0.01, a: 0.8, life: 0.55 + r() * 0.2, layer: 'b' });
+    }
+    for (let t = 0.44; t < 0.66; t += 0.026) emit(t, MX + 84 + (t - 0.44) * 60, 321, { vx: 90 + r() * 70, vy: -16 - r() * 26, r0: 5, r1: 22 + r() * 8, a: 0.95, life: 0.6, layer: 'f' });
+    for (let t = 2.8; t < 3.5; t += clamp(10 / Math.max(vX(t), 1), 0.012, 0.04)) {
+      const X = seg(XK, t), sp = vX(t);
+      if (sp < 60) continue;
+      emit(t, X + 88, 321, { vx: 30 + r() * 40 + sp * 0.05, vy: -14 - r() * 18, r0: 4, r1: 15 + sp * 0.01, a: 0.8, life: 0.55 + r() * 0.2, layer: 'b' });
+    }
+    // 3) polvo al crecer y al hundirse el montículo
+    for (let t = 0.06; t < 0.42; t += 0.028) emit(t, 200 + r() * 106, 320, { vx: (r() - 0.5) * 40, vy: -18 - r() * 22, r0: 5, r1: 17 + r() * 8, a: 0.85, life: 0.55 + r() * 0.2, layer: 'b' });
+    for (let t = 2.05; t < 2.6; t += 0.04) emit(t, 205 + r() * 94, 320, { vx: (r() - 0.5) * 30, vy: -12 - r() * 18, r0: 4, r1: 15 + r() * 6, a: 0.7, life: 0.55, layer: 'f' });
+    // 4) polvo del escarbado: en la punta de los dientes
+    [[0.55, 0.74], [1.37, 1.54]].forEach(([a, b]) => {
+      for (let t = a; t < b; t += 0.018) {
+        const S = stateAt(t), A = armAt(S), p = anchorWorld(S, A, 96, 10);
+        if (p.y < 296) continue;
+        emit(t, p.x, Math.min(p.y, 318), { vx: 20 + r() * 70, vy: -20 - r() * 40, r0: 4, r1: 15 + r() * 8, a: 0.9, life: 0.5, layer: 'f' });
+      }
+    });
+    // 5) terrones y letras al aterrizar
+    CLODS.forEach((c) => { if (c.kind === 'cargo' && c.xl2 > 440 && c.xl2 < 600) emit(c.tl, c.xl2, c.floor + c.size * 0.4, { vx: (r() - 0.5) * 50, vy: -14 - r() * 20, r0: 3, r1: 9 + c.size * 0.5, a: 0.8, life: 0.42, kind: 'pale', layer: 'b' }); });
+    LET.forEach((L) => { [-1, 1].forEach((d) => emit(L.land, L.cx + d * 12, SLAB - 1.5, { vx: d * (46 + r() * 30), vy: -10 - r() * 10, r0: 3, r1: 11, a: 0.85, life: 0.45, kind: 'pale', layer: 'b' })); });
+    // 6) vaivén de polvo al soltar la carga
+    CYC.forEach((C) => { for (let k = 0; k < 6; k++) { const tt = Math.min.apply(null, C.rel) - 0.04 + k * 0.025; const xx = LET[C.letters[0]].cx + (k - 2.5) * (C.letters.length > 1 ? 24 : 12); emit(tt, xx, SLAB - 3, { vx: (r() - 0.5) * 60, vy: -16 - r() * 16, r0: 3, r1: 13 + r() * 5, a: 0.7, life: 0.5, kind: 'pale', layer: 'b' }); } });
+  })();
+  (function buildPool() {
+    const fb = $('exc-fxBack'), ff = $('exc-fxFront');
+    PUFFS.forEach((p, i) => {
+      const c = document.createElementNS(NS, 'circle');
+      c.setAttribute('r', '1'); c.setAttribute('opacity', '0');
+      c.setAttribute('fill', p.kind === 'smoke' ? 'url(#exc-gSmoke)' : p.kind === 'pale' ? 'url(#exc-gPale)' : 'url(#exc-gDust)');
+      (p.layer === 'b' ? fb : ff).appendChild(c);
+      p.el = c;
+    });
+  })();
+  function puffAt(p, t) {
+    const tau = t - p.t0;
+    if (tau < 0 || tau > p.life) return null;
+    const q = tau / p.life, k = tau - tau * tau / (2 * p.life);
+    const a = p.a * Math.pow(1 - q, 1.5) * Math.min(1, q * 14);
+    return { x: p.x + p.vx * k, y: p.y + p.vy * k + 0.5 * p.ay * tau * tau, r: p.r0 + (p.r1 - p.r0) * Math.sqrt(q), a };
+  }
+
+  /* ====================================================================================================
+     RENDER
+     ==================================================================================================== */
+  const gMachine = $('exc-machine'), gArm = $('exc-gArm'), gHouse = $('exc-gHouse'), gTrack = $('exc-gTrack');
+  const wheelEls = WHEELS.map((w) => $(w.id));
+  const opHead = $('exc-opHead'), opBody = $('exc-opBody'), opArm = $('exc-opArm'), opHand = $('exc-opHand'), lever = $('exc-lever');
+  const lastMachine = { v: '' };
+  let cyl3 = null;
+  function setCyl(c, a, b, L) {
+    const ang = Math.atan2(b.v - a.v, b.u - a.u) / D2R;
+    c.g.setAttribute('transform', 'translate(' + f2(a.u) + ' ' + f2(a.v) + ') rotate(' + f2(ang) + ')');
+    const rodLen = L - c.lb + 14;
+    c.rod.setAttribute('width', f2(Math.max(2, rodLen))); c.rodH.setAttribute('width', f2(Math.max(2, rodLen)));
+    c.eye.setAttribute('cx', f2(L)); c.eye2.setAttribute('cx', f2(L));
+  }
+  function render(t) {
+    t = clamp(t, 0, 5.6);
+    const S = stateAt(t), A = armAt(S), K = linkAt(A), C = cylsAt(A, K);
+    // máquina completa (cabeceo y hundimiento)
+    gMachine.setAttribute('transform', 'translate(' + f2(S.X) + ' ' + f2(GROUND + S.dy) + ') rotate(' + f2(S.pitch) + ')');
+    gMachine.setAttribute('visibility', S.X < -228 || t > 3.9 ? 'hidden' : 'visible');
+    const vib = (Math.sin(t * 97) * 0.32 + Math.sin(t * 61 + 1) * 0.22) * (1 + 0.8 * loadF(t));
+    const tx = 'translate(0 ' + f2(vib) + ') scale(' + (Math.round(S.sx * 1000) / 1000) + ' 1)';
+    gArm.setAttribute('transform', tx); gHouse.setAttribute('transform', tx);
+    shd1.setAttribute('cx', f2(S.X - 4)); shd2.setAttribute('cx', f2(S.X - 4));
+    shd1.setAttribute('opacity', S.X < -230 || t > 3.9 ? 0 : 1); shd2.setAttribute('opacity', S.X < -230 || t > 3.9 ? 0 : 0.34);
+    // orugas
+    const D = S.X - MX;
+    CHAINS.forEach((c) => c.setAttribute('stroke-dashoffset', f2(-(D * c._k) % c._per)));
+    WHEELS.forEach((w, i) => wheelEls[i].setAttribute('transform', 'rotate(' + f2((D / w.r) / D2R % 360) + ')'));
+    // brazo
+    gBoom.setAttribute('transform', 'translate(' + P0.u + ' ' + P0.v + ') rotate(' + f2(A.a1 / D2R) + ')');
+    const st = 'translate(' + f2(A.E1u) + ' ' + f2(A.E1v) + ') rotate(' + f2(A.a2 / D2R) + ')';
+    gStick.setAttribute('transform', st); gLink.setAttribute('transform', st);
+    gBucket.setAttribute('transform', 'translate(' + f2(A.Wu) + ' ' + f2(A.Wv) + ') rotate(' + f2(A.a3 / D2R) + ')');
+    gPlate.setAttribute('transform', 'translate(' + KPT.x + ' ' + KPT.y + ') rotate(' + f2(K.phi / D2R) + ')');
+    const dl = 'M ' + f2(K.Dx) + ' ' + f2(K.Dy) + ' L ' + f2(K.Bx) + ' ' + f2(K.By);
+    dogA.setAttribute('d', dl); dogB.setAttribute('d', dl);
+    $('exc-dogE1').setAttribute('transform', 'translate(' + f2(K.Dx) + ' ' + f2(K.Dy) + ')'); $('exc-dogE2').setAttribute('transform', 'translate(' + f2(K.Bx) + ' ' + f2(K.By) + ')');
+    // la «B» del eslabón: el centro del brazo apunta a (W) con a2; el cilindro de la cuchara va de CBS a A (marco del brazo)
+    setCyl(CYL.boom, C.boom.a, C.boom.b, C.boom.L); setCyl(CYL.arm, C.arm.a, C.arm.b, C.arm.L); setCyl(CYL.buck, C.buck.a, C.buck.b, C.buck.L);
+    // operario
+    const dA = (stateAt(t + 0.02).Wu - stateAt(t - 0.02).Wu) / 0.04, bob = Math.sin(t * 22) * 0.5 + clamp(S.pitch * 0.8, -1.5, 1.5);
+    opHead.setAttribute('transform', 'translate(' + f2(clamp(dA / 700, -3, 3)) + ' ' + f2(bob) + ') rotate(' + f2(clamp(dA / 160, -8, 8)) + ' 15 -120)');
+    const lv = clamp(dA / 40, -22, 22);
+    lever.setAttribute('transform', 'translate(31 -90) rotate(' + f2(lv) + ')');
+    const hx = 31 + Math.sin(lv * D2R) * 12.5, hy = -90 - Math.cos(lv * D2R) * 12.5;
+    opArm.setAttribute('d', 'M 14 ' + f2(-108 + bob * 0.6) + ' L ' + f2(hx) + ' ' + f2(hy + 1)); opHand.setAttribute('cx', f2(hx)); opHand.setAttribute('cy', f2(hy + 1));
+    // brillos que recorren la pluma y el brazo, antena y baliza
+    $('exc-glB').setAttribute('transform', 'translate(' + f2(30 + ((A.a1 / D2R + 95) / 80) * 150) + ' 0)');
+    $('exc-glS').setAttribute('transform', 'translate(' + f2(10 + ((A.a2 / D2R - 10) / 115) * 150) + ' 0)');
+    const spd = Math.hypot(dA, (stateAt(t + 0.02).Wv - stateAt(t - 0.02).Wv) / 0.04), act = clamp(spd / 1400, 0, 1);
+    $('exc-ant').setAttribute('transform', 'translate(-4 -150) rotate(' + f2(3.2 * Math.sin(t * 15) * (0.25 + act) - clamp(accX(t) / 450, -6, 6) - S.pitch * 0.7) + ')');
+    $('exc-beaconG').setAttribute('opacity', (t * 2.6) % 1 < 0.38 ? '0.95' : '0.08');
+    // montículo
+    const M = moundAt(t);
+    mG.setAttribute('visibility', M.vis ? 'visible' : 'hidden'); $('exc-skG').setAttribute('visibility', M.vis ? 'visible' : 'hidden');
+    if (M.vis) {
+      const d = smoothPath(M.pts, false), dc = d + ' L ' + f2(MX0 + 90) + ' 326 L ' + MX0 + ' 326 Z';
+      mClip.setAttribute('d', dc); mTop.setAttribute('d', d); mEdge.setAttribute('d', d);
+      mTop2.setAttribute('d', d); mTop2.setAttribute('transform', 'translate(0 3)');
+      const skS = mix(1, 0.62, M.a) * mix(1, 0.45, M.b) * (1 - M.sink) * clamp(M.rise * 1.2, 0, 1.15);
+      $('exc-skG').setAttribute('transform', 'translate(0 324) scale(1 ' + f2(Math.max(skS, 0.001)) + ') translate(0 -324)');
+    }
+    $('exc-bmud').setAttribute('opacity', f2(0.9 * ramp(t, 0.6, 0.7)));
+    // montón de la cuchara
+    const hs = heapAt(t);
+    heapS.setAttribute('transform', 'translate(0 12) scale(1 ' + f2(Math.max(hs, 0.001)) + ') translate(0 -12)');
+    heapS.setAttribute('visibility', hs > 0.01 ? 'visible' : 'hidden');
+    // letras
+    LET.forEach((L) => {
+      const p = letterPose(L, t);
+      if (p === null) { L.g.setAttribute('opacity', '0'); L.g.removeAttribute('transform'); return; }
+      if (p === 'done') { L.g.setAttribute('opacity', '1'); L.g.removeAttribute('transform'); return; }
+      L.g.setAttribute('opacity', f2(p.op));
+      L.g.setAttribute('transform', 'translate(' + f2(L.cx + p.dx) + ' ' + f2(SLAB + p.dy) + ') rotate(' + f2(p.rot) + ') scale(' + f2(p.sx) + ' ' + f2(p.sy) + ') translate(' + f2(-L.cx) + ' ' + (-SLAB) + ')');
+    });
+    // tierra pegada, sombra de caída
+    LET.forEach((L) => {
+      const sp = t < L.rel ? 0 : ramp(t, L.rel, L.land), so = t < L.pick || t >= L.land ? 0 : 1 - ramp(sp, 0.72, 1);
+      L.sm.setAttribute('opacity', f2(so));
+      L.sm.setAttribute('transform', 'translate(0 296) scale(1 ' + f2(Math.max(0.02, 1 - E('power2.in')(sp))) + ') translate(0 -296)');
+      const sh = t < L.rel ? 0 : t < L.land ? 0.5 * Math.pow(ramp(t, L.rel, L.land), 1.6) : 0.5 * (1 - ramp(t, L.land, L.land + 0.14));
+      L.sh.setAttribute('opacity', f2(sh));
+    });
+    HINTS.forEach((q) => {
+      const o = ramp(t, q.t0, q.t0 + 0.1) * (1 - ramp(t, q.t1, q.t1 + 0.03));
+      if (o <= 0.001 || !M.vis) { q.el.setAttribute('opacity', '0'); return; }
+      const k = clamp((q.x - MX0) / MXS, 0, 10.999), i0 = Math.floor(k), yy = mix(M.pts[i0][1], M.pts[i0 + 1][1], k - i0);
+      q.el.setAttribute('opacity', f2(o)); q.el.setAttribute('transform', 'translate(0 ' + f2(yy + 1.5) + ')');
+    });
+    // terrones
+    const fb = $('exc-clodsBack'), ff = $('exc-clodsFront');
+    CLODS.forEach((c) => {
+      const q = clodAt(c, t);
+      if (!q) { if (c.on) { c.el.setAttribute('opacity', '0'); c.on = false; } return; }
+      if (q.back !== (c.layer === 'b')) { (q.back ? fb : ff).appendChild(c.el); c.layer = q.back ? 'b' : 'f'; }
+      c.on = true; c.el.setAttribute('opacity', '1');
+      c.el.setAttribute('transform', 'translate(' + f2(q.x) + ' ' + f2(q.y) + ') rotate(' + f2(q.rot) + ') scale(' + f2(Math.max(q.s, 0.01)) + ')');
+    });
+    // polvo y humo
+    PUFFS.forEach((p) => {
+      const q = puffAt(p, t);
+      if (!q) { if (p.on) { p.el.setAttribute('opacity', '0'); p.on = false; } return; }
+      p.on = true;
+      p.el.setAttribute('cx', f2(q.x)); p.el.setAttribute('cy', f2(q.y)); p.el.setAttribute('r', f2(q.r)); p.el.setAttribute('opacity', f2(q.a));
+    });
+    return S;
+  }
+
+  /* ====================================================================================================
+     LÍNEA DE TIEMPO: un tween lineal 0 → 5,6 s cuyo único efecto es llamar a render(t)
+     ==================================================================================================== */
+  const clock = {};
+  let _t = 0;
+  Object.defineProperty(clock, 't', { get() { return _t; }, set(v) { _t = v; render(v); } });
+  const tl = gsap.timeline({ paused: true });
+  tl.to(clock, { t: 5.6, duration: 5.6, ease: 'none' }, 0);
+  render(0);
+  window.__exc = { stateAt, armAt, linkAt, cylsAt, STATS, LET, CLODS, PUFFS, render, letterPose };
+  window.__timelines = window.__timelines || {};
+  window.__timelines['main'] = tl;
+})();
+    </script>
+  </body>
+</html>
