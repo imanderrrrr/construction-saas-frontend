@@ -2,25 +2,26 @@ import { useEffect, useRef, useState, type CSSProperties, type RefObject } from 
 import { useFirstRunIdle } from '../../lib/firstRunQueue';
 
 /**
- * «BuildTrack se construye» — the landing's logo, built by a small building
- * site: an excavator, a tower crane and a dump truck set the ten letters on a
- * slab, the machines leave, and what is left is the logo. That last frame then
- * flies into the top-left corner of the hero, where the real logo takes over.
+ * «BuildTrack se construye» — the landing's logo, built where it stands: in
+ * the top-left corner of the hero a small building site (an excavator, a
+ * tower crane and a dump truck) sets the ten letters on a slab, the machines
+ * leave, and what is left is the logo, which grows into the real one.
  *
  * The piece is a rendered video with a transparent background
  * (`public/logo-build/`; source and render recipe in `tools/logo-animation/`).
- * At the logo's own size (a 32 px box) the crane would be ~75 px tall and the
- * top of the window would cut it off, so the build plays LARGE in the middle
- * of the screen over a dimmed hero, and its last frame — the logo — shrinks
- * onto the real one.
+ * Its crane reaches the very top of the frame, so at the logo's own size (a
+ * 32 px box) the top of the page would cut it off. The build therefore plays
+ * as large as fits between the top of the page and the logo — its orange box
+ * level with the real one, ~18–22 px on most screens — and the last frame then
+ * grows onto the real logo, which takes over. Nothing else on the page is
+ * covered or dimmed.
  *
  *   - Once per browser (localStorage). `?logo` on the landing replays it on
  *     demand (demos, reviews) without touching storage.
- *   - Phones too, unlike the desktop-only intro film: a phone gets the 700 px
- *     render (~1 MB) and the scene spans the width of its screen.
- *   - Never in the way: no scroll lock, clicks go through it, and if the
- *     video has not started within seconds it is dropped WITHOUT marking it
- *     seen. Reduced motion or Save-Data: no build, just the logo.
+ *   - Phones too, unlike the desktop-only intro film.
+ *   - Never in the way: it takes no clicks, and if the video has not started
+ *     within seconds it is dropped WITHOUT marking it seen. Reduced motion or
+ *     Save-Data: no build, just the logo.
  *   - Never right after another ceremony: if the first-run row is busy when
  *     the page opens (the intro film on a first desktop visit), the build
  *     waits for a later visit instead of queueing a second brand moment
@@ -28,44 +29,52 @@ import { useFirstRunIdle } from '../../lib/firstRunQueue';
  *     nothing that has to wait for it.
  *   - The real logo stays in the DOM the whole time (link, aria-label, crisp
  *     text); the page only makes it transparent while the video stands in.
+ *
+ * Placed in page coordinates (not fixed to the window), so it scrolls with
+ * the logo it stands in for.
  */
 
-/** Bump to show the build again to everyone who has already seen it. */
-export const LOGO_BUILD_STORAGE_KEY = 'buildtrack:logo-build-v1-seen';
+/** Bump to show the build again to everyone who has already seen it.
+ *  v2: the build moved from the middle of the screen into the logo's corner. */
+export const LOGO_BUILD_STORAGE_KEY = 'buildtrack:logo-build-v2-seen';
 /** Length of the rendered video (ffprobe: 5.6 s). */
 export const LOGO_BUILD_DURATION_MS = 5_600;
 /** Time the first-run row gets to fill before the build commits to loading. */
 export const LOGO_BUILD_ARM_MS = 300;
 /** No `playing` event by now → no build this visit. */
 export const LOGO_BUILD_START_TIMEOUT_MS = 3_000;
-/** The last frame's flight onto the logo in the corner. */
-export const LOGO_BUILD_LANDING_MS = 900;
+/** The last frame growing onto the real logo. */
+export const LOGO_BUILD_LANDING_MS = 700;
 /** Fade from the video's last frame to the real logo underneath it. */
 export const LOGO_BUILD_HANDOFF_MS = 250;
 /** Slack over the video's length before the safety net hands the logo back. */
 const END_GRACE_MS = 2_500;
 const REPLAY_PARAM = 'logo';
+/** Air between the top of the page and the top of the crane, in page px. */
+const TOP_MARGIN = 2;
 
 /** The video's width and where the logo's orange box sits in it, in its own
  *  pixels (tools/logo-animation/stage.json). The 700 px render is the same
- *  frame at half size, so the ratios hold for both. */
+ *  frame at half size, so the ratios hold. */
 const CANVAS_WIDTH = 1400;
 const TILE = { x: 300, y: 196, size: 128 };
+const TILE_CENTER = { x: TILE.x + TILE.size / 2, y: TILE.y + TILE.size / 2 };
 
-const SOURCES = {
-  wide: { hevc: '/logo-build/logo-build-1400.hevc.mov', webm: '/logo-build/logo-build-1400.webm' },
-  narrow: { hevc: '/logo-build/logo-build-700.hevc.mov', webm: '/logo-build/logo-build-700.webm' },
-};
+/** Played at ~200–300 css px, the 700 px render is sharp even at 2–3× density. */
+const SOURCE = { hevc: '/logo-build/logo-build-700.hevc.mov', webm: '/logo-build/logo-build-700.webm' };
 
 /**
  * armed    → waiting for the first-run row to settle (nothing rendered yet)
- * loading  → the video is in the page but has not started
- * building → the video plays over the dimmed hero; the real logo is hidden
- * landing  → the last frame flies onto the real logo, the dimming lifts
+ * loading  → the video is in place but has not started
+ * building → the video plays in the corner; the real logo is hidden
+ * landing  → the last frame grows onto the real logo
  * handoff  → the real logo is back; the video fades off it
  * off      → nothing to show (never wanted, done, or gave up)
  */
 type Phase = 'off' | 'armed' | 'loading' | 'building' | 'landing' | 'handoff';
+
+/** Where the video sits on the page, in page px. */
+type Placement = { left: number; top: number; width: number };
 
 type NavigatorWithConnection = Navigator & { connection?: { saveData?: boolean } };
 
@@ -87,8 +96,28 @@ function isOnScreen(rect: DOMRect): boolean {
   return rect.bottom > 0 && rect.right > 0 && rect.top < window.innerHeight && rect.left < window.innerWidth;
 }
 
+/**
+ * The whole frame between the top of the page and the real logo, its orange
+ * box level with the logo's — as large as that fits, never larger than the
+ * logo itself. Pushed right if the left edge of the page would cut the
+ * excavator (narrow phones); the last frame makes up the difference.
+ * Null when the logo is not there to stand in for.
+ */
+function placeOverLogo(mark: DOMRect): Placement | null {
+  if (mark.width === 0 || !isOnScreen(mark)) return null;
+  const centerX = mark.left + mark.width / 2 + window.scrollX;
+  const centerY = mark.top + mark.height / 2 + window.scrollY;
+  const scale = Math.min(mark.width / TILE.size, (centerY - TOP_MARGIN) / TILE_CENTER.y);
+  if (scale <= 0) return null;
+  return {
+    left: Math.max(0, centerX - TILE_CENTER.x * scale),
+    top: centerY - TILE_CENTER.y * scale,
+    width: CANVAS_WIDTH * scale,
+  };
+}
+
 type Props = {
-  /** The real logo's orange box: where the build lands. */
+  /** The real logo's orange box: where the build stands and lands. */
   markRef: RefObject<HTMLElement>;
   /** True while the video stands in for the real logo (hide it), false once it is back. */
   onStandInChange: (standingIn: boolean) => void;
@@ -96,10 +125,9 @@ type Props = {
 
 export function LogoBuildOverlay({ markRef, onStandInChange }: Props) {
   const [phase, setPhase] = useState<Phase>(() => (shouldBuildLogo() ? 'armed' : 'off'));
-  const [narrow] = useState(
-    () => typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 767px)').matches,
-  );
+  const [placement, setPlacement] = useState<Placement>();
   const [flight, setFlight] = useState<CSSProperties>();
+  const rootRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const idle = useFirstRunIdle();
 
@@ -110,12 +138,17 @@ export function LogoBuildOverlay({ markRef, onStandInChange }: Props) {
   }, [idle]);
 
   // The intro film claims the row from its own effect; give it a moment
-  // before loading anything.
+  // before loading anything. Then stand over the logo — if it is in view.
   useEffect(() => {
     if (phase !== 'armed') return;
-    const timer = window.setTimeout(() => setPhase(p => (p === 'armed' ? 'loading' : p)), LOGO_BUILD_ARM_MS);
+    const timer = window.setTimeout(() => {
+      const mark = markRef.current?.getBoundingClientRect();
+      const place = mark ? placeOverLogo(mark) : null;
+      if (place) setPlacement(place);
+      setPhase(p => (p !== 'armed' ? p : place ? 'loading' : 'off'));
+    }, LOGO_BUILD_ARM_MS);
     return () => window.clearTimeout(timer);
-  }, [phase]);
+  }, [phase, markRef]);
 
   // Muted autoplay is allowed almost everywhere. Where it is refused (iOS Low
   // Power Mode, some data savers) there is simply no build.
@@ -133,29 +166,29 @@ export function LogoBuildOverlay({ markRef, onStandInChange }: Props) {
   }, [phase]);
 
   // `ended` is the normal exit. This is the net for a stream that stalls
-  // halfway or never reports it: no flight for a half-built frame, the real
-  // logo just comes back.
+  // halfway or never reports it: no growing a half-built frame, the real logo
+  // just comes back.
   useEffect(() => {
     if (phase !== 'building') return;
     const net = window.setTimeout(() => setPhase('handoff'), LOGO_BUILD_DURATION_MS + END_GRACE_MS);
     return () => window.clearTimeout(net);
   }, [phase]);
 
-  // Fly the last frame so that its orange box lands exactly on the real one.
-  // Measured now, not at mount: the visitor may have scrolled or resized.
-  // With the logo scrolled out of view there is nowhere to land.
+  // Grow the last frame so that its orange box lands exactly on the real one.
+  // Measured now, not at mount: the layout may have moved since (a resize, a
+  // late font). With the logo scrolled out of view there is nothing to show.
   useEffect(() => {
     if (phase !== 'landing') return;
-    const video = videoRef.current?.getBoundingClientRect();
+    const frame = rootRef.current?.getBoundingClientRect();
     const mark = markRef.current?.getBoundingClientRect();
-    if (!video || !mark || video.width === 0 || mark.width === 0 || !isOnScreen(mark)) {
+    if (!frame || !mark || frame.width === 0 || mark.width === 0 || !isOnScreen(mark)) {
       setPhase('handoff');
       return;
     }
     const scale = mark.width / TILE.size; // page px per video px, once landed
-    const current = video.width / CANVAS_WIDTH; // ... and right now
-    const dx = mark.left - TILE.x * scale - video.left;
-    const dy = mark.top - TILE.y * scale - video.top;
+    const current = frame.width / CANVAS_WIDTH; // ... and right now
+    const dx = mark.left - TILE.x * scale - frame.left;
+    const dy = mark.top - TILE.y * scale - frame.top;
     setFlight({ transform: `translate(${dx}px, ${dy}px) scale(${scale / current})` });
     const timer = window.setTimeout(() => setPhase('handoff'), LOGO_BUILD_LANDING_MS);
     return () => window.clearTimeout(timer);
@@ -177,19 +210,23 @@ export function LogoBuildOverlay({ markRef, onStandInChange }: Props) {
     onStandInChange(standingIn);
   }, [standingIn, onStandInChange]);
 
-  if (phase === 'off' || phase === 'armed') return null;
+  if (phase === 'off' || phase === 'armed' || !placement) return null;
 
   // A broken file or stream at any point: the real logo, not a gap.
   const giveUp = () => setPhase('off');
-  const source = narrow ? SOURCES.narrow : SOURCES.wide;
 
   return (
-    <div className="logo-build-root" data-phase={phase} aria-hidden="true">
+    <div
+      ref={rootRef}
+      className="logo-build-root"
+      data-phase={phase}
+      aria-hidden="true"
+      style={{ left: placement.left, top: placement.top, width: placement.width, ...flight }}
+    >
       <style>{OVERLAY_CSS}</style>
       <video
         ref={videoRef}
         className="logo-build-video"
-        style={flight}
         muted
         playsInline
         autoPlay
@@ -210,8 +247,8 @@ export function LogoBuildOverlay({ markRef, onStandInChange }: Props) {
             the VP9 WebM's transparent ground as a black box. Every other
             browser skips it for the WebM. When the last <source> fails too,
             there is nothing left to try. */}
-        <source src={source.hevc} type='video/quicktime; codecs="hvc1"' />
-        <source src={source.webm} type="video/webm" onError={giveUp} />
+        <source src={SOURCE.hevc} type='video/quicktime; codecs="hvc1"' />
+        <source src={SOURCE.webm} type="video/webm" onError={giveUp} />
       </video>
     </div>
   );
@@ -219,27 +256,18 @@ export function LogoBuildOverlay({ markRef, onStandInChange }: Props) {
 
 const OVERLAY_CSS = `
 .logo-build-root {
-  position: fixed;
-  inset: 0;
-  z-index: 2147483000; /* over the page and the assistant; the intro film never shares the screen with it */
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: absolute;
+  z-index: 30; /* over the hero and its nav, under the assistant (z-40 / z-50) */
   pointer-events: none;
-  background: rgba(23, 19, 15, 0);
+  transform-origin: 0 0;
   opacity: 1;
-  transition: background-color 400ms ease, opacity ${LOGO_BUILD_HANDOFF_MS}ms ease;
+  transition: transform ${LOGO_BUILD_LANDING_MS}ms cubic-bezier(0.65, 0, 0.35, 1), opacity ${LOGO_BUILD_HANDOFF_MS}ms ease;
 }
-/* The hero's own headline would read through the machines: dim it while they work. */
-.logo-build-root[data-phase="building"] { background: rgba(23, 19, 15, 0.9); }
-.logo-build-root[data-phase="landing"] { transition-duration: ${LOGO_BUILD_LANDING_MS}ms; }
 .logo-build-root[data-phase="handoff"] { opacity: 0; }
 .logo-build-video {
   display: block;
-  width: min(1000px, calc(100vw - 32px));
+  width: 100%;
   height: auto;
   aspect-ratio: 1400 / 360;
-  transform-origin: 0 0;
-  transition: transform ${LOGO_BUILD_LANDING_MS}ms cubic-bezier(0.65, 0, 0.35, 1);
 }
 `;
