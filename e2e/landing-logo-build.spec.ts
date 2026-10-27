@@ -10,7 +10,8 @@
 import { test, expect, type Page } from '@playwright/test';
 import { installHermeticBase } from './support/mock-api';
 
-const REAL_LOGO = 'nav a[aria-label="BuildTrack"]';
+// The hero's logo (the sticky bar carries a second one).
+const REAL_LOGO = 'header nav a[aria-label="BuildTrack"]';
 
 /** The frame and the orange box drawn in it (300,196 · 128 px of its 1400 px), next to the real logo's box, in page px. */
 function boxes(page: Page) {

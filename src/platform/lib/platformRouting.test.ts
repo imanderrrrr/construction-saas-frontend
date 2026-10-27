@@ -7,9 +7,13 @@ import { createServer as createViteServer } from 'vite';
 
 describe('platform deployment routing', () => {
   it('Vercel separates the platform API before the tenant proxy and SPA fallback', () => {
+    // `/ingest` is the public website's analytics (PostHog), proxied through
+    // our own domain; it sits before the SPA fallback like the API does.
     expect(vercel.rewrites.map((r) => r.source)).toEqual([
-      '/api/platform/:path*', '/api/:path*', '/(.*)',
+      '/api/platform/:path*', '/api/:path*', '/ingest/static/:path*', '/ingest/:path*', '/(.*)',
     ]);
+    expect(vercel.rewrites[2].destination).toBe('https://us-assets.i.posthog.com/static/:path*');
+    expect(vercel.rewrites[3].destination).toBe('https://us.i.posthog.com/:path*');
     const platform = vercel.rewrites[0];
     const tenant = vercel.rewrites[1];
     expect(platform.destination).toBe(tenant.destination.replace('/api/:path*', '/platform/:path*'));

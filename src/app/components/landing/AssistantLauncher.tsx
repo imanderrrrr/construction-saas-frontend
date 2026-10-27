@@ -1,6 +1,7 @@
 import { useRef, useState, type ComponentType } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { track } from '../../lib/analytics';
 import { isTurnstileConfigured } from '../../lib/turnstile';
 import { AssistantMailLink } from './assistant/AssistantMailLink';
 
@@ -19,6 +20,9 @@ const loadAssistantPanel = (): Promise<PanelModule> => import('./AssistantPanel'
  * support email, and the next click tries again. A build without a Turnstile
  * site key never loads the panel at all: without Turnstile neither the chat nor
  * the contact form can reach the server.
+ *
+ * On a phone the button is the icon alone: with its label it covered a
+ * quarter of the screen's width over whatever the reader was looking at.
  */
 export function AssistantLauncher({ loadPanel = loadAssistantPanel }: { loadPanel?: () => Promise<PanelModule> }) {
   const { t } = useTranslation('landing');
@@ -45,6 +49,7 @@ export function AssistantLauncher({ loadPanel = loadAssistantPanel }: { loadPane
       return;
     }
     setOpen(true);
+    track('assistant_open');
     if (!isTurnstileConfigured()) {
       setFailed(true);
       return;
@@ -65,6 +70,7 @@ export function AssistantLauncher({ loadPanel = loadAssistantPanel }: { loadPane
         type="button"
         aria-expanded={open}
         aria-haspopup="dialog"
+        aria-label={t('assistant.fab.label')}
         onClick={toggle}
         className="group fixed bottom-6 right-6 z-40 flex h-12 items-stretch rounded-[2px] border border-[rgba(248,243,235,0.6)] bg-bt-ink text-bt-bone shadow-[0_14px_30px_-14px_rgba(23,19,15,0.75)] max-sm:bottom-[max(1rem,env(safe-area-inset-bottom))] max-sm:right-4"
       >
@@ -82,7 +88,7 @@ export function AssistantLauncher({ loadPanel = loadAssistantPanel }: { loadPane
             />
           </svg>
         </span>
-        <span className="flex items-center whitespace-nowrap pl-3.5 pr-4 font-bt-mono text-[11px] font-medium uppercase tracking-[0.12em]">
+        <span className="flex items-center whitespace-nowrap pl-3.5 pr-4 font-bt-mono max-sm:hidden text-[11px] font-medium uppercase tracking-[0.12em]">
           {t('assistant.fab.label')}
         </span>
       </button>

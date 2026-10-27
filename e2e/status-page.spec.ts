@@ -81,6 +81,8 @@ for (const { name, viewport, isMobile } of [
       await stubStatus(page);
       await page.goto('/');
       const nav = page.getByRole('navigation').first();
+      // Below lg the links fold into the menu button.
+      if (viewport.width < 1024) await nav.getByRole('button', { name: 'Open menu' }).click();
       await nav.getByRole('link', { name: 'System status' }).click();
       await expect(page).toHaveURL(/\/status$/);
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport.width);

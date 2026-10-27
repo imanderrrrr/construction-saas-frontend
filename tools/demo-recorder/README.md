@@ -17,8 +17,8 @@ minutes instead of being quietly out of date on the marketing page.
 *and* demo content — because the landing page serves the set of the language it
 is being read in. An English reader was being shown a Spanish panel under an
 English heading, which reads as "this product is not for you". Proper nouns
-(jobsites, clients, people, addresses) are the same in both sets: a Guatemalan
-builder does not rename its projects for an English reader.
+(jobsites, clients, people, addresses) are the same in both sets: a builder does
+not rename its projects for an English reader.
 
 ## Re-record
 

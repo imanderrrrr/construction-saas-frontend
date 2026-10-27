@@ -32,7 +32,7 @@ export function PhoneMock() {
         <div>
           <p className="text-[14.5px] font-semibold text-bt-bone">J. Ramírez</p>
           <p className="mt-[3px] font-bt-mono text-[8.5px] tracking-[0.1em] text-bt-muted">
-            GT-014 · VISTA HERMOSA
+            VH-014 · VISTA HERMOSA
           </p>
         </div>
         <p className="font-bt-mono text-[8.5px] tracking-[0.1em] text-bt-muted-2">{t('app.phone.3')}</p>

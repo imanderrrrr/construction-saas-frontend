@@ -29,6 +29,8 @@ vi.mock('react-router', () => ({
 //
 // v2.3 (26 October 2026) adds the public website's AI assistant and contact
 // form, which only exist on the web: the app's copy has nothing to mirror.
+// v2.4 (27 October 2026) adds PostHog, the public website's analytics — also
+// web only.
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -60,10 +62,10 @@ function renderVersions() {
 }
 
 describe('PrivacyPolicy v2.2', () => {
-  it('carries the 26 October 2026 date of v2.3 in both languages', () => {
+  it('carries the 27 October 2026 date of v2.4 in both languages', () => {
     const { es, en } = renderVersions();
-    expect(es).toContain('26 de octubre de 2026 — v2.3');
-    expect(en).toContain('October 26, 2026 — v2.3');
+    expect(es).toContain('27 de octubre de 2026 — v2.4');
+    expect(en).toContain('October 27, 2026 — v2.4');
   });
 
   it('names MET Norway, what it receives and what it does not', () => {
@@ -186,5 +188,49 @@ describe('PrivacyPolicy v2.3 — the landing assistant and contact form', () => 
     const { section } = renderVersions();
     expect(section('es', 5)).toContain('casilla de consentimiento');
     expect(section('en', 5)).toContain('consent box');
+  });
+});
+
+// v2.4 (web only): PostHog measures the public website. The policy used to
+// say the web uses no third-party analytics; with PostHog in, it has to name
+// it, say what it records and where, that it stops at sign-in, and how long
+// the data lives.
+describe('PrivacyPolicy v2.4 — analytics of the public website', () => {
+  it('names PostHog, what it records, and that it stays out of the product', () => {
+    const { section } = renderVersions();
+    const es = section('es', 3);
+    const en = section('en', 3);
+    expect(es).toContain('PostHog');
+    expect(es).toContain('las páginas que visita, los botones y enlaces que pulsa');
+    expect(es).toContain('las grabaciones ocultan todo lo que usted escribe');
+    expect(es).toContain('no incluyen el asistente de IA');
+    expect(es).toContain('nunca dentro de BuildTrack después de iniciar sesión');
+    expect(es).toContain('«No rastrear»');
+    expect(en).toContain('PostHog');
+    expect(en).toContain('the pages you visit, the buttons and links you click');
+    expect(en).toContain('recordings hide everything you type');
+    expect(en).toContain('do not include the AI assistant');
+    expect(en).toContain('never inside BuildTrack after signing in');
+    expect(en).toContain('Do Not Track');
+  });
+
+  it('lists PostHog as a provider in the United States', () => {
+    const { section } = renderVersions();
+    for (const lang of ['es', 'en'] as const) {
+      expect(section(lang, 6)).toContain('PostHog');
+      expect(section(lang, 8)).toContain('PostHog');
+    }
+  });
+
+  it('states how long usage data and recordings are kept', () => {
+    const { section } = renderVersions();
+    expect(section('es', 11)).toContain('se conservan hasta 12 meses, y las grabaciones de sesión, hasta 30 días');
+    expect(section('en', 11)).toContain('kept for up to 12 months, and session recordings for up to 30 days');
+  });
+
+  it('no longer denies analytics on the public website, and says it uses no cookies', () => {
+    const { cookiesEs, cookiesEn } = renderVersions();
+    expect(cookiesEs).toContain('la analítica de PostHog no usa cookies');
+    expect(cookiesEn).toContain('PostHog analytics uses no cookies');
   });
 });

@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { VolumeX } from 'lucide-react';
+import { ChevronsRight, VolumeX } from 'lucide-react';
 import { useFirstRunTurn } from '../lib/firstRunQueue';
 
 /**
@@ -21,9 +21,12 @@ import { useFirstRunTurn } from '../lib/firstRunQueue';
  *     button (a click is the gesture that unlocks it). Where the browser does
  *     allow it (a visitor who has used the site before, or `?intro` from a
  *     page they have clicked on) the sound just plays.
- *   - NOT skippable — no close button, no Esc key, no skip link. The sound
- *     button is the only control and it never ends the intro. What it never
- *     does is hold the site hostage: if the video cannot get going (autoplay
+ *   - SKIPPABLE ON ASK — no skip control on screen at first, so nothing
+ *     competes with the film. A click anywhere on it brings up a small
+ *     "Saltar" button in the bottom-right corner, and that button ends the
+ *     intro (it fades and counts as seen, like reaching the end). The sound
+ *     button never ends it. And it never holds the site hostage: if the video
+ *     cannot get going (autoplay
  *     refused, slow network, file missing) it steps aside within seconds
  *     WITHOUT marking the intro as seen, and the page opens as if it were not
  *     there. The visitor gets another go on their next visit.
@@ -33,8 +36,8 @@ import { useFirstRunTurn } from '../lib/firstRunQueue';
  *     finishes (the lock is wired to the turn, not to unmount, because the
  *     component stays mounted in App.tsx and just returns null when done).
  *
- * FIRST IN THE ROW (see lib/firstRunQueue): it is opaque, covers the whole
- * viewport and cannot be dismissed, so nothing else may open underneath it.
+ * FIRST IN THE ROW (see lib/firstRunQueue): it is opaque and covers the whole
+ * viewport, so nothing else may open underneath it.
  * The tour and the what's-new carousel start only once it hands the row over.
  *
  * The film is "Del plano a la obra": a drawing sheet on which the ArchLogic
@@ -93,7 +96,10 @@ export function IntroOverlay() {
   const [fading, setFading] = useState(false);
   // The browser refused sound: the film is playing muted and the button shows.
   const [soundBlocked, setSoundBlocked] = useState(false);
+  // The visitor clicked the film: the skip button is on screen.
+  const [skipShown, setSkipShown] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const skipRef = useRef<HTMLButtonElement>(null);
 
   // Our claim on the row: something to play, and not played yet.
   const pending = useMemo(() => !played && shouldShowIntro(), [played]);
@@ -136,6 +142,17 @@ export function IntroOverlay() {
     setSoundBlocked(false);
   };
 
+  // A keyboard user who brought the button up can press it straight away.
+  useEffect(() => {
+    if (skipShown) skipRef.current?.focus();
+  }, [skipShown]);
+
+  const skip = (event: MouseEvent) => {
+    event.stopPropagation();
+    videoRef.current?.pause?.();
+    setFading(true);
+  };
+
   // Never played in time (slow network, blocked, hidden tab): let the page
   // through. Not marked as seen — they get the real thing next visit.
   useEffect(() => {
@@ -176,6 +193,7 @@ export function IntroOverlay() {
       className="intro-overlay-root"
       data-first-run="brandIntro"
       data-fading={fading ? 'true' : 'false'}
+      onClick={() => setSkipShown(true)}
     >
       <style>{OVERLAY_CSS}</style>
       <video
@@ -198,17 +216,25 @@ export function IntroOverlay() {
         <source src={VIDEO_MP4} type="video/mp4" />
         <source src={VIDEO_WEBM} type="video/webm" onError={giveUp} />
       </video>
-      {soundBlocked && (
-        <button
-          type="button"
-          className="intro-overlay-sound"
-          onClick={turnSoundOn}
-          aria-label={t('intro.soundOn')}
-          title={t('intro.soundOn')}
-        >
-          <VolumeX size={20} strokeWidth={1.75} aria-hidden="true" />
-        </button>
-      )}
+      <div className="intro-overlay-controls">
+        {soundBlocked && (
+          <button
+            type="button"
+            className="intro-overlay-sound"
+            onClick={turnSoundOn}
+            aria-label={t('intro.soundOn')}
+            title={t('intro.soundOn')}
+          >
+            <VolumeX size={20} strokeWidth={1.75} aria-hidden="true" />
+          </button>
+        )}
+        {skipShown && (
+          <button ref={skipRef} type="button" className="intro-overlay-skip" onClick={skip}>
+            {t('intro.skip')}
+            <ChevronsRight size={18} strokeWidth={1.75} aria-hidden="true" />
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -238,12 +264,19 @@ const OVERLAY_CSS = `
   background: ${PAPER};
   pointer-events: none;
 }
-/* The one control: quiet, bottom-right, arrives after the first second so it
-   never competes with the mark building. */
-.intro-overlay-sound {
+/* The controls sit together in the bottom-right corner: the sound button
+   (only when the browser muted the film) and, once the visitor clicks, Saltar. */
+.intro-overlay-controls {
   position: absolute;
   right: 28px;
   bottom: 28px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+/* Quiet, and it arrives after the first second so it never competes with the
+   mark building. */
+.intro-overlay-sound {
   width: 44px;
   height: 44px;
   display: flex;
@@ -260,7 +293,25 @@ const OVERLAY_CSS = `
 .intro-overlay-sound:hover { color: #17130f; border-color: #a89a87; }
 .intro-overlay-sound:focus-visible { outline: 2px solid #f97316; outline-offset: 2px; }
 @keyframes intro-sound-in { to { opacity: 1; } }
+.intro-overlay-skip {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px 0 18px;
+  border: 1px solid #17130f;
+  border-radius: 999px;
+  background: #17130f;
+  color: ${PAPER};
+  font: 600 14px/1 system-ui, sans-serif;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  animation: intro-sound-in 200ms ease forwards;
+  opacity: 0;
+}
+.intro-overlay-skip:hover { background: #f97316; border-color: #f97316; color: #17130f; }
+.intro-overlay-skip:focus-visible { outline: 2px solid #f97316; outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) {
-  .intro-overlay-sound { animation: none; opacity: 1; }
+  .intro-overlay-sound, .intro-overlay-skip { animation: none; opacity: 1; }
 }
 `;

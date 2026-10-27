@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 
@@ -7,9 +7,12 @@ import { AssistantLauncher } from '../components/landing/AssistantLauncher';
 import { BlueprintGrid } from '../components/landing/BlueprintGrid';
 import { BuildTrackLogo } from '../components/landing/BuildTrackLogo';
 import { DemoVideos } from '../components/landing/DemoVideos';
+import { MobileMenu, NAV_LINK, NavLinks, SignInLink, StickyBar } from '../components/landing/LandingNav';
 import { LogoBuildOverlay } from '../components/landing/LogoBuildOverlay';
 import { PhoneMock } from '../components/landing/PhoneMock';
 import { DashboardSheet, PayablesSheet, DailyLogSheet } from '../components/landing/PlatformSheets';
+import { Testimonials } from '../components/landing/Testimonials';
+import { initAnalytics, track } from '../lib/analytics';
 import { SUPPORT_EMAIL, supportMailto } from '../lib/contact';
 import { usePublicPageTitle } from '../hooks/usePublicPageTitle';
 
@@ -36,7 +39,6 @@ const CTA_PRIMARY =
   'inline-block rounded-[2px] bg-bt-orange px-[30px] py-4 text-base font-bold tracking-[-0.01em] text-bt-ink transition-colors hover:bg-bt-orange-hover';
 const CTA_GHOST =
   'border-b border-[rgba(248,243,235,0.35)] pb-[3px] text-base font-medium text-bt-bone transition-colors hover:border-bt-orange hover:text-bt-orange';
-const NAV_LINK = 'text-sm font-medium text-bt-muted-2 transition-colors hover:text-bt-bone';
 
 /** BuildTrack Field on the App Store — the live listing, verified 2026-09-12. */
 const APP_STORE_URL = 'https://apps.apple.com/gt/app/buildtrack-field/id6807602939';
@@ -48,6 +50,17 @@ export function Landing() {
   const mailtoDemo = supportMailto(t('demo.emailSubject'));
   const mailtoBeta = supportMailto(t('beta.emailSubject'));
 
+  useEffect(() => {
+    initAnalytics();
+  }, []);
+
+  // Which button moved the visitor, so the analytics can tell the hero from the footer.
+  const cta = (name: 'demo' | 'beta' | 'app_store', place: string) => () => track('cta_click', { cta: name, place });
+  const email = (topic: 'demo' | 'beta', place: string) => () => track('contact_email', { topic, place });
+
+  // The sticky bar shows once the hero has scrolled away.
+  const heroRef = useRef<HTMLElement>(null);
+
   // The nav logo is where «BuildTrack se construye» lands; it hides while the video stands in for it.
   const logoMarkRef = useRef<HTMLSpanElement>(null);
   const [logoStandIn, setLogoStandIn] = useState(false);
@@ -55,7 +68,7 @@ export function Landing() {
   return (
     <div className="bt-public bg-bt-paper font-bt-body text-base text-bt-ink">
       {/* ── Hero ─────────────────────────────────────────────────────── */}
-      <header className="relative flex min-h-[100svh] flex-col overflow-hidden bg-bt-ink">
+      <header ref={heroRef} className="relative flex min-h-[100svh] flex-col overflow-hidden bg-bt-ink">
         <BlueprintGrid fade="hero" lineOpacity={0.05} />
 
         <nav
@@ -65,31 +78,13 @@ export function Landing() {
           <Link to="/" aria-label="BuildTrack" className={logoStandIn ? 'opacity-0' : undefined}>
             <BuildTrackLogo boxPx={32} textPx={20} markRef={logoMarkRef} />
           </Link>
-          <div className="flex flex-wrap items-center gap-[clamp(14px,2.2vw,30px)]">
+          {/* Below lg the links fold into the menu button instead of wrapping into two rows. */}
+          <div className="flex flex-wrap items-center gap-[clamp(14px,2.2vw,30px)] max-lg:hidden">
             <LanguageSwitcher variant="public" />
-            <a href="#plataforma" className={NAV_LINK}>
-              {t('nav.platform')}
-            </a>
-            <a href="#app" className={NAV_LINK}>
-              {t('nav.app')}
-            </a>
-            <Link to="/docs" className={NAV_LINK}>
-              {t('nav.docs')}
-            </Link>
-            <Link to="/status" className={NAV_LINK}>
-              {t('nav.status')}
-            </Link>
-            {/* "Precios" goes to the demo section — there is no price list */}
-            <a href="#demo" className={NAV_LINK}>
-              {t('nav.pricing')}
-            </a>
-            <Link
-              to="/login"
-              className="rounded-[2px] border border-[rgba(168,154,135,0.45)] px-[18px] py-2 text-sm font-medium text-bt-bone transition-colors hover:border-bt-orange hover:text-bt-orange"
-            >
-              {t('nav.signIn')}
-            </Link>
+            <NavLinks className={NAV_LINK} />
+            <SignInLink place="nav" />
           </div>
+          <MobileMenu place="nav" className="lg:hidden" />
         </nav>
 
         <div
@@ -117,10 +112,10 @@ export function Landing() {
             style={{ animationDelay: '0.36s' }}
             className="mt-[clamp(28px,4.5vh,48px)] flex flex-wrap items-center gap-[clamp(18px,2.5vw,32px)]"
           >
-            <a href="#demo" className={CTA_PRIMARY}>
+            <a href="#demo" className={CTA_PRIMARY} onClick={cta('demo', 'hero')}>
               {t('cta.demo')}
             </a>
-            <a href="#beta" className={CTA_GHOST}>
+            <a href="#beta" className={CTA_GHOST} onClick={cta('beta', 'hero')}>
               {t('cta.beta')}
             </a>
           </div>
@@ -148,7 +143,7 @@ export function Landing() {
       </header>
 
       {/* ── The problem ──────────────────────────────────────────────── */}
-      <section id="problema" className="scroll-mt-6 bg-bt-paper">
+      <section id="problema" className="scroll-mt-16 bg-bt-paper">
         <div className={`${SECTION} py-[clamp(72px,10vw,128px)]`}>
           <p className={`${LABEL} mb-5`}>{t('problem.label')}</p>
           <h2 className={`${H2} max-w-[22ch] text-balance`}>{t('problem.title')}</h2>
@@ -178,7 +173,7 @@ export function Landing() {
       </section>
 
       {/* ── The system: five modules ─────────────────────────────────── */}
-      <section id="sistema" className="scroll-mt-6 border-t border-bt-rule bg-bt-paper">
+      <section id="sistema" className="scroll-mt-16 border-t border-bt-rule bg-bt-paper">
         <div className={`${SECTION} py-[clamp(72px,10vw,128px)]`}>
           <div className="mb-[clamp(40px,5vw,64px)] flex flex-wrap items-end justify-between gap-6">
             <div>
@@ -222,11 +217,35 @@ export function Landing() {
               {t('system.portalLink')}
             </a>
           </p>
+
+          {/* What changes — it used to be a section of its own that restated
+              the modules; here it closes them, so the page is one screen shorter. */}
+          <div id="resultados" className="mt-[clamp(48px,6vw,80px)] scroll-mt-16">
+            <div className="flex flex-wrap items-baseline gap-x-5 gap-y-2">
+              <p className={LABEL}>{t('results.label')}</p>
+              <h3 className="font-bt-heading text-[clamp(22px,2.2vw,28px)] font-bold tracking-[-0.015em] text-bt-ink">
+                {t('results.title')}
+              </h3>
+            </div>
+            <div className="mt-6 grid grid-cols-[repeat(auto-fit,minmax(230px,1fr))] gap-x-[clamp(20px,2.5vw,36px)] gap-y-6">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="border-t-2 border-bt-ink pt-4">
+                  <p className="font-bt-mono text-[10.5px] tracking-[0.14em] text-bt-orange">R-0{i}</p>
+                  <h4 className="mt-2 font-bt-heading text-[17px] font-bold tracking-[-0.01em] text-bt-ink">
+                    {t(`results.${i}.title`)}
+                  </h4>
+                  <p className="mt-2 text-pretty text-[14px] leading-[1.6] text-bt-muted">
+                    {t(`results.${i}.body`)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
       {/* ── Platform: drawing sheets + real footage ──────────────────── */}
-      <section id="plataforma" className="scroll-mt-6 bg-bt-paper-2">
+      <section id="plataforma" className="scroll-mt-16 bg-bt-paper-2">
         <div className={`${SECTION} py-[clamp(72px,10vw,128px)]`}>
           <p className={`${LABEL} mb-5`}>{t('sheets.label')}</p>
           <h2 className={H2}>{t('sheets.title')}</h2>
@@ -246,7 +265,7 @@ export function Landing() {
       </section>
 
       {/* ── Field app ────────────────────────────────────────────────── */}
-      <section id="app" className="relative scroll-mt-6 overflow-hidden bg-bt-ink">
+      <section id="app" className="relative scroll-mt-16 overflow-hidden bg-bt-ink">
         <BlueprintGrid fade="bottom" lineOpacity={0.04} />
         <div
           className={`${SECTION} relative flex flex-wrap items-center gap-[clamp(40px,6vw,100px)] py-[clamp(72px,10vw,128px)]`}
@@ -288,6 +307,7 @@ export function Landing() {
                 href={APP_STORE_URL}
                 target="_blank"
                 rel="noreferrer"
+                onClick={cta('app_store', 'app')}
                 className="inline-flex items-center gap-3 rounded-[2px] bg-bt-orange px-[22px] py-3 text-bt-ink transition-colors hover:bg-bt-orange-hover"
               >
                 <svg width="18" height="20" viewBox="0 0 18 20" aria-hidden="true">
@@ -357,33 +377,8 @@ export function Landing() {
         </div>
       </section>
 
-      {/* ── What changes ─────────────────────────────────────────────── */}
-      <section id="resultados" className="scroll-mt-6 bg-bt-paper">
-        <div className={`${SECTION} py-[clamp(72px,10vw,120px)]`}>
-          <p className={`${LABEL} mb-5`}>{t('results.label')}</p>
-          <h2 className={`${H2} max-w-[24ch] text-balance`}>{t('results.title')}</h2>
-
-          <div className="mt-[clamp(36px,4.5vw,56px)] grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] border-y border-bt-rule">
-            {[1, 2, 3, 4].map((i) => (
-              <div
-                key={i}
-                className={`border-l border-bt-rule px-6 pb-9 pt-7 ${i === 4 ? 'border-r' : ''}`}
-              >
-                <p className="font-bt-mono text-[22px] text-bt-orange">R-0{i}</p>
-                <h3 className="mt-4 font-bt-heading text-[19px] font-bold tracking-[-0.01em] text-bt-ink">
-                  {t(`results.${i}.title`)}
-                </h3>
-                <p className="mt-2.5 text-pretty text-[14.5px] leading-[1.6] text-bt-muted">
-                  {t(`results.${i}.body`)}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ── Who it's for ─────────────────────────────────────────────── */}
-      <section id="para-quien" className="scroll-mt-6 border-t border-bt-rule bg-bt-paper">
+      <section id="para-quien" className="scroll-mt-16 border-t border-bt-rule bg-bt-paper">
         <div
           className={`${SECTION} flex flex-wrap items-start gap-[clamp(36px,6vw,96px)] py-[clamp(64px,8vw,104px)]`}
         >
@@ -411,8 +406,11 @@ export function Landing() {
         </div>
       </section>
 
+      {/* ── Social proof (renders only once there is a real testimonial) */}
+      <Testimonials />
+
       {/* ── Trust ────────────────────────────────────────────────────── */}
-      <section id="confianza" className="scroll-mt-6 bg-bt-paper-2">
+      <section id="confianza" className="scroll-mt-16 bg-bt-paper-2">
         <div className={`${SECTION} py-[clamp(64px,8vw,104px)]`}>
           <p className={`${LABEL} mb-5`}>{t('trust.label')}</p>
           <h2 className={`${H2} max-w-[26ch] text-balance`}>{t('trust.title')}</h2>
@@ -447,7 +445,7 @@ export function Landing() {
       </section>
 
       {/* ── Demo (the "pricing" destination) ─────────────────────────── */}
-      <section id="demo" className="scroll-mt-6 bg-bt-ink">
+      <section id="demo" className="scroll-mt-16 bg-bt-ink">
         <div
           className={`${SECTION} flex flex-wrap items-start gap-[clamp(40px,6vw,96px)] py-[clamp(72px,10vw,120px)]`}
         >
@@ -460,11 +458,12 @@ export function Landing() {
               {t('demo.subtitle')}
             </p>
             <div className="mt-[34px] flex flex-wrap items-center gap-[26px]">
-              <a href={mailtoDemo} className={CTA_PRIMARY}>
+              <a href={mailtoDemo} className={CTA_PRIMARY} onClick={email('demo', 'demo')}>
                 {t('cta.demo')}
               </a>
               <a
                 href={mailtoDemo}
+                onClick={email('demo', 'demo-address')}
                 className="border-b border-[rgba(168,154,135,0.4)] pb-0.5 font-bt-mono text-xs tracking-[0.06em] text-bt-muted-2 transition-colors hover:border-bt-orange hover:text-bt-orange"
               >
                 {SUPPORT_EMAIL}
@@ -495,6 +494,7 @@ export function Landing() {
               {t('demo.alt')}{' '}
               <a
                 href="#beta"
+                onClick={cta('beta', 'demo-alt')}
                 className="border-b border-[rgba(168,154,135,0.4)] font-semibold text-bt-bone transition-colors hover:border-bt-orange hover:text-bt-orange"
               >
                 {t('demo.altLink')}
@@ -505,7 +505,7 @@ export function Landing() {
       </section>
 
       {/* ── Beta ─────────────────────────────────────────────────────── */}
-      <section id="beta" className="scroll-mt-6 bg-bt-brown">
+      <section id="beta" className="scroll-mt-16 bg-bt-brown">
         <div
           className={`${SECTION} flex flex-wrap items-start gap-[clamp(40px,6vw,96px)] py-[clamp(72px,10vw,120px)]`}
         >
@@ -518,11 +518,12 @@ export function Landing() {
               {t('beta.subtitle')}
             </p>
             <div className="mt-[34px] flex flex-wrap items-center gap-[26px]">
-              <a href={mailtoBeta} className={CTA_PRIMARY}>
+              <a href={mailtoBeta} className={CTA_PRIMARY} onClick={email('beta', 'beta')}>
                 {t('beta.cta')}
               </a>
               <a
                 href={mailtoBeta}
+                onClick={email('beta', 'beta-address')}
                 className="border-b border-[rgba(168,154,135,0.4)] pb-0.5 font-bt-mono text-xs tracking-[0.06em] text-bt-muted-2 transition-colors hover:border-bt-orange hover:text-bt-orange"
               >
                 {SUPPORT_EMAIL}
@@ -551,7 +552,7 @@ export function Landing() {
       </section>
 
       {/* ── About ────────────────────────────────────────────────────── */}
-      <section id="nosotros" className="scroll-mt-6 bg-bt-paper">
+      <section id="nosotros" className="scroll-mt-16 bg-bt-paper">
         <div
           className={`${SECTION} flex flex-wrap items-start gap-[clamp(36px,6vw,96px)] py-[clamp(64px,8vw,104px)]`}
         >
@@ -579,7 +580,7 @@ export function Landing() {
       </section>
 
       {/* ── FAQ ──────────────────────────────────────────────────────── */}
-      <section id="faq" className="scroll-mt-6 border-t border-bt-rule bg-bt-paper">
+      <section id="faq" className="scroll-mt-16 border-t border-bt-rule bg-bt-paper">
         <div
           className={`${SECTION} flex flex-wrap items-start gap-[clamp(36px,6vw,96px)] py-[clamp(64px,8vw,104px)]`}
         >
@@ -648,10 +649,10 @@ export function Landing() {
             {t('ctaFinal.line1')} <span className="text-bt-orange">{t('ctaFinal.line2')}</span>
           </h2>
           <div className="mt-[clamp(30px,4vw,44px)] flex flex-wrap items-center gap-[clamp(18px,2.5vw,32px)]">
-            <a href={mailtoDemo} className={CTA_PRIMARY}>
+            <a href={mailtoDemo} className={CTA_PRIMARY} onClick={email('demo', 'final')}>
               {t('cta.demo')}
             </a>
-            <a href="#beta" className={CTA_GHOST}>
+            <a href="#beta" className={CTA_GHOST} onClick={cta('beta', 'final')}>
               {t('cta.beta')}
             </a>
           </div>
@@ -708,6 +709,7 @@ export function Landing() {
         </div>
       </footer>
 
+      <StickyBar watch={heroRef} />
       <AssistantLauncher />
       <LogoBuildOverlay markRef={logoMarkRef} onStandInChange={setLogoStandIn} />
     </div>

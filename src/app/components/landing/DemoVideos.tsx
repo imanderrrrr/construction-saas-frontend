@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+
+import { track } from '../../lib/analytics';
 
 /**
  * The Videos block of the Platform section — the real product footage.
@@ -13,16 +15,17 @@ import { useTranslation } from 'react-i18next';
  * who switched the page to English was being shown a Spanish panel under an
  * English heading, which reads as "this product is not for you".
  *
- * They are grouped by MODULE, in the order the "Cinco módulos" section above
- * names them, so the block answers "what does each module actually look like"
- * instead of being a wall of unlabelled screens. A module with two screens
- * worth showing gets two plates; the rest get one.
+ * ONE player with a tab per clip. The eight clips used to be stacked one
+ * under another, which made this block a third of the whole page; now the
+ * reader picks the screen and the module it belongs to is named under it.
+ * Tabs follow the order of the "Cinco módulos" section above.
  *
- * Frames are 16:10 — the recording's own ratio — so nothing is cropped.
+ * On a phone a 16:10 recording of a desktop panel is too small to read, so the
+ * player offers full screen (turn the phone sideways and it fills it).
  */
 
 type Group = {
-  /** i18n key under `videos.group.` and the block's identity. */
+  /** i18n key under `videos.group.` */
   key: string;
   /** File stems — `/demos/<lang>/<key>.webm` / `.mp4` / `.jpg`. */
   clips: string[];
@@ -47,10 +50,11 @@ const GROUPS: Group[] = [
   { key: 'portal',     clips: ['portal'] },
 ];
 
-/** Sheet number per clip: BT-V01… in the order the groups are drawn. */
-const SHEET: Record<string, number> = Object.fromEntries(
-  GROUPS.flatMap(g => g.clips).map((clip, i) => [clip, i + 1]),
-);
+const CLIPS = GROUPS.flatMap(group => group.clips.map(clip => ({ clip, group: group.key })));
+
+function pad(n: number): string {
+  return String(n).padStart(2, '0');
+}
 
 /** True when the reader has asked the OS to reduce motion. */
 function usePrefersReducedMotion(): boolean {
@@ -65,21 +69,26 @@ function usePrefersReducedMotion(): boolean {
   return reduced;
 }
 
-function pad(n: number): string {
-  return String(n).padStart(2, '0');
-}
+type FullscreenVideo = HTMLVideoElement & { webkitEnterFullscreen?: () => void };
 
-function ClipCard({ clip, lang, reduced }: { clip: string; lang: ClipLang; reduced: boolean }) {
-  const { t } = useTranslation('landing');
-  const ref = useRef<HTMLVideoElement>(null);
+export function DemoVideos() {
+  const { t, i18n } = useTranslation('landing');
+  const reduced = usePrefersReducedMotion();
+  const lang = clipLang(i18n.resolvedLanguage ?? i18n.language);
+  const [index, setIndex] = useState(0);
+  const videoRef = useRef<FullscreenVideo>(null);
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const baseId = useId();
+
+  const { clip, group } = CLIPS[index];
   const title = t(`videos.${clip}.title`);
+  const tabId = (i: number) => `${baseId}-tab-${i}`;
+  const panelId = `${baseId}-panel`;
 
-  // Eight silent loops running at once is bandwidth nobody asked for and
-  // decoders the browser does not have: a clip plays while it is on screen and
-  // stops the moment it leaves. `preload="none"` keeps the ones below the fold
-  // from being fetched at all until they are scrolled to.
+  // The clip plays while the player is on screen and stops when it leaves.
+  // `preload="none"` keeps it from being fetched before it is scrolled to.
   useEffect(() => {
-    const video = ref.current;
+    const video = videoRef.current;
     // No observer (jsdom, and any browser old enough to lack it): leave the
     // element exactly as the markup declares it — autoplaying and looping.
     if (!video || reduced || typeof IntersectionObserver === 'undefined') return;
@@ -92,45 +101,41 @@ function ClipCard({ clip, lang, reduced }: { clip: string; lang: ClipLang; reduc
     );
     io.observe(video);
     return () => io.disconnect();
-  }, [reduced, lang]);
+  }, [reduced, lang, index]);
 
-  return (
-    <figure className="border border-[rgba(23,19,15,0.3)] bg-bt-sheet shadow-[0_22px_50px_-32px_rgba(23,19,15,0.4)]">
-      <div className="aspect-[16/10] overflow-hidden bg-bt-ink">
-        {/* Keyed by language: swapping the <source> children of a playing
-            <video> does nothing on its own — the element keeps the media it
-            already loaded until it is torn down and mounted again. */}
-        <video
-          key={lang}
-          ref={ref}
-          className="h-full w-full object-cover"
-          poster={`/demos/${lang}/${clip}.jpg`}
-          aria-label={t('videos.alt', { title })}
-          autoPlay={!reduced}
-          loop={!reduced}
-          controls={reduced}
-          muted
-          playsInline
-          preload="none"
-        >
-          <source src={`/demos/${lang}/${clip}.webm`} type="video/webm" />
-          <source src={`/demos/${lang}/${clip}.mp4`} type="video/mp4" />
-        </video>
-      </div>
-      <figcaption className="flex justify-between gap-2.5 border-t border-[rgba(23,19,15,0.3)] px-3.5 py-[9px] font-bt-mono text-[8.5px] tracking-[0.12em]">
-        <span className="min-w-0 truncate text-bt-ink">
-          BT-V{pad(SHEET[clip])} · {title.toUpperCase()}
-        </span>
-        <span className="flex-none text-bt-muted-2">16:10</span>
-      </figcaption>
-    </figure>
-  );
-}
+  function select(next: number, focus = false) {
+    setIndex(next);
+    if (focus) tabRefs.current[next]?.focus();
+    track('demo_video_select', { clip: CLIPS[next].clip });
+  }
 
-export function DemoVideos() {
-  const { t, i18n } = useTranslation('landing');
-  const reduced = usePrefersReducedMotion();
-  const lang = clipLang(i18n.resolvedLanguage ?? i18n.language);
+  // Arrow keys move between tabs, Home/End jump to the ends (WAI-ARIA tabs).
+  function onTabKey(event: KeyboardEvent<HTMLButtonElement>) {
+    const last = CLIPS.length - 1;
+    const moves: Record<string, number> = {
+      ArrowRight: index === last ? 0 : index + 1,
+      ArrowDown: index === last ? 0 : index + 1,
+      ArrowLeft: index === 0 ? last : index - 1,
+      ArrowUp: index === 0 ? last : index - 1,
+      Home: 0,
+      End: last,
+    };
+    if (!(event.key in moves)) return;
+    event.preventDefault();
+    select(moves[event.key], true);
+  }
+
+  function openFullscreen() {
+    const video = videoRef.current;
+    if (!video) return;
+    track('demo_video_fullscreen', { clip });
+    // iPhone Safari only lets the <video> itself go full screen.
+    if (typeof video.requestFullscreen === 'function') {
+      void video.requestFullscreen().catch(() => video.webkitEnterFullscreen?.());
+    } else {
+      video.webkitEnterFullscreen?.();
+    }
+  }
 
   return (
     <>
@@ -139,31 +144,105 @@ export function DemoVideos() {
         <p className="font-bt-mono text-[10px] tracking-[0.1em] text-bt-orange">{t('videos.provenance')}</p>
       </div>
 
-      <div className="max-w-[1120px] space-y-[clamp(26px,3.2vw,40px)]">
-        {GROUPS.map(group => (
-          <section
-            key={group.key}
-            className="flex flex-col gap-[18px] border-t border-bt-rule pt-[22px] md:flex-row md:gap-[clamp(24px,3vw,44px)]"
-          >
-            <header className="md:w-[188px] md:flex-none">
-              <p className="font-bt-mono text-[10.5px] tracking-[0.14em] text-bt-orange">
-                {t(`videos.group.${group.key}.label`)}
-              </p>
-              <h3 className="mt-2.5 text-balance font-bt-heading text-[18px] font-bold tracking-[-0.01em] text-bt-ink">
-                {t(`videos.group.${group.key}.title`)}
-              </h3>
-              <p className="mt-2 text-pretty text-[13.5px] leading-[1.5] text-bt-muted">
-                {t(`videos.group.${group.key}.body`)}
-              </p>
-            </header>
+      <div className="grid max-w-[1120px] gap-[clamp(16px,2.5vw,32px)] lg:grid-cols-[220px_minmax(0,1fr)]">
+        <div
+          role="tablist"
+          aria-label={t('videos.tabs')}
+          className="-mx-[clamp(22px,5vw,64px)] flex gap-2 overflow-x-auto px-[clamp(22px,5vw,64px)] pb-1 lg:mx-0 lg:flex-col lg:gap-0 lg:overflow-visible lg:border-t lg:border-bt-rule lg:px-0 lg:pb-0"
+        >
+          {CLIPS.map((item, i) => {
+            const selected = i === index;
+            return (
+              <button
+                key={item.clip}
+                ref={el => { tabRefs.current[i] = el; }}
+                id={tabId(i)}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                aria-controls={panelId}
+                tabIndex={selected ? 0 : -1}
+                onClick={() => select(i)}
+                onKeyDown={onTabKey}
+                className={`flex flex-none items-baseline gap-2.5 whitespace-nowrap rounded-[2px] border px-3.5 py-2.5 text-left text-[14px] font-medium transition-colors lg:rounded-none lg:border-0 lg:border-b lg:border-bt-rule lg:px-0 lg:py-3 lg:whitespace-normal ${
+                  selected
+                    ? 'border-bt-ink bg-bt-ink text-bt-bone lg:bg-transparent lg:text-bt-ink'
+                    : 'border-bt-rule text-bt-muted hover:text-bt-ink'
+                }`}
+              >
+                <span
+                  className={`font-bt-mono text-[10px] tracking-[0.12em] ${selected ? 'text-bt-orange' : 'text-bt-muted-2'}`}
+                >
+                  {`V${pad(i + 1)}`}
+                </span>
+                <span className={selected ? 'lg:font-bold' : undefined}>{t(`videos.${item.clip}.title`)}</span>
+              </button>
+            );
+          })}
+        </div>
 
-            <div className="grid min-w-0 flex-1 grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-[clamp(16px,2vw,24px)]">
-              {group.clips.map(clip => (
-                <ClipCard key={clip} clip={clip} lang={lang} reduced={reduced} />
-              ))}
+        <figure
+          id={panelId}
+          role="tabpanel"
+          aria-labelledby={tabId(index)}
+          className="min-w-0"
+        >
+          <div className="border border-[rgba(23,19,15,0.3)] bg-bt-sheet shadow-[0_22px_50px_-32px_rgba(23,19,15,0.4)]">
+            <div className="aspect-[16/10] overflow-hidden bg-bt-ink">
+              {/* Keyed by language and clip: swapping the <source> children of
+                  a playing <video> does nothing on its own — the element keeps
+                  the media it already loaded until it is mounted again. */}
+              <video
+                key={`${lang}-${clip}`}
+                ref={videoRef}
+                className="h-full w-full object-cover"
+                poster={`/demos/${lang}/${clip}.jpg`}
+                aria-label={t('videos.alt', { title })}
+                autoPlay={!reduced}
+                loop={!reduced}
+                controls={reduced}
+                muted
+                playsInline
+                preload="none"
+              >
+                <source src={`/demos/${lang}/${clip}.webm`} type="video/webm" />
+                <source src={`/demos/${lang}/${clip}.mp4`} type="video/mp4" />
+              </video>
             </div>
-          </section>
-        ))}
+            <figcaption className="flex items-center justify-between gap-2.5 border-t border-[rgba(23,19,15,0.3)] px-3.5 py-[7px] font-bt-mono text-[9px] tracking-[0.12em]">
+              <span className="min-w-0 truncate text-bt-ink">
+                BT-V{pad(index + 1)} · {title.toUpperCase()}
+              </span>
+              <button
+                type="button"
+                onClick={openFullscreen}
+                className="flex flex-none items-center gap-1.5 py-1 font-bt-mono text-[9px] tracking-[0.12em] text-bt-muted transition-colors hover:text-bt-orange"
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+                  <path
+                    d="M1 4.5 V1 H4.5 M7.5 1 H11 V4.5 M11 7.5 V11 H7.5 M4.5 11 H1 V7.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.3"
+                  />
+                </svg>
+                {t('videos.fullscreen')}
+              </button>
+            </figcaption>
+          </div>
+
+          <div className="mt-[18px] max-w-[60ch]">
+            <p className="font-bt-mono text-[10.5px] tracking-[0.14em] text-bt-orange">
+              {t(`videos.group.${group}.label`)}
+            </p>
+            <h3 className="mt-2 text-balance font-bt-heading text-[18px] font-bold tracking-[-0.01em] text-bt-ink">
+              {t(`videos.group.${group}.title`)}
+            </h3>
+            <p className="mt-1.5 text-pretty text-[14px] leading-[1.55] text-bt-muted">
+              {t(`videos.group.${group}.body`)}
+            </p>
+          </div>
+        </figure>
       </div>
     </>
   );
