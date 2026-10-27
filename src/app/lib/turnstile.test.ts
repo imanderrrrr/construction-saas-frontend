@@ -124,6 +124,22 @@ describe('requestTurnstileToken', () => {
     expect(renderOptions.size).toBe('flexible');
   });
 
+  it('renders with the light theme, to match the light card it sits on', async () => {
+    void mod.requestTurnstileToken(document.createElement('div'));
+    finishScriptLoad();
+    await settle();
+
+    expect(renderOptions.theme).toBe('light');
+  });
+
+  it('renders with retry never: the widget is removed on failure, so Turnstile must not try to reset it', async () => {
+    void mod.requestTurnstileToken(document.createElement('div'));
+    finishScriptLoad();
+    await settle();
+
+    expect(renderOptions.retry).toBe('never');
+  });
+
   it('an error callback rejects TurnstileFailedError', async () => {
     const pending = mod.requestTurnstileToken(document.createElement('div'));
     finishScriptLoad();

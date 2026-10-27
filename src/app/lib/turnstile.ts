@@ -22,6 +22,8 @@ interface TurnstileRenderOptions {
   sitekey: string;
   appearance: 'always' | 'execute' | 'interaction-only';
   size: 'normal' | 'compact' | 'flexible';
+  theme: 'auto' | 'light' | 'dark';
+  retry: 'auto' | 'never';
   callback: (token: string) => void;
   'error-callback': (code?: string) => void;
   'timeout-callback': () => void;
@@ -130,6 +132,11 @@ export async function requestTurnstileToken(
         sitekey: key,
         appearance: 'interaction-only',
         size: 'flexible',
+        // The card it shows in is light whatever the visitor's system theme.
+        theme: 'light',
+        // Every answer removes the widget; Turnstile's own retry would then
+        // try to reset a widget that is gone and throw "Nothing to reset".
+        retry: 'never',
         callback: (token) => {
           done();
           resolve(token);
