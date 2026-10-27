@@ -206,8 +206,8 @@ function DashboardView({ username, onNavigate }: { username: string; onNavigate:
             <div key={item.code} data-testid="stock-alert" className="flex items-start justify-between gap-4 px-4 sm:px-6 py-3 hover:bg-[#FAF7F0]/50 transition-colors">
               <div className="flex items-start gap-3 min-w-0 flex-1">
                 <div className={`w-2 h-2 rounded-full flex-shrink-0 ${item.stock === 0 ? 'bg-red-500' : 'bg-amber-500'}`} />
-                <div className="min-w-0">
-                  <p title={item.name} className="text-sm font-medium text-[#0A0A0A] break-words [overflow-wrap:anywhere]">{item.name}</p>
+                <div className="min-w-0 flex-1">
+                  <p title={item.name} className="text-sm font-medium text-[#0A0A0A] truncate">{item.name}</p>
                   <p className="text-[11px] text-[#8A8175] font-bt-mono">{item.code}</p>
                 </div>
               </div>

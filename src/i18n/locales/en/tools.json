@@ -159,6 +159,8 @@
   "form.code.takenBody": "{{code}} is already in the inventory: it's {{name}}. The code is unique per company, so if they really are two machines, add a letter: {{code}}-B.",
   "form.name": "Name",
   "form.name.hint": "Make and model · it's what gets searched",
+  "name.limitHint": "{{count}} / {{max}} characters",
+  "name.tooLong": "The name allows up to {{max}} characters. Shorten it to save.",
   "form.category": "Category",
   "form.category.hintEdit": "Changing it doesn't touch the history",
   "form.notes": "Notes",

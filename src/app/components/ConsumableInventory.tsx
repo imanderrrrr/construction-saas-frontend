@@ -428,7 +428,7 @@ function AddConsumableModal({ open, onClose, onAdd }: {
   const [minStock, setMinStock] = useState('');
   const [notes, setNotes] = useState('');
 
-  const canSubmit = moneyInputCents(unitCost) != null && name.trim() && category && unit && Number(stock) >= 0 && Number(minStock) >= 0;
+  const canSubmit = moneyInputCents(unitCost) != null && name.trim() && name.trim().length <= FIELD_LIMITS.WAREHOUSE_NAME && category && unit && Number(stock) >= 0 && Number(minStock) >= 0;
 
   const handleSubmit = () => {
     if (!canSubmit) return;
@@ -454,7 +454,7 @@ function AddConsumableModal({ open, onClose, onAdd }: {
         <div className="space-y-4 py-2">
           <div>
             <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide">{t('consumables.dialog.name')} *</label>
-            <Input value={name} onChange={e => setName(e.target.value)} maxLength={FIELD_LIMITS.SHORT_NAME} className="mt-1 h-9 border-[#D4D4D8] text-sm" placeholder={t('consumables.dialog.namePlaceholder')} />
+            <Input value={name} onChange={e => setName(e.target.value)} maxLength={FIELD_LIMITS.WAREHOUSE_NAME} className="mt-1 h-9 border-[#D4D4D8] text-sm" placeholder={t('consumables.dialog.namePlaceholder')} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -523,7 +523,7 @@ function EditConsumableModal({ item, onClose, onSave }: {
   const [unitCost, setUnitCost] = useState((item.unitCostCents / 100).toFixed(2));
   const [notes, setNotes] = useState(item.notes ?? '');
 
-  const canSubmit = moneyInputCents(unitCost) != null && name.trim() && category && unit && Number(minStock) >= 0;
+  const canSubmit = moneyInputCents(unitCost) != null && name.trim() && name.trim().length <= FIELD_LIMITS.WAREHOUSE_NAME && category && unit && Number(minStock) >= 0;
 
   const handleSubmit = () => {
     if (!canSubmit) return;
@@ -544,7 +544,7 @@ function EditConsumableModal({ item, onClose, onSave }: {
           </div>
           <div>
             <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide">{t('consumables.dialog.name')} *</label>
-            <Input value={name} onChange={e => setName(e.target.value)} maxLength={FIELD_LIMITS.SHORT_NAME} className="mt-1 h-9 border-[#D4D4D8] text-sm" />
+            <Input value={name} onChange={e => setName(e.target.value)} maxLength={FIELD_LIMITS.WAREHOUSE_NAME} className="mt-1 h-9 border-[#D4D4D8] text-sm" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

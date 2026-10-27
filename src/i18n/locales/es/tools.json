@@ -159,6 +159,8 @@
   "form.code.takenBody": "{{code}} ya está en el inventario: es {{name}}. El código es único por empresa, así que si de verdad son dos máquinas, dale una letra: {{code}}-B.",
   "form.name": "Nombre",
   "form.name.hint": "Marca y modelo · es lo que se busca",
+  "name.limitHint": "{{count}} / {{max}} caracteres",
+  "name.tooLong": "El nombre admite hasta {{max}} caracteres. Acórtalo para guardar.",
   "form.category": "Categoría",
   "form.category.hintEdit": "Cambiarla no toca el historial",
   "form.notes": "Notas",

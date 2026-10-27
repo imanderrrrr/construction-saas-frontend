@@ -89,6 +89,7 @@ export function ToolFormModal({ open, onOpenChange, tool, onSaved }: {
     const value = code.trim().toUpperCase();
     if (!editing && !value) next.code = t('tools:form.err.code');
     if (!name.trim()) next.name = t('tools:form.err.name');
+    else if (name.trim().length > FIELD_LIMITS.WAREHOUSE_NAME) next.name = t('tools:name.tooLong', { max: FIELD_LIMITS.WAREHOUSE_NAME });
     if (!category) next.category = t('tools:form.err.category');
     setErrors(next);
     if (Object.keys(next).length > 0) return;
@@ -173,10 +174,15 @@ export function ToolFormModal({ open, onOpenChange, tool, onSaved }: {
             id="tool-name"
             value={name}
             onChange={e => setName(e.target.value)}
-            maxLength={FIELD_LIMITS.SHORT_NAME}
+            maxLength={FIELD_LIMITS.WAREHOUSE_NAME}
+            aria-invalid={!!errors.name}
+            aria-describedby="tool-name-hint"
             className={cn(INPUT, fieldBg, errors.name && INPUT_ERROR)}
           />
-          {errors.name ? <FieldError>{errors.name}</FieldError> : <FieldHint>{t('tools:form.name.hint')}</FieldHint>}
+          <div id="tool-name-hint">
+            {errors.name ? <FieldError>{errors.name}</FieldError> : <FieldHint>{t('tools:form.name.hint')}</FieldHint>}
+            <FieldHint>{t('tools:name.limitHint', { count: name.length, max: FIELD_LIMITS.WAREHOUSE_NAME })}</FieldHint>
+          </div>
         </div>
       </div>
 

@@ -305,7 +305,7 @@ export function ToolsSection({ onNavigate, mode = 'admin', view }: {
                     type="button"
                     role="tab"
                     aria-selected={active}
-                    onClick={() => { setTab(key); setSearch(''); setDebouncedSearch(''); }}
+                    onClick={() => { setSearch(''); setDebouncedSearch(''); setTab(key); }}
                     className={cn(
                       'inline-flex items-center gap-2 px-4 py-2.5 font-bt-mono text-[10.5px] font-semibold uppercase tracking-[0.12em] whitespace-nowrap',
                       'border -ml-px first:ml-0 transition-colors',

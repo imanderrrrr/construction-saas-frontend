@@ -61,6 +61,7 @@ export function ConsumableFormModal({ open, onOpenChange, onSaved, consumable = 
   const submit = async () => {
     const next: typeof errors = {};
     if (!name.trim()) next.name = t('tools:consumable.err.name');
+    else if (name.trim().length > FIELD_LIMITS.WAREHOUSE_NAME) next.name = t('tools:name.tooLong', { max: FIELD_LIMITS.WAREHOUSE_NAME });
     if (!unit.trim()) next.unit = t('tools:consumable.err.unit');
     if (moneyInputCents(unitCost) == null) next.numbers = t('inventory:consumables.dialog.invalidCost');
     if (!Number.isSafeInteger(stockNumber) || !Number.isSafeInteger(minimumNumber) || stockNumber < 0 || minimumNumber < 0) next.numbers = t('tools:consumable.err.negative');
@@ -122,8 +123,11 @@ export function ConsumableFormModal({ open, onOpenChange, onSaved, consumable = 
         </div>
         <div>
           <FieldLabel htmlFor="cs-name" required>{t('tools:consumable.name')}</FieldLabel>
-          <input id="cs-name" value={name} onChange={e => setName(e.target.value)} maxLength={FIELD_LIMITS.SHORT_NAME} className={cn(INPUT, 'bg-[#FAF7F0]', errors.name && INPUT_ERROR)} />
-          {errors.name && <FieldError>{errors.name}</FieldError>}
+          <input id="cs-name" value={name} onChange={e => setName(e.target.value)} maxLength={FIELD_LIMITS.WAREHOUSE_NAME} aria-invalid={!!errors.name} aria-describedby="cs-name-hint" className={cn(INPUT, 'bg-[#FAF7F0]', errors.name && INPUT_ERROR)} />
+          <div id="cs-name-hint">
+            {errors.name && <FieldError>{errors.name}</FieldError>}
+            <FieldHint>{t('tools:name.limitHint', { count: name.length, max: FIELD_LIMITS.WAREHOUSE_NAME })}</FieldHint>
+          </div>
         </div>
       </div>
 
