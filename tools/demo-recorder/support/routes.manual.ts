@@ -167,7 +167,7 @@ export async function installManualApi(page: Page, lang: Lang = 'es') {
       message: T('Manuel Ramírez registró $1,240.00 en Residencial Vista Hermosa II.', 'Manuel Ramírez logged $1,240.00 on Residencial Vista Hermosa II.'),
       relatedEntityType: 'EXPENSE', relatedEntityId: 501, isRead: false, createdAt: `${NOW}T18:22:00Z`, readAt: null },
     { id: 2, type: 'TIME_OUT_OF_RANGE', title: T('Marcaje fuera del área', 'Punch outside the work area'),
-      message: T('Byron Chávez marcó a 640 m de Torre Corporativa Zona 10.', 'Byron Chávez punched 640 m from Torre Corporativa Zona 10.'),
+      message: T('Byron Chávez marcó a 640 m de Torre Corporativa Delta.', 'Byron Chávez punched 640 m from Torre Corporativa Delta.'),
       relatedEntityType: 'TIME_RECORD', relatedEntityId: 803, isRead: false, createdAt: `${NOW}T13:58:00Z`, readAt: null },
     { id: 3, type: 'PUNCH_ITEM_READY', title: T('Pendiente listo para revisión', 'Punch item ready for review'),
       message: T('#003 Filtración en ventana de sala — apartamento 402.', '#003 Leak at the living-room window — unit 402.'),
@@ -347,14 +347,14 @@ export async function installManualApi(page: Page, lang: Lang = 'es') {
   }));
   await page.route(re('admin/subcontractors/directory'), json({
     content: [
-      { subcontractorId: 11, fullName: 'Eléctricos GT', username: 'electgt', email: 'ventas@electricosgt.example',
+      { subcontractorId: 11, fullName: 'Eléctricos Delta', username: 'electdelta', email: 'ventas@electricosdelta.example',
         status: 'ACTIVE', totalJobs: 4, openJobs: 2, overdueJobs: 1, invoicesToPay: 1, balanceCents: 46_200_00 },
       { subcontractorId: 12, fullName: 'Vidrios del Valle', username: 'vidriosv', email: 'contacto@vidriosdelvalle.example',
         status: 'ACTIVE', totalJobs: 3, openJobs: 1, overdueJobs: 0, invoicesToPay: 1, balanceCents: 48_400_00 },
     ], page: 0, size: 20, totalElements: 2, totalPages: 1,
   }));
   const SUB_JOBS = [
-    { id: 61, subcontractorId: 11, subcontractorName: 'Eléctricos GT', projectId: 2, projectName: P(2).name,
+    { id: 61, subcontractorId: 11, subcontractorName: 'Eléctricos Delta', projectId: 2, projectName: P(2).name,
       title: T('Canalización eléctrica niveles 1 a 4', 'Electrical conduit, levels 1 to 4'), description: null,
       status: 'IN_REVIEW', agreedAmountCents: 46_200_00, dueDate: daysBefore(5),
       assignedAt: '2026-08-04T15:00:00Z', startedAt: '2026-08-06T14:00:00Z', submittedAt: `${daysBefore(3)}T22:10:00Z`,
@@ -366,7 +366,7 @@ export async function installManualApi(page: Page, lang: Lang = 'es') {
       assignedAt: '2026-08-28T15:00:00Z', startedAt: `${daysBefore(15)}T14:00:00Z`, submittedAt: null,
       approvedAt: null, closedAt: null, createdAt: '2026-08-28T15:00:00Z', updatedAt: `${daysBefore(1)}T16:00:00Z`,
       evidenceCount: 3, observationCount: 0, isOverdue: false },
-    { id: 63, subcontractorId: 11, subcontractorName: 'Eléctricos GT', projectId: 4, projectName: P(4).name,
+    { id: 63, subcontractorId: 11, subcontractorName: 'Eléctricos Delta', projectId: 4, projectName: P(4).name,
       title: T('Iluminación de fachada y salón principal', 'Facade and main hall lighting'), description: null,
       status: 'APPROVED', agreedAmountCents: 38_400_00, dueDate: '2026-08-30',
       assignedAt: '2026-07-14T15:00:00Z', startedAt: '2026-07-16T14:00:00Z', submittedAt: '2026-08-27T21:00:00Z',
@@ -377,12 +377,12 @@ export async function installManualApi(page: Page, lang: Lang = 'es') {
   await page.route(re('admin/subcontractors/invoices'), json({
     content: [
       { id: 71, jobId: 61, jobTitle: SUB_JOBS[0].title, projectName: P(2).name, subcontractorId: 11,
-        subcontractorName: 'Eléctricos GT', amountCents: 46_200_00, invoiceNumber: 'EGT-0442',
+        subcontractorName: 'Eléctricos Delta', amountCents: 46_200_00, invoiceNumber: 'ELD-0442',
         description: null, status: 'IN_REVIEW', hasFile: true, fileContentType: 'application/pdf',
         reviewerId: null, reviewerName: null, reviewerComment: null, reviewedAt: null, paidAt: null,
         createdAt: `${daysBefore(3)}T22:12:00Z` },
       { id: 72, jobId: 63, jobTitle: SUB_JOBS[2].title, projectName: P(4).name, subcontractorId: 11,
-        subcontractorName: 'Eléctricos GT', amountCents: 38_400_00, invoiceNumber: 'EGT-0431',
+        subcontractorName: 'Eléctricos Delta', amountCents: 38_400_00, invoiceNumber: 'ELD-0431',
         description: null, status: 'PAID', hasFile: true, fileContentType: 'application/pdf',
         reviewerId: 1, reviewerName: 'Ana Lucía Pérez', reviewerComment: null,
         reviewedAt: '2026-08-30T16:00:00Z', paidAt: `${daysBefore(15)}T17:00:00Z`, createdAt: '2026-08-27T21:05:00Z' },
@@ -595,8 +595,8 @@ export async function installManualApi(page: Page, lang: Lang = 'es') {
   await page.route(re('settings/invoice-branding'), json({
     configured: true, companyName: COMPANY,
     contactName: 'Ana Lucía Pérez',
-    address: T('7a Avenida 12-34, Zona 9, Ciudad de Guatemala', '7a Avenida 12-34, Zona 9, Guatemala City'),
-    email: 'facturacion@constructoraandes.example', phone: '+502 2334-7788', hasLogo: false,
+    address: T('Louisiana St y Bell St', 'Louisiana St & Bell St'),
+    email: 'facturacion@constructoraandes.example', phone: '(713) 555-0100', hasLogo: false,
   }));
 
   const OFFICE_CATS = [
@@ -675,7 +675,7 @@ export async function installManualApi(page: Page, lang: Lang = 'es') {
     expense(502, 4, 1, FUEL, 320_00, NOW, T('Diésel para planta eléctrica', 'Diesel for the generator'), 'PENDING'),
     expense(503, 6, 2, MEALS, 186_00, daysBefore(1), T('Almuerzo de cuadrilla — fundición nocturna', 'Crew lunch — night pour'), 'PENDING'),
     expense(504, 5, 3, MATERIALS, 640_00, daysBefore(1), T('Alambre de amarre y clavos', 'Tie wire and nails'), 'PENDING'),
-    expense(505, 7, 4, FUEL, 410_00, daysBefore(2), T('Combustible de camioneta — viajes a Antigua', 'Truck fuel — Antigua trips'), 'OBSERVED'),
+    expense(505, 7, 4, FUEL, 410_00, daysBefore(2), T('Combustible de camioneta — viajes al hotel', 'Truck fuel — trips to the hotel'), 'OBSERVED'),
     expense(506, 3, 1, MATERIALS, 2_180_00, daysBefore(3), T('Impermeabilizante para losa', 'Slab waterproofing'), 'APPROVED'),
     expense(507, 4, 1, MEALS, 240_00, daysBefore(5), T('Refacción de cuadrilla', 'Crew snack'), 'APPROVED'),
     expense(508, 6, 6, MATERIALS, 980_00, daysBefore(6), T('Cal hidratada y arena', 'Hydrated lime and sand'), 'APPROVED'),

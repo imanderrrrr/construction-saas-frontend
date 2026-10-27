@@ -1,15 +1,16 @@
 // BuildTrack — the first-run row.
 //
 // Several overlays want the screen the first time a user arrives: the brand
-// intro animation, the guided dashboard tour, the what's-new carousel. Each
+// intro video, the guided dashboard tour, the what's-new carousel. Each
 // one used to read its own localStorage flag and open on its own, so on an
 // admin's first desktop visit they all opened AT ONCE and covered each other.
 //
 // This module is the single place that answers "is it my turn?". The order
 // below is the whole policy — a notice is either in it or it does not exist:
 //
-//   1. brandIntro     — the 5s brand animation; it plays before anything else
-//                       because it is not skippable and covers the viewport.
+//   1. brandIntro     — the ~9s ArchLogic → BuildTrack film; it plays before
+//                       anything else because it is not skippable and covers
+//                       the viewport.
 //   2. welcome        — the sign-in ceremony (every login, not once): it covers
 //                       the route change from /login, so the guidance behind
 //                       it must wait until it has faded.

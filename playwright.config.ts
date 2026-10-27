@@ -45,9 +45,12 @@ export default defineConfig({
     timeout: 120_000,
     // Dummy values so lib/paddle.ts passes its missing-token guard; the real
     // Paddle.js is intercepted and window.Paddle is stubbed in the specs.
+    // Same for Turnstile: with no site key the landing assistant only offers
+    // the support email; its script is intercepted and stubbed in the specs.
     env: {
       VITE_PADDLE_CLIENT_TOKEN: 'test_e2e_token',
       VITE_PADDLE_ENVIRONMENT: 'sandbox',
+      VITE_TURNSTILE_SITE_KEY: 'e2e-turnstile-site-key',
     },
   },
 });

@@ -173,6 +173,23 @@ describe('api() — success', () => {
 
     expect(result).toBeUndefined();
   });
+
+  // The landing's contact form answers 201 Created with no body at all.
+  it('returns undefined for 201 Created with an empty body', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(201));
+
+    const result = await api('/api/v1/public/leads', { method: 'POST', body: '{}' });
+
+    expect(result).toBeUndefined();
+  });
+
+  it('still parses the body of a 201 Created that has one', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(201, { id: 9 }));
+
+    const result = await api<{ id: number }>('/api/v1/projects', { method: 'POST', body: '{}' });
+
+    expect(result).toEqual({ id: 9 });
+  });
 });
 
 // ── api() — 401 auto-refresh ────────────────────────────────────
@@ -246,6 +263,30 @@ describe('api() — 401 on anonymous endpoints', () => {
 
     await expect(
       api('/api/v1/signup/checkout', { method: 'POST', body: '{}' }),
+    ).rejects.toMatchObject({ status: 401 });
+
+    expect(refreshMock).not.toHaveBeenCalled();
+    expect(window.location.href).toBe('');
+  });
+
+  // The landing assistant's chat and contact form are public: a stale session
+  // cookie from an earlier login must never bounce the visitor off the landing.
+  it('a 401 from /api/v1/public/assistant/chat surfaces as ApiError without refresh or redirect to /?session=expired', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(401, { message: 'unauthorized' }));
+
+    await expect(
+      api('/api/v1/public/assistant/chat', { method: 'POST', body: '{}' }),
+    ).rejects.toMatchObject({ status: 401 });
+
+    expect(refreshMock).not.toHaveBeenCalled();
+    expect(window.location.href).toBe('');
+  });
+
+  it('a 401 from /api/v1/public/leads surfaces as ApiError without refresh or redirect to /?session=expired', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse(401, { message: 'unauthorized' }));
+
+    await expect(
+      api('/api/v1/public/leads', { method: 'POST', body: '{}' }),
     ).rejects.toMatchObject({ status: 401 });
 
     expect(refreshMock).not.toHaveBeenCalled();

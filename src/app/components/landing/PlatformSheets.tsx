@@ -130,7 +130,7 @@ export function DashboardSheet() {
             <div className="grid grid-cols-4 border-y border-bt-rule-2">
               <Kpi
                 label={t('dash.k1')}
-                value="62%"
+                value="7"
                 sub={t('dash.k1sub')}
                 className="border-r border-bt-rule-2 py-3.5 pb-4 pr-4"
               />
@@ -273,14 +273,14 @@ export function PayablesSheet() {
         </div>
         <div className="border-t border-bt-rule-2">
           <PayableRow
-            vendor="Cementos Progreso"
+            vendor="Cementera del Valle"
             detail={t('sheet2.row1')}
             amount="$48,600"
             state={t('sheet2.state1')}
             stateTone="orange"
           />
           <PayableRow
-            vendor="Aceros de Guatemala"
+            vendor="Aceros Industriales"
             detail={t('sheet2.row2')}
             amount="$61,250"
             state={t('sheet2.state2')}

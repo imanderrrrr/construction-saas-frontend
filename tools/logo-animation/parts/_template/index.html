@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1400, height=360" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      /* Transparente: no pongas fondo en html, body ni #root. */
+      html, body { margin: 0; width: 1400px; height: 360px; overflow: hidden; background: transparent; }
+      #root { position: relative; width: 1400px; height: 360px; background: transparent; }
+      #root svg { position: absolute; left: 0; top: 0; overflow: visible; }
+    </style>
+  </head>
+  <body>
+    <!-- Lienzo 1400×360, 5,6 s. 80 px = 1 em del texto del logo. Suelo y=324, línea de base y=290. Ver PLAN.md. -->
+    <div id="root" data-composition-id="main" data-start="0" data-duration="5.6" data-width="1400" data-height="360">
+      <svg id="xxx-stage" viewBox="0 0 1400 360" width="1400" height="360" aria-hidden="true">
+        <!-- PLANTILLA: sustituye este rectángulo por tu pieza (prefija todos los id con tu código). -->
+        <rect id="xxx-demo" x="20" y="274" width="50" height="50" rx="8" fill="#F6B21C"/>
+      </svg>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo('#xxx-demo', { x: 0 }, { x: 300, duration: 2, ease: 'power2.inOut' }, 0.2);
+      window.__timelines['main'] = tl;
+    </script>
+  </body>
+</html>

@@ -12,7 +12,7 @@
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createMemoryRouter, RouterProvider } from 'react-router';
+import { createMemoryRouter, matchRoutes, RouterProvider } from 'react-router';
 
 const auth = vi.hoisted(() => {
   const ref = { role: 'FINANCE' as string, authed: true };
@@ -144,4 +144,11 @@ describe('routes – formerly ComingSoon, now real modules', () => {
     expect(container.querySelector('[data-testid="worker-dash"]')).toBeTruthy();
   });
 
+});
+
+describe('routes – platform console', () => {
+  it('finds /platform/leads under the platform shell', () => {
+    const matches = matchRoutes(routes, '/platform/leads');
+    expect(matches?.map((m) => m.route.path)).toEqual(['/platform', 'leads']);
+  });
 });

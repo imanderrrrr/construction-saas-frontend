@@ -1,5 +1,6 @@
 import type { BrowserContext, Page } from '@playwright/test';
 import { installHermeticBase, setSession } from '../../../e2e/support/mock-api';
+import { WORKSPACE_PATHS } from '../../../src/app/workspace/paths';
 import { installDemoApi, type Lang } from './routes';
 import { installCursor } from './cursor';
 
@@ -80,8 +81,15 @@ export async function openSection(page: Page, key: string) {
   if (key === 'dashboard') return;
 
   const anchor = `[data-tour^="sec.${key}."]`;
+  // The sidebar lists AREAS since the panels were unified: a section inside
+  // an area (budgets, receivables…) has no button until its area is open.
+  // Those open by their own address instead.
+  const button = page.locator(`button[data-tour="${key}"]`).first();
+  const path = WORKSPACE_PATHS.ADMIN[key];
   for (let attempt = 1; attempt <= 3; attempt++) {
-    await page.locator(`button[data-tour="${key}"]`).first().click();
+    if (await button.isVisible()) await button.click();
+    else if (path) await page.goto(path);
+    else throw new Error(`openSection("${key}"): no sidebar button and no address for it`);
     try {
       await page.waitForSelector(anchor, { timeout: 6_000 });
       await page.waitForTimeout(1200);

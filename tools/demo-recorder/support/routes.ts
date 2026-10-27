@@ -11,7 +11,7 @@ import { CLIENTS, COMPANY, PROJECTS, PROJECTS_SUMMARY, TIMEZONE, TODAY, USERS, c
 // i18n, but the CONTENT is ours — an English clip whose punch items and RFIs
 // are written in Spanish is exactly the mismatch these clips exist to avoid.
 // Proper nouns (jobsites, clients, people, addresses) stay as they are: a
-// Guatemalan builder does not rename its projects for an English reader.
+// builder does not rename its projects for an English reader.
 
 export type Lang = 'es' | 'en';
 
@@ -59,11 +59,11 @@ export function installDemoApi(page: Page, lang: Lang = 'es') {
   // ── Invoices (receivables, amounts in dollars) ────────────────────────────
   const RECEIVABLES = [
     { id: 301, invoiceNumber: 'FAC-2026-041', client: 'Inmobiliaria Vista Hermosa, S.A.', project: 'Residencial Vista Hermosa II', projectId: 1, description: T('Estimación #7 — avance de obra gris torres A y B', 'Progress billing #7 — structural work, towers A and B'), issuedDate: '2026-09-01', dueDate: '2026-09-30', subtotal: 186_000, discount: 0, taxRate: 12, tax: 22_320, amount: 208_320, paidAmount: 0, status: 'PENDING' },
-    { id: 302, invoiceNumber: 'FAC-2026-040', client: 'Grupo Corporativo Zona 10', project: 'Torre Corporativa Zona 10', projectId: 2, description: T('Estimación #4 — estructura niveles 5 a 8', 'Progress billing #4 — structure, levels 5 to 8'), issuedDate: '2026-08-28', dueDate: '2026-09-27', subtotal: 240_000, discount: 0, taxRate: 12, tax: 28_800, amount: 268_800, paidAmount: 150_000, status: 'PARTIAL' },
-    { id: 303, invoiceNumber: 'FAC-2026-039', client: 'Logística del Sur, S.A.', project: 'Bodega Industrial Villa Nueva', projectId: 3, description: T('Estimación #5 — losa y cubierta metálica', 'Progress billing #5 — slab and metal roof'), issuedDate: '2026-08-20', dueDate: '2026-09-04', subtotal: 96_000, discount: 0, taxRate: 12, tax: 11_520, amount: 107_520, paidAmount: 0, status: 'OVERDUE' },
-    { id: 304, invoiceNumber: 'FAC-2026-038', client: 'Hotelera Colonial', project: 'Remodelación Hotel Antigua', projectId: 4, description: T('Estimación #3 — acabados ala sur', 'Progress billing #3 — south wing finishes'), issuedDate: '2026-08-12', dueDate: '2026-09-11', subtotal: 64_000, discount: 0, taxRate: 12, tax: 7_680, amount: 71_680, paidAmount: 71_680, status: 'PAID' },
+    { id: 302, invoiceNumber: 'FAC-2026-040', client: 'Grupo Corporativo Delta', project: 'Torre Corporativa Delta', projectId: 2, description: T('Estimación #4 — estructura niveles 5 a 8', 'Progress billing #4 — structure, levels 5 to 8'), issuedDate: '2026-08-28', dueDate: '2026-09-27', subtotal: 240_000, discount: 0, taxRate: 12, tax: 28_800, amount: 268_800, paidAmount: 150_000, status: 'PARTIAL' },
+    { id: 303, invoiceNumber: 'FAC-2026-039', client: 'Logística del Sur, S.A.', project: 'Bodega Industrial del Sur', projectId: 3, description: T('Estimación #5 — losa y cubierta metálica', 'Progress billing #5 — slab and metal roof'), issuedDate: '2026-08-20', dueDate: '2026-09-04', subtotal: 96_000, discount: 0, taxRate: 12, tax: 11_520, amount: 107_520, paidAmount: 0, status: 'OVERDUE' },
+    { id: 304, invoiceNumber: 'FAC-2026-038', client: 'Hotelera Colonial', project: 'Remodelación Hotel Colonial', projectId: 4, description: T('Estimación #3 — acabados ala sur', 'Progress billing #3 — south wing finishes'), issuedDate: '2026-08-12', dueDate: '2026-09-11', subtotal: 64_000, discount: 0, taxRate: 12, tax: 7_680, amount: 71_680, paidAmount: 71_680, status: 'PAID' },
     { id: 305, invoiceNumber: 'FAC-2026-037', client: 'Inmobiliaria Vista Hermosa, S.A.', project: 'Ampliación Colegio San Marcos', projectId: 6, description: T('Anticipo de contrato 20 %', '20% contract advance'), issuedDate: '2026-08-04', dueDate: '2026-08-19', subtotal: 156_000, discount: 0, taxRate: 12, tax: 18_720, amount: 174_720, paidAmount: 174_720, status: 'PAID' },
-    { id: 306, invoiceNumber: 'FAC-2026-036', client: 'Grupo Corporativo Zona 10', project: 'Torre Corporativa Zona 10', projectId: 2, description: T('Estimación #3 — sótanos y cisterna', 'Progress billing #3 — basements and cistern'), issuedDate: '2026-07-30', dueDate: '2026-08-29', subtotal: 180_000, discount: 0, taxRate: 12, tax: 21_600, amount: 201_600, paidAmount: 201_600, status: 'PAID' },
+    { id: 306, invoiceNumber: 'FAC-2026-036', client: 'Grupo Corporativo Delta', project: 'Torre Corporativa Delta', projectId: 2, description: T('Estimación #3 — sótanos y cisterna', 'Progress billing #3 — basements and cistern'), issuedDate: '2026-07-30', dueDate: '2026-08-29', subtotal: 180_000, discount: 0, taxRate: 12, tax: 21_600, amount: 201_600, paidAmount: 201_600, status: 'PAID' },
   ].map(r => ({
     ...r,
     documentType: 'INVOICE' as const,
@@ -88,11 +88,11 @@ export function installDemoApi(page: Page, lang: Lang = 'es') {
   // ── Bills (payables, amounts in dollars) ──────────────────────────────────
   const PAYABLES = [
     { id: 401, billNumber: 'CP-2026-118', vendor: 'Cementos del Valle', category: T('MATERIALES', 'MATERIALS'), project: 'Residencial Vista Hermosa II', projectId: 1, description: T('420 sacos de cemento UGC 42.5', '420 bags of 42.5 general-use cement'), receivedDate: '2026-09-03', dueDate: '2026-09-18', amount: 18_480, paidAmount: 0, status: 'PENDING' },
-    { id: 402, billNumber: 'CP-2026-117', vendor: 'Aceros Centroamericanos', category: T('MATERIALES', 'MATERIALS'), project: 'Torre Corporativa Zona 10', projectId: 2, description: T('Varilla No. 5 y No. 6 — 12 toneladas', '#5 and #6 rebar — 12 tons'), receivedDate: '2026-08-29', dueDate: '2026-09-13', amount: 62_400, paidAmount: 30_000, status: 'PARTIAL' },
-    { id: 403, billNumber: 'CP-2026-116', vendor: 'Transportes Quetzal', category: T('FLETES', 'FREIGHT'), project: 'Bodega Industrial Villa Nueva', projectId: 3, description: T('Acarreo de material selecto — 14 viajes', 'Select fill haulage — 14 loads'), receivedDate: '2026-08-22', dueDate: '2026-09-06', amount: 8_960, paidAmount: 0, status: 'OVERDUE' },
+    { id: 402, billNumber: 'CP-2026-117', vendor: 'Aceros del Golfo', category: T('MATERIALES', 'MATERIALS'), project: 'Torre Corporativa Delta', projectId: 2, description: T('Varilla No. 5 y No. 6 — 12 toneladas', '#5 and #6 rebar — 12 tons'), receivedDate: '2026-08-29', dueDate: '2026-09-13', amount: 62_400, paidAmount: 30_000, status: 'PARTIAL' },
+    { id: 403, billNumber: 'CP-2026-116', vendor: 'Transportes del Norte', category: T('FLETES', 'FREIGHT'), project: 'Bodega Industrial del Sur', projectId: 3, description: T('Acarreo de material selecto — 14 viajes', 'Select fill haulage — 14 loads'), receivedDate: '2026-08-22', dueDate: '2026-09-06', amount: 8_960, paidAmount: 0, status: 'OVERDUE' },
     { id: 404, billNumber: 'CP-2026-115', vendor: 'Alquiler de Equipo Tikal', category: T('EQUIPO', 'EQUIPMENT'), project: 'Residencial Vista Hermosa II', projectId: 1, description: T('Renta de bomba de concreto — 6 días', 'Concrete pump rental — 6 days'), receivedDate: '2026-08-18', dueDate: '2026-09-02', amount: 12_600, paidAmount: 12_600, status: 'PAID' },
-    { id: 405, billNumber: 'CP-2026-114', vendor: 'Eléctricos GT', category: T('SUBCONTRATO', 'SUBCONTRACT'), project: 'Torre Corporativa Zona 10', projectId: 2, description: T('Canalización eléctrica niveles 1 a 4', 'Electrical conduit, levels 1 to 4'), receivedDate: '2026-08-15', dueDate: '2026-09-14', amount: 46_200, paidAmount: 0, status: 'PENDING' },
-    { id: 406, billNumber: 'CP-2026-113', vendor: 'Ferretería La Esperanza', category: T('MATERIALES', 'MATERIALS'), project: 'Remodelación Hotel Antigua', projectId: 4, description: T('Herrajes, selladores y pintura base', 'Hardware, sealants and primer'), receivedDate: '2026-08-11', dueDate: '2026-08-26', amount: 5_340, paidAmount: 5_340, status: 'PAID' },
+    { id: 405, billNumber: 'CP-2026-114', vendor: 'Eléctricos Delta', category: T('SUBCONTRATO', 'SUBCONTRACT'), project: 'Torre Corporativa Delta', projectId: 2, description: T('Canalización eléctrica niveles 1 a 4', 'Electrical conduit, levels 1 to 4'), receivedDate: '2026-08-15', dueDate: '2026-09-14', amount: 46_200, paidAmount: 0, status: 'PENDING' },
+    { id: 406, billNumber: 'CP-2026-113', vendor: 'Ferretería La Esperanza', category: T('MATERIALES', 'MATERIALS'), project: 'Remodelación Hotel Colonial', projectId: 4, description: T('Herrajes, selladores y pintura base', 'Hardware, sealants and primer'), receivedDate: '2026-08-11', dueDate: '2026-08-26', amount: 5_340, paidAmount: 5_340, status: 'PAID' },
   ].map(b => ({
     ...b,
     documentType: 'BILL' as const,
@@ -159,6 +159,18 @@ export function installDemoApi(page: Page, lang: Lang = 'es') {
     // ── Shell ──────────────────────────────────────────────────────────────
     await page.route(re('settings/timezone'), json({ timezone: TIMEZONE }));
     await page.route(re('branding'), json({ organizationName: COMPANY, hasLogo: false }));
+    // The panel's notification inbox: unanswered, it films "No pudimos cargar
+    // tus notificaciones" on the landing page.
+    const NOTIFS = [
+      { id: 1, type: 'EXPENSE_SUBMITTED', title: T('Gasto nuevo por revisar', 'New expense to review'),
+        message: T('Manuel Ramírez registró $1,240.00 en Residencial Vista Hermosa II.', 'Manuel Ramírez logged $1,240.00 on Residencial Vista Hermosa II.'),
+        relatedEntityType: 'EXPENSE', relatedEntityId: 501, isRead: false, createdAt: '2026-09-12T18:22:00Z', readAt: null },
+      { id: 2, type: 'PUNCH_ITEM_READY', title: T('Pendiente listo para revisión', 'Punch item ready for review'),
+        message: T('#003 Filtración en ventana de sala — apartamento 402.', '#003 Leak at the living-room window — unit 402.'),
+        relatedEntityType: 'PUNCH_ITEM', relatedEntityId: 501, isRead: true, createdAt: '2026-09-11T21:40:00Z', readAt: '2026-09-12T13:05:00Z' },
+    ];
+    await page.route(re('supervisor/notifications/unread-count'), json({ count: 1 }));
+    await page.route(re('supervisor/notifications'), json({ content: NOTIFS, page: 0, size: 30, totalElements: NOTIFS.length, totalPages: 1 }));
     // Plan gate for bitácora / pendientes / consultas / portal.
     await page.route(re('site-logs/feature'), json({ enabled: true }));
     await page.route(re('admin/audit-logs'), json(pageOf([
@@ -210,8 +222,8 @@ export function installDemoApi(page: Page, lang: Lang = 'es') {
       workersTotal: 34,
       byProject: [
         { projectId: 1, projectName: 'Residencial Vista Hermosa II', workers: 16 },
-        { projectId: 2, projectName: 'Torre Corporativa Zona 10', workers: 11 },
-        { projectId: 3, projectName: 'Bodega Industrial Villa Nueva', workers: 7 },
+        { projectId: 2, projectName: 'Torre Corporativa Delta', workers: 11 },
+        { projectId: 3, projectName: 'Bodega Industrial del Sur', workers: 7 },
       ],
       pendingApprovalRecords: 5,
       idleActiveProjects: [{ id: 6, name: 'Ampliación Colegio San Marcos' }],

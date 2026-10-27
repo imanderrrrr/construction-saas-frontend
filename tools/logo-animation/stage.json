@@ -1,0 +1,27 @@
+{
+  "_": "Escenario compartido. Unidades: píxeles del lienzo (80 px = 1 em del texto del logo). Origen (0,0) = esquina superior izquierda del lienzo.",
+  "width": 1400,
+  "height": 360,
+  "fps": 60,
+  "pxPerEm": 80,
+  "duration": 5.6,
+  "ground": { "y": 324, "note": "suelo de la obra = borde inferior de la caja naranja" },
+  "tile": { "x": 300, "y": 196, "size": 128, "radius": 28, "note": "caja naranja del logo (1.6 em); su centro vertical es y=260" },
+  "word": { "x": 449.76, "baseline": 290, "centerY": 260, "ascenderTop": 230.8, "note": "x = borde izquierdo de la B; la línea de base está 34 px sobre el suelo" },
+  "deck": { "y": 290, "note": "la losa/plataforma sobre la que se asientan las letras: su cara superior es la línea de base" },
+  "palette": {
+    "ink": "#17130F",
+    "bone": "#F8F3EB",
+    "orange": "#F97316",
+    "machineYellow": "#F6B21C",
+    "machineYellowShade": "#D68A06",
+    "machineYellowLight": "#FFD35C",
+    "steel": "#A79B88",
+    "steelDark": "#4A423A",
+    "rubber": "#0D0B09",
+    "glass": "#8DC3D6",
+    "soil": "#7A5636",
+    "soilDark": "#4E3622",
+    "soilLight": "#A07848"
+  }
+}

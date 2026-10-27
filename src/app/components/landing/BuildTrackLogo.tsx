@@ -1,3 +1,5 @@
+import type { Ref } from 'react';
+
 /**
  * The BuildTrack wordmark: a white hard hat on an orange squircle, followed by
  * "Build" + "Track" in Quicksand 700.
@@ -15,18 +17,25 @@ type Props = {
   textPx?: number;
   /** Wordmark colour: bone on dark backgrounds, ink on light ones. */
   tone?: 'on-dark' | 'on-light';
+  /** Only the squircle, without "BuildTrack" (the assistant panel's header). */
+  markOnly?: boolean;
   className?: string;
+  /** The orange squircle, for whoever needs to measure it (the landing's logo build lands on it). */
+  markRef?: Ref<HTMLSpanElement>;
 };
 
 export function BuildTrackLogo({
   boxPx = 32,
   textPx = 20,
   tone = 'on-dark',
+  markOnly = false,
   className = '',
+  markRef,
 }: Props) {
   return (
     <span className={`inline-flex items-center gap-[0.34em] ${className}`}>
       <span
+        ref={markRef}
         aria-hidden="true"
         className="flex flex-none items-center justify-center bg-bt-orange"
         style={{ width: boxPx, height: boxPx, borderRadius: '22%' }}
@@ -42,14 +51,16 @@ export function BuildTrackLogo({
           <rect x="2.8" y="16" width="18.4" height="2.9" rx="1.45" fill="#FFFFFF" />
         </svg>
       </span>
-      <span
-        className={`font-bt-wordmark font-bold tracking-[-0.005em] ${
-          tone === 'on-dark' ? 'text-bt-bone' : 'text-bt-ink'
-        }`}
-        style={{ fontSize: textPx }}
-      >
-        Build<span className="text-bt-orange">Track</span>
-      </span>
+      {!markOnly && (
+        <span
+          className={`font-bt-wordmark font-bold tracking-[-0.005em] ${
+            tone === 'on-dark' ? 'text-bt-bone' : 'text-bt-ink'
+          }`}
+          style={{ fontSize: textPx }}
+        >
+          Build<span className="text-bt-orange">Track</span>
+        </span>
+      )}
     </span>
   );
 }

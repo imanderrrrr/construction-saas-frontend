@@ -185,6 +185,8 @@
   "billing.recover": "Update billing",
   "billing.unavailable": "Access check unavailable. This screen is preserved; try again.",
   "billing.readOnly": "Read-only access due to billing. Time punches remain available.",
+  "intro.soundOn": "Turn sound on",
+  "intro.skip": "Skip",
   "dialog.description": "Form details",
   "validation.maxLength": "Use at most {{max}} characters.",
   "validation.textPolicy": "Names: 25 characters. Descriptions and notes: 50.",

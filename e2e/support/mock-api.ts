@@ -94,8 +94,8 @@ export async function installHermeticBase(page: Page, opts: BaseOpts = {}) {
       if (!showFirstRun) {
         // Mark the one-time overlays as already seen — an unseeded one holds
         // the first-run row and nothing behind it opens. Keys must track
-        // IntroOverlay.STORAGE_KEY and OnboardingTour.seenKey().
-        localStorage.setItem('buildtrack:intro-v2-seen', '1');
+        // INTRO_STORAGE_KEY (IntroOverlay) and OnboardingTour.seenKey().
+        localStorage.setItem('buildtrack:intro-v3-seen', '1');
         const seenAt = '2026-01-01T00:00:00.000Z';
         localStorage.setItem(`bt.onboarding.v3.${username ?? 'anon'}`, seenAt);
         localStorage.setItem('bt.onboarding.v3.anon', seenAt);
@@ -141,4 +141,49 @@ export async function installHermeticBase(page: Page, opts: BaseOpts = {}) {
   if (opts.role) {
     await page.route('**/api/v1/auth/me', json(sessionResponse(opts.role, opts.username)));
   }
+}
+
+// ── Landing assistant ───────────────────────────────────────────────
+
+/** Cloudflare Turnstile's loader; the stub below answers at once with `e2e-token`. */
+const TURNSTILE_SCRIPT = 'https://challenges.cloudflare.com/turnstile/v0/api.js*';
+
+const TURNSTILE_STUB = `
+  window.turnstile = {
+    render: function (el, opts) { setTimeout(function () { opts.callback('e2e-token'); }, 0); return 'e2e-widget'; },
+    remove: function () {},
+  };
+`;
+
+export const ASSISTANT_REPLY = 'E2E: BuildTrack runs in the browser; the crew uses the field app.';
+
+interface LandingAssistantOpts {
+  /** What the chat answers; by default a 200 with ASSISTANT_REPLY. */
+  chat?: { status: number; body: unknown };
+}
+
+/**
+ * Stub Turnstile and the two public endpoints of the landing assistant.
+ * Returns the request bodies the page sent, for assertions.
+ */
+export async function mockLandingAssistant(page: Page, opts: LandingAssistantOpts = {}) {
+  const sent = { chat: [] as unknown[], leads: [] as unknown[] };
+  const chat = opts.chat ?? {
+    status: 200,
+    body: { reply: ASSISTANT_REPLY, contactForm: null, sessionToken: 'e2e-session' },
+  };
+
+  await page.route(TURNSTILE_SCRIPT, route =>
+    route.fulfill({ status: 200, contentType: 'application/javascript', body: TURNSTILE_STUB }),
+  );
+  await page.route('**/api/v1/public/assistant/chat', async route => {
+    sent.chat.push(route.request().postDataJSON());
+    await json(chat.body, chat.status)(route);
+  });
+  // 201 with no body, as the backend answers.
+  await page.route('**/api/v1/public/leads', async route => {
+    sent.leads.push(route.request().postDataJSON());
+    await route.fulfill({ status: 201, body: '' });
+  });
+  return sent;
 }

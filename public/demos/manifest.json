@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "recordedAt": "2026-09-12",
+  "recordedAt": "2026-10-27",
   "note": "Screen recordings of the BuildTrack admin panel as it ships, driven by Playwright over a demo dataset (tools/demo-recorder/). One set per language: the panel chrome AND the demo content are recorded in the language of the folder, so the landing page never shows a Spanish panel to an English reader. 1280x800, silent, no narration and no editing beyond the cut. The data is invented — no real client, vendor or person appears; jobsite, client and people names are the same in both sets because proper nouns do not translate. The only dressing is the client-view link, drawn with the production host instead of the recorder's dev server (see tools/demo-recorder/support/stage.ts). Re-record: npx playwright test --config=tools/demo-recorder/recorder.config.ts clips.rec.ts && node tools/demo-recorder/encode.mjs",
   "video": {
     "width": 1280,
@@ -24,7 +24,7 @@
       "group": "panel",
       "byLanguage": {
         "en": {
-          "durationSec": 10.456,
+          "durationSec": 10.398,
           "poster": "/demos/en/panel.jpg",
           "sources": [
             {
@@ -38,7 +38,7 @@
           ]
         },
         "es": {
-          "durationSec": 10.455,
+          "durationSec": 10.367,
           "poster": "/demos/es/panel.jpg",
           "sources": [
             {
@@ -58,7 +58,7 @@
       "group": "01-proyectos",
       "byLanguage": {
         "en": {
-          "durationSec": 12.827,
+          "durationSec": 12.722,
           "poster": "/demos/en/proyectos.jpg",
           "sources": [
             {
@@ -72,7 +72,7 @@
           ]
         },
         "es": {
-          "durationSec": 12.81,
+          "durationSec": 12.731,
           "poster": "/demos/es/proyectos.jpg",
           "sources": [
             {
@@ -92,7 +92,7 @@
       "group": "01-proyectos",
       "byLanguage": {
         "en": {
-          "durationSec": 11.45,
+          "durationSec": 11.369,
           "poster": "/demos/en/contrato.jpg",
           "sources": [
             {
@@ -106,7 +106,7 @@
           ]
         },
         "es": {
-          "durationSec": 11.422,
+          "durationSec": 11.373,
           "poster": "/demos/es/contrato.jpg",
           "sources": [
             {
@@ -126,7 +126,7 @@
       "group": "02-finanzas",
       "byLanguage": {
         "en": {
-          "durationSec": 16.623,
+          "durationSec": 16.341,
           "poster": "/demos/en/presupuestos.jpg",
           "sources": [
             {
@@ -140,7 +140,7 @@
           ]
         },
         "es": {
-          "durationSec": 16.609,
+          "durationSec": 16.34,
           "poster": "/demos/es/presupuestos.jpg",
           "sources": [
             {
@@ -160,7 +160,7 @@
       "group": "02-finanzas",
       "byLanguage": {
         "en": {
-          "durationSec": 11.685,
+          "durationSec": 11.452,
           "poster": "/demos/en/facturas.jpg",
           "sources": [
             {
@@ -174,7 +174,7 @@
           ]
         },
         "es": {
-          "durationSec": 11.714,
+          "durationSec": 11.461,
           "poster": "/demos/es/facturas.jpg",
           "sources": [
             {
@@ -194,7 +194,7 @@
       "group": "03-bitacora-y-pendientes",
       "byLanguage": {
         "en": {
-          "durationSec": 11.285,
+          "durationSec": 11.279,
           "poster": "/demos/en/pendientes.jpg",
           "sources": [
             {
@@ -208,7 +208,7 @@
           ]
         },
         "es": {
-          "durationSec": 11.279,
+          "durationSec": 11.245,
           "poster": "/demos/es/pendientes.jpg",
           "sources": [
             {
@@ -228,7 +228,7 @@
       "group": "04-consultas-rfi",
       "byLanguage": {
         "en": {
-          "durationSec": 11.483,
+          "durationSec": 11.465,
           "poster": "/demos/en/consultas.jpg",
           "sources": [
             {
@@ -242,7 +242,7 @@
           ]
         },
         "es": {
-          "durationSec": 11.469,
+          "durationSec": 11.483,
           "poster": "/demos/es/consultas.jpg",
           "sources": [
             {
@@ -262,7 +262,7 @@
       "group": "portal-del-cliente",
       "byLanguage": {
         "en": {
-          "durationSec": 8.841,
+          "durationSec": 8.831,
           "poster": "/demos/en/portal.jpg",
           "sources": [
             {
@@ -276,7 +276,7 @@
           ]
         },
         "es": {
-          "durationSec": 8.85,
+          "durationSec": 8.846,
           "poster": "/demos/es/portal.jpg",
           "sources": [
             {
