@@ -587,7 +587,7 @@ const indexHtml = `<!doctype html>
       <div id="lbl-tl2" class="lbl" style="left:160px;top:70px;opacity:0">BuildTrack</div>
       <div id="lbl-bl" class="lbl" style="left:160px;bottom:70px;opacity:0">Lámina 01 / 02 · Escala 1:50</div>
       <div id="lbl-bl2" class="lbl" style="left:160px;bottom:70px;opacity:0">Lámina 02 / 02 · Escala 1:50</div>
-      <div id="lbl-br" class="lbl" style="right:160px;bottom:70px;opacity:0">14.6349° N · 90.5069° O — Ciudad de Guatemala</div>
+      <div id="lbl-br" class="lbl" style="right:160px;bottom:70px;opacity:0">NIVEL ±0.00 · EJE A-1 — PUNTO DE REFERENCIA</div>
 
       <div id="plano" data-composition-id="plano" data-composition-src="compositions/plano.html"
         data-start="0" data-duration="${T.plano.dur}" data-track-index="1" data-track-kind="graphics" data-width="${W}" data-height="${H}"></div>
