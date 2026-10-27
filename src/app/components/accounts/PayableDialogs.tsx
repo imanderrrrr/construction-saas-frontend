@@ -648,12 +648,12 @@ export function EditBillInfoDialog({ bill, vendors, onClose, onSaved }: {
     const who = vendor.trim();
     if (!who) { toast.error(t('finance:payable.info.vendorRequired')); return; }
     const payload: { vendor?: string; category?: string; description?: string | null; notes?: string | null; invoiceNumber?: string } = {};
-    if (who !== bill.vendor) payload.vendor = who;
+    if (vendor !== bill.vendor) payload.vendor = who;
     if (category && category !== bill.category) payload.category = category;
     const d = description.trim();
-    if (d !== (bill.description ?? '')) payload.description = d;
+    if (description !== (bill.description ?? '')) payload.description = d;
     const n = notes.trim();
-    if (n !== (bill.notes ?? '')) payload.notes = n;
+    if (notes !== (bill.notes ?? '')) payload.notes = n;
     if (bill.documentType === 'INVOICE') {
       const inv = invoiceNumber.trim();
       if (inv && inv !== (bill.invoiceNumber ?? '')) payload.invoiceNumber = inv;

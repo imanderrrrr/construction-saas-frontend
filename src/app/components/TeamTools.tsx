@@ -1,3 +1,6 @@
+import { TextValue } from './tools/TextValue';
+import { CustodyStatus } from './tools/CustodyStatus';
+import { categoryName } from './tools/bits';
 import { useScreenState } from '../workspace/WorkspaceState';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Wrench, Users, Clock, Loader2 } from 'lucide-react';
@@ -98,6 +101,7 @@ export function TeamTools() {
   const tableHeaders = [
     t('tools.table.tool'),
     t('tools.table.category'),
+    t('tools.table.status'),
     t('tools.table.worker'),
     t('tools.table.project'),
     t('tools.table.assignedDate'),
@@ -171,8 +175,8 @@ export function TeamTools() {
         ) : (
           <>
             {/* Desktop table */}
-            <div className="hidden md:block overflow-x-auto">
-              <Table>
+            <div className="hidden xl:block overflow-x-auto">
+              <Table className="table-fixed min-w-[760px] [&_td]:whitespace-normal [&_td]:[overflow-wrap:anywhere]">
                 <TableHeader>
                   <TableRow className="bg-[#FAF7F0] hover:bg-[#FAF7F0]">
                     {tableHeaders.map(h => (
@@ -184,10 +188,11 @@ export function TeamTools() {
                   {pageRows.map(tool => (
                     <TableRow key={tool.id} className="border-b border-[#DBD0BB]/50 hover:bg-[#FAF7F0]/50">
                       <TableCell className="py-3">
-                        <p className="text-sm font-semibold text-[#0A0A0A]">{tool.toolName}</p>
+                        <TextValue value={tool.toolName} className="text-sm font-semibold text-[#0A0A0A] truncate" />
                         <p className="text-[11px] font-bt-mono text-[#8A8175]">{tool.toolCode}</p>
                       </TableCell>
-                      <TableCell className="py-3 text-sm text-[#8A8175]">{tool.category}</TableCell>
+                      <TableCell className="py-3 text-sm text-[#8A8175]">{categoryName(t, tool.category)}</TableCell>
+                      <TableCell className="py-3"><CustodyStatus status={tool.status} /></TableCell>
                       <TableCell className="py-3">
                         <div className="flex items-center gap-2">
                           <div className="w-6 h-6 bg-[#F97316]/10 rounded-full flex items-center justify-center flex-shrink-0">
@@ -207,7 +212,7 @@ export function TeamTools() {
                   ))}
                   {filtered.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={6} className="py-14 text-center text-sm text-[#8A8175]">
+                      <TableCell colSpan={7} className="py-14 text-center text-sm text-[#8A8175]">
                         {t('tools.noMatch')}
                       </TableCell>
                     </TableRow>
@@ -217,19 +222,20 @@ export function TeamTools() {
             </div>
 
             {/* Mobile cards */}
-            <div className="md:hidden divide-y divide-[#DBD0BB]">
+            <div className="xl:hidden divide-y divide-[#DBD0BB]">
               {pageRows.map(tool => (
                 <div key={tool.id} className="p-4 space-y-1.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-semibold text-[#0A0A0A]">{tool.toolName}</p>
-                      <p className="text-[11px] font-bt-mono text-[#8A8175]">{tool.toolCode} · {tool.category}</p>
+                  <div className="flex items-start justify-between gap-2 min-w-0">
+                    <div className="min-w-0">
+                      <TextValue value={tool.toolName} className="text-sm font-semibold text-[#0A0A0A] truncate" />
+                      <p className="text-[11px] font-bt-mono text-[#8A8175] break-words">{tool.toolCode} · {categoryName(t, tool.category)}</p>
                     </div>
                     <span className={`text-xs flex-shrink-0 ${getDaysOutColor(tool.daysOut)}`}>
                       {t('tools.day', { count: tool.daysOut })}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 text-xs">
+                  <CustodyStatus status={tool.status} />
+                  <div className="flex flex-wrap items-center gap-2 text-xs [overflow-wrap:anywhere]">
                     <div className="w-5 h-5 bg-[#F97316]/10 rounded-full flex items-center justify-center flex-shrink-0">
                       <span className="text-[8px] font-bold text-[#F97316]">{tool.worker.split(' ').map(w => w[0]).join('')}</span>
                     </div>

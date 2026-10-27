@@ -1,3 +1,4 @@
+import { changedFields } from '../../../shared/textPolicy';
 import { useScreenState } from '../../workspace/WorkspaceState';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -112,7 +113,7 @@ export function OfficeExpensesSection() {
     try {
       await run(async () => {
         const saved = editing
-          ? await updateOfficeExpense(editing.id, input)
+          ? await updateOfficeExpense(editing.id, changedFields(input, { description: editing.description, purchasedBy: editing.purchasedBy ?? undefined, categoryName: editing.categoryName ?? undefined, notes: editing.notes ?? '' }))
           : await createOfficeExpense(input);
         // Preserve the committed identity even if receipt upload fails.
         setEditing(saved);

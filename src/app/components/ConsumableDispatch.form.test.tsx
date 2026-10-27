@@ -34,14 +34,14 @@ beforeEach(async () => {
 });
 afterEach(()=>{act(()=>root.unmount());host.remove();});
 const submit=()=>buttonByText(host,i18n.t('inventory:dispatch.dialog.submit'))!;
-it('rejects fractions and notes beyond 500 while allowing the exact boundary', () => {
+it('rejects fractions and notes beyond 50 while allowing the exact boundary', () => {
   type(host.querySelector('input[type=number]')!, '1.9');
   expect(submit().disabled).toBe(true);
   type(host.querySelector('input[type=number]')!, '2');
   const notes=host.querySelector('textarea')!;
-  expect(notes.maxLength).toBe(500);
-  type(notes, 'a'.repeat(500)); expect(submit().disabled).toBe(false);
-  type(notes, 'a'.repeat(501)); expect(submit().disabled).toBe(true);
+  expect(notes.maxLength).toBe(50);
+  type(notes, 'a'.repeat(50)); expect(submit().disabled).toBe(false);
+  type(notes, 'a'.repeat(51)); expect(submit().disabled).toBe(true);
 });
 it('preserves the form and intention after a lost response and prevents duplicate submits while pending', async () => {
   type(host.querySelector('textarea')!, 'Conservar nota');

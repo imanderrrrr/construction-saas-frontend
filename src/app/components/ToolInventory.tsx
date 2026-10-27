@@ -1,3 +1,4 @@
+import { changedFields, textTooLong } from '../../shared/textPolicy';
 import { useScreenState } from '../workspace/WorkspaceState';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -279,8 +280,8 @@ function EditToolModal({ open, tool, onClose, onSave }: {
         </div>
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={onClose} className="border-[#D4D4D8] text-[#71717A]">{t('buttons.cancel', { ns: 'common' })}</Button>
-          <Button onClick={() => name.trim() && name.trim().length <= FIELD_LIMITS.WAREHOUSE_NAME && onSave(tool.id, name.trim(), category, notes.trim())}
-            disabled={!name.trim() || name.trim().length > FIELD_LIMITS.WAREHOUSE_NAME} className="bg-amber-500 hover:bg-amber-600 text-white disabled:opacity-50">
+          <Button onClick={() => name.trim() && !textTooLong(name, FIELD_LIMITS.WAREHOUSE_NAME, tool.name) && !textTooLong(notes, FIELD_LIMITS.NOTE, tool.notes ?? '') && onSave(tool.id, name === tool.name ? name : name.trim(), category, notes === (tool.notes ?? '') ? notes : notes.trim())}
+            disabled={!name.trim() || textTooLong(name, FIELD_LIMITS.WAREHOUSE_NAME, tool.name) || textTooLong(notes, FIELD_LIMITS.NOTE, tool.notes ?? '')} className="bg-amber-500 hover:bg-amber-600 text-white disabled:opacity-50">
             {t('buttons.save', { ns: 'common' })}
           </Button>
         </DialogFooter>
@@ -467,7 +468,7 @@ export function ToolInventory({ onNavigate }: ToolInventoryProps) {
   }
 
   function handleEditTool(id: string, name: string, category: string, notes: string) {
-    updateTool(Number(id), { name, category, notes: notes || undefined })
+    updateTool(Number(id), changedFields({ name, category, notes }, { name: editingTool?.name, category: editingTool?.category, notes: editingTool?.notes ?? '' }))
       .then(res => {
         setEditingTool(null);
         toast.success(t('inventory:toast.toolUpdated', 'Tool updated — {{code}}', { code: res.code }));

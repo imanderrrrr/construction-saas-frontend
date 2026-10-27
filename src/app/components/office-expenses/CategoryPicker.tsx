@@ -1,3 +1,4 @@
+import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../ui/utils';
@@ -147,4 +148,4 @@ export function CategoryPicker({ categories, value, draftName, onPick, onDraft, 
   );
 }
 
-const NAME_MAX = 40;
+const NAME_MAX = FIELD_LIMITS.SHORT_NAME;

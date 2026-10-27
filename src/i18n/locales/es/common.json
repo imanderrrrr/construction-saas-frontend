@@ -185,5 +185,8 @@
   "billing.recover": "Actualizar facturación",
   "billing.unavailable": "No pudimos consultar el acceso. Conservamos esta pantalla; vuelve a intentar.",
   "billing.readOnly": "Solo consulta por facturación. El fichaje sigue disponible.",
-  "dialog.description": "Detalles del formulario"
+  "dialog.description": "Detalles del formulario",
+  "validation.maxLength": "Admite hasta {{max}} caracteres.",
+  "validation.textPolicy": "Nombres: 25 caracteres. Descripciones y notas: 50.",
+  "validation.historicalValue": "Valor histórico. Puedes conservarlo; si lo cambias, aplica el límite actual."
 }

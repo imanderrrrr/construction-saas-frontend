@@ -1,3 +1,4 @@
+import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 import { useScreenState, useProjectFilter, useWorkspace } from '../../workspace/WorkspaceState';
 // BuildTrack — Internal punch-list view (fase 2 del portal de cliente).
 // Shared by the admin project ficha (Pendientes tab) and the supervisor
@@ -730,7 +731,7 @@ function InternalCommentThread({ item, thread, fmtDate, onPosted }: {
       <div className="flex flex-col sm:flex-row sm:items-end gap-2">
         <textarea
           aria-label={t('internal.comments.placeholder')}
-          maxLength={2000}
+          maxLength={FIELD_LIMITS.NOTE}
           rows={2}
           value={body}
           onChange={(e) => setBody(e.target.value)}
@@ -776,7 +777,7 @@ function ReadyForm({ item, busy, onSubmit, onCancel }: {
         <FieldLabel htmlFor={`ready-note-${item.id}`}>{t('internal.ready.note')}</FieldLabel>
         <textarea
           id={`ready-note-${item.id}`}
-          maxLength={1000}
+          maxLength={FIELD_LIMITS.NOTE}
           rows={2}
           value={note}
           onChange={(e) => setNote(e.target.value)}
@@ -819,7 +820,7 @@ function CloseForm({ item, busy, onSubmit, onCancel }: {
         <FieldLabel htmlFor="close-note">{t('internal.close.note')}</FieldLabel>
         <textarea
           id="close-note"
-          maxLength={1000}
+          maxLength={FIELD_LIMITS.NOTE}
           rows={2}
           value={note}
           onChange={(e) => setNote(e.target.value)}
@@ -914,7 +915,7 @@ function NewPunchDrawer({ open, project, onCreated, onClose }: {
           <input
             id="punch-int-title"
             type="text"
-            maxLength={200}
+            maxLength={FIELD_LIMITS.SHORT_NAME}
             value={title}
             onChange={(e) => { setTitle(e.target.value); setTitleError(''); }}
             placeholder={t('internal.form.titlePlaceholder')}
@@ -927,7 +928,7 @@ function NewPunchDrawer({ open, project, onCreated, onClose }: {
           <FieldLabel htmlFor="punch-int-desc">{t('internal.form.descriptionLabel')}</FieldLabel>
           <textarea
             id="punch-int-desc"
-            maxLength={2000}
+            maxLength={FIELD_LIMITS.NOTE}
             rows={3}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -939,7 +940,7 @@ function NewPunchDrawer({ open, project, onCreated, onClose }: {
           <input
             id="punch-int-location"
             type="text"
-            maxLength={200}
+            maxLength={FIELD_LIMITS.SHORT_NAME}
             value={location}
             onChange={(e) => setLocation(e.target.value)}
             className={cn(INPUT, 'h-[38px]')}

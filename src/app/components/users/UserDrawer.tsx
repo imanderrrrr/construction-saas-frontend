@@ -1,3 +1,5 @@
+import { textTooLong } from '../../../shared/textPolicy';
+import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { loadQrCode } from '../../lib/qr';
@@ -179,13 +181,14 @@ export function UserDrawer({ user, onClose, onChanged }: {
 
           <form className="mt-4 space-y-3 border border-[#E4E4E7] p-3" onSubmit={e => {
             e.preventDefault();
+            if (textTooLong(name, FIELD_LIMITS.PERSON_NAME, user.fullName ?? '')) { setActionError(t('common:validation.maxLength', { max: FIELD_LIMITS.PERSON_NAME })); return; }
             if (rate && !/^\d+(?:\.\d{1,2})?$/.test(rate)) { setActionError(t('admin:usr.edit.rateInvalid')); return; }
             void run('profile', () => updateUser(user.id, {
-              fullName: name.trim(), role,
+              ...(name !== (user.fullName ?? '') ? { fullName: name.trim() } : {}), role,
               ...(rate !== (user.hourlyRate?.toString() ?? '') ? { hourlyRate: rate ? Number(rate) : null } : {}),
             }), onChanged);
           }}>
-            <label className="block text-sm">{t('admin:usr.edit.name')}<input className="block w-full border p-2" value={name} required maxLength={150} onChange={e => setName(e.target.value)} /></label>
+            <label className="block text-sm">{t('admin:usr.edit.name')}<input className="block w-full border p-2" value={name} required maxLength={FIELD_LIMITS.PERSON_NAME} onChange={e => setName(e.target.value)} /></label>
             <label className="block text-sm">{t('admin:usr.edit.role')}<select className="block w-full border p-2" value={role} onChange={e => setRole(e.target.value as UserDTO['role'])}>
               {(['ADMIN','FINANCE','WAREHOUSE','SUPERVISOR','WORKER','SUBCONTRACTOR'] as const).map(r => <option key={r} value={r}>{t(`common:roles.${r}`)}</option>)}
             </select></label>

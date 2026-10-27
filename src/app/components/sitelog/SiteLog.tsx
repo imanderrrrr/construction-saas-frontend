@@ -17,7 +17,7 @@ import { AuthImage } from './AuthImage';
 import { PhotoLightbox } from './PhotoLightbox';
 import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 import {
-  deleteSiteLogPhoto, getSiteLogByDate, getSiteLogHistory, getSiteLogSuggestion, saveSiteLog,
+  deleteSiteLogPhoto, getSiteLogByDate, getSiteLogHistory, getSiteLogSuggestion, saveSiteLog, updateSiteLog,
   uploadSiteLogPhoto,
   type AttendanceSource, type SiteLogPayload, type SiteLogResponse, type SiteLogStatus,
   type SiteLogSuggestion, type SiteLogSummary, type Weather,
@@ -37,6 +37,7 @@ const WEATHER_ICON: Record<Weather, LucideIcon> = {
 const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
 
 interface DraftAttendance {
+  entryId?: number;
   key: string;
   workerId: number | null;
   name: string;
@@ -46,6 +47,7 @@ interface DraftAttendance {
   present: boolean;
 }
 interface DraftTask {
+  entryId?: number;
   key: string;
   kanbanTaskId: number | null;
   description: string;
@@ -121,7 +123,7 @@ export function SiteLog({ projects, canEdit: roleCanEdit }: SiteLogProps) {
         for (const a of loaded.attendance) {
           if (a.workerId != null) seenWorkers.add(a.workerId);
           attendance.push({
-            key: newKey(), workerId: a.workerId, name: a.name, role: a.role,
+            key: newKey(), entryId: a.id, workerId: a.workerId, name: a.name, role: a.role,
             source: a.source, checkInTime: a.checkInTime, present: true,
           });
         }
@@ -140,7 +142,7 @@ export function SiteLog({ projects, canEdit: roleCanEdit }: SiteLogProps) {
         for (const td of loaded.tasksDone) {
           if (td.kanbanTaskId != null) seenTasks.add(td.kanbanTaskId);
           tasksDone.push({
-            key: newKey(), kanbanTaskId: td.kanbanTaskId, description: td.description,
+            key: newKey(), entryId: td.id, kanbanTaskId: td.kanbanTaskId, description: td.description,
             partida: td.partida, done: true,
           });
         }
@@ -275,16 +277,18 @@ export function SiteLog({ projects, canEdit: roleCanEdit }: SiteLogProps) {
       attendance: draft.attendance
         .filter((a) => a.present && (a.workerId != null || a.name.trim() !== ''))
         .map((a) => ({
+          ...(a.entryId ? { entryId: a.entryId } : {}),
           workerId: a.workerId,
-          name: a.workerId != null ? null : a.name.trim(),
+          ...(!a.entryId && a.workerId == null ? { name: a.name.trim() } : {}),
           source: a.source,
           checkInTime: a.checkInTime,
         })),
       tasksDone: draft.tasksDone
         .filter((tk) => tk.done && (tk.kanbanTaskId != null || tk.description.trim() !== ''))
         .map((tk) => ({
+          ...(tk.entryId ? { entryId: tk.entryId } : {}),
           kanbanTaskId: tk.kanbanTaskId,
-          description: tk.kanbanTaskId != null ? null : tk.description.trim(),
+          ...(!tk.entryId && tk.kanbanTaskId == null ? { description: tk.description.trim() } : {}),
         })),
     };
   }
@@ -294,7 +298,10 @@ export function SiteLog({ projects, canEdit: roleCanEdit }: SiteLogProps) {
     const forSelection = selectionKey;
     setSaving(true);
     try {
-      const saved = await saveSiteLog(projectId, buildPayload(status));
+      const payload = buildPayload(status);
+      const partial: Partial<SiteLogPayload> = { ...payload, notes: draft.notes === (log?.notes ?? '') ? undefined : draft.notes.trim() };
+      delete partial.workDate;
+      const saved = log ? await updateSiteLog(log.id, partial) : await saveSiteLog(projectId, payload);
       // If the user switched project/date during the save, skip the state updates
       // (the save still succeeded server-side) so we don't clobber the new view.
       if (selectionRef.current === forSelection) {

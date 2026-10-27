@@ -1,3 +1,4 @@
+import { changedFields, textTooLong } from '../../shared/textPolicy';
 import { useScreenState } from '../workspace/WorkspaceState';
 // ConsumableInventory.tsx — Consumable supplies inventory management
 
@@ -169,14 +170,14 @@ export function ConsumableInventory({ onNavigate }: { onNavigate?: (section: str
   };
 
   const handleEditConsumable = (updated: ConsumableItem) => {
-    updateConsumable(Number(updated.id), {
+    updateConsumable(Number(updated.id), changedFields({
       name:         updated.name,
       category:     updated.category,
       unit:         updated.unit,
       unitCostCents: updated.unitCostCents,
       minimumStock: updated.minimumStock,
-      notes:        updated.notes || undefined,
-    })
+      notes:        updated.notes ?? '',
+    }, { name: editItem?.name, category: editItem?.category, unit: editItem?.unit, unitCostCents: editItem?.unitCostCents, minimumStock: editItem?.minimumStock, notes: editItem?.notes ?? '' }))
       .then(res => {
         setEditItem(null);
         toast.success(t('inventory:toast.consumableUpdated', 'Updated {{code}} — {{name}}', { code: res.code, name: res.name }));
@@ -523,11 +524,11 @@ function EditConsumableModal({ item, onClose, onSave }: {
   const [unitCost, setUnitCost] = useState((item.unitCostCents / 100).toFixed(2));
   const [notes, setNotes] = useState(item.notes ?? '');
 
-  const canSubmit = moneyInputCents(unitCost) != null && name.trim() && name.trim().length <= FIELD_LIMITS.WAREHOUSE_NAME && category && unit && Number(minStock) >= 0;
+  const canSubmit = moneyInputCents(unitCost) != null && name.trim() && !textTooLong(name, FIELD_LIMITS.WAREHOUSE_NAME, item.name) && !textTooLong(notes, FIELD_LIMITS.NOTE, item.notes ?? '') && category && unit && Number(minStock) >= 0;
 
   const handleSubmit = () => {
     if (!canSubmit) return;
-    onSave({ ...item, name: name.trim(), category, unit, minimumStock: Number(minStock), unitCostCents: moneyInputCents(unitCost)!, notes: notes.trim() || undefined });
+    onSave({ ...item, name: name === item.name ? name : name.trim(), category, unit, minimumStock: Number(minStock), unitCostCents: moneyInputCents(unitCost)!, notes: notes === (item.notes ?? '') ? notes : notes.trim() });
   };
 
   return (

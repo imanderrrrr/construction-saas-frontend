@@ -1,3 +1,4 @@
+import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 import { businessToday } from '../../helpers/dateTime';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -73,7 +74,7 @@ export function ExpenseWindow({
     }
     onSubmit(
       {
-        description: description.trim(),
+        description: description === expense?.description ? description : description.trim(),
         ...(categoryId != null ? { categoryId } : { categoryName: categoryName.trim() }),
         amountCents: cents!,
         purchaseDate,
@@ -82,7 +83,7 @@ export function ExpenseWindow({
           : purchasedByFree.trim()
             ? { purchasedBy: purchasedByFree.trim() }
             : {}),
-        ...(notes.trim() ? { notes: notes.trim() } : {}),
+        ...(editing || notes.trim() ? { notes: notes === expense?.notes ? notes : notes.trim() } : {}),
         recurring,
         ...(recurring && recurringDay ? { recurringDay: Number(recurringDay) } : {}),
       },
@@ -131,7 +132,7 @@ export function ExpenseWindow({
             onChange={e => setDescription(e.target.value)}
             placeholder={t('officeExpenses.form.descriptionHint')}
             className={INPUT}
-            maxLength={500}
+            maxLength={FIELD_LIMITS.NOTE}
           />
         </Field>
 
@@ -186,7 +187,7 @@ export function ExpenseWindow({
               onChange={e => setPurchasedByFree(e.target.value)}
               placeholder={t('officeExpenses.form.purchasedByPlaceholder')}
               className={cn(INPUT, 'mt-1.5')}
-              maxLength={150}
+              maxLength={FIELD_LIMITS.PERSON_NAME}
             />
           )}
         </Field>
@@ -268,7 +269,7 @@ export function ExpenseWindow({
             value={notes}
             onChange={e => setNotes(e.target.value)}
             rows={2}
-            maxLength={1000}
+            maxLength={FIELD_LIMITS.NOTE}
             placeholder={t('officeExpenses.form.notesHint')}
             className={cn(INPUT, 'h-auto py-2 normal-case')}
           />

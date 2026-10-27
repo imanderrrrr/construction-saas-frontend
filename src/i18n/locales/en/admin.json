@@ -3149,7 +3149,7 @@
   "wbs.fileInvalid": "Choose a CSV, TSV or text file up to 2 MB. For Excel, copy and paste the four columns.",
   "wbs.fileFailed": "Could not read the file.",
   "wbs.importError.columns": "Row {{row}}: expected exactly four columns.",
-  "wbs.importError.required": "Row {{row}}: code and name are required (maximum 50 and 255 characters).",
+  "wbs.importError.required": "Row {{row}}: code and name are required (maximum 50 and 25 characters).",
   "wbs.importError.category": "Row {{row}}: unknown category.",
   "wbs.importError.amount": "Row {{row}}: enter a nonnegative dollar amount with up to two decimals.",
   "wbs.importError.duplicate": "Row {{row}}: duplicate code in this import.",

@@ -55,13 +55,13 @@ describe('invoiceBranding service', () => {
     expect(result).toEqual(CONFIGURED);
   });
 
-  it('PUTs the template as JSON', async () => {
+  it('PATCHes changed template fields as JSON', async () => {
     apiMock.mockResolvedValueOnce(CONFIGURED);
 
     await updateInvoiceBranding({ companyName: 'Andes', removeLogo: false });
 
     expect(apiMock).toHaveBeenCalledWith('/api/v1/settings/invoice-branding', {
-      method: 'PUT',
+      method: 'PATCH',
       body: JSON.stringify({ companyName: 'Andes', removeLogo: false }),
     });
   });

@@ -1,3 +1,4 @@
+import { TextValue } from './tools/TextValue';
 import { ApiError } from '../lib/api';
 import { warehouseDate } from '../lib/warehouseDate';
 import { useScreenState } from '../workspace/WorkspaceState';
@@ -178,13 +179,9 @@ export function ConsumableDispatch() {
       const res = await dispatchConsumable({
         requestKey,
         consumableCode,
-        consumableName,
-        unit,
         quantity,
         projectId,
-        project: projectName,
         requestedById,
-        requestedBy: requestedByName,
         notes: notes || undefined,
         ...(budgetLineItemId != null ? { budgetLineItemId } : {}),
       });
@@ -226,8 +223,8 @@ export function ConsumableDispatch() {
         ) : (
           <>
             {/* Desktop */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full">
+            <div className="hidden xl:block overflow-x-auto">
+              <table className="w-full table-fixed min-w-[760px] [&_td]:whitespace-normal [&_td]:[overflow-wrap:anywhere]">
                 <thead>
                   <tr className="bg-[#FAF7F0]">
                     {[t('dispatch.table.date'), t('dispatch.table.item'), t('dispatch.table.qty'), t('dispatch.table.unit'), t('dispatch.table.project'), t('dispatch.table.requestedBy'), t('dispatch.table.notes')].map(h => (
@@ -240,10 +237,10 @@ export function ConsumableDispatch() {
                     <tr key={d.id} className="border-t border-[#DBD0BB]/50 hover:bg-[#FAF7F0]/50 transition-colors">
                       <td className="px-4 py-3 text-sm text-[#0A0A0A] whitespace-nowrap">{fmtDate(d.date)}</td>
                       <td className="px-4 py-3">
-                        <p className="text-sm font-medium text-[#0A0A0A]">{d.consumableName}</p>
+                        <TextValue value={d.consumableName} className="text-sm font-medium text-[#0A0A0A] truncate" />
                         <p className="text-[11px] text-[#8A8175] font-bt-mono">{d.consumableCode}</p>
                       </td>
-                      <td className="px-4 py-3 text-sm font-semibold text-[#0A0A0A]">{d.quantity}<span className="block text-xs text-[#8A8175]">{money(d.totalCostCents / 100)}</span></td>
+                      <td className="px-4 py-3 text-sm font-semibold text-[#0A0A0A] break-words">{d.quantity}<span className="block text-xs text-[#8A8175]">{money(d.totalCostCents / 100)}</span></td>
                       <td className="px-4 py-3 text-sm text-[#8A8175]">{d.unit}</td>
                       <td className="px-4 py-3 text-sm text-[#0A0A0A]">{d.project}</td>
                       <td className="px-4 py-3 text-sm text-[#8A8175]">{d.requestedBy}</td>
@@ -263,17 +260,17 @@ export function ConsumableDispatch() {
             </div>
 
             {/* Mobile cards */}
-            <div className="md:hidden divide-y divide-[#DBD0BB]/50">
+            <div className="xl:hidden divide-y divide-[#DBD0BB]/50">
               {paged.map(d => (
                 <div key={d.id} className="p-4">
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm font-medium text-[#0A0A0A]">{d.consumableName}</p>
-                    <span className="text-sm font-semibold text-[#0A0A0A]">{d.quantity} {d.unit} · {money(d.totalCostCents / 100)}</span>
+                  <div className="flex flex-col items-stretch gap-1 mb-1">
+                    <TextValue value={d.consumableName} className="text-sm font-medium text-[#0A0A0A] truncate" />
+                    <span className="text-sm font-semibold text-[#0A0A0A] break-words">{d.quantity} {d.unit} · {money(d.totalCostCents / 100)}</span>
                   </div>
                   <p className="text-[11px] font-bt-mono text-[#8A8175]">{d.consumableCode}</p>
-                  <p className="text-xs text-[#8A8175] mt-1">{d.project} &middot; {d.requestedBy}</p>
+                  <p className="text-xs text-[#8A8175] mt-1 break-words [overflow-wrap:anywhere]">{d.project} &middot; {d.requestedBy}</p>
                   <p className="text-xs text-[#8A8175]">{fmtDate(d.date)}</p>
-                  {d.notes && <p className="text-xs text-[#8A8175] italic mt-0.5">{d.notes}</p>}
+                  {d.notes && <p className="text-xs text-[#8A8175] italic mt-0.5 break-words [overflow-wrap:anywhere]">{d.notes}</p>}
                 </div>
               ))}
               {paged.length === 0 && (

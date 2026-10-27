@@ -1,3 +1,4 @@
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 // BuildTrack — Public signing page: ONE document, opened from an emailed link.
 //
 // No account, no install: the token in the URL is exchanged for a short-lived
@@ -212,7 +213,7 @@ export function SignDocument() {
               type="text"
               value={signerName}
               onChange={e => setSignerName(e.target.value)}
-              maxLength={80}
+              maxLength={FIELD_LIMITS.PERSON_NAME}
               disabled={submitting || declining}
               className={INPUT}
               placeholder={t('form.namePlaceholder')}
@@ -225,7 +226,7 @@ export function SignDocument() {
               type="text"
               value={signerTitle}
               onChange={e => setSignerTitle(e.target.value)}
-              maxLength={200}
+              maxLength={FIELD_LIMITS.SHORT_NAME}
               disabled={submitting || declining}
               className={INPUT}
               placeholder={t('form.titlePlaceholder')}

@@ -103,7 +103,7 @@ describe('InvoiceBrandingSettings — a failed load can never wipe the letterhea
     expect(company.value).toBe('Constructora Peña S.A.');
   });
 
-  it('saves the whole form, never a set of nulls', async () => {
+  it('saves only edited fields, preserving the existing letterhead', async () => {
     getInvoiceBranding.mockResolvedValue(CONFIGURED);
     updateInvoiceBranding.mockResolvedValue({ ...CONFIGURED, phone: '2412 0000' });
     await act(async () => { root.render(<InvoiceBrandingSettings />); });
@@ -122,10 +122,7 @@ describe('InvoiceBrandingSettings — a failed load can never wipe the letterhea
     await flush();
 
     expect(updateInvoiceBranding).toHaveBeenCalledTimes(1);
-    expect(updateInvoiceBranding.mock.calls[0][0]).toMatchObject({
-      companyName: 'Constructora Peña S.A.',
-      contactName: 'Ing. Marisol Peña',
-      email: 'cobros@constructorapenna.com',
+    expect(updateInvoiceBranding.mock.calls[0][0]).toEqual({
       phone: '2412 0000',
     });
   });

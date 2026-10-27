@@ -113,5 +113,6 @@
   "office.convertedOn": "Convertido el {{date}} por {{user}}.",
   "office.notConvertible": "Sólo se puede convertir un ticket firmado.",
   "errors.action": "No se pudo completar la acción. Prueba de nuevo.",
-  "errors.copy": "No se pudo copiar el enlace."
+  "errors.copy": "No se pudo copiar el enlace.",
+  "form.textLimit": "Admite hasta {{max}} caracteres."
 }

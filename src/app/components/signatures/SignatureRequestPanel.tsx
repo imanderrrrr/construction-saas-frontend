@@ -1,3 +1,4 @@
+import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 // BuildTrack — "Customer signature" panel inside a receivable's detail row.
 //
 // Replaces what used to be a blank ruled line at the bottom of the invoice PDF:
@@ -196,7 +197,7 @@ export function SignatureRequestPanel({ receivableId, defaultRecipientEmail }: P
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                maxLength={200}
+                maxLength={FIELD_LIMITS.PERSON_NAME}
                 disabled={busy}
                 className={INPUT}
                 placeholder="super@constructora.com"
@@ -209,7 +210,7 @@ export function SignatureRequestPanel({ receivableId, defaultRecipientEmail }: P
                 type="text"
                 value={name}
                 onChange={e => setName(e.target.value)}
-                maxLength={80}
+                maxLength={FIELD_LIMITS.SHORT_NAME}
                 disabled={busy}
                 className={INPUT}
               />

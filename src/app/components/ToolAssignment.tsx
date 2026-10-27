@@ -1,3 +1,4 @@
+import { TextValue } from './tools/TextValue';
 import { actionName, categoryName, statusName } from './tools/bits';
 import { warehouseDate } from '../lib/warehouseDate';
 import { useScreenState } from '../workspace/WorkspaceState';
@@ -256,7 +257,7 @@ function AssignModal({ open, workers, onClose, onAssign }: {
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent className="rounded-none sm:max-w-lg">
+      <DialogContent className="rounded-none sm:max-w-lg min-w-0 [&>*]:min-w-0">
         <DialogHeader><DialogTitle className="font-bt-display uppercase text-2xl">{t('assignment.dialog.assign')}</DialogTitle></DialogHeader>
 
         <div className="space-y-4 py-2">
@@ -335,10 +336,11 @@ function ReturnModal({ open, activeAssignments, onClose, onReturn }: {
   useEffect(() => { if (open) { setAssignId(''); setCondition(''); setNotes(''); } }, [open]);
 
   const valid = assignId && condition;
+  const selectedAssignment = activeAssignments.find(a => a.id === assignId);
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent className="rounded-none sm:max-w-lg">
+      <DialogContent className="rounded-none sm:max-w-lg min-w-0 [&>*]:min-w-0">
         <DialogHeader><DialogTitle className="font-bt-display uppercase text-2xl">{t('assignment.dialog.return')}</DialogTitle></DialogHeader>
 
         <div className="space-y-4 py-2">
@@ -352,14 +354,16 @@ function ReturnModal({ open, activeAssignments, onClose, onReturn }: {
                 <SelectContent>
                   {activeAssignments.map(a => (
                     <SelectItem key={a.id} value={a.id}>
-                      <span className="font-bt-mono text-xs mr-1 text-[#8A8175]">{a.toolCode}</span>
-                      {a.toolName}
-                      <span className="text-[#8A8175] ml-1">({t('assignment.dialog.assignedTo', { worker: a.worker })})</span>
+                      <span className="block truncate" title={`${a.toolCode} · ${a.toolName} · ${a.worker}`}>
+                        <span className="font-bt-mono text-xs mr-1 text-[#8A8175]">{a.toolCode}</span>{' '}
+                        {a.toolName} · {a.worker}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             )}
+            {selectedAssignment && selectedAssignment.toolName.length > 25 && <TextValue value={selectedAssignment.toolName} className="text-xs text-[#8A8175]" />}
           </div>
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-[#8A8175] uppercase tracking-wide">{t('assignment.dialog.conditionOnReturn')} *</label>
@@ -456,11 +460,8 @@ export function ToolAssignment() {
   function handleAssign(toolCode: string, toolName: string, workerId: number, workerName: string, projectId: number, projectName: string, notes: string) {
     apiAssignTool({
       toolCode,
-      toolName,
       workerId,
-      worker: workerName,
       projectId,
-      project: projectName,
       notes: notes || undefined,
     }).then(() => {
       setShowAssign(false);
@@ -500,7 +501,7 @@ export function ToolAssignment() {
     <div className="space-y-6 max-w-6xl">
 
       {/* Header */}
-      <SectionHeader kicker={t('warehouse.panelLabel')} title={t('assignment.title')} description={t('assignment.subtitle')} action={<div className="flex items-center gap-2">
+      <SectionHeader kicker={t('warehouse.panelLabel')} title={t('assignment.title')} description={t('assignment.subtitle')} action={<div className="flex flex-wrap items-center gap-2">
           <Button onClick={() => setShowReturn(true)}
             variant="outline" className="border-amber-500 text-amber-600 hover:bg-amber-50 gap-2 h-9 text-xs">
             <ArrowLeft className="w-4 h-4" />{t('assignment.returnTool')}
@@ -541,8 +542,8 @@ export function ToolAssignment() {
         {/* Active Assignments tab */}
         {activeTab === 'active' && (
           <>
-            <div className="hidden md:block overflow-x-auto">
-              <Table>
+            <div className="hidden xl:block overflow-x-auto">
+              <Table className="table-fixed min-w-[760px] [&_td]:whitespace-normal [&_td]:[overflow-wrap:anywhere]">
                 <TableHeader>
                   <TableRow className="bg-[#FAF7F0] hover:bg-[#FAF7F0]">
                     {[t('assignment.table.tool'), t('assignment.table.category'), t('assignment.table.worker'), t('assignment.table.assignedDate'), t('assignment.table.project'), t('assignment.table.daysOut'), t('assignment.table.actions')].map(h => (
@@ -554,9 +555,9 @@ export function ToolAssignment() {
                   {activePageRows.map(a => (
                     <TableRow key={a.id} className="border-b border-[#DBD0BB]/50 hover:bg-[#FAF7F0]/50">
                       <TableCell className="py-3">
-                        <div className="flex items-center gap-2">
-                          <div>
-                            <p className="text-sm font-semibold text-[#0A0A0A]">{a.toolName}</p>
+                        <div className="flex flex-col items-start gap-2 min-w-0">
+                          <div className="min-w-0 w-full">
+                            <TextValue value={a.toolName} className="text-sm font-semibold text-[#0A0A0A] truncate" />
                             <p className="text-[11px] font-bt-mono text-[#8A8175]">{a.toolCode}</p>
                           </div>
                           {a.status !== 'ASSIGNED' && (
@@ -602,24 +603,24 @@ export function ToolAssignment() {
               </Table>
             </div>
             {/* Mobile */}
-            <div className="md:hidden divide-y divide-[#DBD0BB]">
+            <div className="xl:hidden divide-y divide-[#DBD0BB]">
               {activePageRows.map(a => (
-                <div key={a.id} className="p-4 flex items-start justify-between gap-3">
+                <div key={a.id} className="p-4 flex flex-col items-stretch gap-3">
                   <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-[#0A0A0A]">{a.toolName}</p>
+                    <div className="min-w-0 flex flex-col items-start gap-2">
+                      <TextValue value={a.toolName} className="text-sm font-semibold text-[#0A0A0A] truncate" />
                       {a.status !== 'ASSIGNED' && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-semibold border bg-amber-50 text-amber-700 border-amber-200">
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-semibold max-w-full whitespace-normal border bg-amber-50 text-amber-700 border-amber-200">
                           {statusName(t, a.status === 'PENDING_ACCEPTANCE' ? 'Pending Acceptance' : a.status === 'RETURN_PENDING' ? 'Return Pending' : 'Lost')}
                         </span>
                       )}
                     </div>
                     <p className="text-[11px] font-bt-mono text-[#8A8175]">{a.toolCode}</p>
-                    <p className="text-xs text-[#8A8175] mt-1">{a.worker} · {a.project}</p>
+                    <p className="text-xs text-[#8A8175] mt-1 break-words [overflow-wrap:anywhere]">{a.worker} · {a.project}</p>
                     <p className={`text-xs mt-0.5 ${getDaysOutColor(a.daysOut)}`}>{a.daysOut === 0 ? t('assignment.today') : t('assignment.daysOutLong', { days: a.daysOut })}</p>
                   </div>
                   <Button onClick={() => setShowReturn(true)} variant="outline" size="sm"
-                    className="border-amber-500 text-amber-600 hover:bg-amber-50 gap-1 h-7 text-xs px-2 flex-shrink-0">
+                    className="border-amber-500 text-amber-600 hover:bg-amber-50 gap-1 h-7 text-xs px-2 flex-shrink-0 self-start">
                     <RotateCcw className="w-3 h-3" />{t('assignment.return')}
                   </Button>
                 </div>
@@ -632,8 +633,8 @@ export function ToolAssignment() {
         {/* Assignment Log tab */}
         {activeTab === 'log' && (
           <>
-            <div className="hidden md:block overflow-x-auto">
-              <Table>
+            <div className="hidden xl:block overflow-x-auto">
+              <Table className="table-fixed min-w-[760px] [&_td]:whitespace-normal [&_td]:[overflow-wrap:anywhere]">
                 <TableHeader>
                   <TableRow className="bg-[#FAF7F0] hover:bg-[#FAF7F0]">
                     {[t('assignment.log.date'), t('assignment.log.tool'), t('assignment.log.action'), t('assignment.log.worker'), t('assignment.log.project'), t('assignment.log.condition'), t('assignment.log.notes')].map(h => (
@@ -666,7 +667,7 @@ export function ToolAssignment() {
               </Table>
             </div>
             {/* Mobile */}
-            <div className="md:hidden divide-y divide-[#DBD0BB]">
+            <div className="xl:hidden divide-y divide-[#DBD0BB]">
               {logPageRows.map(l => (
                 <div key={l.id} className="p-4 space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
