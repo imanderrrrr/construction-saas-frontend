@@ -83,9 +83,50 @@ describe('public site content rules', () => {
     }
   });
 
-  it('keeps the contract amount optional when creating a project in the docs', () => {
+  // The project form has required the contract amount since 2026-09
+  // (ProjectWindow: projectForm.contractAmountRequired); the client, the map
+  // and the cost budget are what stays optional. The guide said the opposite
+  // for six weeks.
+  it('describes project creation the way the form works', () => {
+    expect((esDocs as Bundle)['s0.step.3.rest']).toMatch(/nombre y el monto del contrato/);
     expect((esDocs as Bundle)['s0.step.3.rest']).toContain('opcionales');
+    expect((enDocs as Bundle)['s0.step.3.rest']).toMatch(/name and the contract amount/);
     expect((enDocs as Bundle)['s0.step.3.rest']).toContain('optional');
+  });
+
+  // Claims the 2026-10-27 audit found in the old guide — and on the landing —
+  // with nothing behind them in the panel, the API or the field app. Each one
+  // was a promise a demo would have broken.
+  it('does not promise what the product does not do', () => {
+    const NOT_IN_THE_PRODUCT: [RegExp, string][] = [
+      [/avance f[ií]sico|physical progress/i, 'there is no physical-progress field; "avance" is spend vs. budget'],
+      [/estimaci[oó]n|progress billing/i, 'receivables are invoices and change orders, not progress billings'],
+      [/solo vale adentro|only count inside/i, 'a clock-in outside the geofence is recorded and flagged, never refused'],
+      [/se arma sola|builds itself/i, 'payroll pays approved hours × rate after someone confirms it'],
+      [/notificaci[oó]n(es)? push|push notification/i, 'notifications are an in-app inbox; there is no push'],
+      [/solo lectura|read-only/i, 'the client answers RFIs and reports punch items from the portal'],
+    ];
+    const bundles: [string, Bundle][] = [
+      ['docs', enDocs as Bundle],
+      ['docs', esDocs as Bundle],
+      ['landing', enLanding as Bundle],
+      ['landing', esLanding as Bundle],
+    ];
+    for (const [name, bundle] of bundles) {
+      for (const [k, v] of Object.entries(bundle)) {
+        for (const [pattern, why] of NOT_IN_THE_PRODUCT) {
+          expect(pattern.test(v), `${name}:${k} — ${why}: ${v}`).toBe(false);
+        }
+      }
+    }
+  });
+
+  it('keeps an RFI apart from change orders in the docs', () => {
+    // Only time & materials tickets convert into change orders.
+    for (const bundle of [enDocs as Bundle, esDocs as Bundle]) {
+      const rfi = Object.entries(bundle).filter(([k]) => k.startsWith('s12.')).map(([, v]) => v).join(' ');
+      expect(rfi).not.toMatch(/orden de cambio|change order/i);
+    }
   });
 
   // Anderson's call: the status page never shows invented uptime figures. Its
