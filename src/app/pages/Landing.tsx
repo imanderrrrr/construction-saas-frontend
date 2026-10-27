@@ -76,6 +76,9 @@ export function Landing() {
             <Link to="/docs" className={NAV_LINK}>
               {t('nav.docs')}
             </Link>
+            <Link to="/status" className={NAV_LINK}>
+              {t('nav.status')}
+            </Link>
             {/* "Precios" goes to the demo section — there is no price list */}
             <a href="#demo" className={NAV_LINK}>
               {t('nav.pricing')}
