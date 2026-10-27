@@ -3,7 +3,7 @@
 // The video itself is a rendered file; what can go wrong is the LIFECYCLE
 // around it, and that is what these pin: who gets it (first visit, desktop,
 // no reduced motion), how it ends (fade, "seen", the row moves on), and — the
-// part that matters most for a cover that cannot be dismissed — every way it
+// part that matters most for a full-screen cover — every way it
 // steps aside instead of holding the site hostage.
 //
 // jsdom plays nothing, so the browser's media events are dispatched by hand,
@@ -64,6 +64,7 @@ describe('IntroOverlay', () => {
   };
   const seen = () => localStorage.getItem(INTRO_STORAGE_KEY);
   const soundButton = () => document.querySelector<HTMLButtonElement>('.intro-overlay-sound');
+  const skipButton = () => document.querySelector<HTMLButtonElement>('.intro-overlay-skip');
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -73,6 +74,7 @@ describe('IntroOverlay', () => {
     document.body.style.overflow = '';
     stubMedia({ desktop: true });
     playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play').mockImplementation(() => Promise.resolve());
+    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -82,6 +84,7 @@ describe('IntroOverlay', () => {
     await act(async () => { root.unmount(); });
     container.remove();
     playSpy.mockRestore();
+    vi.restoreAllMocks();
     resetFirstRunQueue();
     window.history.replaceState(null, '', '/');
     vi.useRealTimers();
@@ -161,17 +164,46 @@ describe('IntroOverlay', () => {
       expect(seen()).toBe('1');
     });
 
-    it('cannot be dismissed by the visitor: no button, no Esc, no click', async () => {
+    it('shows no skip control until the visitor clicks, and Esc does not end it', async () => {
       await render();
       await fire('playing');
 
       expect(overlay()!.querySelector('button, a, [role="button"]')).toBeNull();
       await act(async () => {
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-        overlay()!.click();
       });
-      expect(overlay()).not.toBeNull();
+      expect(skipButton()).toBeNull();
       expect(overlay()!.getAttribute('data-fading')).toBe('false');
+    });
+
+    it('a click on the film brings up Saltar in the corner, and the click alone ends nothing', async () => {
+      await render();
+      await fire('playing');
+
+      await act(async () => { overlay()!.click(); });
+
+      const button = skipButton();
+      expect(button).not.toBeNull();
+      expect(button!.textContent).toContain('intro.skip');
+      expect(button!.closest('.intro-overlay-controls')).not.toBeNull();
+      expect(document.activeElement).toBe(button); // a keyboard user can press it straight away
+      expect(overlay()!.getAttribute('data-fading')).toBe('false');
+      expect(seen()).toBeNull();
+    });
+
+    it('Saltar fades the intro, counts it as seen and lets the row go', async () => {
+      await render();
+      await fire('playing');
+      await act(async () => { overlay()!.click(); });
+
+      await act(async () => { skipButton()!.click(); });
+      expect(overlay()!.getAttribute('data-fading')).toBe('true');
+
+      await advance(INTRO_FADE_OUT_MS);
+      expect(overlay()).toBeNull();
+      expect(seen()).toBe('1');
+      expect(firstRunHolder()).toBeNull();
+      expect(document.body.style.overflow).toBe('');
     });
   });
 

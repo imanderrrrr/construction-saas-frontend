@@ -185,5 +185,6 @@
   "billing.recover": "Update billing",
   "billing.unavailable": "Access check unavailable. This screen is preserved; try again.",
   "billing.readOnly": "Read-only access due to billing. Time punches remain available.",
-  "intro.soundOn": "Turn sound on"
+  "intro.soundOn": "Turn sound on",
+  "intro.skip": "Skip"
 }

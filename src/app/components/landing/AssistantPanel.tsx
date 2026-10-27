@@ -292,7 +292,7 @@ export function AssistantPanel({ onClose, deps }: { onClose: () => void; deps?: 
       aria-modal={narrow || undefined}
       aria-busy={chat.submitting || undefined}
       onKeyDown={onDialogKey}
-      className="fixed bottom-6 right-6 z-50 flex h-[620px] max-h-[calc(100dvh-3rem)] w-[380px] flex-col border border-[rgba(23,19,15,0.35)] bg-bt-sheet font-bt-body text-bt-ink shadow-[0_30px_70px_-38px_rgba(23,19,15,0.55)] bt-window-in max-sm:inset-0 max-sm:h-auto max-sm:max-h-none max-sm:w-auto max-sm:border-0 max-sm:shadow-none"
+      className="ph-no-capture fixed bottom-6 right-6 z-50 flex h-[620px] max-h-[calc(100dvh-3rem)] w-[380px] flex-col border border-[rgba(23,19,15,0.35)] bg-bt-sheet font-bt-body text-bt-ink shadow-[0_30px_70px_-38px_rgba(23,19,15,0.55)] bt-window-in max-sm:inset-0 max-sm:h-auto max-sm:max-h-none max-sm:w-auto max-sm:border-0 max-sm:shadow-none"
     >
       <Header {...header} closeLabel={t('assistant.panel.close')} onClose={onClose} />
 

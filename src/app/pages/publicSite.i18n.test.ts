@@ -67,6 +67,21 @@ describe('public site content rules', () => {
     }
   });
 
+  // BuildTrack works in dollars and is not sold to one country. The landing
+  // used to read as Guatemalan through and through — coordinates of the
+  // capital, "Zona 16", a local cement brand, "Hecho en Guatemala" — and a
+  // buyer anywhere else read that as "not for me".
+  it('does not pitch the site to one country', () => {
+    const COUNTRY = /guatemal|zona \d|zone \d|\bC\.A\.|\bUGC\b|quetzal|14\.6349/i;
+    for (const [name, en, es] of NAMESPACES) {
+      for (const bundle of [en, es]) {
+        for (const [k, v] of Object.entries(bundle)) {
+          expect(COUNTRY.test(v), `${name}:${k} pitches a country: ${v}`).toBe(false);
+        }
+      }
+    }
+  });
+
   it('states the beta is free', () => {
     expect((esLanding as Bundle)['beta.2.value'].toLowerCase()).toContain('gratis');
     expect((enLanding as Bundle)['beta.2.value'].toLowerCase()).toContain('free');

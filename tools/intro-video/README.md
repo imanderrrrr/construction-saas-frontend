@@ -5,7 +5,7 @@ The brand intro that plays once, full screen, on a visitor's first desktop visit
 is edited as text and re-rendered the same every time.
 
 ArchLogic is the *drawing*, BuildTrack is the *building*: the film goes from a drafting sheet to a
-construction site, in the market's own language (Guatemala, *obra*).
+construction site, in the builder's own language (*obra*).
 
 | | |
 |---|---|
@@ -21,7 +21,7 @@ the width, so nothing is clipped in the middle of the page.
 
 | t (s) | What happens |
 |---|---|
-| 0 – 1.2 | The sheet: the grid unfolds from the centre, the ground line (*nivel 0.00*) is drawn, the sheet's labels and the real coordinates of the landing (14.6349° N · 90.5069° O) appear |
+| 0 – 1.2 | The sheet: the grid unfolds from the centre, the ground line (*nivel 0.00*) is drawn, the sheet's labels and its datum (nivel ±0.00 · eje A-1) appear |
 | 0.4 – 1.5 | The ArchLogic mark is **drafted**: outline, construction lines (the *A*'s sides meet above), dimension lines |
 | 1.25 – 2.1 | The drawing turns solid: black base, then the orange *A* and *L* fill from the ground up |
 | 1.75 – 3.5 | The mark cedes the centre; the name rises letter by letter from the ground line |
