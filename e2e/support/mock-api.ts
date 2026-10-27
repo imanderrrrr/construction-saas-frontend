@@ -91,11 +91,6 @@ export async function installHermeticBase(page: Page, opts: BaseOpts = {}) {
       // row, so it would open the moment the tour is finished or skipped.
       // Key/value must track WhatsNewModal.seenKey()/WHATS_NEW_VERSION.
       localStorage.setItem(`bt.whatsnew.${username ?? 'anon'}`, '2026-08');
-      // The landing's logo build is not in the first-run row and swallows no
-      // clicks, but it would hide the nav logo for ~6 s in every landing spec.
-      // Key must track LOGO_BUILD_STORAGE_KEY (LogoBuildOverlay); `/?logo`
-      // still plays it.
-      localStorage.setItem('buildtrack:logo-build-v2-seen', '1');
       if (!showFirstRun) {
         // Mark the one-time overlays as already seen — an unseeded one holds
         // the first-run row and nothing behind it opens. Keys must track
