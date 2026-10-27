@@ -1,8 +1,8 @@
 // BuildTrack — «BuildTrack se construye», the landing's logo build.
 //
 // The video is a rendered file; what can go wrong is everything around it,
-// and that is what these pin: who gets it (once, phones too, not with reduced
-// motion or Save-Data, not right after the intro film), where it stands (in
+// and that is what these pin: who gets it (every page load, phones too, not
+// with reduced motion or Save-Data, after the intro film), where it stands (in
 // the logo's corner, the whole frame between the top of the page and the
 // logo), where its last frame lands (exactly on the real logo's box), and
 // every way it gives the real logo back instead of leaving a hole there.
@@ -20,7 +20,7 @@ import {
   LOGO_BUILD_HANDOFF_MS,
   LOGO_BUILD_LANDING_MS,
   LOGO_BUILD_START_TIMEOUT_MS,
-  LOGO_BUILD_STORAGE_KEY,
+  resetLogoBuildForTests,
 } from './LogoBuildOverlay';
 import { resetFirstRunQueue, useFirstRunTurn } from '../../lib/firstRunQueue';
 
@@ -108,7 +108,6 @@ describe('LogoBuildOverlay', () => {
   const render = async (props: PageProps = {}) => {
     await act(async () => { root.render(<Page {...props} />); });
   };
-  const seen = () => localStorage.getItem(LOGO_BUILD_STORAGE_KEY);
   /** Is the real logo hidden right now? */
   const hidden = () => standIns[standIns.length - 1] === true;
   /** Mounted, armed, and loading: the moment the video is in the page. */
@@ -120,6 +119,7 @@ describe('LogoBuildOverlay', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     resetFirstRunQueue();
+    resetLogoBuildForTests(); // every test is a fresh page load
     localStorage.clear();
     window.history.replaceState(null, '', '/');
     stubMedia({});
@@ -164,7 +164,6 @@ describe('LogoBuildOverlay', () => {
       await fire('playing');
       expect(overlay()?.dataset.phase).toBe('building');
       expect(hidden()).toBe(true);
-      expect(seen()).toBeNull();
 
       overlay()!.getBoundingClientRect = () => rect(left, top, 1400 * scale, 360 * scale);
       await fire('ended');
@@ -183,7 +182,6 @@ describe('LogoBuildOverlay', () => {
       await advance(LOGO_BUILD_LANDING_MS);
       expect(overlay()?.dataset.phase).toBe('handoff');
       expect(hidden()).toBe(false);
-      expect(seen()).toBe('1');
 
       await advance(LOGO_BUILD_HANDOFF_MS);
       expect(overlay()).toBeNull();
@@ -230,24 +228,95 @@ describe('LogoBuildOverlay', () => {
       expect(overlay()?.dataset.phase).toBe('building');
     });
 
-    it('when no file can be played, the build is dropped and kept for next visit', async () => {
+    it('when no file can be played, the build is dropped', async () => {
       await renderAndLoad();
       const [hevc, webm] = document.querySelectorAll('.logo-build-root source');
       await fire('error', hevc);
       await fire('error', webm);
       expect(overlay()).toBeNull();
-      expect(seen()).toBeNull();
+    });
+  });
+
+  describe('every time someone enters the site', () => {
+    /** Runs a whole build, from the first frame to the real logo being back. */
+    const buildToTheEnd = async () => {
+      await renderAndLoad();
+      await fire('playing');
+      await fire('ended');
+      await advance(LOGO_BUILD_LANDING_MS + LOGO_BUILD_HANDOFF_MS);
+      expect(overlay()).toBeNull();
+    };
+
+    it('the next page load builds it again: nothing is remembered in storage', async () => {
+      await buildToTheEnd();
+      expect(localStorage.length).toBe(0);
+      expect(sessionStorage.length).toBe(0);
+
+      await act(async () => { root.unmount(); });
+      resetLogoBuildForTests(); // a reload, or a new visit
+      root = createRoot(container);
+      await renderAndLoad();
+      expect(overlay()?.dataset.phase).toBe('loading');
+    });
+
+    it('coming back to the landing within the same page load does not replay it', async () => {
+      await buildToTheEnd();
+      const plays = playSpy.mock.calls.length;
+      await act(async () => { root.unmount(); }); // off to another page of the site…
+      root = createRoot(container);
+      await renderAndLoad(); // …and back to the landing
+      expect(overlay()).toBeNull(); // not even loading the video
+      expect(playSpy.mock.calls.length).toBe(plays);
+      expect(standIns.slice(-1)).toEqual([false]);
+    });
+
+    it('a build that never got going is tried again when the landing opens again', async () => {
+      await renderAndLoad();
+      await advance(LOGO_BUILD_START_TIMEOUT_MS); // the video never started
+      expect(overlay()).toBeNull();
+
+      await act(async () => { root.unmount(); });
+      root = createRoot(container);
+      await renderAndLoad();
+      expect(overlay()?.dataset.phase).toBe('loading');
+    });
+  });
+
+  describe('after the intro film', () => {
+    it('waits while the film plays, and builds as soon as it is gone', async () => {
+      await render({ withIntro: true, introPlaying: true });
+      await advance(LOGO_BUILD_ARM_MS + LOGO_BUILD_START_TIMEOUT_MS);
+      expect(overlay()).toBeNull();
+      expect(playSpy).not.toHaveBeenCalled();
+      expect(standIns).not.toContain(true); // the real logo stays meanwhile
+
+      await render({ withIntro: true, introPlaying: false });
+      expect(overlay()).toBeNull(); // a moment for the film's fade to clear
+      await advance(LOGO_BUILD_ARM_MS);
+      expect(overlay()?.dataset.phase).toBe('loading');
+      expect(playSpy).toHaveBeenCalled();
+
+      await fire('playing');
+      expect(overlay()?.dataset.phase).toBe('building');
+      expect(hidden()).toBe(true);
+    });
+
+    it('a film that takes the screen before the build has started: the build steps back and waits again', async () => {
+      await renderAndLoad();
+      expect(overlay()?.dataset.phase).toBe('loading');
+
+      await render({ withIntro: true, introPlaying: true });
+      expect(overlay()).toBeNull();
+      await advance(LOGO_BUILD_START_TIMEOUT_MS * 2);
+      expect(overlay()).toBeNull();
+
+      await render({ withIntro: true, introPlaying: false });
+      await advance(LOGO_BUILD_ARM_MS);
+      expect(overlay()?.dataset.phase).toBe('loading');
     });
   });
 
   describe('who does not get it', () => {
-    it('a browser that has seen it already', async () => {
-      localStorage.setItem(LOGO_BUILD_STORAGE_KEY, '1');
-      await renderAndLoad();
-      expect(overlay()).toBeNull();
-      expect(playSpy).not.toHaveBeenCalled();
-    });
-
     it('a visitor who asked for reduced motion', async () => {
       stubMedia({ reducedMotion: true });
       await renderAndLoad();
@@ -264,14 +333,7 @@ describe('LogoBuildOverlay', () => {
       }
     });
 
-    it('`?logo` replays it for a browser that has seen it', async () => {
-      localStorage.setItem(LOGO_BUILD_STORAGE_KEY, '1');
-      window.history.replaceState(null, '', '/?logo');
-      await renderAndLoad();
-      expect(overlay()?.dataset.phase).toBe('loading');
-    });
-
-    it('a page that opens scrolled past the logo: nothing to stand in for, kept for later', async () => {
+    it('a page that opens scrolled past the logo: nothing to stand in for', async () => {
       // A reload that restores the scroll: the logo is still at the top of the
       // page, 1000 px above the window.
       Object.defineProperty(window, 'scrollY', { value: 1000, configurable: true });
@@ -280,42 +342,25 @@ describe('LogoBuildOverlay', () => {
         await renderAndLoad();
         expect(overlay()).toBeNull();
         expect(playSpy).not.toHaveBeenCalled();
-        expect(seen()).toBeNull();
       } finally {
         Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
       }
     });
-
-    it('a visit that opened with the intro film: it waits for a later one', async () => {
-      await render({ withIntro: true });
-      await advance(LOGO_BUILD_ARM_MS);
-      expect(overlay()).toBeNull();
-
-      // Not even once the film is over: a second brand moment would queue
-      // behind the first.
-      await render({ withIntro: true, introPlaying: false });
-      await advance(LOGO_BUILD_ARM_MS + LOGO_BUILD_START_TIMEOUT_MS);
-      expect(overlay()).toBeNull();
-      expect(playSpy).not.toHaveBeenCalled();
-      expect(seen()).toBeNull();
-    });
   });
 
   describe('it never leaves a hole where the logo goes', () => {
-    it('a video that does not start in time is dropped, and kept for next visit', async () => {
+    it('a video that does not start in time is dropped', async () => {
       await renderAndLoad();
       await advance(LOGO_BUILD_START_TIMEOUT_MS);
       expect(overlay()).toBeNull();
       expect(hidden()).toBe(false);
       expect(standIns).not.toContain(true);
-      expect(seen()).toBeNull();
     });
 
-    it('refused autoplay drops it, and keeps it for next visit', async () => {
+    it('refused autoplay drops it', async () => {
       playSpy.mockImplementation(NOT_ALLOWED);
       await renderAndLoad();
       expect(overlay()).toBeNull();
-      expect(seen()).toBeNull();
     });
 
     it('a stream that breaks halfway gives the logo back at once', async () => {
@@ -326,7 +371,6 @@ describe('LogoBuildOverlay', () => {
       await fire('error');
       expect(overlay()).toBeNull();
       expect(hidden()).toBe(false);
-      expect(seen()).toBeNull();
     });
 
     it('a stream that stalls without ending: the safety net hands the logo back, no growing', async () => {
@@ -340,7 +384,6 @@ describe('LogoBuildOverlay', () => {
       expect(overlay()?.dataset.phase).toBe('handoff');
       expect(overlay()?.style.transform).toBe('');
       expect(hidden()).toBe(false);
-      expect(seen()).toBe('1');
     });
 
     it('with the logo scrolled out of view by the end, it just fades and the logo is back', async () => {

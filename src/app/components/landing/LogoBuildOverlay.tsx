@@ -16,17 +16,17 @@ import { useFirstRunIdle } from '../../lib/firstRunQueue';
  * grows onto the real logo, which takes over. Nothing else on the page is
  * covered or dimmed.
  *
- *   - Once per browser (localStorage). `?logo` on the landing replays it on
- *     demand (demos, reviews) without touching storage.
+ *   - Every time someone enters the site: on every page load of the landing
+ *     (a reload counts), not once per browser. Coming back to the landing
+ *     from another page of the site within the same load does not replay it.
  *   - Phones too, unlike the desktop-only intro film.
+ *   - After the intro film: while the first-run row is busy (the film on a
+ *     first desktop visit) the build waits, and plays as soon as the film is
+ *     gone. It is not in FIRST_RUN_ORDER on purpose: it covers nothing that
+ *     has to wait for it, so nothing queues behind it.
  *   - Never in the way: it takes no clicks, and if the video has not started
- *     within seconds it is dropped WITHOUT marking it seen. Reduced motion or
- *     Save-Data: no build, just the logo.
- *   - Never right after another ceremony: if the first-run row is busy when
- *     the page opens (the intro film on a first desktop visit), the build
- *     waits for a later visit instead of queueing a second brand moment
- *     behind the first. It is not in FIRST_RUN_ORDER on purpose: it covers
- *     nothing that has to wait for it.
+ *     within seconds it is dropped. Reduced motion or Save-Data: no build,
+ *     just the logo.
  *   - The real logo stays in the DOM the whole time (link, aria-label, crisp
  *     text); the page only makes it transparent while the video stands in.
  *
@@ -34,14 +34,11 @@ import { useFirstRunIdle } from '../../lib/firstRunQueue';
  * the logo it stands in for.
  */
 
-/** Bump to show the build again to everyone who has already seen it.
- *  v2: the build moved from the middle of the screen into the logo's corner. */
-export const LOGO_BUILD_STORAGE_KEY = 'buildtrack:logo-build-v2-seen';
 /** Length of the rendered video (ffprobe: 5.6 s). */
 export const LOGO_BUILD_DURATION_MS = 5_600;
-/** Time the first-run row gets to fill before the build commits to loading. */
+/** Time the first-run row gets to fill (or to settle once the film is gone) before the build commits to loading. */
 export const LOGO_BUILD_ARM_MS = 300;
-/** No `playing` event by now → no build this visit. */
+/** No `playing` event by now → no build this time. */
 export const LOGO_BUILD_START_TIMEOUT_MS = 3_000;
 /** The last frame growing onto the real logo. */
 export const LOGO_BUILD_LANDING_MS = 700;
@@ -49,7 +46,6 @@ export const LOGO_BUILD_LANDING_MS = 700;
 export const LOGO_BUILD_HANDOFF_MS = 250;
 /** Slack over the video's length before the safety net hands the logo back. */
 const END_GRACE_MS = 2_500;
-const REPLAY_PARAM = 'logo';
 /** Air between the top of the page and the top of the crane, in page px. */
 const TOP_MARGIN = 2;
 
@@ -78,18 +74,25 @@ type Placement = { left: number; top: number; width: number };
 
 type NavigatorWithConnection = Navigator & { connection?: { saveData?: boolean } };
 
+/** Whether this page load has shown the build already. Module state, so it
+ *  lives exactly as long as the page: a reload or a new visit starts at false. */
+let builtThisLoad = false;
+
+function markBuilt() {
+  builtThisLoad = true;
+}
+
+/** A fresh page load, as far as the build knows. Tests only. */
+export function resetLogoBuildForTests() {
+  builtThisLoad = false;
+}
+
 function shouldBuildLogo(): boolean {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  if (builtThisLoad) return false;
   // An explicit ask for less motion or less data outranks a brand flourish.
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
-  if ((navigator as NavigatorWithConnection).connection?.saveData) return false;
-  if (new URLSearchParams(window.location.search).has(REPLAY_PARAM)) return true;
-  try {
-    return !window.localStorage.getItem(LOGO_BUILD_STORAGE_KEY);
-  } catch {
-    // Storage disabled: skip it rather than play it on every page load.
-    return false;
-  }
+  return !(navigator as NavigatorWithConnection).connection?.saveData;
 }
 
 function isOnScreen(rect: DOMRect): boolean {
@@ -131,16 +134,17 @@ export function LogoBuildOverlay({ markRef, onStandInChange }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const idle = useFirstRunIdle();
 
-  // Another ceremony holds the screen: not this visit. Once the build is on
-  // screen it finishes — it covers nothing that waits for it.
+  // Another ceremony took the screen before the build started: wait for it
+  // again. Once the build is on screen it finishes — it covers nothing.
   useEffect(() => {
-    if (!idle) setPhase(p => (p === 'armed' || p === 'loading' ? 'off' : p));
+    if (!idle) setPhase(p => (p === 'loading' ? 'armed' : p));
   }, [idle]);
 
-  // The intro film claims the row from its own effect; give it a moment
-  // before loading anything. Then stand over the logo — if it is in view.
+  // Wait while the row is busy (the intro film), then give it a moment — the
+  // film claims the row from its own effect, and fades out before it lets
+  // go. Then stand over the logo, if it is in view.
   useEffect(() => {
-    if (phase !== 'armed') return;
+    if (phase !== 'armed' || !idle) return;
     const timer = window.setTimeout(() => {
       const mark = markRef.current?.getBoundingClientRect();
       const place = mark ? placeOverLogo(mark) : null;
@@ -148,7 +152,7 @@ export function LogoBuildOverlay({ markRef, onStandInChange }: Props) {
       setPhase(p => (p !== 'armed' ? p : place ? 'loading' : 'off'));
     }, LOGO_BUILD_ARM_MS);
     return () => window.clearTimeout(timer);
-  }, [phase, markRef]);
+  }, [phase, idle, markRef]);
 
   // Muted autoplay is allowed almost everywhere. Where it is refused (iOS Low
   // Power Mode, some data savers) there is simply no build.
@@ -163,6 +167,10 @@ export function LogoBuildOverlay({ markRef, onStandInChange }: Props) {
       LOGO_BUILD_START_TIMEOUT_MS,
     );
     return () => window.clearTimeout(timer);
+  }, [phase]);
+
+  useEffect(() => {
+    if (phase === 'building') markBuilt();
   }, [phase]);
 
   // `ended` is the normal exit. This is the net for a stream that stalls
@@ -196,11 +204,6 @@ export function LogoBuildOverlay({ markRef, onStandInChange }: Props) {
 
   useEffect(() => {
     if (phase !== 'handoff') return;
-    try {
-      window.localStorage.setItem(LOGO_BUILD_STORAGE_KEY, '1');
-    } catch {
-      // Storage unavailable: shouldBuildLogo() already skips it next time.
-    }
     const timer = window.setTimeout(() => setPhase('off'), LOGO_BUILD_HANDOFF_MS);
     return () => window.clearTimeout(timer);
   }, [phase]);

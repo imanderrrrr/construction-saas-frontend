@@ -1,10 +1,10 @@
 # «BuildTrack se construye» — el logo animado de la landing
 
 Una obra en miniatura (excavadora, grúa torre y camión de volteo) arma «BuildTrack» letra a letra en 5,6 s, con fondo
-transparente. La landing la reproduce una vez por navegador con `LogoBuildOverlay`
-(`src/app/components/landing/LogoBuildOverlay.tsx`), en la esquina superior izquierda: lo más grande que cabe entre el
-borde de la página y el logo (la grúa llega al borde superior del lienzo), con la caja naranja a la altura de la real; al
-terminar, el último fotograma crece hasta el logo, que toma el relevo. `/?logo` la repite.
+transparente. La landing la reproduce cada vez que alguien entra al sitio (cada carga de la página; en la primera visita de escritorio,
+justo después del intro) con `LogoBuildOverlay` (`src/app/components/landing/LogoBuildOverlay.tsx`), en la esquina superior
+izquierda: lo más grande que cabe entre el borde de la página y el logo (la grúa llega al borde superior del lienzo), con
+la caja naranja a la altura de la real; al terminar, el último fotograma crece hasta el logo, que toma el relevo.
 
 - `PLAN.md`: el guion, el escenario (lienzo 1400 × 360, 80 px = 1 em del logo) y el contrato de cada pieza.
 - `stage.json` y `letters.json`: medidas y contornos de las letras. La caja naranja va en 300,196 · 128 px; si cambia,

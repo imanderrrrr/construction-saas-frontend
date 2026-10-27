@@ -4,8 +4,8 @@
 // (Chromium takes the WebM, not Safari's HEVC), it stands in the logo's
 // corner — the whole frame inside the page, its orange box level with the
 // real logo — and when it is over its orange box sits ON the real logo's box,
-// which then takes over. installHermeticBase marks the build as seen, so
-// these ask for it with `?logo`, as a reviewer would.
+// which then takes over. It plays on every page load, and on a first desktop
+// visit right after the intro film.
 
 import { test, expect, type Page } from '@playwright/test';
 import { installHermeticBase } from './support/mock-api';
@@ -63,7 +63,7 @@ for (const { name, viewport, isMobile } of [
 
     test('builds the logo in its corner, grows it onto the real one, and hands the corner back', async ({ page }) => {
       await installHermeticBase(page);
-      await page.goto('/?logo');
+      await page.goto('/');
 
       const overlay = page.locator('.logo-build-root');
       await expect(overlay).toHaveAttribute('data-phase', 'building');
@@ -89,7 +89,38 @@ for (const { name, viewport, isMobile } of [
 
       await expect(overlay).toHaveCount(0);
       await expect(page.locator(REAL_LOGO)).not.toHaveClass(/opacity-0/);
-      expect(await page.evaluate(() => localStorage.getItem('buildtrack:logo-build-v2-seen'))).toBe('1');
+
+      // Every time someone enters the site: a reload builds it again.
+      await page.reload();
+      await expect(overlay).toHaveAttribute('data-phase', 'building');
     });
   });
 }
+
+test.describe('Landing logo build after the intro film', () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test('a first desktop visit: the film first, then the logo builds in its corner', async ({ page }) => {
+    test.setTimeout(45_000);
+    await installHermeticBase(page, { showFirstRun: true });
+    await page.goto('/');
+
+    // The film holds the screen; the build waits and the real logo stays put.
+    const film = page.locator('.intro-overlay-root');
+    await expect(film).toBeVisible();
+    await page.waitForTimeout(2_000);
+    await expect(page.locator('.logo-build-root')).toHaveCount(0);
+    await expect(page.locator(REAL_LOGO)).not.toHaveClass(/opacity-0/);
+
+    // As soon as the film is gone, the build plays.
+    await expect(film).toHaveCount(0, { timeout: 20_000 });
+    const overlay = page.locator('.logo-build-root');
+    await expect(overlay).toHaveAttribute('data-phase', 'building', { timeout: 8_000 });
+    await expect(page.locator(REAL_LOGO)).toHaveClass(/opacity-0/);
+
+    await expect(overlay).toHaveAttribute('data-phase', 'landing', { timeout: 10_000 });
+    expect(await landingError(page)).toBeLessThan(1);
+    await expect(overlay).toHaveCount(0);
+    await expect(page.locator(REAL_LOGO)).not.toHaveClass(/opacity-0/);
+  });
+});
