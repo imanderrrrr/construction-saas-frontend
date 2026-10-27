@@ -424,6 +424,19 @@ describe('useAssistantChat — form', () => {
     expect(getTurnstileToken).toHaveBeenCalledTimes(2);
   });
 
+  it('says what each Turnstile token is for: chat for the conversation, lead for the form', async () => {
+    await mount();
+    await act(async () => {
+      await hook.send('hola');
+    });
+    act(() => hook.openForm());
+    await act(async () => {
+      await hook.submit(validForm);
+    });
+
+    expect(getTurnstileToken.mock.calls).toEqual([['chat'], ['lead']]);
+  });
+
   it('a second submit while submitting is ignored', async () => {
     const pending = deferred<void>();
     submitLead.mockReturnValueOnce(pending.promise);
