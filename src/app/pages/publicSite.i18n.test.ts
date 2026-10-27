@@ -88,8 +88,9 @@ describe('public site content rules', () => {
     expect((enDocs as Bundle)['s0.step.3.rest']).toContain('optional');
   });
 
-  // Anderson's call: the status page shows a live check and an honest empty
-  // history. It must never regain the design's invented uptime figures.
+  // Anderson's call: the status page never shows invented uptime figures. Its
+  // percentages and day bars come only from the backend's measurements
+  // (GET /api/v1/public/status); no copy string may carry one of its own.
   it('claims no uptime percentage on the status page', () => {
     for (const [k, v] of Object.entries({ ...(enStatus as Bundle), ...(esStatus as Bundle) })) {
       expect(/\d{2}\.\d{1,2}\s?%/.test(v), `status:${k} claims uptime: ${v}`).toBe(false);
