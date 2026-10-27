@@ -9,11 +9,14 @@ describe('platform deployment routing', () => {
   it('Vercel separates the platform API before the tenant proxy and SPA fallback', () => {
     // `/ingest` is the public website's analytics (PostHog), proxied through
     // our own domain; it sits before the SPA fallback like the API does.
+    // `(.*)`, not `:path*`: PostHog posts events to paths that END in a slash
+    // (`/e/`, `/i/v0/e/`, `/flags/`), and `:path*` does not capture that slash —
+    // in production those posts fell through to the SPA fallback and got 405.
     expect(vercel.rewrites.map((r) => r.source)).toEqual([
-      '/api/platform/:path*', '/api/:path*', '/ingest/static/:path*', '/ingest/:path*', '/(.*)',
+      '/api/platform/:path*', '/api/:path*', '/ingest/static/:path(.*)', '/ingest/:path(.*)', '/(.*)',
     ]);
-    expect(vercel.rewrites[2].destination).toBe('https://us-assets.i.posthog.com/static/:path*');
-    expect(vercel.rewrites[3].destination).toBe('https://us.i.posthog.com/:path*');
+    expect(vercel.rewrites[2].destination).toBe('https://us-assets.i.posthog.com/static/:path');
+    expect(vercel.rewrites[3].destination).toBe('https://us.i.posthog.com/:path');
     const platform = vercel.rewrites[0];
     const tenant = vercel.rewrites[1];
     expect(platform.destination).toBe(tenant.destination.replace('/api/:path*', '/platform/:path*'));
