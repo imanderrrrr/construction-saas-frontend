@@ -53,7 +53,7 @@ export const FIELD_LIMITS = {
   /** A project, client or vendor name; also the stored width of legacy warehouse names. */
   SHORT_NAME: 200,
   /** Tool and consumable names, on creation and edit. */
-  WAREHOUSE_NAME: 50,
+  WAREHOUSE_NAME: 25,
   /** A task or job title. `kanban_tasks.title` is `VARCHAR(255)`. */
   TITLE: 255,
   /** A short human-assigned code: tool code, consumable code, tax id. */
