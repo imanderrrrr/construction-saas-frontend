@@ -1,3 +1,5 @@
+import type { Ref } from 'react';
+
 /**
  * The BuildTrack wordmark: a white hard hat on an orange squircle, followed by
  * "Build" + "Track" in Quicksand 700.
@@ -18,6 +20,8 @@ type Props = {
   /** Only the squircle, without "BuildTrack" (the assistant panel's header). */
   markOnly?: boolean;
   className?: string;
+  /** The orange squircle, for whoever needs to measure it (the landing's logo build lands on it). */
+  markRef?: Ref<HTMLSpanElement>;
 };
 
 export function BuildTrackLogo({
@@ -26,10 +30,12 @@ export function BuildTrackLogo({
   tone = 'on-dark',
   markOnly = false,
   className = '',
+  markRef,
 }: Props) {
   return (
     <span className={`inline-flex items-center gap-[0.34em] ${className}`}>
       <span
+        ref={markRef}
         aria-hidden="true"
         className="flex flex-none items-center justify-center bg-bt-orange"
         style={{ width: boxPx, height: boxPx, borderRadius: '22%' }}
