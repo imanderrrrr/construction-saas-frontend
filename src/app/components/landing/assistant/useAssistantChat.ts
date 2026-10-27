@@ -11,6 +11,7 @@
 
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
+import { track } from '../../../lib/analytics';
 import {
   toAssistantFailure,
   type ChatMessage,
@@ -194,6 +195,7 @@ export function useAssistantChat(language: string, deps: AssistantDeps) {
       const source = countUserTurns(messagesRef.current) > 0 ? 'CHAT' : 'FORM';
       await d.submitLead(buildLeadPayload(values, { language: lang, source, turnstileToken }));
       setView('done');
+      track('lead_submitted', { interest: values.interest, source });
     } catch (err) {
       setFormNotice(noticeFor(toAssistantFailure(err)));
     } finally {

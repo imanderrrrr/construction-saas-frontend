@@ -5,6 +5,7 @@ import { Link } from 'react-router';
 import { PublicTopbar, TopbarBackLink, TopbarLink } from '../components/landing/PublicTopbar';
 import { SUPPORT_EMAIL, supportMailto } from '../lib/contact';
 import { usePublicPageTitle } from '../hooks/usePublicPageTitle';
+import { initAnalytics } from '../lib/analytics';
 import { useSystemHealth, type Health } from '../hooks/useSystemHealth';
 import {
   useStatusHistory,
@@ -259,6 +260,9 @@ function UptimeBars({
 export function Status() {
   const { t, i18n } = useTranslation('status');
   usePublicPageTitle(t('meta.title'));
+  useEffect(() => {
+    initAnalytics();
+  }, []);
   const { health, checkedAt, recheck } = useSystemHealth();
   const [historyNonce, setHistoryNonce] = useState(0);
   const historyResult = useStatusHistory(historyNonce);

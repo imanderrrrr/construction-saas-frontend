@@ -8,6 +8,9 @@
   "nav.pricing": "Pricing",
   "nav.signIn": "Log in",
   "nav.menu": "Menu",
+  "nav.openMenu": "Open menu",
+  "nav.closeMenu": "Close menu",
+  "nav.sticky": "Quick menu",
 
   "cta.demo": "Book a demo",
   "cta.beta": "Try it free →",
@@ -16,7 +19,7 @@
   "hero.line2": "without the chaos.",
   "hero.subtitle": "Your whole operation in one place. Projects, financials, field and crew — from contract to closeout.",
   "hero.note": "LIVE DEMO WITH THE TEAM · OR A 2-MONTH FREE BETA",
-  "hero.coord": "14.6349° N · 90.5069° W — GUATEMALA CITY",
+  "hero.coord": "LEVEL ±0.00 · GRID A-1 — DATUM POINT",
   "hero.rev": "CONSTRUCTION MANAGEMENT SYSTEM · REV 07.2026",
 
   "problem.label": "THE PROBLEM",
@@ -59,7 +62,7 @@
   "sheets.subtitle": "The system with a live jobsite: progress, financials and the daily log on one screen. These three sheets are mockups; the clips below are recorded from the real system.",
 
   "dash.activeSite": "ACTIVE JOBSITE",
-  "dash.zone": "GT-014 · ZONE 16",
+  "dash.zone": "VH-014 · LOT 16",
   "dash.nav.1": "Overview",
   "dash.nav.2": "Projects",
   "dash.nav.3": "Financials",
@@ -93,14 +96,14 @@
   "dash.log.3status": "OPEN · ASSIGNED TO M. LÓPEZ",
 
   "titleblock.project": "PROJECT",
-  "titleblock.projectValue": "RESIDENCIAL VISTA HERMOSA — ZONE 16, GUATEMALA",
+  "titleblock.projectValue": "RESIDENCIAL VISTA HERMOSA — LOT 16",
   "titleblock.sheet": "SHEET",
   "titleblock.sheetValue": "BT-01 · OVERVIEW PANEL",
   "titleblock.date": "DATE",
 
   "sheet2.title": "Accounts payable",
   "sheet2.week": "WEEK 28",
-  "sheet2.row1": "400 UGC bags · due 07.18",
+  "sheet2.row1": "400 cement bags · due 07.18",
   "sheet2.state1": "DUE",
   "sheet2.row2": "#4 rebar grade 60 · partial payment 2 of 3",
   "sheet2.state2": "SCHEDULED",
@@ -150,6 +153,8 @@
   "videos.consultas.title": "Project RFIs",
   "videos.portal.title": "Client link",
   "videos.alt": "Module demo: {{title}}",
+  "videos.tabs": "System screens",
+  "videos.fullscreen": "FULL SCREEN",
 
   "app.label": "FIELD APP · NOW ON THE APP STORE",
   "app.title1": "The field reports itself —",
@@ -190,10 +195,13 @@
   "who.3": "The superintendent reports by phone and the photos live in the chat.",
   "who.4": "You want order now — not a corporate ERP with a six-month rollout.",
 
+  "testimonials.label": "IN THEIR WORDS",
+  "testimonials.title": "From the people already using it on site.",
+
   "trust.label": "TRUST · NO SMOKE",
   "trust.title": "We don't show you logos. We show you the system.",
   "trust.1.label": "ON REAL JOBSITES TODAY",
-  "trust.1.body": "BuildTrack isn't a demo: it's running on real jobsites in Guatemala right now. The beta exists to sharpen it with more projects like yours.",
+  "trust.1.body": "BuildTrack isn't a demo: it's running on real jobsites right now. The beta exists to sharpen it with more projects like yours.",
   "trust.2.label": "YOUR CLIENT SEES THEIR PROJECT",
   "trust.2.body": "The client portal shows the owner the daily log and RFIs for their project, and lets them report punch items with photos — through a link, no account, nothing to install. That transparency sells for you too.",
   "trust.3.label": "SYSTEM IN PLAIN SIGHT",
@@ -226,11 +234,11 @@
   "beta.emailSubject": "I want to join the BuildTrack beta",
 
   "about.label": "ABOUT US",
-  "about.title": "Built in Guatemala, by construction people.",
+  "about.title": "Built by construction people.",
   "about.p1a": "BuildTrack is built by ",
-  "about.p1b": ", a Guatemalan team that comes from construction — from budgets, payroll and site visits, not an office far from the field.",
+  "about.p1b": ", a team that comes from construction — from budgets, payroll and site visits, not an office far from the field.",
   "about.p2": "That's why we don't sell smoke: the system is running on real jobsites today, and it grows with what the jobsite asks for.",
-  "about.location": "ARCHLOGIC · GUATEMALA, C.A.",
+  "about.location": "ARCHLOGIC SYSTEMS",
   "about.today": "ON REAL JOBSITES TODAY",
 
   "faq.label": "FREQUENTLY ASKED",
@@ -253,11 +261,11 @@
   "ctaFinal.line2": "from day one.",
   "ctaFinal.note": "LIVE DEMO · OR A 2-MONTH FREE BETA, NO AUTO-BILLING",
 
-  "footer.motto": "BUILT FOR THE JOBSITE · GUATEMALA, C.A.",
+  "footer.motto": "BUILT FOR THE JOBSITE",
   "footer.beta": "Try it free",
   "footer.status": "System status",
   "footer.copy": "© 2026 BUILDTRACK · A PRODUCT OF ARCHLOGIC",
-  "footer.coord": "14.6349° N · 90.5069° W",
+  "footer.coord": "LEVEL ±0.00 · GRID A-1",
   "footer.privacy": "Privacy",
   "footer.terms": "Terms",
 

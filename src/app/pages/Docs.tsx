@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 
 import { PublicTopbar, TopbarBackLink, TopbarLink } from '../components/landing/PublicTopbar';
 import { SUPPORT_EMAIL, supportMailto } from '../lib/contact';
 import { usePublicPageTitle } from '../hooks/usePublicPageTitle';
+import { initAnalytics } from '../lib/analytics';
 import { FIELD_LIMITS } from '../../shared/fieldLimits';
 
 /**
@@ -89,6 +90,9 @@ function pad(n: number): string {
 export function Docs() {
   const { t, i18n } = useTranslation('docs');
   usePublicPageTitle(t('meta.title'));
+  useEffect(() => {
+    initAnalytics();
+  }, []);
   const [query, setQuery] = useState('');
   // Below `lg` the index stacks above the guides; nineteen links would push the
   // first one a screen and a half down, so on a phone it starts folded.

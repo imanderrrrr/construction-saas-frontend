@@ -4,7 +4,7 @@ import { SUPPORT_EMAIL, supportMailto } from '../lib/contact';
 const es: LegalVersion = {
   lang: 'es',
   docTitle: 'Política de Privacidad',
-  updatedLabel: 'Última actualización: 26 de octubre de 2026 — v2.3',
+  updatedLabel: 'Última actualización: 27 de octubre de 2026 — v2.4',
   tocLabel: 'Contenido',
   meta: [
     { label: 'Proveedor', value: 'Archlogic Systems' },
@@ -67,8 +67,8 @@ const es: LegalVersion = {
               seguridad del servicio): respecto a estos, Archlogic es el responsable del tratamiento.
             </li>
             <li>
-              <strong>Datos del sitio web público</strong> (mensajes al asistente de IA y datos que se dejan en el
-              formulario de contacto): Archlogic es el responsable del tratamiento.
+              <strong>Datos del sitio web público</strong> (mensajes al asistente de IA, datos que se dejan en el
+              formulario de contacto y datos de uso del sitio): Archlogic es el responsable del tratamiento.
             </li>
           </ul>
           <p>Esta distinción determina a quién dirigirse para ejercer derechos (ver sección 12).</p>
@@ -124,6 +124,16 @@ const es: LegalVersion = {
             Para comprobar que quien escribe es una persona usamos Cloudflare Turnstile. Su dirección IP se usa
             de forma temporal para limitar la cantidad de mensajes y envíos, y no se guarda con el contacto.
           </li>
+          <li>
+            <strong>Uso del sitio web público:</strong> para saber cómo se usa el sitio y mejorarlo, registramos
+            con PostHog las páginas que visita, los botones y enlaces que pulsa, el sitio desde el que llegó, el
+            tipo de dispositivo y de navegador, y su ubicación aproximada (país y ciudad), que PostHog deduce de su
+            dirección IP sin conservarla. También grabamos sesiones de forma anónima para ver cómo se recorre la
+            página: las grabaciones ocultan todo lo que usted escribe en los campos de texto y no incluyen el
+            asistente de IA. Esto ocurre solo en las páginas públicas (inicio, documentación, estado del sistema y
+            textos legales), nunca dentro de BuildTrack después de iniciar sesión. Si su navegador envía la señal
+            «No rastrear» (Do Not Track), no registramos nada.
+          </li>
         </ul>
       ),
     },
@@ -143,6 +153,7 @@ const es: LegalVersion = {
             Responder preguntas sobre BuildTrack en el sitio web y contactar a quien pide una demostración o
             unirse a la beta.
           </li>
+          <li>Medir cómo se usa el sitio web público para mejorarlo.</li>
         </ul>
       ),
     },
@@ -158,7 +169,8 @@ const es: LegalVersion = {
           </li>
           <li>
             <strong>Interés legítimo:</strong> seguridad de la plataforma, prevención de fraude y mejora del
-            servicio; responder las preguntas de los visitantes del sitio web y proteger el sitio contra el abuso.
+            servicio; responder las preguntas de los visitantes del sitio web, medir cómo se usa para mejorarlo y
+            proteger el sitio contra el abuso.
           </li>
           <li>
             <strong>Consentimiento:</strong> para el acceso a permisos del dispositivo (ubicación, cámara,
@@ -198,6 +210,7 @@ const es: LegalVersion = {
             <li><strong>Brevo:</strong> envío de correos transaccionales (invitaciones, restablecimiento de contraseña, enlaces de firma y el aviso a nuestro equipo de cada contacto del sitio web); recibe la dirección de correo del destinatario y el contenido del mensaje.</li>
             <li><strong>Anthropic:</strong> modelo de IA del asistente del sitio web. Recibe de nuestro servidor los mensajes de la conversación, sin su dirección IP ni los datos del formulario de contacto, y los trata para generar la respuesta conforme a sus condiciones comerciales. Se aplica la <a className="ld-a" href="https://www.anthropic.com/legal/privacy" target="_blank" rel="noopener noreferrer">Política de privacidad de Anthropic</a>.</li>
             <li><strong>Cloudflare Turnstile:</strong> verificación anti-bot del asistente y del formulario de contacto del sitio web. Al iniciar una conversación o enviar el formulario, Cloudflare recibe datos técnicos del navegador y de la conexión, incluida la dirección IP, para comprobar que se trata de una persona. Se aplica la <a className="ld-a" href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer">Política de privacidad de Cloudflare</a>.</li>
+            <li><strong>PostHog:</strong> analítica del sitio web público. Recibe, a través de nuestro propio dominio, los datos de uso y las grabaciones de sesión descritos en la sección 3, y los aloja en Estados Unidos. Se aplica la <a className="ld-a" href="https://posthog.com/privacy" target="_blank" rel="noopener noreferrer">Política de privacidad de PostHog</a>.</li>
             <li><strong>Google Maps:</strong> mapas dentro de la app, búsqueda de lugares y cálculo de rutas. Sus SDK pueden tratar identificadores del dispositivo, interacciones con el mapa y datos de fallos y rendimiento para funcionalidad y análisis del servicio. La búsqueda y las rutas reciben los datos necesarios de origen y destino. El servidor conserva el identificador del lugar, sin almacenar su nombre, dirección, coordenadas de Google ni el contenido de la ruta. Se aplican los <a className="ld-a" href="https://maps.google.com/help/terms_maps.html" target="_blank" rel="noopener noreferrer">Términos de Google Maps</a> y la <a className="ld-a" href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Política de privacidad de Google</a>.</li>
             <li><strong>Reconocimiento de voz del sistema:</strong> convertir la voz en texto mediante el servicio del sistema, con autorización del dispositivo. Según el idioma y el dispositivo, el audio puede enviarse al proveedor del reconocimiento; en iOS se usa el servicio de Apple.</li>
             <li><strong>MET Norway (Instituto Meteorológico de Noruega):</strong> datos meteorológicos para la bitácora. Recibe de nuestro servidor las coordenadas de la obra, sin la dirección IP del dispositivo ni datos de la cuenta. Se aplican sus <a className="ld-a" href="https://api.met.no/doc/TermsOfService" target="_blank" rel="noopener noreferrer">condiciones</a>.</li>
@@ -236,7 +249,7 @@ const es: LegalVersion = {
       body: (
         <p>
           Los datos pueden almacenarse y procesarse en servidores ubicados fuera de Guatemala y de su país de
-          residencia, incluyendo Estados Unidos (Render, AWS/Supabase, Vercel, Anthropic, Cloudflare) y las jurisdicciones de
+          residencia, incluyendo Estados Unidos (Render, AWS/Supabase, Vercel, Anthropic, Cloudflare, PostHog) y las jurisdicciones de
           procesamiento de pagos de Paddle. Estas transferencias se realizan bajo las cláusulas contractuales y
           las políticas de protección de datos de cada proveedor.
         </p>
@@ -311,6 +324,10 @@ const es: LegalVersion = {
             </a>
             . El contenido de las conversaciones con el asistente no se guarda en nuestros servidores.
           </p>
+          <p>
+            Los datos de uso del sitio web público se conservan hasta 12 meses, y las grabaciones de sesión, hasta
+            30 días.
+          </p>
         </>
       ),
     },
@@ -364,9 +381,11 @@ const es: LegalVersion = {
           cookies técnicas para la sesión, la protección contra falsificación de solicitudes y recordar la
           empresa con la que se inició sesión, y el almacenamiento del navegador para preferencias de la
           interfaz y pasos en curso, como las guías ya vistas o el alta de la empresa; no emplea cookies de
-          seguimiento, publicidad ni analítica de terceros. En el sitio web público, el asistente guarda la
-          conversación solo en la memoria de la ventana, y la verificación de Cloudflare Turnstile se carga
-          únicamente al iniciar una conversación o enviar el formulario.
+          seguimiento, publicidad ni analítica de terceros. En el sitio web público, la analítica de PostHog no
+          usa cookies: guarda en el almacenamiento del navegador un identificador aleatorio de la visita, que se
+          borra al limpiar los datos del sitio; el asistente guarda la conversación solo en la memoria de la
+          ventana, y la verificación de Cloudflare Turnstile se carga únicamente al iniciar una conversación o
+          enviar el formulario.
         </p>
       ),
     },
@@ -392,7 +411,7 @@ const es: LegalVersion = {
 const en: LegalVersion = {
   lang: 'en',
   docTitle: 'Privacy Policy',
-  updatedLabel: 'Last updated: October 26, 2026 — v2.3',
+  updatedLabel: 'Last updated: October 27, 2026 — v2.4',
   tocLabel: 'Contents',
   meta: [
     { label: 'Provider', value: 'Archlogic Systems' },
@@ -459,8 +478,8 @@ const en: LegalVersion = {
               with respect to these, Archlogic is the data controller.
             </li>
             <li>
-              <strong>Public website data</strong> (messages to the AI assistant and details left in the contact
-              form): Archlogic is the data controller.
+              <strong>Public website data</strong> (messages to the AI assistant, details left in the contact
+              form and site usage data): Archlogic is the data controller.
             </li>
           </ul>
           <p>This distinction determines whom to contact to exercise rights (see section 12).</p>
@@ -515,6 +534,15 @@ const en: LegalVersion = {
             is human. Your IP address is used temporarily to limit the number of messages and submissions, and it
             is not stored with the contact.
           </li>
+          <li>
+            <strong>Use of the public website:</strong> to learn how the site is used and improve it, we record
+            with PostHog the pages you visit, the buttons and links you click, the site you came from, your device
+            and browser type, and your approximate location (country and city), which PostHog infers from your IP
+            address without keeping it. We also record sessions anonymously to see how people move through the
+            page: recordings hide everything you type into text fields and do not include the AI assistant. This
+            happens only on the public pages (home, documentation, system status and legal texts), never inside
+            BuildTrack after signing in. If your browser sends the Do Not Track signal, we record nothing.
+          </li>
         </ul>
       ),
     },
@@ -534,6 +562,7 @@ const en: LegalVersion = {
             Answer questions about BuildTrack on the website and contact those who ask for a demo or to join the
             beta.
           </li>
+          <li>Measure how the public website is used, to improve it.</li>
         </ul>
       ),
     },
@@ -549,7 +578,8 @@ const en: LegalVersion = {
           </li>
           <li>
             <strong>Legitimate interest:</strong> platform security, fraud prevention, and service improvement;
-            answering website visitors' questions and protecting the site against abuse.
+            answering website visitors' questions, measuring how the site is used to improve it, and protecting
+            the site against abuse.
           </li>
           <li>
             <strong>Consent:</strong> for access to device permissions (location, camera, microphone, speech recognition, gallery),
@@ -587,6 +617,7 @@ const en: LegalVersion = {
             <li><strong>Brevo:</strong> transactional email delivery (invitations, password resets, signature links and the notice to our team of each contact from the website); it receives the recipient's email address and the message content.</li>
             <li><strong>Anthropic:</strong> AI model of the website assistant. It receives the conversation's messages from our server, without your IP address or the contact form details, and processes them to generate the answer under its commercial terms. The <a className="ld-a" href="https://www.anthropic.com/legal/privacy" target="_blank" rel="noopener noreferrer">Anthropic Privacy Policy</a> applies.</li>
             <li><strong>Cloudflare Turnstile:</strong> anti-bot check for the website assistant and contact form. When a conversation starts or the form is sent, Cloudflare receives technical data about the browser and the connection, including the IP address, to check that a person is there. The <a className="ld-a" href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer">Cloudflare Privacy Policy</a> applies.</li>
+            <li><strong>PostHog:</strong> analytics for the public website. It receives, through our own domain, the usage data and session recordings described in section 3, and hosts them in the United States. The <a className="ld-a" href="https://posthog.com/privacy" target="_blank" rel="noopener noreferrer">PostHog Privacy Policy</a> applies.</li>
             <li><strong>Google Maps:</strong> in-app maps, place search and route calculation. Its SDKs may process device identifiers, map interactions and crash and performance data for service functionality and analytics. Search and routing receive the origin and destination data needed for the request. The server retains the place identifier without storing its Google name, address, coordinates or route content. <a className="ld-a" href="https://maps.google.com/help/terms_maps.html" target="_blank" rel="noopener noreferrer">Google Maps Terms</a> and <a className="ld-a" href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Google Privacy Policy</a> apply.</li>
             <li><strong>System speech recognition:</strong> convert voice to text using the system service, with device authorization. Depending on language and device, audio may be sent to the recognition provider; iOS uses Apple’s service.</li>
             <li><strong>MET Norway (Norwegian Meteorological Institute):</strong> weather data for the site log. It receives the site's coordinates from our server, without the device's IP address or any account data. Its <a className="ld-a" href="https://api.met.no/doc/TermsOfService" target="_blank" rel="noopener noreferrer">terms</a> apply.</li>
@@ -626,7 +657,7 @@ const en: LegalVersion = {
       body: (
         <p>
           Data may be stored and processed on servers located outside Guatemala and your country of residence,
-          including the United States (Render, AWS/Supabase, Vercel, Anthropic, Cloudflare) and Paddle's payment processing
+          including the United States (Render, AWS/Supabase, Vercel, Anthropic, Cloudflare, PostHog) and Paddle's payment processing
           jurisdictions. These transfers are carried out under each provider's contractual clauses and
           data protection policies.
         </p>
@@ -701,6 +732,7 @@ const en: LegalVersion = {
             </a>
             . The content of conversations with the assistant is not stored on our servers.
           </p>
+          <p>Public website usage data is kept for up to 12 months, and session recordings for up to 30 days.</p>
         </>
       ),
     },
@@ -755,7 +787,8 @@ const en: LegalVersion = {
           cookies for the session, for protection against request forgery and to remember the company last
           signed in to, and browser storage for interface preferences and steps in progress, such as guides
           already seen or company sign-up; it does not use tracking, advertising or third-party analytics
-          cookies. On the public website, the assistant keeps the conversation only in the window's memory, and
+          cookies. On the public website, PostHog analytics uses no cookies: it keeps a random visit identifier in browser
+          storage, which is erased when the site's data is cleared; the assistant keeps the conversation only in the window's memory, and
           the Cloudflare Turnstile check loads only when a conversation starts or the form is sent.
         </p>
       ),

@@ -185,5 +185,6 @@
   "billing.recover": "Actualizar facturación",
   "billing.unavailable": "No pudimos consultar el acceso. Conservamos esta pantalla; vuelve a intentar.",
   "billing.readOnly": "Solo consulta por facturación. El fichaje sigue disponible.",
-  "intro.soundOn": "Activar sonido"
+  "intro.soundOn": "Activar sonido",
+  "intro.skip": "Saltar"
 }
