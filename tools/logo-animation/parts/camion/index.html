@@ -1,0 +1,798 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1400, height=360" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      /* Transparente: no hay fondo en html, body ni #root. */
+      html, body { margin: 0; width: 1400px; height: 360px; overflow: hidden; background: transparent; }
+      #root { position: relative; width: 1400px; height: 360px; background: transparent; }
+      #root svg { position: absolute; left: 0; top: 0; overflow: visible; }
+    </style>
+  </head>
+  <body>
+    <!-- Camión de volteo (cam-). Lienzo 1400x360, 5,6 s. Suelo y=324, línea de base de las letras y=290. Ver PLAN.md y NOTAS.md. -->
+    <div id="root" data-composition-id="main" data-start="0" data-duration="5.6" data-width="1400" data-height="360">
+<svg id="cam-stage" viewBox="0 0 1400 360" width="1400" height="360" aria-hidden="true">
+<defs>
+<linearGradient id="cam-gr-steel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#DDD3C1"/><stop offset=".3" stop-color="#B2A794"/><stop offset=".7" stop-color="#6D6354"/><stop offset="1" stop-color="#3F382F"/></linearGradient>
+<linearGradient id="cam-gr-tank" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E4DAC7"/><stop offset=".22" stop-color="#B8AD9A"/><stop offset=".6" stop-color="#7C725F"/><stop offset="1" stop-color="#453D33"/></linearGradient>
+<linearGradient id="cam-gr-chrome" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6D6354"/><stop offset=".3" stop-color="#EFE7D8"/><stop offset=".55" stop-color="#B2A794"/><stop offset="1" stop-color="#4A423A"/></linearGradient>
+<linearGradient id="cam-gr-glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#CBE8F3"/><stop offset=".5" stop-color="#8DC3D6"/><stop offset="1" stop-color="#4C8199"/></linearGradient>
+<linearGradient id="cam-gr-yel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD35C"/><stop offset=".18" stop-color="#F9BE35"/><stop offset=".7" stop-color="#F6B21C"/><stop offset="1" stop-color="#D68A06"/></linearGradient>
+<radialGradient id="cam-gr-dust"><stop offset="0" stop-color="#E2CBA3" stop-opacity=".9"/><stop offset=".5" stop-color="#C9AD84" stop-opacity=".55"/><stop offset="1" stop-color="#B09670" stop-opacity="0"/></radialGradient>
+<radialGradient id="cam-gr-smoke"><stop offset="0" stop-color="#41382F" stop-opacity=".96"/><stop offset=".5" stop-color="#312A24" stop-opacity=".88"/><stop offset="1" stop-color="#2C2621" stop-opacity="0"/></radialGradient>
+<radialGradient id="cam-gr-glow"><stop offset="0" stop-color="#FFF8E0" stop-opacity=".95"/><stop offset=".3" stop-color="#FFEBB0" stop-opacity=".45"/><stop offset="1" stop-color="#FFD35C" stop-opacity="0"/></radialGradient>
+<radialGradient id="cam-gr-glow-red"><stop offset="0" stop-color="#FF8A7A" stop-opacity=".95"/><stop offset=".35" stop-color="#FF3B2E" stop-opacity=".45"/><stop offset="1" stop-color="#FF3B2E" stop-opacity="0"/></radialGradient>
+<radialGradient id="cam-gr-glow-amber"><stop offset="0" stop-color="#FFE9A0" stop-opacity="1"/><stop offset=".3" stop-color="#FFB020" stop-opacity=".55"/><stop offset="1" stop-color="#FF9A00" stop-opacity="0"/></radialGradient>
+<radialGradient id="cam-gr-shadow"><stop offset="0" stop-color="#000" stop-opacity=".62"/><stop offset=".6" stop-color="#000" stop-opacity=".32"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+<linearGradient id="cam-gr-cone-rev" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#FFF6DC" stop-opacity=".30"/><stop offset="1" stop-color="#FFF6DC" stop-opacity="0"/></linearGradient>
+<linearGradient id="cam-gr-cone-fwd" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#FFF1C4" stop-opacity=".26"/><stop offset="1" stop-color="#FFF1C4" stop-opacity="0"/></linearGradient>
+<pattern id="cam-hz" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="10" height="10" fill="#F6B21C"/><rect width="5" height="10" fill="#17130F"/></pattern>
+<clipPath id="cam-clip-slab"><path d="M-200 -200H1700V324H858V290H-200Z"/></clipPath>
+<linearGradient id="cam-gr-dirt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4E3622" stop-opacity="0"/><stop offset="1" stop-color="#4E3622" stop-opacity=".42"/></linearGradient>
+<clipPath id="cam-clip-wall"><polygon points="874,204 1034,204 1042,172 1048,172 1048,250 874,250"/></clipPath>
+<clipPath id="cam-clip-win"><path d="M1112,197 L1150,197 L1172,226 L1112,226 Z"/></clipPath>
+</defs>
+<g id="cam-b-sh">
+<g id="cam-shadow">
+<ellipse cx="1035" cy="326" rx="192" ry="10" fill="url(#cam-gr-shadow)"/>
+<ellipse cx="934" cy="324.5" rx="30" ry="3.4" fill="#000" fill-opacity=".55"/>
+<ellipse cx="996" cy="324.5" rx="30" ry="3.4" fill="#000" fill-opacity=".55"/>
+<ellipse cx="1156" cy="324.5" rx="29" ry="3.4" fill="#000" fill-opacity=".55"/>
+</g>
+</g>
+<g id="cam-b-trk">
+<g id="cam-b-body">
+<polygon points="874,280 700,258 700,332 874,300" fill="url(#cam-gr-cone-rev)" id="cam-cone-rev" opacity="0"/>
+<polygon points="1192,250 1400,226 1400,330 1192,262" fill="url(#cam-gr-cone-fwd)" id="cam-cone-fwd" opacity=".0"/>
+<g id="cam-b-bedg">
+<g id="cam-b-bed">
+<polygon points="874,194 1034,194 1040,170 1050,169 1050,246 874,246" fill="#D68A06"/>
+<rect x="874" y="194" width="160" height="4" fill="#F6B21C"/>
+<rect x="874" y="198" width="160" height="2" fill="#9C6204" fill-opacity=".5"/>
+<rect x="910" y="198" width="5" height="8" fill="#9C6204" fill-opacity=".55"/>
+<rect x="944" y="198" width="5" height="8" fill="#9C6204" fill-opacity=".55"/>
+<rect x="978" y="198" width="5" height="8" fill="#9C6204" fill-opacity=".55"/>
+<rect x="1012" y="198" width="5" height="8" fill="#9C6204" fill-opacity=".55"/>
+</g>
+</g>
+</g>
+</g>
+<g id="cam-cargo">
+<g id="cam-leti-c"><path d="M 786.89 246.51 C 784.62 246.73, 781.89 247.50, 779.87 248.49 C 775.77 250.50, 772.70 253.59, 770.66 257.75 C 769.62 259.88, 768.97 262.05, 768.55 264.77 C 768.31 266.31, 768.31 270.80, 768.55 272.37 C 769.35 277.70, 771.37 281.94, 774.67 285.24 C 778.42 288.99, 783.16 290.81, 789.16 290.80 C 796.39 290.79, 803.50 288.05, 804.73 284.79 C 804.96 284.18, 805.00 283.01, 804.81 282.24 C 804.62 281.43, 804.04 280.44, 803.47 279.92 C 802.75 279.26, 801.93 278.99, 800.62 278.99 C 799.39 278.99, 798.65 279.22, 797.75 279.86 C 796.06 281.09, 795.23 281.45, 793.47 281.77 C 792.29 281.98, 789.07 282.00, 788.02 281.81 C 782.93 280.89, 779.09 276.86, 778.18 271.50 C 777.56 267.87, 778.18 263.91, 779.79 261.14 C 781.07 258.96, 783.09 257.14, 785.26 256.23 C 787.12 255.44, 789.62 255.07, 791.58 255.28 C 794.19 255.57, 795.40 256.00, 797.05 257.25 C 798.14 258.07, 798.75 258.36, 799.71 258.51 C 802.25 258.90, 804.04 257.51, 804.42 254.87 C 804.92 251.33, 802.14 248.55, 796.74 247.21 C 793.91 246.50, 789.91 246.22, 786.89 246.51" fill="#E8661A" fill-rule="evenodd"/></g>
+<g id="cam-leti-k"><path d="M 815.90 230.95 C 815.58 231.03, 815.10 231.21, 814.82 231.35 C 814.17 231.68, 813.20 232.65, 812.87 233.30 C 812.28 234.46, 812.32 232.76, 812.34 260.67 C 812.37 286.12, 812.37 286.25, 812.57 286.80 C 812.98 287.91, 813.84 288.93, 814.77 289.43 C 816.13 290.16, 818.01 290.16, 819.42 289.45 C 820.07 289.12, 821.04 288.15, 821.37 287.51 C 821.88 286.48, 821.92 286.12, 821.92 281.24 L 821.92 276.72 823.87 274.94 C 824.94 273.95, 825.84 273.16, 825.87 273.17 C 825.91 273.18, 829.19 276.64, 833.17 280.87 C 837.15 285.09, 840.68 288.76, 841.01 289.02 C 842.04 289.82, 843.62 290.12, 844.83 289.76 C 845.96 289.42, 847.21 288.58, 847.84 287.75 C 848.86 286.41, 848.87 284.25, 847.87 282.60 C 847.66 282.26, 845.52 279.84, 842.85 276.93 C 840.28 274.14, 837.08 270.64, 835.73 269.17 C 834.38 267.70, 833.26 266.45, 833.24 266.41 C 833.23 266.37, 835.92 263.84, 839.24 260.79 C 842.55 257.74, 845.50 255.00, 845.80 254.70 C 846.51 253.97, 847.02 252.93, 847.09 252.08 C 847.23 250.43, 846.03 248.49, 844.36 247.64 C 843.61 247.26, 843.56 247.25, 842.58 247.26 C 841.42 247.27, 840.77 247.46, 839.88 248.05 C 839.58 248.25, 835.43 252.18, 830.65 256.79 L 821.97 265.17 821.92 249.86 C 821.87 234.77, 821.87 234.54, 821.67 234.00 C 821.14 232.57, 820.03 231.47, 818.67 231.02 C 818.05 230.82, 816.56 230.78, 815.90 230.95" fill="#E8661A" fill-rule="evenodd"/></g>
+<g id="cam-mound-g"><path id="cam-mound" d="M0 0" fill="#6E4D31"/><path id="cam-mound-top" d="M0 0" fill="none" stroke="#A07848" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity=".9"/></g>
+<g id="cam-chunks" clip-path="url(#cam-clip-slab)"></g>
+<g id="cam-fxb"></g>
+<g id="cam-let-c" opacity="0"><path d="M 786.89 246.51 C 784.62 246.73, 781.89 247.50, 779.87 248.49 C 775.77 250.50, 772.70 253.59, 770.66 257.75 C 769.62 259.88, 768.97 262.05, 768.55 264.77 C 768.31 266.31, 768.31 270.80, 768.55 272.37 C 769.35 277.70, 771.37 281.94, 774.67 285.24 C 778.42 288.99, 783.16 290.81, 789.16 290.80 C 796.39 290.79, 803.50 288.05, 804.73 284.79 C 804.96 284.18, 805.00 283.01, 804.81 282.24 C 804.62 281.43, 804.04 280.44, 803.47 279.92 C 802.75 279.26, 801.93 278.99, 800.62 278.99 C 799.39 278.99, 798.65 279.22, 797.75 279.86 C 796.06 281.09, 795.23 281.45, 793.47 281.77 C 792.29 281.98, 789.07 282.00, 788.02 281.81 C 782.93 280.89, 779.09 276.86, 778.18 271.50 C 777.56 267.87, 778.18 263.91, 779.79 261.14 C 781.07 258.96, 783.09 257.14, 785.26 256.23 C 787.12 255.44, 789.62 255.07, 791.58 255.28 C 794.19 255.57, 795.40 256.00, 797.05 257.25 C 798.14 258.07, 798.75 258.36, 799.71 258.51 C 802.25 258.90, 804.04 257.51, 804.42 254.87 C 804.92 251.33, 802.14 248.55, 796.74 247.21 C 793.91 246.50, 789.91 246.22, 786.89 246.51" fill="#F97316" fill-rule="evenodd"/></g>
+<g id="cam-let-k" opacity="0"><path d="M 815.90 230.95 C 815.58 231.03, 815.10 231.21, 814.82 231.35 C 814.17 231.68, 813.20 232.65, 812.87 233.30 C 812.28 234.46, 812.32 232.76, 812.34 260.67 C 812.37 286.12, 812.37 286.25, 812.57 286.80 C 812.98 287.91, 813.84 288.93, 814.77 289.43 C 816.13 290.16, 818.01 290.16, 819.42 289.45 C 820.07 289.12, 821.04 288.15, 821.37 287.51 C 821.88 286.48, 821.92 286.12, 821.92 281.24 L 821.92 276.72 823.87 274.94 C 824.94 273.95, 825.84 273.16, 825.87 273.17 C 825.91 273.18, 829.19 276.64, 833.17 280.87 C 837.15 285.09, 840.68 288.76, 841.01 289.02 C 842.04 289.82, 843.62 290.12, 844.83 289.76 C 845.96 289.42, 847.21 288.58, 847.84 287.75 C 848.86 286.41, 848.87 284.25, 847.87 282.60 C 847.66 282.26, 845.52 279.84, 842.85 276.93 C 840.28 274.14, 837.08 270.64, 835.73 269.17 C 834.38 267.70, 833.26 266.45, 833.24 266.41 C 833.23 266.37, 835.92 263.84, 839.24 260.79 C 842.55 257.74, 845.50 255.00, 845.80 254.70 C 846.51 253.97, 847.02 252.93, 847.09 252.08 C 847.23 250.43, 846.03 248.49, 844.36 247.64 C 843.61 247.26, 843.56 247.25, 842.58 247.26 C 841.42 247.27, 840.77 247.46, 839.88 248.05 C 839.58 248.25, 835.43 252.18, 830.65 256.79 L 821.97 265.17 821.92 249.86 C 821.87 234.77, 821.87 234.54, 821.67 234.00 C 821.14 232.57, 820.03 231.47, 818.67 231.02 C 818.05 230.82, 816.56 230.78, 815.90 230.95" fill="#F97316" fill-rule="evenodd"/></g>
+</g>
+<g id="cam-f-trk">
+<g id="cam-f-low">
+<rect x="880" y="262" width="304" height="14" fill="#4A423A"/>
+<rect x="880" y="262" width="304" height="2.2" fill="#7A6F61"/>
+<rect x="880" y="274" width="304" height="2" fill="#2E2923"/>
+<circle cx="892" cy="269" r="1.3" fill="#2E2923"/>
+<circle cx="914" cy="269" r="1.3" fill="#2E2923"/>
+<circle cx="936" cy="269" r="1.3" fill="#2E2923"/>
+<circle cx="958" cy="269" r="1.3" fill="#2E2923"/>
+<circle cx="980" cy="269" r="1.3" fill="#2E2923"/>
+<circle cx="1002" cy="269" r="1.3" fill="#2E2923"/>
+<circle cx="1024" cy="269" r="1.3" fill="#2E2923"/>
+<circle cx="1046" cy="269" r="1.3" fill="#2E2923"/>
+<circle cx="1068" cy="269" r="1.3" fill="#2E2923"/>
+<circle cx="1090" cy="269" r="1.3" fill="#2E2923"/>
+<circle cx="1112" cy="269" r="1.3" fill="#2E2923"/>
+<circle cx="1134" cy="269" r="1.3" fill="#2E2923"/>
+<circle cx="1156" cy="269" r="1.3" fill="#2E2923"/>
+<circle cx="1178" cy="269" r="1.3" fill="#2E2923"/>
+<rect x="880" y="262" width="168" height="9" fill="#000" fill-opacity=".38"/>
+<rect x="874" y="262" width="12" height="30" rx="2" fill="#4A423A"/>
+<rect x="864" y="284" width="24" height="10" rx="2" fill="url(#cam-hz)"/>
+<rect x="864" y="284" width="24" height="10" rx="2" fill="none" stroke="#2E2923" stroke-width="1.2"/>
+<rect x="871" y="264" width="9" height="7" rx="2" fill="#7E1812"/>
+<rect x="871" y="264" width="9" height="7" rx="2" fill="#E2342B" id="cam-lamp-brk" opacity=".35"/>
+<rect x="871" y="272" width="9" height="7" rx="2" fill="#6B6558"/>
+<rect x="871" y="272" width="9" height="7" rx="2" fill="#FFF4D6" id="cam-lamp-rev" opacity=".35"/>
+<rect x="897" y="270" width="6" height="36" rx="1.5" fill="#171310" stroke="#3A332B" stroke-width="0.8"/>
+<rect x="897" y="296" width="6" height="4" fill="#F6B21C"/>
+<g >
+<rect x="1054" y="276" width="40" height="27" rx="12" fill="url(#cam-gr-tank)"/>
+<rect x="1054" y="276" width="40" height="27" rx="12" fill="none" stroke="#2E2923" stroke-width="1.2"/>
+<rect x="1060" y="279" width="26" height="2.2" rx="1" fill="#FFFFFF" fill-opacity=".5"/>
+<rect x="1064" y="274" width="4.5" height="31" fill="#4A423A"/>
+<rect x="1064" y="274" width="1.5" height="31" fill="#8F8472"/>
+<rect x="1084" y="274" width="4.5" height="31" fill="#4A423A"/>
+<rect x="1084" y="274" width="1.5" height="31" fill="#8F8472"/>
+<rect x="1074" y="270.5" width="8" height="6" rx="1.5" fill="#4A423A"/>
+<rect x="1075" y="268.5" width="6" height="3" rx="1" fill="#A79B88"/>
+</g>
+<g >
+<polygon points="1098,262 1104,262 1104,304 1100,304" fill="#4A423A"/>
+<rect x="1096" y="284" width="26" height="5" rx="1.2" fill="#171310" stroke="#3A332B" stroke-width="0.8"/>
+<rect x="1096" y="284" width="26" height="1.6" fill="#8F8472"/>
+<rect x="1096" y="302" width="26" height="5" rx="1.2" fill="#171310" stroke="#3A332B" stroke-width="0.8"/>
+<rect x="1096" y="302" width="26" height="1.6" fill="#8F8472"/>
+</g>
+<polygon points="1034,276 1050,276 1048,296 1045,307 1039,307 1036,296" fill="#4A423A"/>
+<rect x="1034" y="276" width="16" height="2" fill="#7A6F61"/>
+<path d="M1046,300 C1060,296 1062,282 1058,277" fill="none" stroke="#0D0B09" stroke-width="2.6" stroke-linecap="round"/>
+<g id="cam-ram">
+<g id="cam-ram-s3">
+<rect x="-40" y="-4.2" width="40" height="8.4" rx="1.6" fill="url(#cam-gr-chrome)"/>
+<rect x="-40" y="-4.2" width="40" height="8.4" rx="1.6" fill="none" stroke="#2E2923" stroke-width="0.8"/>
+<rect x="-37" y="-2.9" width="34" height="1.1" fill="#FFFFFF" fill-opacity=".6"/>
+<rect x="0" y="-5.4" width="9" height="10.8" rx="2" fill="#4A423A"/>
+<circle cx="9.2" cy="0" r="4.6" fill="#4A423A" stroke="#2E2923" stroke-width="1.3"/>
+<circle cx="9.2" cy="0" r="1.9" fill="#A79B88"/>
+</g>
+<g id="cam-ram-s2">
+<rect x="-40" y="-5.7" width="40" height="11.4" rx="2" fill="url(#cam-gr-chrome)" transform="rotate(0)"/>
+<rect x="-40" y="-5.7" width="40" height="11.4" rx="2" fill="none" stroke="#2E2923" stroke-width="0.9"/>
+<rect x="-37" y="-4" width="34" height="1.4" fill="#FFFFFF" fill-opacity=".55"/>
+<rect x="-4.2" y="-6.8" width="4.2" height="13.6" rx="1.1" fill="#4A423A"/>
+<rect x="-4.2" y="-6.8" width="1.4" height="13.6" fill="#8F8472"/>
+</g>
+<g id="cam-ram-s1">
+<rect x="0" y="-7.6" width="40" height="15.2" rx="2.5" fill="url(#cam-gr-steel)"/>
+<rect x="0" y="-7.6" width="40" height="15.2" rx="2.5" fill="none" stroke="#2E2923" stroke-width="1"/>
+<rect x="3" y="-5.4" width="34" height="1.6" fill="#FFFFFF" fill-opacity=".35"/>
+<rect x="36" y="-8.6" width="4.5" height="17.2" rx="1.2" fill="#4A423A"/>
+<rect x="36" y="-8.6" width="1.6" height="17.2" fill="#8F8472"/>
+<circle cx="0" cy="0" r="5.6" fill="#4A423A" stroke="#2E2923" stroke-width="1.4"/>
+<circle cx="0" cy="0" r="2.3" fill="#A79B88"/>
+</g>
+</g>
+<circle cx="1042" cy="304" r="6" fill="#4A423A" stroke="#2E2923" stroke-width="1.4"/>
+<circle cx="1042" cy="304" r="2.4" fill="#A79B88"/>
+<rect x="1172" y="268" width="26" height="17" rx="3" fill="url(#cam-gr-steel)"/>
+<rect x="1172" y="268" width="26" height="17" rx="3" fill="none" stroke="#2E2923" stroke-width="1.2"/>
+<rect x="1176" y="281" width="20" height="4" rx="1" fill="#4A423A"/>
+<rect x="1189" y="272" width="7" height="6" rx="1.5" fill="#FFF4D6"/>
+<rect x="1189" y="272" width="7" height="6" rx="1.5" fill="none" stroke="#2E2923" stroke-width="0.8"/>
+<polygon points="1176,268 1196,268 1198,271 1176,271" fill="#FFFFFF" fill-opacity=".35"/>
+</g>
+<g id="cam-f-wheels">
+<g id="cam-w1" transform="translate(934 295)">
+<circle cx="-1.8" cy="-0.6" r="29.9" fill="#171310" stroke="#2B2520" stroke-width="1"/>
+<g id="cam-w1-spin">
+<circle cx="0" cy="0" r="29" fill="#0D0B09" stroke="#3A332B" stroke-width="1.4"/>
+<circle cx="0" cy="0" r="26.4" fill="none" stroke="#2D2721" stroke-width="4.6" stroke-dasharray="5.4 3.3"/>
+<circle cx="0" cy="0" r="20.6" fill="#1B1713" stroke="#3A332B" stroke-width="1"/>
+<circle cx="0" cy="0" r="19.2" fill="none" stroke="#2A241E" stroke-width="0.8"/>
+<circle cx="0" cy="0" r="16.5" fill="#F8F3EB" stroke="#B9AE9B" stroke-width="1.2"/>
+<circle cx="0" cy="0" r="13.5" fill="#D9CFBD"/>
+<circle cx="0" cy="0" r="12.3" fill="#8F8472"/>
+<circle cx="0" cy="0" r="10.5" fill="#4A423A" stroke="#2E2923" stroke-width="1"/>
+<circle cx="8.13" cy="1.65" r="1.9" fill="#E7DDCB" stroke="#6D6354" stroke-width="0.7"/>
+<circle cx="4.59" cy="6.92" r="1.9" fill="#E7DDCB" stroke="#6D6354" stroke-width="0.7"/>
+<circle cx="-1.65" cy="8.13" r="1.9" fill="#E7DDCB" stroke="#6D6354" stroke-width="0.7"/>
+<circle cx="-6.92" cy="4.59" r="1.9" fill="#E7DDCB" stroke="#6D6354" stroke-width="0.7"/>
+<circle cx="-8.13" cy="-1.65" r="1.9" fill="#E7DDCB" stroke="#6D6354" stroke-width="0.7"/>
+<circle cx="-4.59" cy="-6.92" r="1.9" fill="#E7DDCB" stroke="#6D6354" stroke-width="0.7"/>
+<circle cx="1.65" cy="-8.13" r="1.9" fill="#E7DDCB" stroke="#6D6354" stroke-width="0.7"/>
+<circle cx="6.92" cy="-4.59" r="1.9" fill="#E7DDCB" stroke="#6D6354" stroke-width="0.7"/>
+<circle cx="0" cy="0" r="4.4" fill="#8F8472" stroke="#2E2923" stroke-width="1"/>
+<circle cx="0" cy="0" r="2" fill="#DDD3C1"/>
+<rect x="13.1" y="-1.1" width="5.2" height="2.2" rx="1" fill="#E0D6C3"/>
+</g>
+<path d="M-24.94,-8.7 A27.8,27.8 0 0 1 -5.8,-27.26" fill="none" stroke="#FFFFFF" stroke-opacity=".16" stroke-width="2.2" stroke-linecap="round"/>
+</g>
+<g id="cam-w2" transform="translate(996 295)">
+<circle cx="-1.8" cy="-0.6" r="29.9" fill="#171310" stroke="#2B2520" stroke-width="1"/>
+<g id="cam-w2-spin">
+<circle cx="0" cy="0" r="29" fill="#0D0B09" stroke="#3A332B" stroke-width="1.4"/>
+<circle cx="0" cy="0" r="26.4" fill="none" stroke="#2D2721" stroke-width="4.6" stroke-dasharray="5.4 3.3"/>
+<circle cx="0" cy="0" r="20.6" fill="#1B1713" stroke="#3A332B" stroke-width="1"/>
+<circle cx="0" cy="0" r="19.2" fill="none" stroke="#2A241E" stroke-width="0.8"/>
+<circle cx="0" cy="0" r="16.5" fill="#F8F3EB" stroke="#B9AE9B" stroke-width="1.2"/>
+<circle cx="0" cy="0" r="13.5" fill="#D9CFBD"/>
+<circle cx="0" cy="0" r="12.3" fill="#8F8472"/>
+<circle cx="0" cy="0" r="10.5" fill="#4A423A" stroke="#2E2923" stroke-width="1"/>
+<circle cx="8.13" cy="1.65" r="1.9" fill="#E7DDCB" stroke="#6D6354" stroke-width="0.7"/>
+<circle cx="4.59" cy="6.92" r="1.9" fill="#E7DDCB" stroke="#6D6354" stroke-width="0.7"/>
+<circle cx="-1.65" cy="8.13" r="1.9" fill="#E7DDCB" stroke="#6D6354" stroke-width="0.7"/>
+<circle cx="-6.92" cy="4.59" r="1.9" fill="#E7DDCB" stroke="#6D6354" stroke-width="0.7"/>
+<circle cx="-8.13" cy="-1.65" r="1.9" fill="#E7DDCB" stroke="#6D6354" stroke-width="0.7"/>
+<circle cx="-4.59" cy="-6.92" r="1.9" fill="#E7DDCB" stroke="#6D6354" stroke-width="0.7"/>
+<circle cx="1.65" cy="-8.13" r="1.9" fill="#E7DDCB" stroke="#6D6354" stroke-width="0.7"/>
+<circle cx="6.92" cy="-4.59" r="1.9" fill="#E7DDCB" stroke="#6D6354" stroke-width="0.7"/>
+<circle cx="0" cy="0" r="4.4" fill="#8F8472" stroke="#2E2923" stroke-width="1"/>
+<circle cx="0" cy="0" r="2" fill="#DDD3C1"/>
+<rect x="13.1" y="-1.1" width="5.2" height="2.2" rx="1" fill="#E0D6C3"/>
+</g>
+<path d="M-24.94,-8.7 A27.8,27.8 0 0 1 -5.8,-27.26" fill="none" stroke="#FFFFFF" stroke-opacity=".16" stroke-width="2.2" stroke-linecap="round"/>
+</g>
+<g id="cam-wf" transform="translate(1156 296)">
+<g id="cam-wf-spin">
+<circle cx="0" cy="0" r="28" fill="#0D0B09" stroke="#3A332B" stroke-width="1.4"/>
+<circle cx="0" cy="0" r="25.4" fill="none" stroke="#2D2721" stroke-width="4.6" stroke-dasharray="5.4 3.3"/>
+<circle cx="0" cy="0" r="19.6" fill="#1B1713" stroke="#3A332B" stroke-width="1"/>
+<circle cx="0" cy="0" r="18.2" fill="none" stroke="#2A241E" stroke-width="0.8"/>
+<circle cx="0" cy="0" r="15.5" fill="#F8F3EB" stroke="#B9AE9B" stroke-width="1.2"/>
+<circle cx="0" cy="0" r="12.5" fill="#D9CFBD"/>
+<circle cx="0" cy="0" r="11.3" fill="#8F8472"/>
+<circle cx="0" cy="0" r="9.5" fill="#4A423A" stroke="#2E2923" stroke-width="1"/>
+<circle cx="7.15" cy="1.45" r="1.9" fill="#E7DDCB" stroke="#6D6354" stroke-width="0.7"/>
+<circle cx="4.03" cy="6.08" r="1.9" fill="#E7DDCB" stroke="#6D6354" stroke-width="0.7"/>
+<circle cx="-1.45" cy="7.15" r="1.9" fill="#E7DDCB" stroke="#6D6354" stroke-width="0.7"/>
+<circle cx="-6.08" cy="4.03" r="1.9" fill="#E7DDCB" stroke="#6D6354" stroke-width="0.7"/>
+<circle cx="-7.15" cy="-1.45" r="1.9" fill="#E7DDCB" stroke="#6D6354" stroke-width="0.7"/>
+<circle cx="-4.03" cy="-6.08" r="1.9" fill="#E7DDCB" stroke="#6D6354" stroke-width="0.7"/>
+<circle cx="1.45" cy="-7.15" r="1.9" fill="#E7DDCB" stroke="#6D6354" stroke-width="0.7"/>
+<circle cx="6.08" cy="-4.03" r="1.9" fill="#E7DDCB" stroke="#6D6354" stroke-width="0.7"/>
+<circle cx="0" cy="0" r="4.4" fill="#8F8472" stroke="#2E2923" stroke-width="1"/>
+<circle cx="0" cy="0" r="2" fill="#DDD3C1"/>
+<rect x="12.1" y="-1.1" width="5.2" height="2.2" rx="1" fill="#E0D6C3"/>
+</g>
+<path d="M-24.08,-8.4 A26.8,26.8 0 0 1 -5.6,-26.32" fill="none" stroke="#FFFFFF" stroke-opacity=".16" stroke-width="2.2" stroke-linecap="round"/>
+</g>
+</g>
+<g id="cam-f-upg">
+<g id="cam-f-bodyup">
+<g id="cam-f-up">
+<path d="M900,300 L900,284 Q900,257 926,257 L1004,257 Q1030,257 1030,284 L1030,300 L1021,300 L1021,286 Q1021,266 1003,266 L927,266 Q909,266 909,286 L909,300 Z" fill="#3A332B" stroke="#2E2923" stroke-width="1.2"/>
+<path d="M902,284 Q902,259 926,259 L1004,259" fill="none" stroke="#8F8472" stroke-width="1.6" stroke-linecap="round"/>
+<path d="M909,300 L909,286 Q909,266 927,266" fill="none" stroke="#17130F" stroke-width="1" stroke-opacity=".6"/>
+<g >
+<rect x="1080.5" y="172" width="9" height="92" rx="3" fill="url(#cam-gr-chrome)"/>
+<rect x="1080.5" y="172" width="9" height="92" rx="3" fill="none" stroke="#2E2923" stroke-width="1"/>
+<rect x="1078.5" y="190" width="13" height="4" rx="1.4" fill="#4A423A"/>
+<rect x="1078.5" y="220" width="13" height="4" rx="1.4" fill="#4A423A"/>
+<rect x="1078.5" y="248" width="13" height="4" rx="1.4" fill="#4A423A"/>
+<rect x="1077" y="162" width="16" height="11" rx="3" fill="url(#cam-gr-chrome)"/>
+<rect x="1077" y="162" width="16" height="11" rx="3" fill="none" stroke="#2E2923" stroke-width="1"/>
+<rect x="1079" y="159" width="12" height="4" rx="1.5" fill="#4A423A"/>
+<rect x="1082" y="155.5" width="6" height="4" rx="1.5" fill="#2E2923"/>
+<rect x="1074" y="244" width="9" height="24" rx="2" fill="#4A423A"/>
+</g>
+<g id="cam-cab">
+<path d="M1094,262 L1094,199 Q1094,187 1106,187 L1148,187 Q1158,187 1164,195 L1182,224 Q1186,231 1186,240 L1186,262 Z" fill="#F6B21C"/>
+<polygon points="1094,240 1186,240 1186,262 1094,262" fill="#D68A06"/>
+<polygon points="1094,250 1186,250 1186,262 1094,262" fill="#9C6204" fill-opacity=".55"/>
+<path d="M1094,199 Q1094,187 1106,187 L1148,187 Q1158,187 1164,195 L1170,205 L1100,205 Q1094,204 1094,199 Z" fill="#FFD35C"/>
+<path d="M1094,206 L1170,206 L1172,210 L1094,210 Z" fill="#D68A06" fill-opacity=".55"/>
+<path d="M1108,200 L1152,200 L1172,230 L1172,258 L1108,258 Z" fill="none" stroke="#9C6204" stroke-width="1.4" stroke-opacity=".8"/>
+<path d="M1109.4,201.4 L1151.2,201.4 L1170.6,230.6" fill="none" stroke="#FFF0B8" stroke-width="1" stroke-opacity=".6"/>
+<rect x="1156" y="232" width="11" height="3.6" rx="1.6" fill="url(#cam-gr-steel)"/>
+<rect x="1156" y="232" width="11" height="3.6" rx="1.6" fill="none" stroke="#2E2923" stroke-width="0.8"/>
+<rect x="1110" y="242" width="60" height="2" fill="#9C6204" fill-opacity=".5"/>
+<polygon points="1118,232 1128,232 1114,258 1108,258 1108,244" fill="#FFFFFF" fill-opacity=".14"/>
+<polygon points="1132,232 1138,232 1124,258 1119,258" fill="#FFFFFF" fill-opacity=".10"/>
+<path d="M1112,197 L1150,197 L1172,226 L1112,226 Z" fill="#2E2923"/>
+<g id="cam-driver">
+<rect x="1114" y="214" width="14" height="12" rx="3" fill="#3B332B"/>
+<circle cx="1134" cy="211.5" r="5.8" fill="#C58B62"/>
+<rect x="1127" y="213" width="14" height="13" rx="3" fill="#4A6FA5"/>
+<path d="M1127.4,208 Q1134,200 1141,208 Z" fill="#F8F3EB" stroke="#B9AE9B" stroke-width="0.6"/>
+<rect x="1126.5" y="207.4" width="15.4" height="2.2" rx="1" fill="#D9CFBD"/>
+</g>
+<path d="M1112,197 L1150,197 L1172,226 L1112,226 Z" fill="url(#cam-gr-glass)" fill-opacity=".5"/>
+<g clip-path="url(#cam-clip-win)"><polygon points="1118,226 1130,226 1150,196 1140,196" fill="#FFFFFF" fill-opacity=".42"/><polygon points="1136,226 1142,226 1160,196 1156,196" fill="#FFFFFF" fill-opacity=".25"/></g>
+<g clip-path="url(#cam-clip-win)"><g id="cam-glint-win"><polygon points="1086,230 1096,230 1118,194 1108,194" fill="#FFFFFF" fill-opacity=".55"/><polygon points="1100,230 1104,230 1126,194 1122,194" fill="#FFFFFF" fill-opacity=".35"/></g></g>
+<rect x="1094" y="236" width="92" height="26" fill="url(#cam-gr-dirt)"/>
+<path d="M1112,197 L1150,197 L1172,226 L1112,226 Z" fill="none" stroke="#2E2923" stroke-width="1.8" stroke-linejoin="round"/>
+<polygon points="1180,226 1186,240 1186,262 1178,262 1178,232" fill="#3A332B"/>
+<line x1="1179" y1="236" x2="1186" y2="236" stroke="#8F8472" stroke-width="1.1"/>
+<line x1="1179" y1="241" x2="1186" y2="241" stroke="#8F8472" stroke-width="1.1"/>
+<line x1="1179" y1="246" x2="1186" y2="246" stroke="#8F8472" stroke-width="1.1"/>
+<line x1="1179" y1="251" x2="1186" y2="251" stroke="#8F8472" stroke-width="1.1"/>
+<line x1="1179" y1="256" x2="1186" y2="256" stroke="#8F8472" stroke-width="1.1"/>
+<line x1="1179" y1="261" x2="1186" y2="261" stroke="#8F8472" stroke-width="1.1"/>
+<rect x="1180" y="244" width="6" height="11" rx="2" fill="#FFF4D6" id="cam-headlamp"/>
+<rect x="1180" y="244" width="6" height="11" rx="2" fill="none" stroke="#2E2923" stroke-width="0.9"/>
+<rect x="1181" y="232" width="5" height="5" rx="1.4" fill="#FFB020"/>
+<polygon points="1148,184.5 1167,193 1169,197 1146,189" fill="#4A423A"/>
+<rect x="1094" y="258" width="92" height="4" fill="#2E2923"/>
+<rect x="1178" y="207" width="3" height="18" fill="#4A423A"/>
+<rect x="1181" y="202" width="9" height="25" rx="3" fill="#4A423A"/>
+<rect x="1182.4" y="203.4" width="6" height="22" rx="2" fill="url(#cam-gr-glass)" fill-opacity=".8"/>
+<rect x="1183.2" y="204.2" width="1.6" height="20" fill="#FFFFFF" fill-opacity=".5"/>
+<rect x="1118" y="183" width="16" height="4" rx="1" fill="#4A423A"/>
+<path d="M1120,183 Q1126,171 1132,183 Z" fill="#FFB020" stroke="#9C6204" stroke-width="0.8"/>
+<path d="M1122,181 Q1126,174 1130,181 Z" fill="#FFE08A"/>
+<path d="M1098,186 L1108,181 L1109,185 L1100,188 Z" fill="url(#cam-gr-chrome)"/>
+<path d="M1103,184 L1112,179 L1113,183 L1105,186.5 Z" fill="url(#cam-gr-chrome)"/>
+</g>
+<path d="M1124,297 Q1124,262 1156,262 Q1188,262 1188,297 L1184,297 Q1184,266 1156,266 Q1128,266 1128,297 Z" fill="#3A332B" stroke="#2E2923" stroke-width="1"/>
+<circle cx="1183" cy="249.5" r="26" fill="url(#cam-gr-glow)" id="cam-glow-head" opacity=".7"/>
+<circle cx="1126" cy="177" r="26" fill="url(#cam-gr-glow-amber)" id="cam-glow-beacon" opacity="0"/>
+<circle cx="875.5" cy="267.5" r="20" fill="url(#cam-gr-glow-red)" id="cam-glow-brk" opacity="0"/>
+<circle cx="875.5" cy="275.5" r="22" fill="url(#cam-gr-glow)" id="cam-glow-rev" opacity="0"/>
+</g>
+<g id="cam-f-bedg">
+<g id="cam-f-bed">
+<g >
+<rect x="878" y="249" width="168" height="7" fill="#2E2923"/>
+<rect x="892" y="249" width="9" height="11" fill="#4A423A"/>
+<rect x="892" y="249" width="9" height="2" fill="#6D6354"/>
+<rect x="914" y="249" width="9" height="11" fill="#4A423A"/>
+<rect x="914" y="249" width="9" height="2" fill="#6D6354"/>
+<rect x="936" y="249" width="9" height="11" fill="#4A423A"/>
+<rect x="936" y="249" width="9" height="2" fill="#6D6354"/>
+<rect x="958" y="249" width="9" height="11" fill="#4A423A"/>
+<rect x="958" y="249" width="9" height="2" fill="#6D6354"/>
+<rect x="980" y="249" width="9" height="11" fill="#4A423A"/>
+<rect x="980" y="249" width="9" height="2" fill="#6D6354"/>
+<rect x="1002" y="249" width="9" height="11" fill="#4A423A"/>
+<rect x="1002" y="249" width="9" height="2" fill="#6D6354"/>
+<rect x="1024" y="249" width="9" height="11" fill="#4A423A"/>
+<rect x="1024" y="249" width="9" height="2" fill="#6D6354"/>
+</g>
+<polygon points="874,204 1034,204 1042,172 1048,172 1048,250 874,250" fill="#F6B21C"/>
+<polygon points="874,212 1030,212 1030,238 874,238" fill="#F6B21C"/>
+<rect x="874" y="238" width="174" height="12" fill="#D68A06"/>
+<rect x="874" y="247" width="174" height="3" fill="#9C6204"/>
+<rect x="906" y="211" width="8" height="27" fill="#D68A06"/>
+<rect x="906" y="211" width="2" height="27" fill="#FFD35C"/>
+<rect x="912" y="211" width="2" height="27" fill="#9C6204" fill-opacity=".6"/>
+<rect x="940" y="211" width="8" height="27" fill="#D68A06"/>
+<rect x="940" y="211" width="2" height="27" fill="#FFD35C"/>
+<rect x="946" y="211" width="2" height="27" fill="#9C6204" fill-opacity=".6"/>
+<rect x="974" y="211" width="8" height="27" fill="#D68A06"/>
+<rect x="974" y="211" width="2" height="27" fill="#FFD35C"/>
+<rect x="980" y="211" width="2" height="27" fill="#9C6204" fill-opacity=".6"/>
+<rect x="1008" y="211" width="8" height="27" fill="#D68A06"/>
+<rect x="1008" y="211" width="2" height="27" fill="#FFD35C"/>
+<rect x="1014" y="211" width="2" height="27" fill="#9C6204" fill-opacity=".6"/>
+<rect x="879" y="216" width="22" height="18" rx="2" fill="none" stroke="#D68A06" stroke-width="1" stroke-opacity=".55"/>
+<rect x="879.8" y="216.8" width="22" height="18" rx="2" fill="none" stroke="#FFD35C" stroke-width="0.8" stroke-opacity=".45"/>
+<rect x="919" y="216" width="16" height="18" rx="2" fill="none" stroke="#D68A06" stroke-width="1" stroke-opacity=".55"/>
+<rect x="919.8" y="216.8" width="16" height="18" rx="2" fill="none" stroke="#FFD35C" stroke-width="0.8" stroke-opacity=".45"/>
+<rect x="953" y="216" width="16" height="18" rx="2" fill="none" stroke="#D68A06" stroke-width="1" stroke-opacity=".55"/>
+<rect x="953.8" y="216.8" width="16" height="18" rx="2" fill="none" stroke="#FFD35C" stroke-width="0.8" stroke-opacity=".45"/>
+<rect x="987" y="216" width="16" height="18" rx="2" fill="none" stroke="#D68A06" stroke-width="1" stroke-opacity=".55"/>
+<rect x="987.8" y="216.8" width="16" height="18" rx="2" fill="none" stroke="#FFD35C" stroke-width="0.8" stroke-opacity=".45"/>
+<rect x="1021" y="216" width="8" height="18" rx="2" fill="none" stroke="#D68A06" stroke-width="1" stroke-opacity=".55"/>
+<rect x="1021.8" y="216.8" width="8" height="18" rx="2" fill="none" stroke="#FFD35C" stroke-width="0.8" stroke-opacity=".45"/>
+<rect x="874" y="226" width="160" height="3" fill="#D68A06" fill-opacity=".8"/>
+<polygon points="884,212 896,212 880,238 874,238 874,226" fill="#FFFFFF" fill-opacity=".10"/>
+<polygon points="1014,212 1026,212 1010,238 998,238" fill="#FFFFFF" fill-opacity=".10"/>
+<g clip-path="url(#cam-clip-wall)"><g id="cam-glint-bed"><polygon points="860,250 874,250 894,204 880,204" fill="#FFFFFF" fill-opacity=".30"/><polygon points="884,250 890,250 910,204 904,204" fill="#FFFFFF" fill-opacity=".18"/></g></g>
+<rect x="874" y="226" width="174" height="24" fill="url(#cam-gr-dirt)"/>
+<rect x="871" y="202" width="168" height="8" rx="2" fill="#FFD35C"/>
+<rect x="871" y="208.5" width="168" height="2.2" fill="#D68A06"/>
+<rect x="871" y="202" width="168" height="1.6" fill="#FFF0B8"/>
+<circle cx="880" cy="206.2" r="1.15" fill="#9C6204"/>
+<circle cx="893" cy="206.2" r="1.15" fill="#9C6204"/>
+<circle cx="906" cy="206.2" r="1.15" fill="#9C6204"/>
+<circle cx="919" cy="206.2" r="1.15" fill="#9C6204"/>
+<circle cx="932" cy="206.2" r="1.15" fill="#9C6204"/>
+<circle cx="945" cy="206.2" r="1.15" fill="#9C6204"/>
+<circle cx="958" cy="206.2" r="1.15" fill="#9C6204"/>
+<circle cx="971" cy="206.2" r="1.15" fill="#9C6204"/>
+<circle cx="984" cy="206.2" r="1.15" fill="#9C6204"/>
+<circle cx="997" cy="206.2" r="1.15" fill="#9C6204"/>
+<circle cx="1010" cy="206.2" r="1.15" fill="#9C6204"/>
+<circle cx="1023" cy="206.2" r="1.15" fill="#9C6204"/>
+<circle cx="881" cy="243.5" r="1.2" fill="#9C6204"/>
+<circle cx="898" cy="243.5" r="1.2" fill="#9C6204"/>
+<circle cx="915" cy="243.5" r="1.2" fill="#9C6204"/>
+<circle cx="932" cy="243.5" r="1.2" fill="#9C6204"/>
+<circle cx="949" cy="243.5" r="1.2" fill="#9C6204"/>
+<circle cx="966" cy="243.5" r="1.2" fill="#9C6204"/>
+<circle cx="983" cy="243.5" r="1.2" fill="#9C6204"/>
+<circle cx="1000" cy="243.5" r="1.2" fill="#9C6204"/>
+<circle cx="1017" cy="243.5" r="1.2" fill="#9C6204"/>
+<circle cx="1034" cy="243.5" r="1.2" fill="#9C6204"/>
+<polygon points="1034,204 1042,172 1048,172 1048,204" fill="#FFD35C"/>
+<polygon points="1038,172 1078,169 1081,176 1044,181" fill="#FFD35C"/>
+<polygon points="1044,181 1081,176 1081,180 1048,185" fill="#D68A06"/>
+<line x1="1040" y1="173" x2="1078" y2="170" stroke="#FFF0B8" stroke-width="1.2"/>
+<rect x="1041" y="186" width="7" height="18" fill="#D68A06"/>
+<circle cx="1044.5" cy="190" r="1.1" fill="#9C6204"/>
+<circle cx="1044.5" cy="198" r="1.1" fill="#9C6204"/>
+<path d="M874,250 L874,236 Q890,240 906,244 L930,250 Z" fill="#4E3622" fill-opacity=".55"/>
+<path d="M1010,250 L1030,242 Q1040,244 1048,238 L1048,250 Z" fill="#4E3622" fill-opacity=".45"/>
+<rect x="932" y="214" width="2" height="22" fill="#4E3622" fill-opacity=".16"/>
+<rect x="1004" y="214" width="3" height="18" fill="#4E3622" fill-opacity=".14"/>
+<rect x="878" y="240" width="22" height="12" rx="3" fill="#4A423A"/>
+<circle cx="886" cy="244" r="6.2" fill="#4A423A" stroke="#2E2923" stroke-width="1.6"/>
+<circle cx="886" cy="244" r="2.6" fill="#A79B88"/>
+<rect x="900" y="241.5" width="6" height="3.4" rx="1" fill="#FFB020"/>
+<rect x="900" y="241.5" width="6" height="1.2" rx="0.6" fill="#FFE08A"/>
+<rect x="972" y="241.5" width="6" height="3.4" rx="1" fill="#FFB020"/>
+<rect x="972" y="241.5" width="6" height="1.2" rx="0.6" fill="#FFE08A"/>
+<rect x="1030" y="241.5" width="6" height="3.4" rx="1" fill="#FFB020"/>
+<rect x="1030" y="241.5" width="6" height="1.2" rx="0.6" fill="#FFE08A"/>
+<polygon points="992,250 1012,250 1008,262 996,262" fill="#4A423A"/>
+<circle cx="1002" cy="258" r="4.2" fill="#A79B88" stroke="#2E2923" stroke-width="1.3"/>
+<circle cx="1002" cy="258" r="1.6" fill="#2E2923"/>
+</g>
+<g id="cam-f-gate">
+<rect x="869" y="203" width="8" height="47" rx="1.5" fill="url(#cam-hz)"/>
+<rect x="869" y="203" width="8" height="47" rx="1.5" fill="none" stroke="#9C6204" stroke-width="1.2"/>
+<rect x="869" y="203" width="2" height="47" fill="#FFFFFF" fill-opacity=".18"/>
+<rect x="866" y="242" width="14" height="8" rx="2" fill="#4A423A"/>
+<rect x="868" y="243.5" width="10" height="2.2" fill="#8F8472"/>
+<circle cx="873" cy="203" r="5.2" fill="#4A423A" stroke="#2E2923" stroke-width="1.5"/>
+<circle cx="873" cy="203" r="2.2" fill="#A79B88"/>
+</g>
+</g>
+</g>
+</g>
+</g>
+<g id="cam-fxf"></g>
+</svg>
+    </div>
+    <script>
+(function () {
+  'use strict';
+  /* Motor del camión de volteo: TODO lo visible es función pura de t (PRNG con semilla fija, sin reloj, sin callbacks).
+     Un único tween "camSim" de 5,6 s llama a pose(t) en cada fotograma; las trayectorias de grava/letras se
+     integran de antemano (build) con semilla fija y se leen por tabla. */
+  var GEO = {"ground": 324, "deckY": 290, "slabX1": 858, "H": [886, 244], "C": [1010, 292], "wheels": [{"id": "w1", "x": 934, "y": 295, "r": 29}, {"id": "w2", "x": 996, "y": 295, "r": 29}, {"id": "wf", "x": 1156, "y": 296, "r": 28}], "ramB": [1042, 304], "ramT": [1002, 258], "gateG": [873, 203], "stack": [1085, 156], "floorY": 242, "rimNear": 204, "rimFar": 194, "lets": {"c": {"cx": 786.655, "cy": 268.515, "w": 36.690000000000055, "h": 44.59, "bottom": 290.81}, "k": {"cx": 830.575, "cy": 260.47, "w": 36.59000000000003, "h": 59.380000000000024, "bottom": 290.16}}};
+  var DUR = 5.6, FPS = 60, NS = 'http://www.w3.org/2000/svg';
+  var PI = Math.PI, DEG = 180 / PI;
+  var $ = function (id) { return document.getElementById(id); };
+  var clamp = function (x, a, b) { return x < a ? a : x > b ? b : x; };
+  var lerp = function (a, b, t) { return a + (b - a) * t; };
+  var smooth = function (x) { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); };
+  var fx = function (v) { return (Math.round(v * 100) / 100) + ''; };
+  function rng(seed) { var a = seed >>> 0; return function () { a = (a + 0x6D2B79F5) | 0; var t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  var EZ = function (e) { return typeof e === 'function' ? e : gsap.parseEase(e); };
+  var powIn = function (k) { return function (p) { return Math.pow(p, k); }; };
+
+  /* ---------- pistas de animación: track(inicial, [[t0,t1,valor,ease],...]) ---------- */
+  function track(v0, segs) {
+    var S = [], prev = v0;
+    segs.forEach(function (s) { S.push({ t0: s[0], t1: s[1], from: prev, to: s[2], e: EZ(s[3] || 'none') }); prev = s[2]; });
+    return function (t) {
+      var v = v0;
+      for (var i = 0; i < S.length; i++) {
+        var s = S[i];
+        if (t < s.t0) return v;
+        if (t < s.t1) return s.from + (s.to - s.from) * s.e((t - s.t0) / (s.t1 - s.t0));
+        v = s.to;
+      }
+      return v;
+    };
+  }
+  function spring(t, t0, amp, k, hz) { if (t < t0) return 0; var tau = t - t0; return amp * Math.exp(-k * tau) * Math.cos(2 * PI * hz * tau); }
+  function bump(t, t0, t1, amp) { if (t <= t0 || t >= t1) return 0; return amp * Math.sin(PI * (t - t0) / (t1 - t0)); }
+
+  /* ---------- cinemática del camión ---------- */
+  var T_STOP = 1.95;
+  var dxT = track(560, [[1.10, T_STOP, 0, 'power1.out'], [3.62, 4.60, 720, powIn(2.6)]]);
+  var thT = (function () {
+    var base = track(0, [[1.40, T_STOP, 12, 'power1.in'], [T_STOP, 2.70, 38, 'power2.out'], [2.70, 2.84, 41.5, 'sine.out'], [2.84, 3.00, 38.5, 'sine.inOut'], [3.08, 3.56, 0, 'power2.inOut']]);
+    return function (t) { return base(t) + (t > 3.56 ? spring(t, 3.56, 0.9, 12, 3.2) : 0); };
+  })();
+  var gaT = (function () {
+    var base = track(0, [[1.70, 2.10, 138, 'back.out(1.9)'], [3.08, 3.46, 0, 'power3.in']]);
+    return function (t) { return base(t) + (t > 3.46 ? 0 : 0) + (t > 3.46 ? Math.max(0, spring(t, 3.46, 5, 9, 4.4)) : 0); };
+  })();
+  var pitchT = (function () {
+    var brake = function (t) {
+      if (t < 1.30) return 0;
+      if (t < T_STOP) return -2.1 * EZ('power2.in')((t - 1.30) / (T_STOP - 1.30));
+      return -2.1 * Math.exp(-7 * (t - T_STOP)) * Math.cos(2 * PI * 3.0 * (t - T_STOP));
+    };
+    var dump = track(0, [[1.95, 2.30, -0.7, 'sine.inOut'], [2.30, 3.0, 0.8, 'sine.inOut'], [3.15, 3.6, 0, 'sine.inOut']]);
+    var go = track(0, [[3.62, 3.92, -2.0, 'power2.out'], [3.92, 4.50, -0.5, 'sine.inOut']]);
+    return function (t) { return brake(t) + dump(t) + go(t) + 0.06 * Math.sin(2 * PI * 23 * t) * smooth((t - 1.95) / 0.1) * (1 - smooth((t - 3.6) / 0.1)); };
+  })();
+  var heaveT = (function () {
+    var brake = function (t) {
+      if (t < 1.30) return 0;
+      if (t < T_STOP) return 1.9 * EZ('power2.in')((t - 1.30) / (T_STOP - 1.30));
+      return 1.9 * Math.exp(-7 * (t - T_STOP)) * Math.cos(2 * PI * 3.0 * (t - T_STOP));
+    };
+    var dump = track(0, [[1.95, 2.35, 1.2, 'sine.inOut'], [2.35, 3.0, -0.7, 'sine.inOut'], [3.15, 3.6, 0, 'sine.inOut']]);
+    var go = track(0, [[3.62, 3.92, 1.0, 'power2.out'], [3.92, 4.50, 0.2, 'sine.inOut']]);
+    return function (t) { return brake(t) + dump(t) + go(t) + bump(t, 3.50, 3.68, 0.9) + 0.42 * Math.sin(2 * PI * 17 * t) * smooth((t - 1.95) / 0.1) * (1 - smooth((t - 3.6) / 0.1)); };
+  })();
+
+  var H = GEO.H, C0 = GEO.C;
+  function rotPt(x, y, cx, cy, deg) { var a = deg / DEG, c = Math.cos(a), s = Math.sin(a), dx = x - cx, dy = y - cy; return [cx + dx * c - dy * s, cy + dx * s + dy * c]; }
+  function chain(t) { return { dx: dxT(t), hv: heaveT(t), pt: pitchT(t), th: thT(t), ga: gaT(t) }; }
+  function bedToWorld(ch, x, y) { var p = rotPt(x, y, H[0], H[1], -ch.th); p = rotPt(p[0], p[1], C0[0], C0[1], ch.pt); return [p[0] + ch.dx, p[1] + ch.hv]; }
+  function chainStr(ch) {
+    return 'translate(' + fx(ch.dx) + ' 0) translate(0 ' + fx(ch.hv) + ') rotate(' + fx(ch.pt) + ' ' + C0[0] + ' ' + C0[1] + ') rotate(' + fx(-ch.th) + ' ' + H[0] + ' ' + H[1] + ')';
+  }
+
+  /* ---------- carga: montículo, grava, letras ---------- */
+  var FL = GEO.floorY, G = 2900;
+  var surf = function (x) { return x < GEO.slabX1 ? GEO.deckY : GEO.ground; };
+  function interp(tab, x) { if (x <= tab[0][0]) return tab[0][1]; for (var i = 1; i < tab.length; i++) { if (x <= tab[i][0]) return lerp(tab[i - 1][1], tab[i][1], (x - tab[i - 1][0]) / (tab[i][0] - tab[i - 1][0])); } return tab[tab.length - 1][1]; }
+  var HEAP = [[872, 34], [896, 50], [930, 62], [965, 70], [1000, 67], [1030, 61], [1048, 56]];
+  var WAVE = [[868, 1.96], [930, 2.00], [990, 2.20], [1046, 2.62]];
+  var hp = function (x) { return interp(HEAP, x); };
+  var wave = function (x) { return interp(WAVE, x); };
+
+  var cargoEl = $('cam-chunks'), fxb = $('cam-fxb'), fxf = $('cam-fxf');
+  var mound = $('cam-mound'), moundTop = $('cam-mound-top'), moundG = $('cam-mound-g');
+  var ST = []; for (var i = 0; i < 20; i++) ST.push(876 + i * (1046 - 876) / 19);
+  var STN = (function () { var R = rng(7); return ST.map(function () { return (R() - .5) * 5; }); })();
+  function moundUpdate(t, cs) {
+    var d = '', top = '', any = false;
+    for (var i = 0; i < ST.length; i++) {
+      var s = 1 - smooth((t - wave(ST[i]) - 0.02) / 0.9);
+      if (s > 0.02) any = true;
+      var y = FL - Math.max(0, (hp(ST[i]) + STN[i]) * s) + (s > 0.02 ? 0 : 0);
+      top += (i ? 'L' : 'M') + fx(ST[i]) + ',' + fx(y);
+    }
+    if (!any) { mound.setAttribute('opacity', '0'); moundTop.setAttribute('opacity', '0'); return; }
+    mound.setAttribute('opacity', '1'); moundTop.setAttribute('opacity', '.9');
+    d = top + 'L' + fx(ST[ST.length - 1]) + ',' + (FL + 3) + 'L' + fx(ST[0]) + ',' + (FL + 3) + 'Z';
+    mound.setAttribute('d', d); moundTop.setAttribute('d', top);
+    moundG.setAttribute('transform', cs);
+  }
+
+  var SOIL = [['#4E3622', '#7A5636', '#A07848'], ['#4E3622', '#7A5636', '#A07848'], ['#5B3F28', '#86603B', '#B08852']];
+  var STONE = ['#5B5346', '#8E8472', '#B8AE9B'];
+  function blob(R, r, nPts) {
+    var k = nPts || (6 + Math.floor(R() * 3)), pts = [];
+    for (var i = 0; i < k; i++) { var a = (i / k) * 2 * PI + (R() - .5) * 0.55, rr = r * (0.76 + R() * 0.36); pts.push([Math.cos(a) * rr, Math.sin(a) * rr]); }
+    return pts;
+  }
+  function ptsD(pts, s, ox, oy) { return pts.map(function (p, i) { return (i ? 'L' : 'M') + fx(p[0] * s + ox) + ',' + fx(p[1] * s + oy); }).join('') + 'Z'; }
+  function mk(tag, attrs) { var e = document.createElementNS(NS, tag); for (var k in attrs) e.setAttribute(k, attrs[k]); return e; }
+
+  var chunks = [];
+  (function makeChunks() {
+    var R = rng(20261026);
+    function add(x, y, r) {
+      var stone = R() < 0.3, pal = stone ? STONE : SOIL[Math.floor(R() * 3)];
+      var g = mk('g', {});
+      var pts = blob(R, r);
+      g.appendChild(mk('path', { d: ptsD(pts, 1, 0, 0), fill: pal[0] }));
+      g.appendChild(mk('path', { d: ptsD(pts, 0.9, -0.05 * r, -0.07 * r), fill: pal[1] }));
+      if (r > 3.2) g.appendChild(mk('path', { d: ptsD(pts, 0.5, -0.27 * r, -0.33 * r), fill: pal[2] }));
+      chunks.push({ el: g, r: r, x0: x, y0: y, rot0: R() * 360, R: R });
+    }
+    var x, y, r;
+    for (x = 886; x <= 1038; x += 9) { r = 8 + R() * 5.5; add(x + (R() - .5) * 4, FL - hp(x) + r * 0.55, r); }          // fila superior (perfil del montículo)
+    for (x = 890; x <= 1034; x += 10) { r = 6 + R() * 4.5; add(x + (R() - .5) * 6, FL - hp(x) * 0.62, r); }                  // segunda fila
+    for (var i = 0; i < 64; i++) { x = 884 + R() * 156; r = 4 + R() * 3.4; y = FL - r - R() * Math.max(2, hp(x) - 2 * r - 4); add(x, y, r); }
+    for (i = 0; i < 86; i++) { x = 880 + R() * 164; r = 2.1 + R() * 2.0; y = FL - hp(x) + r + R() * 14; add(x, y, r); }          // gravilla
+    chunks.sort(function (a, b) { return b.y0 - a.y0; });
+    chunks.forEach(function (c) { cargoEl.appendChild(c.el); });
+  })();
+
+  var LIP = 870;
+  function jit(t) { if (t < 1.12) return 0; if (t < 1.96) return smooth((t - 1.12) / 0.2) * 1.0; return Math.exp(-(t - 1.96) * 7) * 1.4; }
+  chunks.forEach(function (c) {
+    var R = c.R;
+    c.D = c.x0 - (LIP + R() * 6);
+    c.tr = wave(c.x0) + (R() - .5) * 0.10 - clamp((FL - c.y0) / 90, 0, 1) * 0.05;
+    c.T = 0.24 + 0.22 * R() + c.D / 1150;
+    c.spin = (R() < .5 ? -1 : 1) * (120 + R() * 380);
+    c.tExit = c.tr + c.T;
+    c.yF = FL - c.r * 0.8;
+    c.ph = R() * 6.28; c.ja = 0.5 + 0.9 * R();
+    c.local = function (t) {
+      var p = clamp((t - c.tr) / c.T, 0, 1);
+      var q = Math.pow(p, 1.7);
+      var pv = Math.min(1, p / 0.55);
+      var j = (p > 0 ? 0 : 1) * jit(t) * c.ja * Math.sin(2 * PI * 13 * t + c.ph);
+      return [c.x0 - c.D * q + j * 0.6, c.y0 + (c.yF - c.y0) * pv * pv - Math.abs(j) * 0.8, c.rot0 + c.spin * p + j * 3];
+    };
+  });
+
+  /* ---------- letras ---------- */
+  function hh(L, rot) { var a = Math.abs(rot) / DEG; return (Math.abs(Math.cos(a)) * L.h + Math.abs(Math.sin(a)) * L.w) / 2; }
+  var LETS = {
+    c: { g: GEO.lets.c, el: $('cam-let-c'), elIn: $('cam-leti-c'), home: [930, 90], tr: 1.78, T: 0.28, w0: 40, ready: 2.5 },
+    k: { g: GEO.lets.k, el: $('cam-let-k'), elIn: $('cam-leti-k'), home: [992, -90], tr: 2.20, T: 0.32, w0: 200, ready: 3.0 }
+  };
+  var debug = [];
+  Object.keys(LETS).forEach(function (key) {
+    var L = LETS[key], g = L.g;
+    L.tExit = L.tr + L.T;
+    L.D = L.home[0] - LIP;
+    L.local = function (t) {
+      var p = clamp((t - L.tr) / L.T, 0, 1), q = Math.pow(p, 1.7);
+      var rot = L.home[1] * Math.pow(1 - p, 2);
+      return [L.home[0] - L.D * q, FL - hh(g, rot) - 0.6, rot];
+    };
+    function wpose(t) { var l = L.local(t), ch = chain(t), w = bedToWorld(ch, l[0], l[1]); return [w[0], w[1], l[2] + ch.pt - ch.th]; }
+    // velocidad de salida por diferencias finitas
+    var e = 1 / 480, a = wpose(L.tExit - e), b = wpose(L.tExit);
+    var x = b[0], y = b[1], rot = b[2], vx = (b[0] - a[0]) / e, vy = (b[1] - a[1]) / e, om = (b[2] - a[2]) / e + L.w0;
+    var dt = 1 / 960, t = L.tExit, hit = false;
+    while (t < L.tExit + 1.2) {
+      vy += G * dt; x += vx * dt; y += vy * dt; rot += om * dt; t += dt;
+      if (y + hh(g, rot) >= g.bottom && x < GEO.slabX1 + 6) { hit = true; break; }
+    }
+    L.tc = t; L.xc = x; L.rotc = ((rot + 540) % 360) - 180; L.vxc = vx; L.vyc = vy; L.omc = om;
+    // si no ha girado a placer, normalizamos el ángulo de contacto al más cercano a 0
+    L.fx = g.cx; L.fy = g.cy;
+    L.air = function (tt) {   // vuelo balístico en cerrado desde la salida
+      var tau = tt - L.tExit;
+      return [b[0] + vx * tau, b[1] + vy * tau + 0.5 * G * tau * tau, b[2] + om * tau];
+    };
+    var dist = L.xc - L.fx;
+    L.Tx = clamp(2 * Math.abs(dist) / Math.max(Math.abs(vx), 1), 0.12, 0.34);
+    var vimp = Math.abs(L.vyc), hop1 = clamp(0.09 * vimp * vimp / (2 * G), 1.0, 6.5), d1 = Math.min(0.16, 2 * 0.3 * vimp / G + 0.05);
+    L.settle = function (tau) {
+      var rot = L.rotc * Math.exp(-12 * tau) * Math.cos(2 * PI * 2.4 * tau) * (1 - smooth((tau - 0.26) / 0.15));
+      var xx = L.xc + (L.fx - L.xc) * (1 - Math.pow(1 - clamp(tau / L.Tx, 0, 1), 2));
+      var hop = 0;
+      if (tau < d1) hop = hop1 * Math.sin(PI * tau / d1);
+      else if (tau < d1 * 1.65) hop = hop1 * 0.28 * Math.sin(PI * (tau - d1) / (d1 * 0.65));
+      var yy = g.bottom - hh(g, rot) - hop;
+      return [xx, yy, rot];
+    };
+    L.tRest = L.tc + 0.42;
+    debug.push(key + ': exit ' + L.tExit.toFixed(2) + ' contact t=' + L.tc.toFixed(3) + ' x=' + L.xc.toFixed(1) + ' rot=' + L.rotc.toFixed(1) + ' vx=' + vx.toFixed(0) + ' vy=' + vy.toFixed(0) + ' rest ' + L.tRest.toFixed(2) + ' (final x ' + L.fx.toFixed(1) + ')');
+  });
+
+  /* ---------- vuelo y caída de la grava (integración fija, tabla a 60 Hz) ---------- */
+  var puffs = [];
+  chunks.forEach(function (c) {
+    var R = c.R, e = 1 / 480;
+    function wp(t) { var l = c.local(t), ch = chain(t), w = bedToWorld(ch, l[0], l[1]); return [w[0], w[1], l[2] + ch.pt - ch.th]; }
+    var a = wp(c.tExit - e), b = wp(c.tExit);
+    var x = b[0], y = b[1], rot = b[2], vx = (b[0] - a[0]) / e, vy = (b[1] - a[1]) / e, om = c.spin / DEG * 0 + (b[2] - a[2]) / e + c.spin * 0.6;
+    var rest = 0.28 + 0.12 * R(), hold = 0.10 + 0.24 * R(), rr = c.r * 0.8;
+    var dt = 1 / 480, t = c.tExit, tc1 = -1, rolling = false, tRest = -1, samples = [], nxt = c.tExit, tEnd = 0;
+    var life = 0;
+    while (true) {
+      if (t >= nxt - 1e-9) {
+        var k = 1, sink = 0;
+        var ts = Math.min(tc1 + hold, 3.25); if (tc1 >= 0 && t > ts) { sink = clamp((t - ts) / 0.26, 0, 1); }
+        samples.push([x, y + sink * rr * 0.9, rot, 1 - 0.45 * sink, 1 - sink * sink]);
+        nxt += 1 / FPS;
+        if (sink >= 1) { tEnd = t; break; }
+      }
+      // paso físico
+      var sy = surf(x);
+      if (!rolling) {
+        vy += G * dt; x += vx * dt; y += vy * dt; rot += om * dt;
+        var s2 = surf(x);
+        if (y + rr >= s2 && vy > 0) {
+          y = s2 - rr;
+          if (tc1 < 0) { tc1 = t; puffs.push({ t0: t, life: 0.5 + 0.2 * R(), x0: x, y0: s2 - 2, vx: -20 + 40 * R(), vy: -22 - 25 * R(), r0: c.r * 0.5, r1: c.r * (1.6 + R()), a: c.r > 6 ? 0.55 : 0.32, kind: 'dust', back: true }); }
+          vy = -vy * rest; vx *= 0.62; om = vx / rr * DEG * 0.9;
+          if (Math.abs(vy) < 110) { rolling = true; vy = 0; }
+        }
+        // cara frontal de la losa (x>858 cayendo por debajo de 290)
+        if (x > GEO.slabX1 && x - rr < GEO.slabX1 && y + rr > GEO.deckY + 1 && vx < 0) { x = GEO.slabX1 + rr; vx = Math.abs(vx) * 0.4; }
+      } else {
+        var dec = 1300 * dt; if (Math.abs(vx) <= dec) vx = 0; else vx -= Math.sign(vx) * dec;
+        x += vx * dt; rot += (vx / rr) * DEG * dt; y = surf(x) - rr;
+      }
+      t += dt;
+      if (t > 6) { tEnd = t; break; }
+    }
+    c.samples = samples; c.tEnd = tEnd;
+  });
+  var maxEnd = 0; chunks.forEach(function (c) { maxEnd = Math.max(maxEnd, c.tEnd); });
+  debug.push('grava: ' + chunks.length + ' trozos, última desaparece a ' + maxEnd.toFixed(2) + ' s');
+
+  /* ---------- polvo y humo ---------- */
+  (function makePuffs() {
+    var R = rng(99), wxs = GEO.wheels;
+    function wheelContact(t, i) { return [wxs[i].x + dxT(t), GEO.ground - 1]; }
+    var t, i;
+    // polvo al entrar marcha atrás (rastro continuo tras las ruedas traseras)
+    for (t = 1.14; t < 1.84; t += 0.022) { var wc = wheelContact(t, R() < .5 ? 0 : 1); puffs.push({ t0: t, life: 0.6 + 0.3 * R(), x0: wc[0] + 16 + R() * 14, y0: wc[1] - 3, vx: 30 + 70 * R(), vy: -10 - 24 * R(), r0: 4, r1: 14 + 10 * R(), a: 0.30, kind: 'dust', back: false }); }
+    // frenazo: nube que se adelanta
+    for (t = 1.66; t < 1.99; t += 0.018) { var w2 = wheelContact(t, Math.floor(R() * 3)); puffs.push({ t0: t, life: 0.65 + 0.3 * R(), x0: w2[0] + (R() - .5) * 26, y0: w2[1] - 4, vx: -60 - 100 * R(), vy: -16 - 34 * R(), r0: 6, r1: 22 + 16 * R(), a: 0.5, kind: 'dust', back: false }); }
+    // ralentí: bocanadas de escape ligeras
+    var stack = GEO.stack;
+    function stackPos(t) { var ch = chain(t), p = rotPt(stack[0], stack[1], C0[0], C0[1], ch.pt); return [p[0] + ch.dx, p[1] + ch.hv]; }
+    for (t = 1.3; t < 3.46; t += 0.13) { var sp = stackPos(t); puffs.push({ t0: t, life: 0.8, x0: sp[0], y0: sp[1], vx: 14 + 14 * R(), vy: -40 - 24 * R(), r0: 2.5, r1: 9 + 5 * R(), a: 0.5, kind: 'smoke', back: false }); }
+    // arranque: humo negro a pulsos (una bocanada por fotograma, más densa al acelerar)
+    for (t = 3.48; t < 4.14; t += 1 / 60) { var sp2 = stackPos(t), up = clamp((t - 3.48) / 0.7, 0, 1), pulse = 0.75 + 0.25 * Math.sin(2 * PI * 9 * t); puffs.push({ t0: t, life: 0.74 + 0.1 * R(), x0: sp2[0] + (R() - .5) * 3, y0: sp2[1], vx: -30 - 50 * up + 16 * R(), vy: -68 - 36 * R(), r0: 5 + 2 * pulse, r1: (23 + 12 * R() + 12 * up) * pulse, a: 0.95, kind: 'smoke', back: false }); }
+    // golpe de la caja al asentarse sobre el chasis
+    for (i = 0; i < 4; i++) { var tp = 3.53 + i * 0.015; puffs.push({ t0: tp, life: 0.45, x0: 872 + dxT(tp) - 4 + R() * 8, y0: 276 + R() * 8, vx: -50 - 40 * R(), vy: -6 - 10 * R(), r0: 3, r1: 11 + 5 * R(), a: 0.3, kind: 'dust', back: false }); }
+    // arranque: polvo de las ruedas
+    for (t = 3.68; t < 4.2; t += 0.022) { var w3 = wheelContact(t, Math.floor(R() * 2)); puffs.push({ t0: t, life: 0.55 + 0.25 * R(), x0: w3[0] - 8 + R() * 10, y0: w3[1] - 3, vx: -50 - 90 * R(), vy: -12 - 26 * R(), r0: 5, r1: 18 + 14 * R(), a: 0.46, kind: 'dust', back: false }); }
+    // polvo en la boca de descarga mientras sale la carga
+    for (t = 1.98; t < 2.95; t += 0.05) { var lp = bedToWorld(chain(t), 868, 246); puffs.push({ t0: t, life: 0.5 + 0.2 * R(), x0: lp[0] - 4, y0: lp[1] + 6, vx: -50 - 40 * R(), vy: 8 + 14 * R(), r0: 6, r1: 20 + 8 * R(), a: 0.34, kind: 'dust', back: true }); }
+    // aterrizaje de las letras
+    Object.keys(LETS).forEach(function (k) {
+      var L = LETS[k];
+      puffs.push({ t0: L.tc, life: 0.62, x0: L.xc, y0: GEO.deckY - 3, vx: -30, vy: -26, r0: 8, r1: 34, a: 0.62, kind: 'dust', back: true });
+      puffs.push({ t0: L.tc + 0.05, life: 0.55, x0: L.xc + 16, y0: GEO.deckY - 2, vx: 25, vy: -22, r0: 6, r1: 26, a: 0.5, kind: 'dust', back: true });
+    });
+    puffs.forEach(function (p) {
+      p.el = mk('circle', { r: 1, fill: p.kind === 'dust' ? 'url(#cam-gr-dust)' : 'url(#cam-gr-smoke)', opacity: 0 });
+      (p.back ? fxb : fxf).appendChild(p.el);
+    });
+  })();
+  function puffUpdate(t) {
+    for (var i = 0; i < puffs.length; i++) {
+      var p = puffs[i], tau = t - p.t0;
+      if (tau < 0 || tau > p.life) { if (p.on) { p.el.setAttribute('opacity', '0'); p.on = false; } continue; }
+      var u = tau / p.life, drag = tau * (1 - 0.5 * u);
+      var x = p.x0 + p.vx * drag, y = p.y0 + p.vy * drag - (p.kind === 'smoke' ? 6 * u * u * 0 : 0);
+      var r = lerp(p.r0, p.r1, 1 - Math.pow(1 - u, 2));
+      var a = p.a * Math.pow(1 - u, 1.15) * smooth(tau / 0.05);
+      p.el.setAttribute('cx', fx(x)); p.el.setAttribute('cy', fx(y)); p.el.setAttribute('r', fx(r)); p.el.setAttribute('opacity', fx(a * 100) / 100 + ''); p.on = true;
+    }
+  }
+
+  /* ---------- aplicar la pose ---------- */
+  var elTrkB = $('cam-b-trk'), elBodyB = $('cam-b-body'), elBedB = $('cam-b-bedg'), elShadow = $('cam-b-sh');
+  var elTrkF = $('cam-f-trk'), elLow = $('cam-f-low'), elUp = $('cam-f-bodyup'), elBedF = $('cam-f-bedg'), elGate = $('cam-f-gate');
+  var elRam = { r: $('cam-ram'), s2: $('cam-ram-s2'), s3: $('cam-ram-s3') };
+  var elW = GEO.wheels.map(function (w) { return { spin: $('cam-' + w.id + '-spin'), r: w.r }; });
+  var glint = { win: $('cam-glint-win'), bed: $('cam-glint-bed') };
+  var lamp = { rev: $('cam-lamp-rev'), brk: $('cam-lamp-brk'), glowRev: $('cam-glow-rev'), glowBrk: $('cam-glow-brk'), beacon: $('cam-glow-beacon'), coneRev: $('cam-cone-rev'), coneFwd: $('cam-cone-fwd'), head: $('cam-glow-head'), driver: $('cam-driver') };
+  var RAM_B = GEO.ramB, RAM_T = GEO.ramT, S1 = 40;
+  var RAM_L0 = Math.hypot(RAM_T[0] - RAM_B[0], RAM_T[1] - RAM_B[1]);
+  var ramTail = RAM_L0 - S1 - 12;
+
+  function setT(el, s) { el.setAttribute('transform', s); }
+  function setO(el, v) { el.setAttribute('opacity', v); }
+
+  function pose(t) {
+    t = clamp(t, 0, DUR);
+    var ch = chain(t), cs = chainStr(ch);
+    // truck
+    var trk = 'translate(' + fx(ch.dx) + ' 0)';
+    setT(elTrkB, trk); setT(elTrkF, trk); setT(elShadow, trk);
+    var body = 'translate(0 ' + fx(ch.hv) + ') rotate(' + fx(ch.pt) + ' ' + C0[0] + ' ' + C0[1] + ')';
+    setT(elBodyB, body); setT(elLow, body); setT(elUp, body);
+    var bed = 'rotate(' + fx(-ch.th) + ' ' + H[0] + ' ' + H[1] + ')';
+    setT(elBedB, bed); setT(elBedF, bed);
+    setT(elGate, 'rotate(' + fx(ch.ga) + ' ' + GEO.gateG[0] + ' ' + GEO.gateG[1] + ')');
+    // wheels
+    for (var i = 0; i < elW.length; i++) setT(elW[i].spin, 'rotate(' + fx(ch.dx / elW[i].r * DEG) + ')');
+    // hoist ram (pivots: base fixed on frame, top on the bed; length computed between pivots)
+    var T = rotPt(RAM_T[0], RAM_T[1], H[0], H[1], -ch.th);
+    var dxr = T[0] - RAM_B[0], dyr = T[1] - RAM_B[1], Lr = Math.hypot(dxr, dyr), e = Math.max(0, Lr - RAM_L0);
+    setT(elRam.r, 'translate(' + RAM_B[0] + ' ' + RAM_B[1] + ') rotate(' + fx(Math.atan2(dyr, dxr) * DEG) + ')');
+    var p2 = S1 + 6 + e / 2, p3 = p2 + 6 + e / 2;
+    setT(elRam.s2, 'translate(' + fx(p2) + ' 0)'); setT(elRam.s3, 'translate(' + fx(p3) + ' 0)');
+    // lights
+    var rev = (t >= 1.02 && t < 2.02) ? 1 : 0, brk = ((t >= 1.45 && t < 2.15) || (t >= 3.50 && t < 3.70)) ? 1 : 0;
+    var ph = ((t - 1.0) / 0.36) % 1, bea = (t >= 1.0 && t < 3.75) ? (ph < 0.5 ? 1 : 0.1) : 0;
+    setO(lamp.rev, rev ? 1 : 0.28); setO(lamp.glowRev, rev); setO(lamp.coneRev, rev ? fx(clamp((1400 - (874 + ch.dx)) / 50, 0, 1)) : 0);
+    setO(lamp.brk, brk ? 1 : 0.3); setO(lamp.glowBrk, brk);
+    setO(lamp.beacon, bea); setO(lamp.coneFwd, 0);
+    setT(lamp.driver, 'translate(' + fx(t < 2.0 ? -2.4 * smooth((t - 1.1) / 0.3) : -2.4 * (1 - smooth((t - 2.0) / 0.4))) + ' 0)');
+    // brillos que barren el cristal y el costado de la caja al pasar bajo la luz
+    var gx = t < 3.3 ? smooth((t - 1.15) / 0.8) : smooth((t - 3.66) / 0.7);
+    setT(glint.win, 'translate(' + fx(-30 + 130 * gx) + ' 0)');
+    setT(glint.bed, 'translate(' + fx(-10 + 190 * gx) + ' 0)');
+    // cargo
+    moundUpdate(t, cs);
+    for (i = 0; i < chunks.length; i++) {
+      var c = chunks[i], el = c.el;
+      if (t < c.tExit) {
+        var l = c.local(t);
+        el.setAttribute('transform', cs + ' translate(' + fx(l[0]) + ' ' + fx(l[1]) + ') rotate(' + fx(l[2]) + ')');
+        if (!c.vis) { el.setAttribute('opacity', '1'); c.vis = true; }
+      } else {
+        var k = (t - c.tExit) * FPS, i0 = Math.floor(k), n = c.samples.length;
+        if (i0 >= n - 1) { if (c.vis !== 0) { el.setAttribute('opacity', '0'); c.vis = 0; } continue; }
+        var a = c.samples[i0], b = c.samples[i0 + 1], f = k - i0;
+        el.setAttribute('transform', 'translate(' + fx(lerp(a[0], b[0], f)) + ' ' + fx(lerp(a[1], b[1], f)) + ') rotate(' + fx(lerp(a[2], b[2], f)) + ') scale(' + fx(lerp(a[3], b[3], f)) + ')');
+        el.setAttribute('opacity', fx(lerp(a[4], b[4], f))); c.vis = true;
+      }
+    }
+    // letters
+    Object.keys(LETS).forEach(function (key) {
+      var L = LETS[key], x, y, r;
+      if (t < L.tExit) { var l = L.local(t), w = bedToWorld(ch, l[0], l[1]); x = w[0]; y = w[1]; r = l[2] + ch.pt - ch.th; }
+      else if (t < L.tc) { var a = L.air(t); x = a[0]; y = a[1]; r = a[2]; }
+      else if (t < L.tRest) { var s = L.settle(t - L.tc); x = s[0]; y = s[1]; r = s[2]; }
+      else { x = L.fx; y = L.fy; r = 0; }
+      var tr = (t >= L.tRest) ? 'translate(' + L.fx + ' ' + L.fy + ') rotate(0) translate(' + (-L.fx) + ' ' + (-L.fy) + ')' : 'translate(' + fx(x) + ' ' + fx(y) + ') rotate(' + fx(r) + ') translate(' + (-L.fx) + ' ' + (-L.fy) + ')';
+      L.el.setAttribute('transform', tr); L.elIn.setAttribute('transform', tr);
+      var sw = smooth((t - (L.tExit - 0.03)) / 0.08);
+      L.el.setAttribute('opacity', fx(sw)); L.elIn.setAttribute('opacity', fx(1 - sw));
+    });
+    puffUpdate(t);
+  }
+
+  gsap.registerPlugin({ name: 'camSim', init: function () {}, render: function (progress) { pose(progress * DUR); } });
+  pose(0);
+  var tl = gsap.timeline({ paused: true });
+  tl.to({}, { camSim: 1, duration: DUR, ease: 'none' }, 0);
+  window.__timelines = window.__timelines || {};
+  window.__timelines['main'] = tl;
+  window.__camPose = pose;
+  window.__camDebug = debug;
+})();
+
+    </script>
+  </body>
+</html>

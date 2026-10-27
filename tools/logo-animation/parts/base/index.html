@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1400, height=360" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { margin: 0; width: 1400px; height: 360px; overflow: hidden; background: transparent; }
+      #root { position: relative; width: 1400px; height: 360px; background: transparent; }
+      #root svg { position: absolute; left: 0; top: 0; overflow: visible; }
+    </style>
+  </head>
+  <body>
+    <!-- BASE: suelo, losa de hormigón, caja naranja con casco, polvo y desvanecimiento final. Lienzo 1400×360, ver PLAN.md. -->
+    <div id="root" data-composition-id="main" data-start="0" data-duration="5.6" data-width="1400" data-height="360">
+      <svg id="base-stage" viewBox="0 0 1400 360" width="1400" height="360" aria-hidden="true">
+        <defs>
+          <linearGradient id="base-slab-g" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#5A5147"/><stop offset="1" stop-color="#3B342D"/>
+          </linearGradient>
+          <linearGradient id="base-dirt-g" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#4A423A" stop-opacity=".55"/><stop offset="1" stop-color="#4A423A" stop-opacity="0"/>
+          </linearGradient>
+          <pattern id="base-hatch" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="14" stroke="#A79B88" stroke-width="1.6" opacity=".35"/>
+          </pattern>
+          <radialGradient id="base-shadow-g"><stop offset="0" stop-color="#000" stop-opacity=".55"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+        </defs>
+
+        <!-- suelo -->
+        <g id="base-dirt" opacity="0">
+          <rect x="0" y="324" width="1400" height="36" fill="url(#base-dirt-g)"/>
+          <rect x="0" y="324" width="1400" height="36" fill="url(#base-hatch)"/>
+        </g>
+        <path id="base-ground" d="M0 324 H1400" pathLength="1" fill="none" stroke="#A79B88" stroke-width="3" stroke-dasharray="1 1" style="stroke-dashoffset:1"/>
+
+        <!-- sombra de la caja al caer -->
+        <ellipse id="base-shadow" cx="364" cy="326" rx="78" ry="9" fill="url(#base-shadow-g)" opacity="0"/>
+
+        <!-- losa de hormigón: su cara superior (y=290) es la línea de base de las letras -->
+        <g id="base-plinth">
+          <rect x="446.7" y="290" width="411.2" height="34" fill="url(#base-slab-g)"/>
+          <rect x="446.7" y="290" width="411.2" height="3" fill="#A79B88"/>
+          <rect x="446.7" y="293" width="411.2" height="1.5" fill="#000" opacity=".25"/>
+          <g id="base-joints" stroke="#2B251F" stroke-width="1.6" opacity=".85">
+            <path d="M549.5 296 V324 M652.3 296 V324 M755 296 V324"/>
+          </g>
+          <g fill="#A79B88" opacity=".55">
+            <circle cx="498" cy="305" r="2"/><circle cx="601" cy="305" r="2"/><circle cx="703.6" cy="305" r="2"/><circle cx="806.4" cy="305" r="2"/>
+            <circle cx="498" cy="316" r="2"/><circle cx="601" cy="316" r="2"/><circle cx="703.6" cy="316" r="2"/><circle cx="806.4" cy="316" r="2"/>
+          </g>
+        </g>
+
+        <!-- polvo del aterrizaje de la caja -->
+        <g id="base-dust" fill="#A79B88">
+          <circle class="base-puff" cx="318" cy="318" r="9" opacity="0"/>
+          <circle class="base-puff" cx="332" cy="322" r="6" opacity="0"/>
+          <circle class="base-puff" cx="410" cy="318" r="9" opacity="0"/>
+          <circle class="base-puff" cx="396" cy="322" r="6" opacity="0"/>
+          <circle class="base-puff" cx="300" cy="323" r="5" opacity="0"/>
+          <circle class="base-puff" cx="428" cy="323" r="5" opacity="0"/>
+        </g>
+
+        <!-- caja naranja del logo (300..428 × 196..324) -->
+        <g id="base-tile" opacity="0">
+          <rect x="300" y="196" width="128" height="128" rx="28.16" fill="#F97316"/>
+          <g id="base-hat" opacity="0"><svg x="324" y="220" width="80" height="80" viewBox="0 0 24 24" overflow="visible">
+            <rect x="10.6" y="4.6" width="2.8" height="4.5" rx="1.4" fill="#FFFFFF"/>
+            <path d="M4.5 15.4 v-1.6 a7.5 7.5 0 0 1 15 0 v1.6 z" fill="#FFFFFF"/>
+            <rect x="2.8" y="16" width="18.4" height="2.9" rx="1.45" fill="#FFFFFF"/>
+          </svg></g>
+        </g>
+      </svg>
+    </div>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      const TILE = '364 324';           // pivote de la caja: centro de su base
+      const PLINTH = '652.3 324';       // pivote de la losa: centro de su base
+
+      // 0 · el suelo se traza y la tierra se asoma
+      tl.fromTo('#base-ground', { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 0.55, ease: 'power2.out' }, 0);
+      tl.fromTo('#base-dirt', { opacity: 0 }, { opacity: 1, duration: 0.5, ease: 'power1.out' }, 0.1);
+
+      // 1 · la losa de hormigón sube del suelo
+      gsap.set('#base-plinth', { svgOrigin: PLINTH, scaleY: 0 });
+      tl.to('#base-plinth', { scaleY: 1, duration: 0.5, ease: 'back.out(1.5)' }, 0.3);
+
+      // 2 · la caja naranja cae, aplasta al apoyarse y rebota; el casco baja detrás
+      gsap.set('#base-tile', { svgOrigin: TILE, y: -190, opacity: 0 });
+      tl.fromTo('#base-shadow', { opacity: 0, scaleX: 0.4, svgOrigin: '364 326' }, { opacity: 1, scaleX: 1, duration: 0.3, ease: 'power2.in' }, 0.5);
+      tl.to('#base-tile', { opacity: 1, duration: 0.05 }, 0.5);
+      tl.to('#base-tile', { y: 0, duration: 0.3, ease: 'power3.in' }, 0.5);
+      tl.to('#base-tile', { scaleX: 1.07, scaleY: 0.86, duration: 0.07, ease: 'power2.out' }, 0.8);
+      tl.to('#base-tile', { scaleX: 1, scaleY: 1, duration: 0.45, ease: 'elastic.out(1, 0.45)' }, 0.87);
+      tl.to('#base-shadow', { opacity: 0, duration: 0.35, ease: 'power1.in' }, 0.95);
+      document.querySelectorAll('.base-puff').forEach((p, i) => {
+        const dir = (parseFloat(p.getAttribute('cx')) < 364 ? -1 : 1);
+        tl.fromTo(p, { opacity: 0.6, scale: 0.5, x: 0, y: 0, svgOrigin: p.getAttribute('cx') + ' ' + p.getAttribute('cy') },
+          { opacity: 0, scale: 2.1, x: dir * (14 + (i % 3) * 8), y: -10 - (i % 2) * 8, duration: 0.55, ease: 'power2.out', immediateRender: false }, 0.8 + i * 0.012);
+      });
+      gsap.set('#base-hat', { y: -110, opacity: 0, svgOrigin: '364 300' });
+      tl.to('#base-hat', { opacity: 1, duration: 0.05 }, 1.0);
+      tl.to('#base-hat', { y: 0, duration: 0.26, ease: 'power3.in' }, 1.0);
+      tl.to('#base-hat', { scaleX: 1.07, scaleY: 0.84, duration: 0.06, ease: 'power2.out' }, 1.26);
+      tl.to('#base-hat', { scaleX: 1, scaleY: 1, duration: 0.4, ease: 'elastic.out(1, 0.5)' }, 1.32);
+
+      // 3 · final: la losa y el suelo desaparecen y queda solo la caja naranja con las letras
+      tl.to('#base-plinth', { opacity: 0, duration: 0.45, ease: 'power2.in' }, 5.0);
+      tl.to('#base-dirt', { opacity: 0, duration: 0.45, ease: 'power2.in' }, 5.0);
+      tl.to('#base-ground', { opacity: 0, duration: 0.45, ease: 'power2.in' }, 5.0);
+
+      window.__timelines['main'] = tl;
+    </script>
+  </body>
+</html>
