@@ -94,9 +94,9 @@ describe('public site content rules', () => {
     expect((enDocs as Bundle)['s0.step.3.rest']).toContain('optional');
   });
 
-  // Claims the 2026-10-27 audit found in the old guide with nothing behind
-  // them in the panel, the API or the field app. Each one was a promise a
-  // demo would have broken.
+  // Claims the 2026-10-27 audit found in the old guide — and on the landing —
+  // with nothing behind them in the panel, the API or the field app. Each one
+  // was a promise a demo would have broken.
   it('does not promise what the product does not do', () => {
     const NOT_IN_THE_PRODUCT: [RegExp, string][] = [
       [/avance f[ií]sico|physical progress/i, 'there is no physical-progress field; "avance" is spend vs. budget'],
@@ -104,11 +104,18 @@ describe('public site content rules', () => {
       [/solo vale adentro|only count inside/i, 'a clock-in outside the geofence is recorded and flagged, never refused'],
       [/se arma sola|builds itself/i, 'payroll pays approved hours × rate after someone confirms it'],
       [/notificaci[oó]n(es)? push|push notification/i, 'notifications are an in-app inbox; there is no push'],
+      [/solo lectura|read-only/i, 'the client answers RFIs and reports punch items from the portal'],
     ];
-    for (const bundle of [enDocs as Bundle, esDocs as Bundle]) {
+    const bundles: [string, Bundle][] = [
+      ['docs', enDocs as Bundle],
+      ['docs', esDocs as Bundle],
+      ['landing', enLanding as Bundle],
+      ['landing', esLanding as Bundle],
+    ];
+    for (const [name, bundle] of bundles) {
       for (const [k, v] of Object.entries(bundle)) {
         for (const [pattern, why] of NOT_IN_THE_PRODUCT) {
-          expect(pattern.test(v), `docs:${k} — ${why}: ${v}`).toBe(false);
+          expect(pattern.test(v), `${name}:${k} — ${why}: ${v}`).toBe(false);
         }
       }
     }
@@ -122,8 +129,9 @@ describe('public site content rules', () => {
     }
   });
 
-  // Anderson's call: the status page shows a live check and an honest empty
-  // history. It must never regain the design's invented uptime figures.
+  // Anderson's call: the status page never shows invented uptime figures. Its
+  // percentages and day bars come only from the backend's measurements
+  // (GET /api/v1/public/status); no copy string may carry one of its own.
   it('claims no uptime percentage on the status page', () => {
     for (const [k, v] of Object.entries({ ...(enStatus as Bundle), ...(esStatus as Bundle) })) {
       expect(/\d{2}\.\d{1,2}\s?%/.test(v), `status:${k} claims uptime: ${v}`).toBe(false);

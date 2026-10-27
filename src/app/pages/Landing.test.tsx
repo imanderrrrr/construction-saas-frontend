@@ -127,6 +127,16 @@ describe('Landing — public CTAs and content rules', () => {
     expect(hrefs().filter((h) => h === '/status').length).toBeGreaterThanOrEqual(2);
   });
 
+  // Docs and its topbar both offer "System status"; the main nav must too.
+  it('puts the system status page in the main nav, next to the docs', async () => {
+    await render();
+    const nav = container.querySelector('nav')!;
+    const navHrefs = Array.from(nav.querySelectorAll('a')).map((a) => a.getAttribute('href'));
+    expect(navHrefs).toContain('/docs');
+    expect(navHrefs).toContain('/status');
+    expect(navHrefs.indexOf('/status')).toBe(navHrefs.indexOf('/docs') + 1);
+  });
+
   // One clip per screen worth showing, grouped by the module it belongs to.
   const CLIPS = [
     'panel',
