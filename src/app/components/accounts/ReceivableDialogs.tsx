@@ -280,11 +280,11 @@ export function EditInfoDialog({ doc, onClose, onSaved }: {
     // Partial PATCH: send what changed, leave the rest untouched.
     const payload: Parameters<typeof updateReceivableInfo>[1] = {};
     if (n !== doc.invoiceNumber) payload.invoiceNumber = n;
-    if (c !== doc.client) payload.client = c;
+    if (client !== doc.client) payload.client = c;
     const d = description.trim();
-    if (d !== (doc.description ?? '')) payload.description = d;
+    if (description !== (doc.description ?? '')) payload.description = d;
     const no = notes.trim();
-    if (no !== (doc.notes ?? '')) payload.notes = no;
+    if (notes !== (doc.notes ?? '')) payload.notes = no;
     if (issuedDate !== doc.issuedDate) payload.issuedDate = issuedDate;
     if (dueDate !== doc.dueDate) payload.dueDate = dueDate;
     if (Object.keys(payload).length === 0) { onClose(); return; }

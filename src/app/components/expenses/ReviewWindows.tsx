@@ -1,3 +1,4 @@
+import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 import { fmtDateShort } from '../../helpers/dateTime';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -191,7 +192,7 @@ export function ReviewWindow({ target, busy, error, onClose, onConfirm }: {
           value={comment}
           onChange={e => setComment(e.target.value)}
           rows={3}
-          maxLength={500}
+          maxLength={FIELD_LIMITS.NOTE}
           placeholder={kind === 'approve'
             ? t('expenses.approve.notePlaceholder', { name: worker })
             : t('expenses.observe.placeholder', { name: worker })}

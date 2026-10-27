@@ -1,3 +1,4 @@
+import { textTooLong } from '../../../shared/textPolicy';
 // BuildTrack — Capture (or correct) a T&M ticket from the site.
 //
 // This is the form that replaces the paper: the encargado agrees the work on
@@ -153,6 +154,7 @@ export function TmTicketForm({ projects, ticket, onSaved, onCancel }: Props) {
 
   const submit = async () => {
     if (!canSave) return;
+    if (textTooLong(form.description, FIELD_LIMITS.NOTE, ticket?.description) || textTooLong(form.notes, FIELD_LIMITS.NOTE, ticket?.notes ?? '')) { setError(t('tm:form.textLimit', { max: FIELD_LIMITS.NOTE })); return; }
     setSaving(true);
     setError(null);
 
@@ -172,8 +174,8 @@ export function TmTicketForm({ projects, ticket, onSaved, onCancel }: Props) {
     try {
       const saved = ticket
         ? await updateTmTicket(ticket.id, {
-          description: payload.description,
-          notes: payload.notes,
+          ...(form.description !== ticket.description ? { description: payload.description } : {}),
+          ...(form.notes !== (ticket.notes ?? '') ? { notes: form.notes.trim() } : {}),
           workDate: payload.workDate,
           workerCount: payload.workerCount,
           hours: payload.hours,

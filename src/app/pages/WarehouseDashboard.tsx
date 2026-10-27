@@ -1,10 +1,11 @@
+import { warehouseDate } from '../lib/warehouseDate';
+import { actionName } from '../components/tools/bits';
 import { AppShell } from '../components/AppShell';
 import { useSectionNavigation } from '../workspace/WorkspaceState';
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { useMarkDashboardReady } from '../lib/dashboardReady';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { toast } from 'sonner';
 import { AuthService } from '../services/auth';
 
 import { LayoutDashboard, Wrench, ArrowLeftRight, History as HistoryIcon, CheckCircle, AlertTriangle, Package, Boxes, Loader2 } from 'lucide-react';
@@ -64,10 +65,11 @@ const SECTION_META: Record<ActiveSection, { title: string; subtitle: string }> =
 // Dashboard data loaded from API
 
 function fmtDate(iso: string) {
-  return new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return warehouseDate(iso);
 }
 
 function ActivityBadge({ action }: { action: string }) {
+  const { t } = useTranslation('tools');
   const cfg: Record<string, string> = {
     Assigned:   'bg-[#F97316]/10 text-[#F97316] border-[#F97316]/20',
     Returned:   'bg-amber-50 text-amber-700 border-amber-200',
@@ -77,7 +79,7 @@ function ActivityBadge({ action }: { action: string }) {
   const cls = cfg[action] ?? 'bg-[#FAF7F0] text-[#8A8175] border-[#DBD0BB]';
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full font-bt-mono text-[11px] font-semibold border ${cls}`}>
-      {action}
+      {actionName(t, action)}
     </span>
   );
 }
@@ -87,16 +89,21 @@ function ActivityBadge({ action }: { action: string }) {
 function DashboardView({ username, onNavigate }: { username: string; onNavigate: (s: string) => void }) {
   const { t } = useTranslation('inventory');
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [reload, setReload] = useState(0);
   const [recentActivity, setRecentActivity] = useState<DashboardActivityEntry[]>([]);
   const [lowStockAlerts, setLowStockAlerts] = useState<LowStockAlertEntry[]>([]);
   const [kpis, setKpis] = useState<DashboardKpis>({ totalTools: 0, availableTools: 0, assignedTools: 0, needsAttention: 0, consumableItems: 0, lowStockAlerts: 0 });
 
   useEffect(() => {
+    let cancelled = false;
+    setLoading(true); setFailed(false);
     getDashboard()
-      .then(data => { setRecentActivity(data.recentActivity); setLowStockAlerts(data.lowStockAlerts); setKpis(data.kpis); })
-      .catch(err => toast.error(err?.message))
-      .finally(() => setLoading(false));
-  }, []);
+      .then(data => { if (cancelled) return; setRecentActivity(data.recentActivity); setLowStockAlerts(data.lowStockAlerts); setKpis(data.kpis); })
+      .catch(() => { if (!cancelled) setFailed(true); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [reload]);
 
   if (loading) {
     return (
@@ -105,6 +112,11 @@ function DashboardView({ username, onNavigate }: { username: string; onNavigate:
       </div>
     );
   }
+
+  if (failed) return <div role="alert" className="border border-red-300 bg-red-50 p-6 max-w-5xl">
+    <p>{t('warehouse.loadError')}</p>
+    <button className="mt-3 underline" onClick={() => setReload(n => n + 1)}>{t('common:buttons.retry')}</button>
+  </div>;
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -116,10 +128,15 @@ function DashboardView({ username, onNavigate }: { username: string; onNavigate:
         <StatCard appearance="workspace" icon={Package}       title={t('warehouse.kpi.totalTools')}       value={kpis.totalTools}       subtitle={t('warehouse.kpi.inInventory')}     iconBgColor="bg-amber-50"     iconColor="text-amber-600"   />
         <StatCard appearance="workspace" icon={CheckCircle}   title={t('warehouse.kpi.available')}       value={kpis.availableTools}   subtitle={t('warehouse.kpi.readyToAssign')}  iconBgColor="bg-emerald-50"   iconColor="text-emerald-600" />
         <StatCard appearance="workspace" icon={ArrowLeftRight}title={t('warehouse.kpi.assigned')}        value={kpis.assignedTools}    subtitle={t('warehouse.kpi.outWithWorkers')} iconBgColor="bg-[#F97316]/10" iconColor="text-[#F97316]"   />
-        <StatCard appearance="workspace" icon={AlertTriangle} title={t('warehouse.kpi.needsAttention')}  value={kpis.needsAttention}   subtitle={t('warehouse.kpi.damagedOrLost')}  iconBgColor="bg-red-50"       iconColor="text-red-600"     />
+        <StatCard appearance="workspace" icon={AlertTriangle} title={t('warehouse.kpi.needsAttention')}  value={kpis.needsAttention}   subtitle={t('warehouse.kpi.reviewDamagedLost')}  iconBgColor="bg-red-50"       iconColor="text-red-600"     />
         <StatCard appearance="workspace" icon={Boxes}         title={t('warehouse.kpi.consumableItems')} value={kpis.consumableItems}  subtitle={t('warehouse.kpi.supplyTypes')}    iconBgColor="bg-purple-50"    iconColor="text-purple-600"  />
         <StatCard appearance="workspace" icon={AlertTriangle} title={t('warehouse.kpi.lowStockAlerts')}  value={kpis.lowStockAlerts}   subtitle={t('warehouse.kpi.needRestocking')} iconBgColor="bg-red-50"       iconColor="text-red-600"     />
       </div>
+
+      <p className="text-sm text-[#5A5346]" data-testid="custody-breakdown">{t('warehouse.custodyBreakdown', {
+        pending: kpis.pendingAcceptance ?? 0, returns: kpis.returnPending ?? 0,
+        review: kpis.inReview ?? 0, damaged: kpis.damaged ?? 0, lost: kpis.lost ?? 0,
+      })}</p>
 
       {/* Buzón — the panel is sectioned, so the inbox goes on the landing
           section and only there: it is what the warehouse keeper sees first,
@@ -158,7 +175,7 @@ function DashboardView({ username, onNavigate }: { username: string; onNavigate:
                     <p className="text-sm font-medium text-[#0A0A0A]">{r.tool}</p>
                     <p className="text-[11px] text-[#8A8175] font-bt-mono">{r.code}</p>
                   </td>
-                  <td className="px-4 py-3"><ActivityBadge action={r.action} /></td>
+                  <td className="px-4 py-3"><ActivityBadge action={r.actionId || r.action} /></td>
                   <td className="px-4 py-3 text-sm text-[#8A8175]">{r.worker || '—'}</td>
                   <td className="px-4 py-3 text-sm text-[#8A8175]">{r.notes || '—'}</td>
                 </tr>
@@ -186,15 +203,15 @@ function DashboardView({ username, onNavigate }: { username: string; onNavigate:
         </div>
         <div className="divide-y divide-[#DBD0BB]/50">
           {lowStockAlerts.map(item => (
-            <div key={item.code} className="flex items-center justify-between px-6 py-3 hover:bg-[#FAF7F0]/50 transition-colors">
-              <div className="flex items-center gap-3">
+            <div key={item.code} data-testid="stock-alert" className="flex items-start justify-between gap-4 px-4 sm:px-6 py-3 hover:bg-[#FAF7F0]/50 transition-colors">
+              <div className="flex items-start gap-3 min-w-0 flex-1">
                 <div className={`w-2 h-2 rounded-full flex-shrink-0 ${item.stock === 0 ? 'bg-red-500' : 'bg-amber-500'}`} />
-                <div>
-                  <p className="text-sm font-medium text-[#0A0A0A]">{item.name}</p>
+                <div className="min-w-0 flex-1">
+                  <p title={item.name} className="text-sm font-medium text-[#0A0A0A] truncate">{item.name}</p>
                   <p className="text-[11px] text-[#8A8175] font-bt-mono">{item.code}</p>
                 </div>
               </div>
-              <div className="text-right">
+              <div data-testid="stock-alert-quantity" className="text-right shrink-0 w-28 sm:w-36 break-words [overflow-wrap:anywhere]">
                 <p className={`text-sm font-semibold ${item.stock === 0 ? 'text-red-600' : 'text-amber-600'}`}>
                   {item.stock} {item.unit}
                 </p>

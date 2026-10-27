@@ -60,7 +60,7 @@ export function BtModal({
           <div
             ref={panelRef}
             tabIndex={-1}
-            className={cn('bt-window-in bg-white flex flex-col w-full md:w-[var(--bt-w)] md:max-w-full max-h-full md:max-h-[calc(100vh-48px)] outline-none', WINDOW_SHADOW)}
+            className={cn('bt-window-in bg-white flex flex-col min-w-0 [overflow-wrap:anywhere] w-full md:w-[var(--bt-w)] md:max-w-full max-h-full md:max-h-[calc(100vh-48px)] outline-none', WINDOW_SHADOW)}
             style={{ '--bt-w': `${width}px` } as CSSProperties}
           >
             <div className="flex items-start justify-between gap-4 px-5 pt-5 md:px-[22px] md:pt-[22px]">
@@ -77,7 +77,7 @@ export function BtModal({
               </div>
               <CloseButton onClick={close} disabled={closeDisabled} aria-label={t('common:buttons.close')} className="flex-shrink-0" />
             </div>
-            <div className={cn('flex-1 min-h-0 overflow-y-auto px-5 md:px-[22px] py-4', bodyClassName)}>{children}</div>
+            <div className={cn('flex-1 min-h-0 min-w-0 [&>*]:min-w-0 overflow-y-auto px-5 md:px-[22px] py-4', bodyClassName)}>{children}</div>
             {footer && <div className={FOOTER}>{footer}</div>}
           </div>
         </DialogPrimitive.Content>
@@ -130,7 +130,7 @@ export function BtDrawer({
                 <CloseButton onDark onClick={close} disabled={closeDisabled} aria-label={t('common:buttons.close')} className="w-8 h-8 flex-shrink-0" />
               </div>
             </InkBar>
-            <div className="flex-1 min-h-0 overflow-y-auto px-5 md:px-[22px] py-5">{children}</div>
+            <div className="flex-1 min-h-0 min-w-0 [&>*]:min-w-0 overflow-y-auto px-5 md:px-[22px] py-5">{children}</div>
             {footer && <div className={FOOTER}>{footer}</div>}
           </div>
         </DialogPrimitive.Content>

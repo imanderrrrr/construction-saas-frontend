@@ -1,9 +1,9 @@
 // AUD-055 — the history filters were the first 100 tools, and "Person" was
 // whoever held one of those tools today: the history of a worker who returned
 // everything (someone who left) could not be filtered, and the value sent was
-// the display name while the server matches the username. With 230 tools and
+// the display name while the server matches the stable user id. With 230 tools and
 // 230 workers, the 230th of each must be offered, and the filter must carry
-// the username.
+// the stable user id.
 
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -70,7 +70,7 @@ describe('ToolHistory — filter catalogs past the server page', () => {
     svc.listTools.mockImplementation(async (params?: { page?: number; size?: number }) => slice(TOOLS, params));
     svc.getGlobalToolHistory.mockResolvedValue(page([]));
     users.listUsers.mockImplementation(async (params?: { role?: string; page?: number; size?: number }) =>
-      slice(params?.role === 'WORKER' ? WORKERS : [], params));
+      slice(WORKERS, params));
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -94,24 +94,24 @@ describe('ToolHistory — filter catalogs past the server page', () => {
     await mount();
     const [tools, , workers] = selects();
     expect(values(tools)).toContain('T-0230');
-    expect(values(workers)).toContain('persona230');
+    expect(values(workers)).toContain('230');
   });
 
-  it('gives every person option the username the server matches, not the display name', async () => {
+  it('gives every person option the stable user id, not the display name', async () => {
     await mount();
     const [, , workers] = selects();
-    const usernames = new Set(WORKERS.map(w => w.username));
+    const usernames = new Set(WORKERS.map(w => String(w.id)));
     const offered = values(workers).filter(v => v !== 'all');
     expect(offered.length).toBe(N);
     expect(offered.every(v => usernames.has(v))).toBe(true);
   });
 
-  it('filters by the username the server matches', async () => {
+  it('filters by the stable user id', async () => {
     await mount();
     const [, , workers] = selects();
-    select(workers, 'persona230');
+    select(workers, '230');
     click(buttonByText(container, i18n.t('common:buttons.apply')));
     await flush();
-    expect(svc.getGlobalToolHistory).toHaveBeenLastCalledWith(expect.objectContaining({ worker: 'persona230', page: 0 }));
+    expect(svc.getGlobalToolHistory).toHaveBeenLastCalledWith(expect.objectContaining({ workerId: 230, page: 0 }));
   });
 });

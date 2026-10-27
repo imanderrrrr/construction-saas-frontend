@@ -18,8 +18,8 @@ import {
 
 export type TableState = 'loading' | 'data' | 'empty' | 'noMatch' | 'error' | 'forbidden';
 
-const GRID = 'grid grid-cols-[96px_1fr_132px_176px_168px_150px_128px] gap-3 items-center';
-const GRID_MD = 'grid grid-cols-[88px_1fr_168px_150px_116px] gap-3 items-center';
+const GRID = 'grid grid-cols-[76px_minmax(120px,1.6fr)_100px_176px_minmax(80px,1fr)_minmax(80px,1fr)_100px] gap-3 items-center';
+const GRID_MD = 'grid grid-cols-[76px_minmax(120px,1fr)_136px_120px_100px] gap-3 items-center';
 
 export function ToolsTable({ state, tools, lang, filterCount, totalTools, flashId, onOpen, onRegister, onRetry, onClearFilters, onGoConsumables }: {
   state: TableState;
@@ -101,7 +101,7 @@ export function ToolsTable({ state, tools, lang, filterCount, totalTools, flashI
         <span>{t('tools:table.project')}</span>
         <span>{t('tools:table.lastActivity')}</span>
       </div>
-      <div className={cn(GRID_MD, 'hidden md:grid xl:hidden px-4 h-7 items-center bg-[#FBF8F2] border-b border-[#EDE7DB] font-bt-mono text-[9px] uppercase tracking-[0.13em] text-[#A69C8D]')}>
+      <div className={cn(GRID_MD, 'hidden lg:grid xl:hidden px-4 h-7 items-center bg-[#FBF8F2] border-b border-[#EDE7DB] font-bt-mono text-[9px] uppercase tracking-[0.13em] text-[#A69C8D]')}>
         <span>{t('tools:table.code')}</span>
         <span>{t('tools:table.tool')}</span>
         <span>{t('tools:table.status')}</span>
@@ -160,11 +160,11 @@ function ToolRow({ tool, lang, flash, onOpen }: { tool: ToolResponse; lang: stri
       <div className={cn(GRID, 'hidden xl:grid')}>
         <Code className="text-[11px] truncate">{tool.code}</Code>
         <div className="min-w-0">
-          <div className="text-[13.5px] font-semibold text-[#0B0A09] truncate leading-[1.25]">{tool.name}</div>
+          <div title={tool.name} className="text-[13.5px] font-semibold text-[#0B0A09] truncate leading-[1.25]">{tool.name}</div>
           {subline && <Mono className="block text-[9px] tracking-[0.09em] text-[#C2410C] mt-[2px] truncate">{subline}</Mono>}
         </div>
         <Mono className="text-[9.5px] tracking-[0.06em] text-[#5A5346] truncate">{categoryName(t, tool.category)}</Mono>
-        <div><StatusChip status={tool.status} /></div>
+        <div><StatusChip status={tool.status} className="max-w-full whitespace-normal" /></div>
         {holder
           ? <span className="text-[12.5px] text-[#0B0A09] truncate">{holder}</span>
           : <CellEmpty>{tool.status === 'Available' ? t('tools:row.inWarehouse') : t('tools:row.nobody')}</CellEmpty>}
@@ -177,26 +177,26 @@ function ToolRow({ tool, lang, flash, onOpen }: { tool: ToolResponse; lang: stri
       </div>
 
       {/* Tablet: the category drops into the subline, the holder keeps the name */}
-      <div className={cn(GRID_MD, 'hidden md:grid xl:hidden')}>
+      <div className={cn(GRID_MD, 'hidden lg:grid xl:hidden')}>
         <Code className="text-[11px] truncate">{tool.code}</Code>
         <div className="min-w-0">
-          <div className="text-[13.5px] font-semibold text-[#0B0A09] truncate">{tool.name}</div>
+          <div title={tool.name} className="text-[13.5px] font-semibold text-[#0B0A09] truncate">{tool.name}</div>
           <Mono className="block text-[9px] tracking-[0.09em] text-[#A69C8D] mt-[2px] truncate">
             {[categoryName(t, tool.category), tool.projectName].filter(Boolean).join(' · ')}
           </Mono>
         </div>
-        <div><StatusChip status={tool.status} short /></div>
+        <div><StatusChip status={tool.status} short className="max-w-full whitespace-normal" /></div>
         {holder ? <span className="text-[12.5px] text-[#0B0A09] truncate">{holder}</span> : <CellEmpty>{tool.status === 'Available' ? t('tools:row.inWarehouse') : t('tools:row.nobody')}</CellEmpty>}
         <Mono className="text-[10px] tracking-[0.06em] text-[#5A5346] truncate">{stampDay(tool.lastActivityAt ?? tool.lastActivity, lang)}</Mono>
       </div>
 
-      {/* Phone: a card */}
-      <div className="md:hidden">
-        <div className="flex items-center justify-between gap-2">
+      {/* Narrow content panes keep the name and custody together in a card. */}
+      <div className="lg:hidden">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <Code className="text-[11px]">{tool.code}</Code>
           <StatusChip status={tool.status} short />
         </div>
-        <div className="text-[14.5px] font-semibold text-[#0B0A09] mt-1 leading-[1.3]">{tool.name}</div>
+        <div title={tool.name} className="text-[14.5px] font-semibold text-[#0B0A09] mt-1 leading-[1.3] line-clamp-2 [overflow-wrap:anywhere]">{tool.name}</div>
         <Mono className="block text-[9px] tracking-[0.09em] text-[#A69C8D] mt-1">
           {subline ?? [categoryName(t, tool.category), stampDay(tool.lastActivityAt ?? tool.lastActivity, lang)].filter(Boolean).join(' · ')}
         </Mono>

@@ -1,3 +1,4 @@
+import { textTooLong } from '../../../shared/textPolicy';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../ui/utils';
@@ -79,8 +80,8 @@ export function TaskFormModal({ open, onOpenChange, task, projects, users, prese
     const next: Errors = {};
     if (!editing && !projectId) next.projectId = t('tasks:form.err.project');
     if (!title.trim()) next.title = t('tasks:form.err.title');
-    if (title.length > FIELD_LIMITS.TITLE) next.title = t('tasks:form.err.tooLong', { count: FIELD_LIMITS.TITLE });
-    if (description.length > FIELD_LIMITS.LONG_TEXT) next.description = t('tasks:form.err.tooLong', { count: FIELD_LIMITS.LONG_TEXT });
+    if (textTooLong(title, FIELD_LIMITS.TITLE, task?.title)) next.title = t('tasks:form.err.tooLong', { count: FIELD_LIMITS.TITLE });
+    if (textTooLong(description, FIELD_LIMITS.LONG_TEXT, task?.description ?? '')) next.description = t('tasks:form.err.tooLong', { count: FIELD_LIMITS.LONG_TEXT });
     // Creating a task is planning, and planning backwards means nothing. The
     // same rule the server now enforces.
     if (!editing && startDate && startDate < toInputDate(new Date())) next.startDate = t('tasks:form.err.pastStart');
@@ -92,8 +93,8 @@ export function TaskFormModal({ open, onOpenChange, task, projects, users, prese
     try {
       if (editing) {
         const saved = await updateTask(task.id, {
-          title: title.trim(),
-          description: description.trim(),
+          ...(title !== task.title ? { title: title.trim() } : {}),
+          ...(description !== (task.description ?? '') ? { description: description.trim() } : {}),
           priority,
           clearAssignee: assigneeId === '' && task.assignedToId != null,
           clearStartDate: startDate === '' && task.startDate != null,

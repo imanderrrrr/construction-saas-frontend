@@ -320,5 +320,10 @@
   "consumables.dialog.invalidCost": "Indica un costo positivo o cero, con hasta dos decimales.",
   "consumables.dialog.costSnapshotHint": "Cada despacho conserva el costo vigente al salir de bodega.",
   "dispatch.dialog.estimatedCost": "Costo estimado: {{quantity}} × {{unitCost}} = {{total}}",
-  "dispatch.dialog.budgetCostNote": "Este valor se imputará automáticamente al consumo presupuestario de la obra seleccionada."
+  "dispatch.dialog.budgetCostNote": "Este valor se imputará automáticamente al consumo presupuestario de la obra seleccionada.",
+  "warehouse.loadError": "No se pudo consultar el inventario. Los saldos son desconocidos.",
+  "warehouse.kpi.reviewDamagedLost": "En revisión, dañadas o perdidas",
+  "warehouse.custodyBreakdown": "Sin aceptar: {{pending}} · Pendientes de recepción: {{returns}} · En revisión: {{review}} · Dañadas: {{damaged}} · Perdidas: {{lost}}",
+  "dispatch.dialog.wholeQuantity": "Usa una cantidad entera de la unidad indicada.",
+  "dispatch.dialog.notesLimit": "{{count}} / {{max}} caracteres como máximo."
 }

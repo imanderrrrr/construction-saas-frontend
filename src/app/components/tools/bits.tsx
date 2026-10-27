@@ -24,6 +24,7 @@ const STATUS_KEYS: Record<string, string> = {
   'Available': 'available',
   'Assigned': 'assigned',
   'Pending Acceptance': 'pendingAcceptance',
+  'Return Pending': 'returnPending',
   'In Review': 'inReview',
   'Damaged': 'damaged',
   'Lost': 'lost',
@@ -46,6 +47,8 @@ const ACTION_KEYS: Record<string, string> = {
   'Acceptance Pending': 'acceptancePending',
   'Accepted': 'accepted',
   'Rejected': 'rejected',
+  'Lost': 'lost',
+  'Recovered': 'recovered',
 };
 
 const LIGHT_KEYS: Record<string, string> = {
@@ -59,7 +62,7 @@ type T = (key: string, options?: Record<string, unknown>) => string;
 /** The five categories, in the order the enum declares them. */
 export const CATEGORIES = ['Power Tools', 'Hand Tools', 'Measurement', 'Safety Equipment', 'Heavy Machinery'];
 /** The six states, in the order the strip reads them. */
-export const STATUSES = ['Available', 'Assigned', 'Pending Acceptance', 'In Review', 'Damaged', 'Lost'];
+export const STATUSES = ['Available', 'Assigned', 'Pending Acceptance', 'Return Pending', 'In Review', 'Damaged', 'Lost'];
 
 export function statusName(t: T, status: string): string {
   const key = STATUS_KEYS[status];
@@ -72,7 +75,8 @@ export function categoryName(t: T, category: string): string {
 }
 
 export function actionName(t: T, action: string): string {
-  const key = ACTION_KEYS[action];
+  const display = action.toLowerCase().replace(/_/g, ' ');
+  const key = ACTION_KEYS[action] ?? Object.entries(ACTION_KEYS).find(([name]) => name.toLowerCase() === display)?.[1];
   return key ? t(`tools:action.${key}`) : action;
 }
 
@@ -107,6 +111,7 @@ export function StatusChip({ status, short = false, onDark = false, className }:
     'Pending Acceptance': onDark
       ? 'px-2 py-1 bg-[#F97316] text-[#0B0A09]'
       : 'px-[7px] py-1 bg-[#FBEDE0] text-[#C2410C] border border-dashed border-[#F97316]',
+    'Return Pending': 'px-[7px] py-1 bg-red-50 text-[#B3402A] border border-dashed border-[#B3402A]',
     'In Review': 'px-[7px] py-1 bg-[#F3EEE4] text-[#5A5346]',
     'Damaged': 'px-[6px] py-[3px] bg-white text-[#B3402A] border border-[#B3402A]',
     'Lost': 'px-[7px] py-1 bg-[#B3402A] text-white',
@@ -133,6 +138,7 @@ export const STATUS_EDGE: Record<string, string> = {
   'In Review': '#8A8175',
   'Damaged': '#B3402A',
   'Lost': '#B3402A',
+  'Return Pending': '#B3402A',
 };
 
 export const LIGHT_EDGE: Record<string, string> = {
@@ -283,6 +289,9 @@ export function daysSince(iso: string | null | undefined): number | null {
  */
 export function pathsFrom(status: string): string[] {
   return {
+    'Assigned': ['Lost'],
+    'Pending Acceptance': ['Lost'],
+    'Return Pending': ['Lost'],
     'Available': ['In Review', 'Damaged', 'Lost'],
     'In Review': ['Available', 'Damaged', 'Lost'],
     'Damaged': ['In Review', 'Available', 'Lost'],
@@ -292,7 +301,7 @@ export function pathsFrom(status: string): string[] {
 
 /** A tool that is out: its status cannot be fixed until the warehouse takes it back. */
 export function isOut(status: string): boolean {
-  return status === 'Assigned' || status === 'Pending Acceptance';
+  return status === 'Assigned' || status === 'Pending Acceptance' || status === 'Return Pending';
 }
 
 /**

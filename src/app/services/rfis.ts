@@ -124,7 +124,7 @@ export function getRfi(id: number): Promise<Rfi> {
 /** Edit a DRAFT (the only editable state). Omitted dueDate clears it. */
 export function updateRfiDraft(
   id: number,
-  input: { subject: string; question: string; dueDate?: string },
+  input: { subject?: string; question?: string; dueDate?: string },
 ): Promise<Rfi> {
   return api<Rfi>(`/api/v1/rfis/${id}`, {
     method: 'PATCH',

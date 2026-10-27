@@ -1,3 +1,5 @@
+import { changedFields, textTooLong } from '../../../../shared/textPolicy';
+import { FIELD_LIMITS } from '../../../../shared/fieldLimits';
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -130,10 +132,11 @@ function LineItemEditor({ item, projectId, onClose, onSaved }: { item: BudgetLin
     if (!code.trim() || !name.trim() || !unit.trim() || !/^\d+(?:\.\d{1,4})?$/.test(quantity) || !Number.isFinite(qty) || qty <= 0 || qty >= 10_000_000_000 || unitCostCents == null || originalBudgetCents === null || (item && (originalBudgetCents === undefined || orderCents == null || committedCents == null))) {
       setError(t('wbs.invalid')); return;
     }
+    if (textTooLong(name, FIELD_LIMITS.SHORT_NAME, item?.name) || textTooLong(notes, FIELD_LIMITS.NOTE, item?.notes ?? '')) { setError(t('common:validation.textPolicy')); return; }
     const payload: CreateLineItemPayload = { code: code.trim(), name: name.trim(), category, unit: unit.trim(), quantity: qty, unitCostCents, ...(originalBudgetCents !== undefined ? { originalBudgetCents } : {}), notes: item ? notes.trim() : notes.trim() || null };
     setSaving(true); setError(null);
     try {
-      if (item) await updateLineItem(item.id, { ...payload, changeOrdersCents: orders.startsWith('-') ? -orderCents! : orderCents!, committedCents: committedCents! } satisfies UpdateLineItemPayload);
+      if (item) await updateLineItem(item.id, { ...changedFields(payload, { ...item, notes: item.notes ?? '' }), changeOrdersCents: orders.startsWith('-') ? -orderCents! : orderCents!, committedCents: committedCents! } satisfies UpdateLineItemPayload);
       else await createLineItem(projectId, payload);
       toast.success(t('wbs.saved')); onSaved();
     } catch (err) { setError(err instanceof Error ? err.message : t('wbs.saveFailed')); }
@@ -144,15 +147,15 @@ function LineItemEditor({ item, projectId, onClose, onSaved }: { item: BudgetLin
     <div className="grid grid-cols-2 gap-3">
       <div><FieldLabel htmlFor="wbs-code">{t('wbs.code')}</FieldLabel><input id="wbs-code" className={INPUT} maxLength={50} value={code} onChange={e => setCode(e.target.value)} /></div>
       <div><FieldLabel htmlFor="wbs-category">{t('wbs.category')}</FieldLabel><select id="wbs-category" className={INPUT} value={category} onChange={e => setCategory(e.target.value as LineItemCategory)}>{LINE_ITEM_CATEGORIES.map(value => <option key={value} value={value}>{t(`wbs.category.${value}`)}</option>)}</select></div>
-      <div className="col-span-2"><FieldLabel htmlFor="wbs-name">{t('wbs.name')}</FieldLabel><input id="wbs-name" className={INPUT} maxLength={255} value={name} onChange={e => setName(e.target.value)} /></div>
-      <div><FieldLabel htmlFor="wbs-unit">{t('wbs.unit')}</FieldLabel><input id="wbs-unit" className={INPUT} maxLength={30} value={unit} onChange={e => setUnit(e.target.value)} /></div>
+      <div className="col-span-2"><FieldLabel htmlFor="wbs-name">{t('wbs.name')}</FieldLabel><input id="wbs-name" className={INPUT} maxLength={FIELD_LIMITS.SHORT_NAME} value={name} onChange={e => setName(e.target.value)} /></div>
+      <div><FieldLabel htmlFor="wbs-unit">{t('wbs.unit')}</FieldLabel><input id="wbs-unit" className={INPUT} maxLength={FIELD_LIMITS.SHORT_NAME} value={unit} onChange={e => setUnit(e.target.value)} /></div>
       <div><FieldLabel htmlFor="wbs-quantity">{t('wbs.quantity')}</FieldLabel><input id="wbs-quantity" className={INPUT} type="number" min="0.0001" step="0.0001" value={quantity} onChange={e => setQuantity(e.target.value)} /></div>
       <div><FieldLabel htmlFor="wbs-unit-cost">{t('wbs.unitCost')}</FieldLabel><input id="wbs-unit-cost" className={INPUT} type="number" min="0" step="0.01" value={unitCost} onChange={e => setUnitCost(e.target.value)} /></div>
       <div><FieldLabel htmlFor="wbs-original">{t('wbs.original')}</FieldLabel><input id="wbs-original" className={INPUT} type="number" min="0" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} /></div>
       <p className="col-span-2 text-xs text-[#8A8175]">{t(item ? 'wbs.editAmountHint' : 'wbs.amountHint')}</p>
       {item && <div className="col-span-2"><FieldLabel htmlFor="wbs-orders">{t('wbs.orders')}</FieldLabel><input id="wbs-orders" className={INPUT} type="number" step="0.01" value={orders} onChange={e => setOrders(e.target.value)} /></div>}
       {item && <div className="col-span-2"><FieldLabel htmlFor="wbs-committed">{t('wbs.committedDollars')}</FieldLabel><input id="wbs-committed" className={INPUT} type="number" min="0" step="0.01" value={committed} onChange={e => setCommitted(e.target.value)} /><p className="text-xs text-[#8A8175] mt-1">{t('wbs.committedHint')}</p></div>}
-      <div className="col-span-2"><FieldLabel htmlFor="wbs-notes">{t('wbs.notes')}</FieldLabel><textarea id="wbs-notes" rows={3} maxLength={10000} className={cn(INPUT, 'h-auto py-2')} value={notes} onChange={e => setNotes(e.target.value)} /></div>
+      <div className="col-span-2"><FieldLabel htmlFor="wbs-notes">{t('wbs.notes')}</FieldLabel><textarea id="wbs-notes" rows={3} maxLength={FIELD_LIMITS.NOTE} className={cn(INPUT, 'h-auto py-2')} value={notes} onChange={e => setNotes(e.target.value)} /></div>
     </div>
     {error && <p role="alert" className="text-sm text-red-700 mt-3">{error}</p>}
   </BtModal>;

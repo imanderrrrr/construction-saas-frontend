@@ -1,3 +1,4 @@
+import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../ui/utils';
@@ -8,7 +9,7 @@ import { FOCUS_RING, PrimaryButton, SecondaryButton, TertiaryButton } from '../o
 import type { OfficeCategory } from '../../services/officeExpenses';
 import { bigMoney } from './bits';
 
-const NAME_MAX = 40;
+const NAME_MAX = FIELD_LIMITS.SHORT_NAME;
 
 /**
  * Las categorías las administra la empresa.

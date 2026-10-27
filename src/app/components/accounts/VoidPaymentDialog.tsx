@@ -1,3 +1,4 @@
+import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BtModal } from '../bt/windows';
@@ -19,7 +20,7 @@ export function VoidPaymentDialog({ onConfirm, onClose }: { onConfirm: (reason: 
       }}>{t('finance:void.confirm')}</PrimaryButton>
     </>}>
     <p>{t('finance:void.explanation')}</p>
-    <label className="block mt-3">{t('finance:void.reason')}<textarea className="w-full border p-2" value={reason} maxLength={500} onChange={e => setReason(e.target.value)} /></label>
+    <label className="block mt-3">{t('finance:void.reason')}<textarea className="w-full border p-2" value={reason} maxLength={FIELD_LIMITS.NOTE} onChange={e => setReason(e.target.value)} /></label>
     {error && <p role="alert">{error}</p>}
   </BtModal>;
 }

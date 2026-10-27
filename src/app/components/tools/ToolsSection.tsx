@@ -229,6 +229,7 @@ export function ToolsSection({ onNavigate, mode = 'admin', view }: {
         state={summaryState} value={toolSummary?.pendingAcceptance} label={t('tools:kpi.pendingAcceptance')} note={t('tools:kpi.pendingAcceptance.note')} tone="orange"
         pressed={status === 'Pending Acceptance'} onClick={() => { setStatus(s => (s === 'Pending Acceptance' ? '' : 'Pending Acceptance')); setToolsPage(0); }}
       />
+      <Figure state={summaryState} value={toolSummary?.returnPending ?? 0} label={t('tools:status.returnPending')} tone="red" />
       <Figure
         state={summaryState} value={toolSummary?.inReview} label={t('tools:kpi.inReview')}
         pressed={status === 'In Review'} onClick={() => { setStatus(s => (s === 'In Review' ? '' : 'In Review')); setToolsPage(0); }}
@@ -304,7 +305,7 @@ export function ToolsSection({ onNavigate, mode = 'admin', view }: {
                     type="button"
                     role="tab"
                     aria-selected={active}
-                    onClick={() => { setTab(key); setSearch(''); setDebouncedSearch(''); }}
+                    onClick={() => { setSearch(''); setDebouncedSearch(''); setTab(key); }}
                     className={cn(
                       'inline-flex items-center gap-2 px-4 py-2.5 font-bt-mono text-[10.5px] font-semibold uppercase tracking-[0.12em] whitespace-nowrap',
                       'border -ml-px first:ml-0 transition-colors',

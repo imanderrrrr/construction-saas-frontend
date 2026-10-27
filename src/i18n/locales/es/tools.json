@@ -38,7 +38,7 @@
   "tab.consumable": "Consumibles",
 
   "kpi.total": "Herramientas · total",
-  "kpi.total.note": "Suma de los seis estados",
+  "kpi.total.note": "Suma de los siete estados",
   "kpi.available": "Disponibles",
   "kpi.assigned": "Asignadas",
   "kpi.pendingAcceptance": "Pendientes de aceptación",
@@ -57,7 +57,7 @@
 
   "search.placeholder": "Busca por código o nombre…",
   "filter.category": "Categoría · todas",
-  "filter.status": "Estado · los seis",
+  "filter.status": "Estado · los siete",
   "filter.worker": "Obrero · todos",
   "filter.workerOn": "Obrero · {{name}}",
   "filter.workerNote": "Filtro de obrero puesto · es el de «se va de la empresa: qué tiene»",
@@ -159,6 +159,8 @@
   "form.code.takenBody": "{{code}} ya está en el inventario: es {{name}}. El código es único por empresa, así que si de verdad son dos máquinas, dale una letra: {{code}}-B.",
   "form.name": "Nombre",
   "form.name.hint": "Marca y modelo · es lo que se busca",
+  "name.limitHint": "{{count}} / {{max}} caracteres",
+  "name.tooLong": "El nombre admite hasta {{max}} caracteres. Acórtalo para guardar.",
   "form.category": "Categoría",
   "form.category.hintEdit": "Cambiarla no toca el historial",
   "form.notes": "Notas",
@@ -229,5 +231,10 @@
 
   "readOnly": "Para asignar o devolver, habla con Bodega",
   "action.assignReturn": "Asignaciones y devoluciones",
-  "action.dispatch": "Despachar materiales"
+  "action.dispatch": "Despachar materiales",
+  "status.returnPending": "Pendiente de recepción",
+  "action.lost": "Pérdida declarada",
+  "action.recovered": "Recuperada en bodega",
+  "table.lastRestocked": "Última reposición",
+  "fixStatus.lossCustody": "Declarar una pérdida conserva responsable y proyecto. No registra una devolución. La recuperación requiere recepción física en Asignaciones."
 }

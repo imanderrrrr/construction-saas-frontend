@@ -84,20 +84,17 @@ describe('the windows that write', () => {
       expect(onFixed).toHaveBeenCalled();
     });
 
-    it('blocks the whole window while the tool is out, and names who can unblock it', async () => {
+    it('allows only a loss while out and explains that custody remains', async () => {
       await mount(OUT);
-
-      expect(document.body.querySelectorAll('input[type="radio"]').length).toBe(0);
-      expect(document.body.textContent).toContain(i18n.t('tools:fixStatus.blocked.title'));
-      expect(document.body.textContent).toContain('Byron Chávez');
-      expect(document.body.textContent).toContain(i18n.t('tools:whoCan'));
-      expect(document.body.textContent).toContain('Sandra Ixcot');
-      expect(buttonByText(document.body, i18n.t('tools:fixStatus.submit'))).toBeUndefined();
+      const radios = document.body.querySelectorAll<HTMLInputElement>('input[type="radio"]');
+      expect(Array.from(radios).map(r => r.value)).toEqual(['Lost']);
+      expect(document.body.textContent).toContain(i18n.t('tools:fixStatus.lossCustody'));
+      expect(buttonByText(document.body, i18n.t('tools:fixStatus.submit'))?.disabled).toBe(true);
     });
 
     it('says so when the company has no warehouse user at all', async () => {
       await act(async () => {
-        root.render(<FixStatusModal open onOpenChange={vi.fn()} tool={OUT} lang="es" keepers={[]} onGoUsers={vi.fn()} onFixed={vi.fn()} />);
+        root.render(<FixStatusModal open onOpenChange={vi.fn()} tool={{ ...OUT, status: 'Lost' }} lang="es" keepers={[]} onGoUsers={vi.fn()} onFixed={vi.fn()} />);
       });
       await flush();
       expect(document.body.textContent).toContain(i18n.t('tools:whoCan.none'));

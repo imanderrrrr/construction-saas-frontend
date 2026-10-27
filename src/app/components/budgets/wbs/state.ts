@@ -1,3 +1,4 @@
+import { FIELD_LIMITS } from '../../../../shared/fieldLimits';
 import { moneyInputCents } from '../../../lib/moneyInput';
 import { LINE_ITEM_CATEGORIES, type CreateLineItemPayload, type LineItemVarianceStatus } from '../../../services/budgetLineItems';
 
@@ -61,7 +62,7 @@ export function parseWbsImport(text: string): CreateLineItemPayload[] {
     const row = index + (header ? 2 : 1);
     if (values.length !== 4) throw new WbsImportError(row, 'columns');
     const [code, name, rawCategory, amount] = values;
-    if (!code || !name || code.length > 50 || name.length > 255) throw new WbsImportError(row, 'required');
+    if (!code || !name || code.length > 50 || name.length > FIELD_LIMITS.SHORT_NAME) throw new WbsImportError(row, 'required');
     const categoryText = normalize(rawCategory || 'GENERAL');
     const category = aliases[categoryText] ?? categoryText;
     if (!LINE_ITEM_CATEGORIES.includes(category as typeof LINE_ITEM_CATEGORIES[number])) throw new WbsImportError(row, 'category');

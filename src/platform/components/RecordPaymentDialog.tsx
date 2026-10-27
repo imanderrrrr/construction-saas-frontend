@@ -1,3 +1,4 @@
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
 import { useState } from 'react';
 
 import { PlatformModal } from './PlatformModal';
@@ -160,7 +161,7 @@ export function RecordPaymentDialog({
             value={method}
             onChange={e => setMethod(e.target.value)}
             placeholder="Wire, Wise, PayPal, transfer…"
-            maxLength={100}
+            maxLength={FIELD_LIMITS.SHORT_NAME}
             className={inputCx}
             disabled={submitting}
           />

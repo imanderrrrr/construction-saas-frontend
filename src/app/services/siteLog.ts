@@ -92,6 +92,7 @@ export interface PageResponse<T> {
 
 // Request payloads
 export interface AttendanceInput {
+  entryId?: number;
   workerId?: number | null;
   name?: string | null;
   source: AttendanceSource;
@@ -99,6 +100,7 @@ export interface AttendanceInput {
 }
 
 export interface TaskDoneInput {
+  entryId?: number;
   kanbanTaskId?: number | null;
   description?: string | null;
 }

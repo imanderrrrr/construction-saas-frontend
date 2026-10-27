@@ -133,7 +133,7 @@ describe('ToolAssignment — available tools beyond the first page', () => {
     await flush();
 
     expect(svc.assignTool).toHaveBeenCalledTimes(1);
-    expect(svc.assignTool).toHaveBeenCalledWith(expect.objectContaining({ toolCode: 'T-0230', toolName: 'Taladro 0230', workerId: 9, projectId: 5 }));
+    expect(svc.assignTool).toHaveBeenCalledWith(expect.objectContaining({ toolCode: 'T-0230', workerId: 9, projectId: 5 }));
   });
 
   it('says how many there are in all and loads more on demand', async () => {

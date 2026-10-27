@@ -320,5 +320,10 @@
   "consumables.dialog.invalidCost": "Enter a nonnegative cost with up to two decimals.",
   "consumables.dialog.costSnapshotHint": "Each dispatch preserves the cost at the time it leaves the warehouse.",
   "dispatch.dialog.estimatedCost": "Estimated cost: {{quantity}} × {{unitCost}} = {{total}}",
-  "dispatch.dialog.budgetCostNote": "This value will automatically be charged to the selected project’s budget consumption."
+  "dispatch.dialog.budgetCostNote": "This value will automatically be charged to the selected project’s budget consumption.",
+  "warehouse.loadError": "Inventory could not be loaded. Stock levels are unknown.",
+  "warehouse.kpi.reviewDamagedLost": "In review, damaged or lost",
+  "warehouse.custodyBreakdown": "Awaiting acceptance: {{pending}} · Awaiting receipt: {{returns}} · In review: {{review}} · Damaged: {{damaged}} · Lost: {{lost}}",
+  "dispatch.dialog.wholeQuantity": "Enter a whole number of the listed unit.",
+  "dispatch.dialog.notesLimit": "{{count}} / {{max}} characters maximum."
 }

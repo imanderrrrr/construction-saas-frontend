@@ -1,3 +1,4 @@
+import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 // BuildTrack — Client-portal punch list section (fase 2): the building owner
 // reports items to finish/fix (with photos), tracks their state, and
 // confirms/rejects the ones the builder marked ready. Rendered inside the
@@ -243,7 +244,7 @@ export function ClientPunchSection({ session, onGone }: {
               <input
                 id="punch-title"
                 type="text"
-                maxLength={200}
+                maxLength={FIELD_LIMITS.SHORT_NAME}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder={t('client.form.titlePlaceholder')}
@@ -257,7 +258,7 @@ export function ClientPunchSection({ session, onGone }: {
               </label>
               <textarea
                 id="punch-description"
-                maxLength={2000}
+                maxLength={FIELD_LIMITS.NOTE}
                 rows={3}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -272,7 +273,7 @@ export function ClientPunchSection({ session, onGone }: {
               <input
                 id="punch-location"
                 type="text"
-                maxLength={200}
+                maxLength={FIELD_LIMITS.SHORT_NAME}
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 placeholder={t('client.form.locationPlaceholder')}
@@ -463,7 +464,7 @@ export function ClientPunchSection({ session, onGone }: {
                       </label>
                       <textarea
                         id={`reject-note-${item.id}`}
-                        maxLength={500}
+                        maxLength={FIELD_LIMITS.NOTE}
                         rows={2}
                         value={rejectNote}
                         onChange={(e) => setRejectNote(e.target.value)}
@@ -673,7 +674,7 @@ function ClientCommentThread({ session, item, onGone }: {
           <div className="flex items-end gap-2">
             <textarea
               aria-label={t('client.comments.placeholder')}
-              maxLength={2000}
+              maxLength={FIELD_LIMITS.NOTE}
               rows={2}
               value={body}
               onChange={(e) => setBody(e.target.value)}
