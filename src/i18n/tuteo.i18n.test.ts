@@ -36,7 +36,7 @@ const VOSEO = [
   'gastás', 'llevás', 'mandás', 'pasás', 'seguís', 'abrís', 'acabás', 'agregás', 'armás',
   'completás', 'confirmás', 'decidís', 'dibujás', 'elegís', 'emitís', 'emitás', 'ingresás', 'llamás',
   'manejás', 'pagás', 'preferís', 'terminás', 'esperás', 'cobrás', 'entrás', 'registrás',
-  'capturás', 'marcás', 'cortás', 'apretás',
+  'capturás', 'marcás', 'cortás', 'apretás', 'encontrás',
 ];
 
 // Imperativos de usted. Solo con mayúscula inicial (arrancan la frase): en
