@@ -2,9 +2,10 @@
 //
 // The video is a rendered file; what can go wrong is everything around it,
 // and that is what these pin: who gets it (once, phones too, not with reduced
-// motion or Save-Data, not right after the intro film), where its last frame
-// lands (exactly on the real logo's box), and every way it gives the real
-// logo back instead of leaving a hole in the corner.
+// motion or Save-Data, not right after the intro film), where it stands (in
+// the logo's corner, the whole frame between the top of the page and the
+// logo), where its last frame lands (exactly on the real logo's box), and
+// every way it gives the real logo back instead of leaving a hole there.
 //
 // jsdom plays and lays out nothing, so media events are dispatched by hand
 // and the two boxes the landing measures are stubbed.
@@ -27,14 +28,10 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 const NOT_ALLOWED = () => Promise.reject(new DOMException('autoplay blocked', 'NotAllowedError'));
 
-/** Which media queries answer "yes". Anything not listed answers "no". */
-function stubMedia(yes: { phone?: boolean; reducedMotion?: boolean }) {
+/** Whether the visitor asked for reduced motion; no other query matters here. */
+function stubMedia({ reducedMotion = false }: { reducedMotion?: boolean }) {
   window.matchMedia = ((query: string) => ({
-    matches: query.includes('prefers-reduced-motion')
-      ? yes.reducedMotion === true
-      : query.includes('max-width')
-        ? yes.phone === true
-        : false,
+    matches: query.includes('prefers-reduced-motion') && reducedMotion,
     media: query,
     onchange: null,
     addListener: vi.fn(),
@@ -52,8 +49,10 @@ function rect(left: number, top: number, width: number, height: number): DOMRect
   } as DOMRect;
 }
 
-/** Where the real logo's box is, as the landing would measure it. */
-let markBox = rect(22, 20, 32, 32);
+/** Where the real logo's box is, as the landing would measure it: here as
+ *  on a 1440 px desktop (64 px gutter, ~24 px above it). */
+const DESKTOP_MARK = rect(84, 24, 32, 32);
+let markBox = DESKTOP_MARK;
 /** Every value the page was told: true = hide the real logo. */
 let standIns: boolean[] = [];
 
@@ -88,6 +87,12 @@ describe('LogoBuildOverlay', () => {
   let playSpy: MockInstance<() => Promise<void>>;
 
   const overlay = () => document.querySelector<HTMLElement>('.logo-build-root');
+  /** Where the frame stands, from its inline style, in page px; `scale` = page px per video px. */
+  const frame = () => {
+    const style = overlay()!.style;
+    const [left, top, width] = [style.left, style.top, style.width].map(v => parseFloat(v));
+    return { left, top, width, scale: width / 1400 };
+  };
   const video = () => document.querySelector<HTMLVideoElement>('.logo-build-root video');
   const sources = () =>
     Array.from(document.querySelectorAll<HTMLSourceElement>('.logo-build-root source')).map(s => ({
@@ -118,7 +123,7 @@ describe('LogoBuildOverlay', () => {
     localStorage.clear();
     window.history.replaceState(null, '', '/');
     stubMedia({});
-    markBox = rect(22, 20, 32, 32);
+    markBox = DESKTOP_MARK;
     standIns = [];
     playSpy = vi.spyOn(HTMLMediaElement.prototype, 'play').mockImplementation(() => Promise.resolve());
     container = document.createElement('div');
@@ -136,7 +141,7 @@ describe('LogoBuildOverlay', () => {
   });
 
   describe('a first visit', () => {
-    it('builds the logo over the dimmed hero, lands it on the real logo and hands it back', async () => {
+    it('builds the logo in its corner, grows it onto the real logo and hands it back', async () => {
       await render();
       expect(overlay()).toBeNull(); // the row gets a moment to fill first
 
@@ -147,26 +152,33 @@ describe('LogoBuildOverlay', () => {
       expect(video()?.muted).toBe(true);
       expect(hidden()).toBe(false); // nothing is playing yet: the real logo stays
 
+      // The whole frame fits between the top of the page and the logo (the
+      // crane reaches the frame's top edge), its orange box (centre 364,260 in
+      // video px) level with the real one (centre 100,40).
+      const { left, top, scale } = frame();
+      expect(top).toBeCloseTo(2, 5);
+      expect(left + 364 * scale).toBeCloseTo(100, 5);
+      expect(top + 260 * scale).toBeCloseTo(40, 5);
+      expect(128 * scale).toBeLessThan(32); // smaller than the logo: as large as fits
+
       await fire('playing');
       expect(overlay()?.dataset.phase).toBe('building');
       expect(hidden()).toBe(true);
       expect(seen()).toBeNull();
 
-      // The video lays out centred: 1000 px wide, its top-left at (195, 300).
-      video()!.getBoundingClientRect = () => rect(195, 300, 1000, 1000 * 360 / 1400);
+      overlay()!.getBoundingClientRect = () => rect(left, top, 1400 * scale, 360 * scale);
       await fire('ended');
       expect(overlay()?.dataset.phase).toBe('landing');
-      expect(hidden()).toBe(true); // the flying frame IS the logo for now
+      expect(hidden()).toBe(true); // the growing frame IS the logo for now
 
       // After the transform, the orange box drawn in the video (300,196 · 128 px
-      // in its own pixels) must sit exactly on the real one (22,20 · 32 px).
-      const match = /translate\((-?[\d.]+)px, (-?[\d.]+)px\) scale\(([\d.]+)\)/.exec(video()!.style.transform);
+      // in its own pixels) must sit exactly on the real one (84,24 · 32 px).
+      const match = /translate\((-?[\d.]+)px, (-?[\d.]+)px\) scale\(([\d.]+)\)/.exec(overlay()!.style.transform);
       expect(match).not.toBeNull();
       const [dx, dy, k] = match!.slice(1).map(Number);
-      const perVideoPx = (1000 / 1400) * k;
-      expect(195 + dx + 300 * perVideoPx).toBeCloseTo(22, 5);
-      expect(300 + dy + 196 * perVideoPx).toBeCloseTo(20, 5);
-      expect(128 * perVideoPx).toBeCloseTo(32, 5);
+      expect(left + dx + 300 * scale * k).toBeCloseTo(84, 5);
+      expect(top + dy + 196 * scale * k).toBeCloseTo(24, 5);
+      expect(128 * scale * k).toBeCloseTo(32, 5);
 
       await advance(LOGO_BUILD_LANDING_MS);
       expect(overlay()?.dataset.phase).toBe('handoff');
@@ -177,20 +189,29 @@ describe('LogoBuildOverlay', () => {
       expect(overlay()).toBeNull();
     });
 
-    it('plays it on phones too, from the 700 px render', async () => {
-      stubMedia({ phone: true });
+    it('never builds it larger than the logo itself, however much room there is', async () => {
+      markBox = rect(84, 200, 32, 32);
       await renderAndLoad();
-      expect(sources().map(s => s.src)).toEqual([
-        '/logo-build/logo-build-700.hevc.mov',
-        '/logo-build/logo-build-700.webm',
-      ]);
+      const { left, top, scale } = frame();
+      expect(128 * scale).toBeCloseTo(32, 5);
+      expect(left + 364 * scale).toBeCloseTo(100, 5);
+      expect(top + 260 * scale).toBeCloseTo(216, 5);
     });
 
-    it('offers Safari its HEVC with alpha before the WebM everyone else plays', async () => {
+    it('on a narrow phone it moves right rather than let the edge of the page cut the excavator', async () => {
+      markBox = rect(16, 20, 32, 32);
+      await renderAndLoad();
+      const { left, top, scale } = frame();
+      expect(left).toBe(0);
+      expect(top).toBeCloseTo(2, 5);
+      expect(top + 260 * scale).toBeCloseTo(36, 5);
+    });
+
+    it('plays the 700 px render everywhere, Safari\'s HEVC with alpha before the WebM', async () => {
       await renderAndLoad();
       expect(sources()).toEqual([
-        { src: '/logo-build/logo-build-1400.hevc.mov', type: 'video/quicktime; codecs="hvc1"' },
-        { src: '/logo-build/logo-build-1400.webm', type: 'video/webm' },
+        { src: '/logo-build/logo-build-700.hevc.mov', type: 'video/quicktime; codecs="hvc1"' },
+        { src: '/logo-build/logo-build-700.webm', type: 'video/webm' },
       ]);
     });
   });
@@ -250,6 +271,21 @@ describe('LogoBuildOverlay', () => {
       expect(overlay()?.dataset.phase).toBe('loading');
     });
 
+    it('a page that opens scrolled past the logo: nothing to stand in for, kept for later', async () => {
+      // A reload that restores the scroll: the logo is still at the top of the
+      // page, 1000 px above the window.
+      Object.defineProperty(window, 'scrollY', { value: 1000, configurable: true });
+      markBox = rect(84, 24 - 1000, 32, 32);
+      try {
+        await renderAndLoad();
+        expect(overlay()).toBeNull();
+        expect(playSpy).not.toHaveBeenCalled();
+        expect(seen()).toBeNull();
+      } finally {
+        Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
+      }
+    });
+
     it('a visit that opened with the intro film: it waits for a later one', async () => {
       await render({ withIntro: true });
       await advance(LOGO_BUILD_ARM_MS);
@@ -293,7 +329,7 @@ describe('LogoBuildOverlay', () => {
       expect(seen()).toBeNull();
     });
 
-    it('a stream that stalls without ending: the safety net hands the logo back, no flight', async () => {
+    it('a stream that stalls without ending: the safety net hands the logo back, no growing', async () => {
       await renderAndLoad();
       await fire('playing');
 
@@ -302,20 +338,21 @@ describe('LogoBuildOverlay', () => {
 
       await advance(2_500);
       expect(overlay()?.dataset.phase).toBe('handoff');
-      expect(video()?.style.transform).toBe('');
+      expect(overlay()?.style.transform).toBe('');
       expect(hidden()).toBe(false);
       expect(seen()).toBe('1');
     });
 
-    it('with the logo scrolled out of view there is no flight: it fades and the logo is back', async () => {
-      markBox = rect(22, -400, 32, 32);
+    it('with the logo scrolled out of view by the end, it just fades and the logo is back', async () => {
       await renderAndLoad();
       await fire('playing');
-      video()!.getBoundingClientRect = () => rect(195, 300, 1000, 257);
+      const { left, top, scale } = frame();
+      markBox = rect(84, -400, 32, 32);
+      overlay()!.getBoundingClientRect = () => rect(left, top - 424, 1400 * scale, 360 * scale);
       await fire('ended');
 
       expect(overlay()?.dataset.phase).toBe('handoff');
-      expect(video()?.style.transform).toBe('');
+      expect(overlay()?.style.transform).toBe('');
       expect(hidden()).toBe(false);
     });
   });

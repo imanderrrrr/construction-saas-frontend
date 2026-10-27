@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Funde las piezas (MOV con alfa) en una sola animación transparente y la codifica para la web.
-#   ./assemble.sh                 → renders/logo-build.mov + renders/logo-build-{1400,700}.{webm,hevc.mov} + review/logo-build.mp4
-#   INSTALL=1 ./assemble.sh       → además copia los cuatro vídeos web a public/logo-build/ (los que reproduce LogoBuildOverlay)
+#   ./assemble.sh                 → renders/logo-build.mov + renders/logo-build-700.{webm,hevc.mov} + review/logo-build.mp4
+#   INSTALL=1 ./assemble.sh       → además copia los dos vídeos web a public/logo-build/ (los que reproduce LogoBuildOverlay)
 # Orden de capas, de atrás hacia delante: base, camión, excavadora, grúa, acabado (si existe).
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -19,9 +19,9 @@ done
 D="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "parts/base/renders/base.mov")"
 ffmpeg -v error -y -f lavfi -i "color=c=black@0.0:s=1400x360:r=60:d=${D},format=rgba" "${IN[@]}" \
   -filter_complex "[0:v]format=rgba[bg];${F%;}" -map "${PREV}" -c:v prores_ks -profile:v 4444 -pix_fmt yuva444p10le renders/logo-build.mov
-# Web: dos anchos (1400 px para pantallas anchas, 700 px para teléfonos), cada uno en WebM VP9 con alfa
-# (Chrome, Edge, Firefox) y en HEVC con alfa (Safari; solo VideoToolbox de macOS sabe escribirlo).
-# Pesos al 2026-10-26: 2,1 / 2,4 MB a 1400 px y 1,2 / 0,9 MB a 700 px.
+# Web: 700 px de ancho (en la página mide ~200–300 px, así que basta también a 2–3× de densidad), en WebM VP9
+# con alfa (Chrome, Edge, Firefox) y en HEVC con alfa (Safari; solo VideoToolbox de macOS sabe escribirlo).
+# Pesos al 2026-10-26: 1,2 MB el WebM y 0,9 MB el HEVC.
 web() { # ancho crf-vp9 bitrate-hevc
   local OUT="renders/logo-build-$1"
   ffmpeg -v error -y -i renders/logo-build.mov -vf "scale=$1:-2:flags=lanczos" \
@@ -33,7 +33,6 @@ web() { # ancho crf-vp9 bitrate-hevc
     echo "· sin hevc_videotoolbox: el HEVC con alfa (Safari) solo se genera en macOS"
   fi
 }
-web 1400 42 1M
 web 700 32 600k
 # revisión: sobre fondo oscuro de la landing, a lienzo completo
 ffmpeg -v error -y -f lavfi -i "color=c=0x17130F:s=1400x360:r=60:d=${D}" -i renders/logo-build.mov \
@@ -41,7 +40,7 @@ ffmpeg -v error -y -f lavfi -i "color=c=0x17130F:s=1400x360:r=60:d=${D}" -i rend
   -c:v libx264 -crf 16 -movflags +faststart review/logo-build.mp4
 if [ "${INSTALL:-0}" = "1" ]; then
   mkdir -p ../../public/logo-build
-  cp renders/logo-build-1400.webm renders/logo-build-1400.hevc.mov renders/logo-build-700.webm renders/logo-build-700.hevc.mov ../../public/logo-build/
+  cp renders/logo-build-700.webm renders/logo-build-700.hevc.mov ../../public/logo-build/
 fi
 ls -la renders/logo-build* review/logo-build.mp4
 echo "Si cambia la duración, actualiza LOGO_BUILD_DURATION_MS en src/app/components/landing/LogoBuildOverlay.tsx."
