@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { requestTurnstileToken, TurnstileUnavailableError } from '../../lib/turnstile';
@@ -27,6 +27,7 @@ import {
   MAX_USER_TURNS,
   useAssistantChat,
   type AssistantDeps,
+  type TurnstilePurpose,
 } from './assistant/useAssistantChat';
 
 /** The title block's revision, the same string the landing's drawing sheets carry (PlatformSheets.tsx). */
@@ -111,26 +112,70 @@ function Arrow({ size = 18, back = false }: { size?: number; back?: boolean }) {
 }
 
 /**
+ * One Turnstile host. Always mounted, so a challenge keeps running while the
+ * visitor is on another sheet; [shown] makes it the 300 × 65 bot card.
+ */
+function TurnstileCard({
+  hostRef,
+  purpose,
+  shown,
+  who,
+  checking,
+}: {
+  hostRef: RefObject<HTMLDivElement>;
+  purpose: TurnstilePurpose;
+  shown: boolean;
+  who: string | undefined;
+  checking: string;
+}) {
+  return (
+    <div className={shown ? 'flex-none border-t border-[rgba(23,19,15,0.3)] bg-bt-paper p-4' : 'h-0 overflow-hidden'}>
+      <div
+        role={shown ? 'status' : undefined}
+        data-message={shown ? 'assistant' : undefined}
+        className={shown ? BOT_CARD : undefined}
+      >
+        {shown && (
+          <>
+            <TurnLabel turn={0} who={who} />
+            <p className="mt-1.5">{checking}</p>
+          </>
+        )}
+        <div
+          ref={hostRef}
+          data-testid={`turnstile-host-${purpose}`}
+          className={shown ? 'mt-2.5 h-[65px] w-[300px] max-w-full' : undefined}
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
  * The landing assistant: one drawing sheet that changes views — the chat
  * (`HOJA 01`), the contact form (`HOJA 02`) and the confirmation (`HOJA 03`).
  * Loaded on demand by `AssistantLauncher`; `deps` exists for tests.
  *
- * Turnstile renders into a host that lives outside every view, so switching
- * views never tears a challenge down halfway. It stays collapsed unless
- * Cloudflare asks the visitor to click, and then shows as an assistant card.
+ * Turnstile renders into hosts that live outside every view, so switching
+ * views never tears a challenge down halfway. There is one host per purpose:
+ * a conversation left waiting for its click must not share a widget with the
+ * contact form. A host stays collapsed unless Cloudflare asks the visitor to
+ * click, and then shows as an assistant card, only on the sheet that asked.
  */
 export function AssistantPanel({ onClose, deps }: { onClose: () => void; deps?: Partial<AssistantDeps> }) {
   const { t, i18n } = useTranslation('landing');
   const dialogRef = useRef<HTMLDivElement>(null);
-  const turnstileHost = useRef<HTMLDivElement>(null);
+  const chatHost = useRef<HTMLDivElement>(null);
+  const leadHost = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const narrow = useNarrowScreen();
-  const [challenge, setChallenge] = useState(false);
+  const [challenges, setChallenges] = useState<Record<TurnstilePurpose, boolean>>({ chat: false, lead: false });
   const [draft, setDraft] = useState('');
 
-  const getTurnstileToken = useCallback(async () => {
-    const host = turnstileHost.current;
+  const getTurnstileToken = useCallback(async (purpose: TurnstilePurpose) => {
+    const host = (purpose === 'chat' ? chatHost : leadHost).current;
     if (!host) throw new TurnstileUnavailableError('The Turnstile host is not mounted');
+    const setChallenge = (on: boolean) => setChallenges((current) => ({ ...current, [purpose]: on }));
     try {
       return await requestTurnstileToken(host, { onInteractive: () => setChallenge(true) });
     } finally {
@@ -333,26 +378,21 @@ export function AssistantPanel({ onClose, deps }: { onClose: () => void; deps?: 
 
       {sheet === 'done' && <AssistantDone onBack={chat.backToChat} onClose={onClose} />}
 
-      {/* Turnstile host: outside the views, collapsed unless the challenge needs a click. */}
-      <div className={challenge ? 'flex-none border-t border-[rgba(23,19,15,0.3)] bg-bt-paper p-4' : 'h-0 overflow-hidden'}>
-        <div
-          role={challenge ? 'status' : undefined}
-          data-message={challenge ? 'assistant' : undefined}
-          className={challenge ? BOT_CARD : undefined}
-        >
-          {challenge && (
-            <>
-              <TurnLabel turn={0} who={t('assistant.verify.label').split(' · ').pop()} />
-              <p className="mt-1.5">{t('assistant.verify.checking')}</p>
-            </>
-          )}
-          <div
-            ref={turnstileHost}
-            data-testid="turnstile-host"
-            className={challenge ? 'mt-2.5 h-[65px] w-[300px] max-w-full' : undefined}
-          />
-        </div>
-      </div>
+      {/* Turnstile hosts: outside the views, collapsed unless their challenge needs a click on this sheet. */}
+      <TurnstileCard
+        hostRef={chatHost}
+        purpose="chat"
+        shown={challenges.chat && sheet === 'chat'}
+        who={t('assistant.verify.label').split(' · ').pop()}
+        checking={t('assistant.verify.checking')}
+      />
+      <TurnstileCard
+        hostRef={leadHost}
+        purpose="lead"
+        shown={challenges.lead && (sheet === 'form' || sheet === 'unavailable')}
+        who={t('assistant.verify.label').split(' · ').pop()}
+        checking={t('assistant.verify.checking')}
+      />
 
       <div
         data-testid="assistant-title-block"
