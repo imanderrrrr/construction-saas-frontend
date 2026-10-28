@@ -18,6 +18,41 @@
     "es"
   ],
   "titles": "src/i18n/locales/{es,en}/landing.json — videos.<key>.title",
+  "welcome": {
+    "key": "bienvenida",
+    "sheet": "BT-V00",
+    "note": "The narrated welcome film (voice, music, captions), not a screen recording, and the first tab of the player. Made in the infra repo (branch video/bienvenida, videos/bienvenida/); the landing ships web versions of its masters, 1440x900 at about 7 MB per file. Re-encode: tools/welcome-video/encode.sh <lang> <master.mp4> <captions.vtt> <poster.jpg>",
+    "video": {
+      "width": 1440,
+      "height": 900,
+      "fps": 60
+    },
+    "audio": true,
+    "playback": {
+      "autoplay": "muted with captions while on screen, once — not after the reader paused it or it ended",
+      "loop": false,
+      "muted": "until the reader asks for sound: «Ver con sonido» / «Watch with sound» starts it over from 0",
+      "controls": true,
+      "playsInline": true
+    },
+    "byLanguage": {
+      "es": {
+        "durationSec": 72,
+        "poster": "/demos/es/bienvenida.jpg",
+        "captions": "/demos/es/bienvenida.vtt",
+        "sources": [
+          {
+            "src": "/demos/es/bienvenida.mp4",
+            "type": "video/mp4"
+          },
+          {
+            "src": "/demos/es/bienvenida.webm",
+            "type": "video/webm"
+          }
+        ]
+      }
+    }
+  },
   "clips": [
     {
       "key": "panel",
