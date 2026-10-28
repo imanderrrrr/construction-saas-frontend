@@ -2,7 +2,8 @@
 // list as currently filtered on screen. Client-side on purpose: the rows are
 // already loaded and authorized in the view, so no new endpoint is needed.
 // CSV follows exportAuditCsv (escaped fields + BOM + saveAs); the PDF follows
-// exportPayrollPdf (jsPDF landscape + autoTable + brand header/footer). The
+// the old exportPayrollPdf, deleted with its screens (jsPDF landscape +
+// autoTable + brand header/footer). The
 // expense report's own browser exporter, which this one was copied from, was
 // deleted: that document is built on the server now, localised and with the
 // tenant's letterhead. This one is next in line for the same treatment.

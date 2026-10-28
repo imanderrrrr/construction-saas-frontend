@@ -5,12 +5,14 @@ import { drainPages } from '../../lib/paging';
 // The approvals screen must see every record in the chosen range.
 //
 // Same failure as the payables window, in the screen that decides whether
-// people get paid. SupervisorApprovals fetched ONE page (size=100) sorted by
-// workDate DESC and has no pagination UI at all — no page controls, no total.
-// Whatever fell past row 100 simply did not exist as far as the supervisor
-// could tell.
+// people get paid. The old SupervisorApprovals (since deleted) fetched ONE
+// page (size=100) sorted by workDate DESC and had no pagination UI at all —
+// no page controls, no total. Whatever fell past row 100 simply did not exist
+// as far as the supervisor could tell. Its replacement, approvals/ApprovalsInbox,
+// reads through getAllTimeRecords / getAllSupervisorTimeRecords, which drain
+// the range with this same helper.
 //
-// Two things on that screen are computed in the browser over the fetched rows:
+// Two things on that screen were computed in the browser over the fetched rows:
 //
 //   • the PENDING filter, which deliberately bypasses the server-side status
 //     filter (a record can read APPROVED yet still hold pending events), and
@@ -77,8 +79,8 @@ describe('supervisor approvals — pending work must not hide past the first pag
   });
 
   it('costs a single request for the default one-week range', async () => {
-    // The screen defaults to Monday-of-this-week → today, which is what keeps
-    // the sweep bounded: a normal week is far short of one page.
+    // The old screen defaulted to Monday-of-this-week → today, which is what
+    // kept the sweep bounded: a normal week is far short of one page.
     const { fetchPage, calls } = pagedSource(ALL_RECORDS.slice(0, 40));
 
     expect(await drainPages(fetchPage)).toHaveLength(40);
