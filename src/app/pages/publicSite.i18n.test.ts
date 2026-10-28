@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
 
 import enLanding from '../../i18n/locales/en/landing.json';
@@ -25,6 +28,8 @@ const NAMESPACES: [name: string, en: Bundle, es: Bundle][] = [
   ['pay', enPay as Bundle, esPay as Bundle],
 ];
 
+const publicDir = join(dirname(fileURLToPath(import.meta.url)), '../../../public');
+
 const tokens = (s: string): string[] =>
   (s.match(/\{\{\s*\w+\s*\}\}/g) ?? []).map((x) => x.replace(/\s/g, '')).sort();
 
@@ -49,6 +54,20 @@ describe.each(NAMESPACES)('%s locale coverage', (_name, en, es) => {
   });
 });
 
+const COUNTRY = /guatemal|zona \d|zone \d|\bC\.A\.|\bUGC\b|quetzal|14\.6349/i;
+
+// Claims the 2026-10-27 audit found in the old guide — and on the landing —
+// with nothing behind them in the panel, the API or the field app. Each one
+// was a promise a demo would have broken.
+const NOT_IN_THE_PRODUCT: [RegExp, string][] = [
+  [/avance f[ií]sico|physical progress/i, 'there is no physical-progress field; "avance" is spend vs. budget'],
+  [/estimaci[oó]n|progress billing/i, 'receivables are invoices and change orders, not progress billings'],
+  [/solo vale adentro|only count inside/i, 'a clock-in outside the geofence is recorded and flagged, never refused'],
+  [/se arma sola|builds itself/i, 'payroll pays approved hours × rate after someone confirms it'],
+  [/notificaci[oó]n(es)? push|push notification/i, 'notifications are an in-app inbox; there is no push'],
+  [/solo lectura|read-only/i, 'the client answers RFIs and reports punch items from the portal'],
+];
+
 describe('public site content rules', () => {
   // We quote project by project: no plan table, no amount, anywhere.
   // This guards the thing that must never come back: what BuildTrack costs.
@@ -72,7 +91,6 @@ describe('public site content rules', () => {
   // capital, "Zona 16", a local cement brand, "Hecho en Guatemala" — and a
   // buyer anywhere else read that as "not for me".
   it('does not pitch the site to one country', () => {
-    const COUNTRY = /guatemal|zona \d|zone \d|\bC\.A\.|\bUGC\b|quetzal|14\.6349/i;
     for (const [name, en, es] of NAMESPACES) {
       for (const bundle of [en, es]) {
         for (const [k, v] of Object.entries(bundle)) {
@@ -109,18 +127,7 @@ describe('public site content rules', () => {
     expect((enDocs as Bundle)['s0.step.3.rest']).toContain('optional');
   });
 
-  // Claims the 2026-10-27 audit found in the old guide — and on the landing —
-  // with nothing behind them in the panel, the API or the field app. Each one
-  // was a promise a demo would have broken.
   it('does not promise what the product does not do', () => {
-    const NOT_IN_THE_PRODUCT: [RegExp, string][] = [
-      [/avance f[ií]sico|physical progress/i, 'there is no physical-progress field; "avance" is spend vs. budget'],
-      [/estimaci[oó]n|progress billing/i, 'receivables are invoices and change orders, not progress billings'],
-      [/solo vale adentro|only count inside/i, 'a clock-in outside the geofence is recorded and flagged, never refused'],
-      [/se arma sola|builds itself/i, 'payroll pays approved hours × rate after someone confirms it'],
-      [/notificaci[oó]n(es)? push|push notification/i, 'notifications are an in-app inbox; there is no push'],
-      [/solo lectura|read-only/i, 'the client answers RFIs and reports punch items from the portal'],
-    ];
     const bundles: [string, Bundle][] = [
       ['docs', enDocs as Bundle],
       ['docs', esDocs as Bundle],
@@ -132,6 +139,20 @@ describe('public site content rules', () => {
         for (const [pattern, why] of NOT_IN_THE_PRODUCT) {
           expect(pattern.test(v), `${name}:${k} — ${why}: ${v}`).toBe(false);
         }
+      }
+    }
+  });
+
+  // The welcome film (BT-V00) starts muted with its captions on screen: they
+  // are words on the landing like any other, in both languages.
+  it('holds the welcome film captions to the same rules', () => {
+    for (const lang of ['es', 'en']) {
+      const vtt = readFileSync(join(publicDir, 'demos', lang, 'bienvenida.vtt'), 'utf8');
+      expect(vtt.startsWith('WEBVTT'), `${lang}: not a WebVTT file`).toBe(true);
+      expect(COUNTRY.test(vtt), `${lang} captions pitch a country`).toBe(false);
+      expect(/\$\s?\d/.test(vtt), `${lang} captions mention a price`).toBe(false);
+      for (const [pattern, why] of NOT_IN_THE_PRODUCT) {
+        expect(pattern.test(vtt), `${lang} captions — ${why}`).toBe(false);
       }
     }
   });
