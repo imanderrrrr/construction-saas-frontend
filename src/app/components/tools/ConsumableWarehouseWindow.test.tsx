@@ -129,6 +129,21 @@ describe('ConsumableWarehouseWindow restock', () => {
     expect(svc.restockConsumable.mock.calls[1]).toEqual(original);
   });
 
+  // B2 (audit 2026-10-28): the same lock as the dispatch, per supply.
+  it('frees the window when the retry of an unknown restock is refused', async () => {
+    svc.restockConsumable
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockRejectedValueOnce(new ApiError(400, 'La cantidad no es válida', undefined, 'INVALID_QUANTITY'))
+      .mockResolvedValueOnce({ ...STALE, currentStock: 13 });
+    await mount(); type(input(), '5'); click(restockButton()); await flush();
+    click(buttonByText(document.body, i18n.t('inventory:consumables.intent.reconcile'))!); await flush();
+    expect(document.body.textContent).toContain(i18n.t('inventory:consumables.intent.refused'));
+    click(buttonByText(document.body, i18n.t('inventory:consumables.intent.newRestock'))!); await flush();
+    type(input(), '3'); click(restockButton()); await flush();
+    expect(svc.restockConsumable).toHaveBeenCalledTimes(3);
+    expect(svc.restockConsumable.mock.calls[2][2]).not.toBe(svc.restockConsumable.mock.calls[0][2]);
+  });
+
   it('hides the old account intention when another tab changes the login', async () => {
     svc.restockConsumable.mockRejectedValue(new Error('lost'));
     await mount(); type(input(), '5'); click(restockButton()); await flush();
