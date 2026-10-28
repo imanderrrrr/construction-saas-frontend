@@ -2911,6 +2911,7 @@
   "apr.reviewed.OBSERVED": "observó la jornada",
   "apr.reviewed.REJECTED": "rechazó la jornada",
   "apr.d.title": "Jornada · detalle",
+  "apr.d.loadError": "No pudimos traer esta jornada. Revisa tu conexión y reintenta.",
   "apr.d.timeline": "Línea de tiempo del día",
   "apr.d.inside": "Dentro de la obra · {{meters}} m",
   "apr.d.outside": "Fuera de la obra · {{meters}} m",
