@@ -36,6 +36,21 @@
       "playsInline": true
     },
     "byLanguage": {
+      "en": {
+        "durationSec": 72,
+        "poster": "/demos/en/bienvenida.jpg",
+        "captions": "/demos/en/bienvenida.vtt",
+        "sources": [
+          {
+            "src": "/demos/en/bienvenida.mp4",
+            "type": "video/mp4"
+          },
+          {
+            "src": "/demos/en/bienvenida.webm",
+            "type": "video/webm"
+          }
+        ]
+      },
       "es": {
         "durationSec": 72,
         "poster": "/demos/es/bienvenida.jpg",
