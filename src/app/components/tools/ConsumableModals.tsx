@@ -42,7 +42,7 @@ export function ConsumableFormModal({ open, onOpenChange, onSaved, consumable = 
   const [stock, setStock] = useState('0');
   const [unitCost, setUnitCost] = useState('0.00');
   const [minimum, setMinimum] = useState('0');
-  const [errors, setErrors] = useState<{ name?: string; unit?: string; numbers?: string; server?: string }>({});
+  const [errors, setErrors] = useState<{ name?: string; category?: string; unit?: string; numbers?: string; server?: string }>({});
   const [saving, setSaving] = useState(false);
   const [category, setCategory] = useState('General');
   const [notes, setNotes] = useState('');
@@ -64,8 +64,9 @@ export function ConsumableFormModal({ open, onOpenChange, onSaved, consumable = 
     if (!name.trim()) next.name = t('tools:consumable.err.name');
     else if (textTooLong(name, FIELD_LIMITS.WAREHOUSE_NAME, consumable?.name)) next.name = t('tools:name.tooLong', { max: FIELD_LIMITS.WAREHOUSE_NAME });
     if (textTooLong(notes, FIELD_LIMITS.NOTE, consumable?.notes ?? '')) next.server = t('common:validation.maxLength', { max: FIELD_LIMITS.NOTE });
-    if (textTooLong(category, FIELD_LIMITS.SHORT_NAME, consumable?.category)) next.server = t('common:validation.maxLength', { max: FIELD_LIMITS.SHORT_NAME });
-    if (!unit.trim()) next.unit = t('tools:consumable.err.unit');
+    if (!category.trim() && category !== consumable?.category) next.category = t('tools:consumable.err.category');
+    else if (textTooLong(category, FIELD_LIMITS.SHORT_NAME, consumable?.category)) next.category = t('common:validation.maxLength', { max: FIELD_LIMITS.SHORT_NAME });
+    if (!unit.trim() && unit !== consumable?.unit) next.unit = t('tools:consumable.err.unit');
     if (moneyInputCents(unitCost) == null) next.numbers = t('inventory:consumables.dialog.invalidCost');
     if (!Number.isSafeInteger(stockNumber) || !Number.isSafeInteger(minimumNumber) || stockNumber < 0 || minimumNumber < 0) next.numbers = t('tools:consumable.err.negative');
     setErrors(next);
@@ -76,8 +77,8 @@ export function ConsumableFormModal({ open, onOpenChange, onSaved, consumable = 
       // The code is the server's: CS-00x, never typed.
       const details = {
         name: name === consumable?.name ? name : name.trim(),
-        category: category.trim() || 'General',
-        unit: unit.trim(),
+        category: category === consumable?.category ? category : category.trim(),
+        unit: unit === consumable?.unit ? unit : unit.trim(),
         minimumStock: minimumNumber,
         unitCostCents: moneyInputCents(unitCost)!,
         ...(warehouse ? { notes: notes === (consumable?.notes ?? '') ? notes : notes.trim() } : {}),
@@ -136,9 +137,11 @@ export function ConsumableFormModal({ open, onOpenChange, onSaved, consumable = 
       </div>
 
       {(warehouse || consumable) && <div className="mt-[14px]">
-        <FieldLabel htmlFor="cs-category">{t('inventory:consumables.dialog.category')}</FieldLabel>
-        <input id="cs-category" value={category} onChange={e => setCategory(e.target.value)} maxLength={FIELD_LIMITS.SHORT_NAME} className={INPUT} />
+        <FieldLabel htmlFor="cs-category" required>{t('inventory:consumables.dialog.category')}</FieldLabel>
+        <input id="cs-category" value={category} onChange={e => setCategory(e.target.value)} maxLength={FIELD_LIMITS.SHORT_NAME} aria-invalid={!!errors.category} aria-describedby="cs-category-hint" className={cn(INPUT, errors.category && INPUT_ERROR)} />
+        <div id="cs-category-hint">{errors.category && <FieldError>{errors.category}</FieldError>}
         <FieldHint>{t('tools:name.limitHint', { count: category.length, max: FIELD_LIMITS.SHORT_NAME })}</FieldHint>
+        {category === consumable?.category && category.length > FIELD_LIMITS.SHORT_NAME && <FieldHint>{t('common:validation.historicalValue')}</FieldHint>}</div>
       </div>}
       {warehouse && <div className="mt-[14px]">
         <FieldLabel htmlFor="cs-notes">{t('inventory:consumables.dialog.notes')}</FieldLabel>
