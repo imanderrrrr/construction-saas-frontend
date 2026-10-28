@@ -142,8 +142,11 @@ describe('Landing — public CTAs and content rules', () => {
     expect(navHrefs.indexOf('/status')).toBe(navHrefs.indexOf('/docs') + 1);
   });
 
-  // One clip per screen worth showing, in module order, in ONE player.
+  // BT-V00, the narrated welcome film, then one clip per screen worth showing,
+  // in module order, in ONE player.
+  const WELCOME = 'bienvenida';
   const CLIPS = [
+    WELCOME,
     'panel',
     'proyectos',
     'contrato',
@@ -157,17 +160,28 @@ describe('Landing — public CTAs and content rules', () => {
   const tabs = () => Array.from(container.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
   const sourcesOf = (video: HTMLVideoElement) =>
     Array.from(video.querySelectorAll('source')).map((s) => s.getAttribute('src'));
+  // The film offers H.264 first (as IntroOverlay does); the recordings, VP9.
+  const expectedSources = (lang: string, key: string) =>
+    key === WELCOME
+      ? [`/demos/${lang}/${key}.mp4`, `/demos/${lang}/${key}.webm`]
+      : [`/demos/${lang}/${key}.webm`, `/demos/${lang}/${key}.mp4`];
+  const pick = (key: string) =>
+    act(async () => {
+      tabs()[CLIPS.indexOf(key)].click();
+    });
+  const soundButton = () =>
+    Array.from(container.querySelectorAll('button')).find((b) => b.textContent?.includes('videos.bienvenida.sound'));
 
   // The eight clips used to be stacked one under another — a third of the page.
   it('shows the clips in a single player with one tab per clip', async () => {
     await render();
     expect(container.querySelectorAll('video')).toHaveLength(1);
-    expect(tabs().map((tab) => tab.textContent)).toEqual(CLIPS.map((key, i) => `V0${i + 1}videos.${key}.title`));
+    expect(tabs().map((tab) => tab.textContent)).toEqual(CLIPS.map((key, i) => `V0${i}videos.${key}.title`));
     expect(tabs()[0].getAttribute('aria-selected')).toBe('true');
 
     const video = container.querySelector('video')!;
-    expect(video.getAttribute('poster')).toBe('/demos/es/panel.jpg');
-    expect(sourcesOf(video)).toEqual(['/demos/es/panel.webm', '/demos/es/panel.mp4']);
+    expect(video.getAttribute('poster')).toBe('/demos/es/bienvenida.jpg');
+    expect(sourcesOf(video)).toEqual(expectedSources('es', WELCOME));
   });
 
   it('swaps the clip, and names its module under the player, when a tab is picked', async () => {
@@ -178,7 +192,7 @@ describe('Landing — public CTAs and content rules', () => {
       });
       const video = container.querySelector('video')!;
       expect(video.getAttribute('poster'), `clip ${key}`).toBe(`/demos/es/${key}.jpg`);
-      expect(sourcesOf(video)).toEqual([`/demos/es/${key}.webm`, `/demos/es/${key}.mp4`]);
+      expect(sourcesOf(video)).toEqual(expectedSources('es', key));
       expect(tabs()[i].getAttribute('aria-selected')).toBe('true');
       const panel = container.querySelector('[role="tabpanel"]')!;
       expect(panel.getAttribute('aria-labelledby')).toBe(tabs()[i].id);
@@ -211,8 +225,12 @@ describe('Landing — public CTAs and content rules', () => {
       });
       const video = container.querySelector('video')!;
       expect(video.getAttribute('poster'), `missing English clip: ${key}`).toBe(`/demos/en/${key}.jpg`);
-      expect(sourcesOf(video)).toEqual([`/demos/en/${key}.webm`, `/demos/en/${key}.mp4`]);
+      expect(sourcesOf(video)).toEqual(expectedSources('en', key));
     }
+    await pick(WELCOME);
+    const captions = container.querySelector('track')!;
+    expect(captions.getAttribute('src')).toBe('/demos/en/bienvenida.vtt');
+    expect(captions.getAttribute('srclang')).toBe('en');
   });
 
   // A regional tag is still that language; anything we did not record falls
@@ -220,7 +238,7 @@ describe('Landing — public CTAs and content rules', () => {
   it('maps regional and unknown language tags to a set that exists', async () => {
     language.current = 'en-US';
     await render();
-    expect(container.querySelector('video')?.getAttribute('poster')).toBe('/demos/en/panel.jpg');
+    expect(container.querySelector('video')?.getAttribute('poster')).toBe('/demos/en/bienvenida.jpg');
 
     await act(async () => { root.unmount(); });
     container.remove();
@@ -229,7 +247,7 @@ describe('Landing — public CTAs and content rules', () => {
     root = createRoot(container);
     language.current = 'pt-BR';
     await render();
-    expect(container.querySelector('video')?.getAttribute('poster')).toBe('/demos/es/panel.jpg');
+    expect(container.querySelector('video')?.getAttribute('poster')).toBe('/demos/es/bienvenida.jpg');
   });
 
   // On a phone a desktop recording is too small to read: the player goes full screen.
@@ -242,12 +260,15 @@ describe('Landing — public CTAs and content rules', () => {
     expect(button!.closest('[role="tabpanel"]')).not.toBeNull();
   });
 
-  it('autoplays the clip by default', async () => {
+  it('autoplays the recordings by default', async () => {
     await render();
+    await pick('panel');
     const video = container.querySelector('video')!;
     expect(video.autoplay).toBe(true);
     expect(video.loop).toBe(true);
     expect(video.muted).toBe(true);
+    expect(video.controls).toBe(false);
+    expect(video.querySelector('track')).toBeNull();
   });
 
   // A looping clip is exactly the motion someone asking for less of it does
@@ -255,10 +276,145 @@ describe('Landing — public CTAs and content rules', () => {
   it('stops autoplaying and offers controls when the reader prefers reduced motion', async () => {
     prefersReducedMotion = true;
     await render();
+    await pick('panel');
     const video = container.querySelector('video')!;
     expect(video.autoplay).toBe(false);
     expect(video.loop).toBe(false);
     expect(video.controls).toBe(true);
+  });
+
+  // BT-V00 has a voice: it is a film to watch, not a loop to glance at. It is
+  // what the reader finds on arriving, and it never starts with sound by itself.
+  it('opens on the welcome film: controls, no loop, muted, captions in the page language', async () => {
+    await render();
+    const video = container.querySelector('video')!;
+    expect(video.controls).toBe(true);
+    expect(video.loop).toBe(false);
+    expect(video.muted).toBe(true);
+    // Started by the observer once it is on screen, not by the markup: it is
+    // not downloaded for a visit that never scrolls down to it.
+    expect(video.autoplay).toBe(false);
+    expect(video.getAttribute('preload')).toBe('none');
+    expect(video.getAttribute('aria-label')).toBe('videos.bienvenida.alt');
+
+    const captions = video.querySelector('track')!;
+    expect(captions.getAttribute('kind')).toBe('captions');
+    expect(captions.getAttribute('src')).toBe('/demos/es/bienvenida.vtt');
+    expect(captions.getAttribute('srclang')).toBe('es');
+    expect(captions.hasAttribute('default')).toBe(true);
+
+    expect(container.textContent).toContain('videos.bienvenida.provenance');
+    expect(container.textContent).toContain('BT-V00 · VIDEOS.BIENVENIDA.TITLE');
+    expect(soundButton()).toBeDefined();
+    await pick('panel');
+    expect(soundButton()).toBeUndefined();
+    expect(container.textContent).toContain('videos.provenance');
+  });
+
+  it('starts the film over with sound from its button, and counts it once', async () => {
+    await render();
+    const video = container.querySelector('video')!;
+    const play = vi.spyOn(video, 'play').mockResolvedValue(undefined);
+    Object.defineProperty(video, 'currentTime', { value: 31, writable: true });
+
+    await act(async () => {
+      soundButton()!.click();
+    });
+    expect(video.currentTime).toBe(0);
+    expect(video.muted).toBe(false);
+    expect(play).toHaveBeenCalled();
+    expect(track).toHaveBeenCalledWith('demo_video_sound', { clip: WELCOME, via: 'button' });
+    expect(soundButton()).toBeUndefined();
+
+    // Playing with sound reports `play` and `volumechange`: still one count.
+    vi.spyOn(video, 'paused', 'get').mockReturnValue(false);
+    await act(async () => {
+      video.dispatchEvent(new Event('play'));
+      video.dispatchEvent(new Event('volumechange'));
+    });
+    expect(vi.mocked(track).mock.calls.filter(([event]) => event === 'demo_video_sound')).toHaveLength(1);
+
+    // Another tab and back: the film is muted from the top again, and so is its button.
+    await pick('panel');
+    await pick(WELCOME);
+    expect(container.querySelector('video')!.muted).toBe(true);
+    expect(soundButton()).toBeDefined();
+  });
+
+  it('counts the sound when the reader turns it on from the player controls', async () => {
+    await render();
+    const video = container.querySelector('video')!;
+    vi.spyOn(video, 'paused', 'get').mockReturnValue(false);
+    video.muted = false;
+    await act(async () => {
+      video.dispatchEvent(new Event('volumechange'));
+    });
+    expect(track).toHaveBeenCalledWith('demo_video_sound', { clip: WELCOME, via: 'controls' });
+    expect(soundButton()).toBeUndefined();
+  });
+
+  // Playing on screen and pausing off screen is what the loops do. The film
+  // also resumes when the screen is what paused it — but a reader who paused
+  // it, or watched it to the end, does not get it started again by scrolling.
+  it('plays the film on screen and pauses it off screen, without restarting it after the reader stopped it', async () => {
+    const observers: { callback: IntersectionObserverCallback; target?: Element }[] = [];
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        private entry: { callback: IntersectionObserverCallback; target?: Element };
+        constructor(callback: IntersectionObserverCallback) {
+          this.entry = { callback };
+          observers.push(this.entry);
+        }
+        observe(target: Element) { this.entry.target = target; }
+        unobserve() {}
+        disconnect() {}
+        takeRecords() { return []; }
+      },
+    );
+    let paused = true;
+    const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockImplementation(async () => { paused = false; });
+    const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => { paused = true; });
+    const pausedGetter = vi.spyOn(HTMLMediaElement.prototype, 'paused', 'get').mockImplementation(() => paused);
+    const onScreen = (visible: boolean) =>
+      act(() => {
+        const io = observers.filter((o) => o.target instanceof HTMLVideoElement).pop()!;
+        io.callback([{ isIntersecting: visible, target: io.target } as IntersectionObserverEntry], {} as IntersectionObserver);
+      });
+
+    try {
+      await render();
+      onScreen(true);
+      expect(play).toHaveBeenCalledTimes(1);
+      expect(container.querySelector('video')!.muted).toBe(true);
+      onScreen(false);
+      expect(pause).toHaveBeenCalledTimes(1);
+      onScreen(true);
+      expect(play).toHaveBeenCalledTimes(2);
+
+      paused = true; // the reader paused it, or it reached the end
+      onScreen(false);
+      onScreen(true);
+      expect(pause).toHaveBeenCalledTimes(1);
+      expect(play).toHaveBeenCalledTimes(2);
+    } finally {
+      play.mockRestore();
+      pause.mockRestore();
+      pausedGetter.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  // With reduced motion nothing starts by itself, so pressing play is the
+  // reader's own choice: the film plays with its voice.
+  it('leaves the film waiting, with sound, when the reader prefers reduced motion', async () => {
+    prefersReducedMotion = true;
+    await render();
+    const video = container.querySelector('video')!;
+    expect(video.autoplay).toBe(false);
+    expect(video.controls).toBe(true);
+    expect(video.muted).toBe(false);
+    expect(soundButton()).toBeDefined();
   });
 
   // "Lo que cambia" restated the modules in a section of its own; it now

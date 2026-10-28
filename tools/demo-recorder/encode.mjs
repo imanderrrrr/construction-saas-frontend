@@ -88,6 +88,10 @@ for (const file of files.sort()) {
 // person knows what these files are and how to make them again.
 if (only.length === 0) {
   const LANGS = [...new Set(encoded.map(c => c.lang))].sort();
+  const manifestPath = path.join(OUT_DIR, 'manifest.json');
+  // BT-V00 is not a recording, so this script does not make it
+  // (tools/welcome-video/encode.sh does): carry its block over as it is.
+  const previous = fs.existsSync(manifestPath) ? JSON.parse(fs.readFileSync(manifestPath, 'utf8')) : {};
   const manifest = {
     version: 3,
     recordedAt: new Date(Date.now() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 10),
@@ -104,6 +108,7 @@ if (only.length === 0) {
     playback: { autoplay: 'while on screen', loop: true, muted: true, playsInline: true },
     languages: LANGS,
     titles: 'src/i18n/locales/{es,en}/landing.json — videos.<key>.title',
+    welcome: previous.welcome,
     clips: ORDER.filter(k => encoded.some(c => c.key === k)).map(k => ({
       key: k,
       group: GROUP[k],
@@ -120,6 +125,6 @@ if (only.length === 0) {
       }).filter(([, v]) => v)),
     })),
   };
-  fs.writeFileSync(path.join(OUT_DIR, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
   console.log('✓ manifest.json');
 }
