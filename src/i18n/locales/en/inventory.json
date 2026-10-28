@@ -59,7 +59,6 @@
   "tools.dialog.reason": "Reason for change (optional)",
   "tools.dialog.cannotChangeAssigned": "This tool is currently <strong>Assigned</strong> and cannot be manually changed. Use the Return Tool function in Assignments.",
   "tools.dialog.moreCharsRequired": "{{count}} more characters required",
-
   "consumables.kpi.totalItems": "Total items",
   "consumables.kpi.inStock": "In Stock",
   "consumables.kpi.lowStock": "Low Stock",
@@ -126,7 +125,6 @@
   "consumables.dialog.dispatchHistoryError": "We couldn't load the dispatch history.",
   "consumables.dialog.requestedBy": "Requested By",
   "consumables.dialog.close": "Close",
-
   "dispatch.kpi.totalDispatches": "Total dispatches",
   "dispatch.kpi.unitsDispatched": "Units dispatched",
   "dispatch.kpi.activeProjects": "Active projects",
@@ -165,7 +163,6 @@
   "dispatch.dialog.notes": "Notes",
   "dispatch.dialog.notesPlaceholder": "Optional notes…",
   "dispatch.dialog.submit": "Dispatch",
-
   "assignment.title": "Tool Assignments",
   "assignment.subtitle": "Assign and return tools to workers",
   "assignment.assignTool": "Assign Tool",
@@ -242,7 +239,6 @@
   "assignment.dialog.photoEvidence": "Photo evidence",
   "assignment.dialog.comingSoon": "Coming soon",
   "assignment.dialog.selectCondition": "Select condition...",
-
   "warehouse.panelLabel": "Warehouse Panel",
   "warehouse.sidebar.version": "v1.0.0 · Phase 5",
   "warehouse.welcome": "Welcome back, {{username}}!",
@@ -295,7 +291,6 @@
   "warehouse.quickAccess.consumableStock.subtitle": "Manage supplies, stock levels and alerts",
   "warehouse.quickAccess.dispatchSupply.title": "Dispatch Supply",
   "warehouse.quickAccess.dispatchSupply.subtitle": "Dispatch consumables to active projects",
-
   "toast.toolRegistered": "Tool registered — {{code}} {{name}}",
   "toast.registerError": "Failed to register tool",
   "toast.toolUpdated": "Tool updated — {{code}}",
@@ -325,5 +320,15 @@
   "warehouse.kpi.reviewDamagedLost": "In review, damaged or lost",
   "warehouse.custodyBreakdown": "Awaiting acceptance: {{pending}} · Awaiting receipt: {{returns}} · In review: {{review}} · Damaged: {{damaged}} · Lost: {{lost}}",
   "dispatch.dialog.wholeQuantity": "Enter a whole number of the listed unit.",
-  "dispatch.dialog.notesLimit": "{{count}} / {{max}} characters maximum."
+  "dispatch.dialog.notesLimit": "{{count}} / {{max}} characters maximum.",
+  "consumables.intent.pending": "Outcome pending: {{quantity}} units. Confirm this movement before recording another. Its data and reference survive closing or reloading.",
+  "consumables.intent.confirmed": "Movement confirmed: {{quantity}} units. Start a new movement for a separate physical delivery.",
+  "consumables.intent.refused": "Movement refused. It was not applied. You can correct the data and start another.",
+  "consumables.intent.stockUnknown": "Stock unconfirmed. Retry the query before recording another movement.",
+  "consumables.intent.reconcile": "Check and confirm movement",
+  "consumables.intent.newRestock": "New physical receipt",
+  "consumables.intent.newDispatch": "New dispatch",
+  "consumables.intent.sessionChanged": "The session changed. Reopen the form.",
+  "consumables.intent.corrupt": "The pending movement could not be read. Keep this browser and request reconciliation.",
+  "consumables.intent.lockUnavailable": "This browser cannot protect the movement. Use an updated browser."
 }

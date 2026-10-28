@@ -1,5 +1,7 @@
+import { useWarehouseScope } from '../lib/useWarehouseScope';
 import { textPreview } from '../../shared/textPolicy';
 import { TextValue } from './tools/TextValue';
+import { intentSlot, newIntent, readIntent, sendIntent } from '../lib/warehouseIntent';
 import { ApiError } from '../lib/api';
 import { warehouseDate } from '../lib/warehouseDate';
 import { useScreenState } from '../workspace/WorkspaceState';
@@ -192,6 +194,7 @@ export function ConsumableDispatch() {
       loadData();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t('toast.dispatchError'));
+      loadData();
       throw error;
     }
   };
@@ -356,16 +359,24 @@ export function DispatchModal({
   ) => Promise<void>;
 }) {
   const { t } = useTranslation('inventory');
-  const [selectedConsumableId, setSelectedConsumableId] = useState('');
-  const [qty, setQty] = useState('');
-  const [projectId, setProjectId] = useState('');
-  const [budgetLineItemId, setBudgetLineItemId] = useState<number | null>(null);
-  const [workerId, setWorkerId] = useState('');
-  const [notes, setNotes] = useState('');
+  type Payload = Parameters<typeof onDispatch>;
+  const { scope, active } = useWarehouseScope();
+  const slot = intentSlot(scope, 'dispatch');
+  const [pending, setPending] = useState(() => readIntent<Payload>(slot));
+  useEffect(() => {
+    const sync = () => setPending(readIntent<Payload>(slot));
+    window.addEventListener('storage', sync);
+    return () => window.removeEventListener('storage', sync);
+  }, [slot]);
+  const [selectedConsumableId, setSelectedConsumableId] = useState(() => String(consumables.find(c => c.code === pending?.payload[0])?.id ?? ''));
+  const [qty, setQty] = useState(() => String(pending?.payload[3] ?? ''));
+  const [projectId, setProjectId] = useState(() => String(pending?.payload[4] ?? ''));
+  const [budgetLineItemId, setBudgetLineItemId] = useState<number | null>(pending?.payload[9] ?? null);
+  const [workerId, setWorkerId] = useState(() => String(pending?.payload[6] ?? ''));
+  const [notes, setNotes] = useState(pending?.payload[8] ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [noteError, setNoteError] = useState(false);
-  const intent = useRef<{ fingerprint: string; key: string } | null>(null);
 
   const selected = consumables.find(c => String(c.id) === selectedConsumableId);
   const selectedProject = projects.items.find(p => String(p.id) === projectId);
@@ -377,31 +388,34 @@ export function DispatchModal({
   const canSubmit = !busy && notes.length <= FIELD_LIMITS.NOTE && selected && Number.isSafeInteger(qtyNum) && qtyNum > 0 && qtyNum <= maxQty && selectedProject && !projectClosed && selectedWorker;
 
   const handleSubmit = async () => {
-    if (!canSubmit || !selected || !selectedProject || !selectedWorker) return;
-    const fingerprint = JSON.stringify([selected.id, qtyNum, selectedProject.id, selectedWorker.id, notes.trim(), budgetLineItemId]);
-    if (intent.current?.fingerprint !== fingerprint) intent.current = { fingerprint, key: crypto.randomUUID() };
+    if (busy || (!pending && (!canSubmit || !selected || !selectedProject || !selectedWorker))) return;
+    const payload: Payload = pending?.payload ?? [selected!.code, selected!.name, selected!.unit, qtyNum,
+      selectedProject!.id, selectedProject!.name, selectedWorker!.id,
+      selectedWorker!.fullName ?? selectedWorker!.username, notes.trim(), budgetLineItemId, ''];
     setBusy(true); setError(null); setNoteError(false);
     try {
-      await onDispatch(
-        selected.code,
-        selected.name,
-        selected.unit,
-        qtyNum,
-        selectedProject.id,
-        selectedProject.name,
-        selectedWorker.id,
-        selectedWorker.fullName ?? selectedWorker.username,
-        notes.trim(),
-        budgetLineItemId,
-        intent.current.key,
-      );
-      intent.current = null;
+      const resolved = await sendIntent(scope, 'dispatch', payload, async intent => {
+        const args: Payload = [...intent.payload];
+        args[10] = intent.key;
+        await onDispatch(...args);
+      });
+      setPending(resolved);
     } catch (err) {
-      if (err instanceof ApiError && err.status >= 400 && err.status < 500) intent.current = null;
+      setPending(readIntent<Payload>(slot));
       setNoteError(err instanceof ApiError && Boolean(err.details?.notes));
       setError(err instanceof Error ? err.message : t('toast.dispatchError'));
     } finally { setBusy(false); }
   };
+
+  async function startNew() {
+    if (!pending || busy) return;
+    setBusy(true); setError(null);
+    try { await newIntent(slot, pending.key); setPending(readIntent(slot)); setQty(''); }
+    catch (err) { setError(err instanceof Error ? err.message : t('toast.dispatchError')); }
+    finally { setBusy(false); }
+  }
+
+  if (!active) return <Dialog open={open} onOpenChange={() => onClose()}><DialogContent><DialogTitle>{t('consumables.intent.sessionChanged')}</DialogTitle></DialogContent></Dialog>;
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v && !busy) onClose(); }}>
@@ -411,7 +425,12 @@ export function DispatchModal({
           <DialogDescription id="dispatch-desc">{t('dispatch.dialog.description')}</DialogDescription>
         </DialogHeader>
         {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
-        <fieldset disabled={busy} className="space-y-4 py-2">
+        {pending && <div role="status" className="text-sm border p-3">
+          <p>{t(`consumables.intent.${pending.state}`, { quantity: pending.payload[3] })}</p>
+          <p>{pending.payload[0]} · {pending.payload[1]} · {pending.payload[5]} · {pending.payload[7]} · {pending.payload[8]}</p>
+          <p className="break-all text-xs">{pending.key}</p>
+        </div>}
+        <fieldset disabled={busy || !!pending} className="space-y-4 py-2">
           {/* Supply selector */}
           <div>
             <label className="font-bt-mono text-[11px] font-semibold text-[#8A8175] uppercase tracking-wide">{`${t('dispatch.dialog.supply')} *`}</label>
@@ -507,7 +526,9 @@ export function DispatchModal({
         </fieldset>
         <DialogFooter>
           <Button variant="outline" disabled={busy} onClick={onClose} className="rounded-none border-[#DBD0BB]">{t('buttons.cancel', { ns: 'common' })}</Button>
-          <Button disabled={!canSubmit} onClick={handleSubmit} className="rounded-none bg-[#0A0A0A] hover:bg-[#F97316] text-[#F5F1E8] hover:text-[#0A0A0A]">{t('dispatch.dialog.submit')}</Button>
+          {pending && pending.state !== 'pending'
+            ? <Button disabled={busy} onClick={startNew}>{t('consumables.intent.newDispatch')}</Button>
+            : <Button disabled={busy || (!pending && !canSubmit)} onClick={handleSubmit} className="rounded-none bg-[#0A0A0A] hover:bg-[#F97316] text-[#F5F1E8] hover:text-[#0A0A0A]">{t(pending ? 'consumables.intent.reconcile' : 'dispatch.dialog.submit')}</Button>}
         </DialogFooter>
       </DialogContent>
     </Dialog>

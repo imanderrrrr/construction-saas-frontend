@@ -1,3 +1,4 @@
+import '../lib/warehouseIntent.testing';
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi, type Mock } from 'vitest';
@@ -54,6 +55,26 @@ it('preserves the form and intention after a lost response and prevents duplicat
   expect(host.querySelector('input')?.value).toBe('2');
   expect(host.querySelector('[role=alert]')?.textContent).toBe('Respuesta perdida');
   const key=onDispatch.mock.calls[0][10];
-  click(submit()); await flush();
+  click(buttonByText(host,i18n.t('inventory:consumables.intent.reconcile'))!); await flush();
   expect(onDispatch.mock.calls[1][10]).toBe(key);
+});
+
+it('recovers the exact dispatch after unmount and allows a separate later dispatch with equal quantities', async () => {
+  onDispatch.mockRejectedValueOnce(new Error('lost after commit'));
+  type(host.querySelector('textarea')!, 'Entrega física');
+  click(submit()); await flush();
+  const original = onDispatch.mock.calls[0];
+  act(() => root.unmount()); root = createRoot(host);
+  await act(async () => root.render(<DispatchModal open onClose={vi.fn()} onDispatch={onDispatch}
+    consumables={[consumable({id:1, code:'CS', name:'Cemento', currentStock:8})]}
+    projects={{items:[{id:7,name:'Obra',status:'ACTIVE'}],total:1,truncated:false}}
+    workers={[{id:2,username:'ana',fullName:'Ana',role:'WORKER',status:'ACTIVE',updatedAt:''}]} />));
+  expect(host.querySelector('input')?.value).toBe('2');
+  expect(host.querySelector('textarea')?.value).toBe('Entrega física');
+  click(buttonByText(host,i18n.t('inventory:consumables.intent.reconcile'))!); await flush();
+  expect(onDispatch.mock.calls[1]).toEqual(original);
+  click(buttonByText(host,i18n.t('inventory:consumables.intent.newDispatch'))!); await flush();
+  type(host.querySelector('input')!, '2'); click(submit()); await flush();
+  expect(onDispatch.mock.calls[2][10]).not.toBe(original[10]);
+  expect(onDispatch.mock.calls[2].slice(0,10)).toEqual(original.slice(0,10));
 });

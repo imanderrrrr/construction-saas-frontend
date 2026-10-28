@@ -524,7 +524,7 @@ export function ToolsSection({ onNavigate, mode = 'admin', view }: {
       {warehouseConsumable && <ConsumableWarehouseWindow
         key={warehouseConsumable.id}
         consumable={warehouseConsumable}
-        onClose={() => setWarehouseConsumable(null)}
+        onClose={() => { setWarehouseConsumable(null); setReloadNonce(n => n + 1); fetchSummaries(); }}
         onSaved={saved => {
           setWarehouseConsumable(saved);
           setConsumables(prev => prev.map(c => c.id === saved.id ? saved : c));

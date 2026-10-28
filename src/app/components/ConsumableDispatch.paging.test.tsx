@@ -1,3 +1,4 @@
+import '../lib/warehouseIntent.testing';
 // AUD-055 — the dispatch screen asked for 500 rows, got the newest 100 (the
 // server's cap) and computed its KPIs, pages and "of N" from them; its project
 // picker read one page of 100 projects. With 230 dispatches and 230 projects,

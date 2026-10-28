@@ -1,6 +1,7 @@
 // OFJR Construction — HTTP API Client
 // Single fetch wrapper: baseURL from env, HttpOnly cookie auth, CSRF protection.
 
+import { retireWarehouseSession } from './warehouseSession';
 import { refreshSession } from './refresh-coordinator';
 import i18n from '../../i18n';
 import { getPasswordChangeRequired, setPasswordChangeRequired } from './passwordChangeState';
@@ -37,6 +38,7 @@ export function isAuthenticated(): boolean { return getSessionMeta() !== null; }
 
 /** Clear the client-readable session cookie (HttpOnly cookies are cleared by the server). */
 export function clearSessionCookie(): void {
+  retireWarehouseSession();
   document.cookie = 'ofjr_session=; Path=/; Max-Age=0';
 }
 
