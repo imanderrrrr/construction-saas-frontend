@@ -14,7 +14,7 @@ vi.mock('./ui/dialog', () => {
 });
 vi.mock('./budgets/wbs/BudgetLineItemSelector', () => ({BudgetLineItemSelector: () => null}));
 import i18n from '../../i18n';
-import { ApiError, clearSessionCookie } from '../lib/api';
+import { ApiError, clearSessionCookie, NoResponseError } from '../lib/api';
 import { beginWarehouseSession } from '../lib/warehouseSession';
 import { DispatchModal } from './ConsumableDispatch';
 import { buttonByText, click, consumable, flush, select, type } from './tools/testing';
@@ -76,7 +76,9 @@ it('recovers the exact dispatch after unmount and allows a separate later dispat
   click(buttonByText(host,i18n.t('inventory:consumables.intent.reconcile'))!); await flush();
   expect(onDispatch.mock.calls[1]).toEqual(original);
   click(buttonByText(host,i18n.t('inventory:consumables.intent.newDispatch'))!); await flush();
-  type(host.querySelector('input')!, '2'); click(submit()); await flush();
+  const fields=host.querySelectorAll('select');
+  select(fields[0], '1'); select(fields[1], '7'); select(fields[2], '2');
+  type(host.querySelector('input')!, '2'); type(host.querySelector('textarea')!, 'Entrega física'); click(submit()); await flush();
   expect(onDispatch.mock.calls[2][10]).not.toBe(original[10]);
   expect(onDispatch.mock.calls[2].slice(0,10)).toEqual(original.slice(0,10));
 });
@@ -116,8 +118,30 @@ it('frees the dialog when the retry of an unknown dispatch is refused for lack o
   click(buttonByText(host,i18n.t('inventory:consumables.intent.reconcile'))!); await flush();
   expect(host.textContent).toContain(i18n.t('inventory:consumables.intent.refused'));
   click(buttonByText(host,i18n.t('inventory:consumables.intent.newDispatch'))!); await flush();
+  const fields=host.querySelectorAll('select');
+  select(fields[0], '1'); select(fields[1], '7'); select(fields[2], '2');
   type(host.querySelector('input[type=number]')!, '1'); click(submit()); await flush();
   expect(onDispatch).toHaveBeenCalledTimes(3);
   expect(onDispatch.mock.calls[2][3]).toBe(1);
   expect(onDispatch.mock.calls[2][10]).not.toBe(onDispatch.mock.calls[0][10]);
+});
+
+// D7 (audit 2026-10-28): "New dispatch" kept the previous supply, project,
+// requester and budget line, so the next delivery could go to the wrong place.
+it('starts a new dispatch with an empty form', async () => {
+  type(host.querySelector('textarea')!, 'Losa');
+  click(submit()); await flush();
+  click(buttonByText(host,i18n.t('inventory:consumables.intent.newDispatch'))!); await flush();
+  expect(Array.from(host.querySelectorAll('select')).map(s => s.value)).toEqual(['', '', '']);
+  expect(host.querySelector<HTMLInputElement>('input[type=number]')!.value).toBe('');
+  expect(host.querySelector('textarea')!.value).toBe('');
+  expect(submit().disabled).toBe(true);
+});
+
+// D6 (audit 2026-10-28): with the network down the dialog showed the browser's
+// own English words ("Failed to fetch").
+it('says the connection failed in the reader\'s language', async () => {
+  onDispatch.mockRejectedValueOnce(new NoResponseError(false, new TypeError('Failed to fetch')));
+  click(submit()); await flush();
+  expect(host.querySelector('[role=alert]')?.textContent).toBe(i18n.t('common:error.network'));
 });

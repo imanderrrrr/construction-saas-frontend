@@ -13,6 +13,7 @@ const svc = vi.hoisted(() => ({
   getAssignmentLog: vi.fn(),
   getAssignmentSummary: vi.fn(),
   assignTool: vi.fn(),
+  returnTool: vi.fn(),
   listTools: vi.fn(),
   getWorkerProjects: vi.fn(),
 }));
@@ -51,7 +52,9 @@ vi.mock('./ui/dialog', () => ({
   DialogFooter: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
 }));
 
+import { toast } from 'sonner';
 import i18n from '../../i18n';
+import { ApiError } from '../lib/api';
 import { ToolAssignment } from './ToolAssignment';
 import { buttonByText, click, flush, page, select, tool, type } from './tools/testing';
 
@@ -191,5 +194,88 @@ describe('ToolAssignment — available tools beyond the first page', () => {
     expect(option('T-0229')).toBeDefined();
     expect(option('T-0100')).toBeUndefined();
     expect(shown()).toBe(i18n.t('inventory:assignment.dialog.toolsShown', { shown: 1, total: 1 }));
+  });
+});
+
+// D4 (audit 2026-10-28): a refused assignment or receipt hid the server's reason
+// behind "try again", left the stale row on screen, and a double click sent the
+// request twice.
+describe('ToolAssignment — refused assignments and receipts', () => {
+  let container: HTMLDivElement;
+  let root: Root;
+  const ACTIVE = { id: 14, toolCode: 'LC-1', toolName: 'Taladro', category: 'Power Tools', status: 'PENDING_ACCEPTANCE',
+    worker: 'Ana', workerId: 9, assignedDate: '2026-10-28', project: 'Obra Norte', projectId: 5, daysOut: 0 };
+
+  beforeAll(async () => { await i18n.changeLanguage('es'); });
+  beforeEach(() => {
+    vi.clearAllMocks();
+    svc.getActiveAssignments.mockResolvedValue([ACTIVE]);
+    svc.getAssignmentLog.mockResolvedValue(page([]));
+    svc.getAssignmentSummary.mockResolvedValue({ activeAssignments: 1, assignedToday: 0, returnedToday: 0 });
+    svc.listTools.mockImplementation(async (params?: { search?: string; page?: number; size?: number }) => serve(params));
+    svc.getWorkerProjects.mockResolvedValue([{ id: 5, name: 'Obra Norte' }]);
+    users.listActiveUsers.mockResolvedValue([{ id: 9, username: 'pedro', fullName: 'Pedro', role: 'WORKER', status: 'ACTIVE' }]);
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+  afterEach(() => { act(() => root.unmount()); container.remove(); });
+
+  const dialog = () => document.body.querySelector('[role="dialog"]')!;
+  const confirmReturn = () => buttonByText(dialog(), i18n.t('inventory:assignment.dialog.confirmReturn'))!;
+
+  async function openReturn() {
+    await act(async () => { root.render(<ToolAssignment />); });
+    await flush();
+    click(buttonByText(container, i18n.t('inventory:assignment.dialog.return')));
+    await flush();
+    const [toolSelect, condition] = Array.from(dialog().querySelectorAll('select'));
+    select(toolSelect, '14');
+    select(condition, 'Good');
+    await flush();
+  }
+
+  it('shows why the server refused a receipt and reloads the stale list', async () => {
+    svc.returnTool.mockRejectedValue(new ApiError(409, 'La herramienta LC-1 no está asignada.', undefined, 'TOOL_NOT_ASSIGNED'));
+    await openReturn();
+    const loads = svc.getActiveAssignments.mock.calls.length;
+    svc.getActiveAssignments.mockResolvedValue([]);
+    click(confirmReturn());
+    await flush();
+
+    expect(toast.error).toHaveBeenCalledWith('La herramienta LC-1 no está asignada.');
+    expect(svc.getActiveAssignments.mock.calls.length).toBe(loads + 1);
+  });
+
+  it('sends a receipt once however many times it is clicked', async () => {
+    let finish!: () => void;
+    svc.returnTool.mockImplementation(() => new Promise<void>(resolve => { finish = resolve; }));
+    await openReturn();
+    click(confirmReturn());
+    click(confirmReturn());
+    await flush();
+    expect(confirmReturn().disabled).toBe(true);
+    await act(async () => finish());
+    await flush();
+    expect(svc.returnTool).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows why the server refused an assignment and does not reload on a validation refusal', async () => {
+    svc.assignTool.mockRejectedValue(new ApiError(400, 'El trabajador no está asignado a esta obra.', undefined, 'WORKER_NOT_ASSIGNED_TO_PROJECT'));
+    await act(async () => { root.render(<ToolAssignment />); });
+    await flush();
+    click(buttonByText(container, i18n.t('inventory:assignment.assignTool')));
+    await flush();
+    click(Array.from(dialog().querySelectorAll('[role="option"]')).find(o => o.textContent?.startsWith('T-0001')));
+    const [worker] = Array.from(dialog().querySelectorAll('select'));
+    select(worker, '9'); await flush();
+    const [, project] = Array.from(dialog().querySelectorAll('select'));
+    select(project, '5'); await flush();
+    const loads = svc.getActiveAssignments.mock.calls.length;
+    click(buttonByText(dialog(), i18n.t('inventory:assignment.assignTool')));
+    await flush();
+
+    expect(toast.error).toHaveBeenCalledWith('El trabajador no está asignado a esta obra.');
+    expect(svc.getActiveAssignments.mock.calls.length).toBe(loads);
   });
 });

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../ui/utils';
+import { ApiError } from '../../lib/api';
 import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 import { changedFields, textTooLong } from '../../../shared/textPolicy';
 import { createTool, getAdminTools, updateTool, type ToolResponse } from '../../services/warehouse';
@@ -104,9 +105,10 @@ export function ToolFormModal({ open, onOpenChange, tool, onSaved }: {
       onSaved(saved, editing ? 'edit' : 'create');
       onOpenChange(false);
     } catch (err) {
-      // A duplicate code is the one failure the server alone can decide.
-      const message = err instanceof Error ? err.message : '';
-      if (/code/i.test(message) && /exist/i.test(message)) setErrors({ code: t('tools:form.code.taken') });
+      // A duplicate code is the one failure the server alone can decide: its
+      // per-company unique index answers 409 TOOL_CODE_EXISTS, also when the
+      // check on blur missed it or another tab registered it meanwhile.
+      if (err instanceof ApiError && err.code === 'TOOL_CODE_EXISTS') setErrors({ code: t('tools:form.code.taken') });
       else setErrors({ server: t('tools:form.err.server') });
     } finally {
       setSaving(false);

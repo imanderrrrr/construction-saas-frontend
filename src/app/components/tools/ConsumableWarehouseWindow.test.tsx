@@ -14,7 +14,7 @@ vi.mock('../../services/warehouse', async (importOriginal) => ({
 }));
 
 import i18n from '../../../i18n';
-import { ApiError } from '../../lib/api';
+import { ApiError, NoResponseError } from '../../lib/api';
 import { ConsumableWarehouseWindow } from './ConsumableWarehouseWindow';
 import { buttonByText, click, consumable, flush, type } from './testing';
 
@@ -142,6 +142,13 @@ describe('ConsumableWarehouseWindow restock', () => {
     type(input(), '3'); click(restockButton()); await flush();
     expect(svc.restockConsumable).toHaveBeenCalledTimes(3);
     expect(svc.restockConsumable.mock.calls[2][2]).not.toBe(svc.restockConsumable.mock.calls[0][2]);
+  });
+
+  // D6 (audit 2026-10-28): the browser's own English words, not the reader's language.
+  it('says the connection failed in the reader\'s language', async () => {
+    svc.restockConsumable.mockRejectedValueOnce(new NoResponseError(true, new DOMException('signal is aborted without reason', 'AbortError')));
+    await mount(); type(input(), '5'); click(restockButton()); await flush();
+    expect(document.body.querySelector('[role="alert"]')?.textContent).toBe(i18n.t('common:error.network'));
   });
 
   it('hides the old account intention when another tab changes the login', async () => {

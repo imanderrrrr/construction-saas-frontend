@@ -3,6 +3,7 @@ import { textPreview } from '../../shared/textPolicy';
 import { TextValue } from './tools/TextValue';
 import { intentSlot, newIntent, readIntent, sendIntent } from '../lib/warehouseIntent';
 import { ApiError } from '../lib/api';
+import { warehouseErrorText } from '../lib/warehouseErrorText';
 import { warehouseDate } from '../lib/warehouseDate';
 import { useScreenState } from '../workspace/WorkspaceState';
 import { money } from './budgets/bits';
@@ -193,7 +194,7 @@ export function ConsumableDispatch() {
       toast.success(t('inventory:toast.dispatched', 'Dispatched {{quantity}} {{unit}} of {{name}} → {{project}}', { quantity: res.quantity, unit: res.unit, name: res.consumableName, project: res.project }));
       loadData();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : t('toast.dispatchError'));
+      toast.error(warehouseErrorText(error, t('toast.dispatchError')));
       loadData();
       throw error;
     }
@@ -403,15 +404,20 @@ export function DispatchModal({
     } catch (err) {
       setPending(readIntent<Payload>(slot));
       setNoteError(err instanceof ApiError && Boolean(err.details?.notes));
-      setError(err instanceof Error ? err.message : t('toast.dispatchError'));
+      setError(warehouseErrorText(err, t('toast.dispatchError')));
     } finally { setBusy(false); }
   };
 
   async function startNew() {
     if (!pending || busy) return;
     setBusy(true); setError(null);
-    try { await newIntent(slot, pending.key); setPending(readIntent(slot)); setQty(''); }
-    catch (err) { setError(err instanceof Error ? err.message : t('toast.dispatchError')); }
+    try {
+      await newIntent(slot, pending.key); setPending(readIntent(slot));
+      // A separate delivery is chosen afresh (D7): carrying over the last
+      // supply, project and requester sent the next one to the wrong place.
+      setSelectedConsumableId(''); setQty(''); setProjectId(''); setBudgetLineItemId(null); setWorkerId(''); setNotes('');
+    }
+    catch (err) { setError(warehouseErrorText(err, t('toast.dispatchError'))); }
     finally { setBusy(false); }
   }
 

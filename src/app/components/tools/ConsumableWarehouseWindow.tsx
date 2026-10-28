@@ -7,6 +7,7 @@ import { money } from '../budgets/bits';
 import { useTranslation } from 'react-i18next';
 import { getConsumableDispatches, listConsumables, restockConsumable, type ConsumableResponse, type DispatchResponse } from '../../services/warehouse';
 import { intentSlot, newIntent, readIntent, sendIntent } from '../../lib/warehouseIntent';
+import { warehouseErrorText } from '../../lib/warehouseErrorText';
 import { BtModal } from '../bt/windows';
 import { PrimaryButton, SecondaryButton } from '../onboarding/chrome';
 import { Bone, FieldLabel, INPUT, Mono, PaperNote } from '../projects/bt';
@@ -75,7 +76,7 @@ export function ConsumableWarehouseWindow({ consumable, onClose, onSaved, onEdit
       await refreshStock();
     } catch (err) {
       setPending(readIntent<{ quantity: number }>(slot));
-      setError(err instanceof Error ? err.message : t('common:error.generic'));
+      setError(warehouseErrorText(err, t('common:error.generic')));
       void refreshStock();
     } finally { setBusy(false); }
   }
