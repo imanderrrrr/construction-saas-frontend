@@ -9,3 +9,8 @@ export function changedFields<T extends object>(current: T, original: Partial<T>
 export function textTooLong(value: string, max: number, original?: string | null): boolean {
   return value !== original && value.length > max;
 }
+
+/** Display preview only; never use it to alter a payload or stored text. */
+export function textPreview(value: string, max = 25): string {
+  return value.length <= max ? value : `${value.slice(0, max).replace(/[\uD800-\uDBFF]$/u, '')}…`;
+}

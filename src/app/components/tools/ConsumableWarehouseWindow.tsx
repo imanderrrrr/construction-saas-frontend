@@ -1,3 +1,5 @@
+import { textPreview } from '../../../shared/textPolicy';
+import { TextValue } from './TextValue';
 import { warehouseDate } from '../../lib/warehouseDate';
 import { useEffect, useRef, useState } from 'react';
 import { money } from '../budgets/bits';
@@ -56,13 +58,14 @@ export function ConsumableWarehouseWindow({ consumable, onClose, onSaved, onEdit
   }
 
   return <BtModal open onOpenChange={open => { if (!open && !busy) onClose(); }} width={720}
-    closeDisabled={busy} kicker={consumable.code} title={consumable.name}
+    closeDisabled={busy} kicker={consumable.code} title={textPreview(consumable.name)}
     footer={<>
       <SecondaryButton onClick={onEdit} disabled={busy}>{t('consumables.editItem')}</SecondaryButton>
       <SecondaryButton onClick={onMinimum} disabled={busy}>{t('tools:table.minimum')}</SecondaryButton>
       <SecondaryButton onClick={onClose} disabled={busy}>{t('common:buttons.close')}</SecondaryButton>
     </>}>
-    <PaperNote>{t('consumables.dialog.currentStockInfo', { name: consumable.name, stock: consumable.currentStock, unit: consumable.unit })}</PaperNote>
+    {consumable.name.length > 25 && <TextValue value={consumable.name} className="mb-3 text-sm" />}
+    <PaperNote>{t('consumables.dialog.currentStockInfo', { name: textPreview(consumable.name), stock: consumable.currentStock, unit: consumable.unit })}</PaperNote>
     <div className="flex flex-wrap items-end gap-3 mt-4">
       <div className="flex-1 min-w-0">
         <FieldLabel htmlFor="warehouse-restock">{t('consumables.dialog.quantityToAdd')}</FieldLabel>
@@ -76,9 +79,9 @@ export function ConsumableWarehouseWindow({ consumable, onClose, onSaved, onEdit
       {historyError ? <PaperNote tone="red">{t('consumables.dialog.dispatchHistoryError')} <SecondaryButton onClick={() => { setHistoryError(false); setReload(n => n + 1); }}>{t('common:buttons.retry')}</SecondaryButton></PaperNote>
         : history == null ? <Bone className="h-16" />
         : history.length === 0 ? <p className="text-sm text-[#8A8175]">{t('consumables.dialog.noDispatchRecords')}</p>
-        : <ul className="divide-y divide-[#E7E1D5]">{history.map(row => <li key={row.id} className="py-3 flex items-start justify-between gap-3">
+        : <ul className="divide-y divide-[#E7E1D5]">{history.map(row => <li key={row.id} className="py-3 flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0"><p className="text-sm font-semibold">{row.project}</p><Mono className="block text-[10px] text-[#8A8175] mt-1">{warehouseDate(row.date)} · {row.requestedBy}</Mono>{row.notes && <p className="text-sm text-[#5A5346] mt-1">{row.notes}</p>}</div>
-          <Mono className="text-sm shrink-0">{row.quantity} {row.unit}<span className="block text-xs text-[#8A8175] mt-1">{money((row.totalCostCents ?? 0) / 100)}</span></Mono>
+          <Mono className="text-sm max-w-full [overflow-wrap:anywhere]">{row.quantity} {row.unit}<span className="block text-xs text-[#8A8175] mt-1">{money((row.totalCostCents ?? 0) / 100)}</span></Mono>
         </li>)}</ul>}
     </section>
   </BtModal>;

@@ -64,6 +64,7 @@ export function ConsumableFormModal({ open, onOpenChange, onSaved, consumable = 
     if (!name.trim()) next.name = t('tools:consumable.err.name');
     else if (textTooLong(name, FIELD_LIMITS.WAREHOUSE_NAME, consumable?.name)) next.name = t('tools:name.tooLong', { max: FIELD_LIMITS.WAREHOUSE_NAME });
     if (textTooLong(notes, FIELD_LIMITS.NOTE, consumable?.notes ?? '')) next.server = t('common:validation.maxLength', { max: FIELD_LIMITS.NOTE });
+    if (textTooLong(category, FIELD_LIMITS.SHORT_NAME, consumable?.category)) next.server = t('common:validation.maxLength', { max: FIELD_LIMITS.SHORT_NAME });
     if (!unit.trim()) next.unit = t('tools:consumable.err.unit');
     if (moneyInputCents(unitCost) == null) next.numbers = t('inventory:consumables.dialog.invalidCost');
     if (!Number.isSafeInteger(stockNumber) || !Number.isSafeInteger(minimumNumber) || stockNumber < 0 || minimumNumber < 0) next.numbers = t('tools:consumable.err.negative');
@@ -137,6 +138,7 @@ export function ConsumableFormModal({ open, onOpenChange, onSaved, consumable = 
       {(warehouse || consumable) && <div className="mt-[14px]">
         <FieldLabel htmlFor="cs-category">{t('inventory:consumables.dialog.category')}</FieldLabel>
         <input id="cs-category" value={category} onChange={e => setCategory(e.target.value)} maxLength={FIELD_LIMITS.SHORT_NAME} className={INPUT} />
+        <FieldHint>{t('tools:name.limitHint', { count: category.length, max: FIELD_LIMITS.SHORT_NAME })}</FieldHint>
       </div>}
       {warehouse && <div className="mt-[14px]">
         <FieldLabel htmlFor="cs-notes">{t('inventory:consumables.dialog.notes')}</FieldLabel>

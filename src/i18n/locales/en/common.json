@@ -190,5 +190,10 @@
   "dialog.description": "Form details",
   "validation.maxLength": "Use at most {{max}} characters.",
   "validation.textPolicy": "Names: 25 characters. Descriptions and notes: 50.",
-  "validation.historicalValue": "Historical value. You can keep it; changes must meet the current limit."
+  "validation.historicalValue": "Historical value. You can keep it; changes must meet the current limit.",
+  "pagination.label": "Pagination",
+  "pagination.page": "Page",
+  "pagination.go": "Go",
+  "text.showFull": "Show full text",
+  "text.full": "Full text"
 }

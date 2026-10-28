@@ -190,5 +190,10 @@
   "dialog.description": "Detalles del formulario",
   "validation.maxLength": "Admite hasta {{max}} caracteres.",
   "validation.textPolicy": "Nombres: 25 caracteres. Descripciones y notas: 50.",
-  "validation.historicalValue": "Valor histórico. Puedes conservarlo; si lo cambias, aplica el límite actual."
+  "validation.historicalValue": "Valor histórico. Puedes conservarlo; si lo cambias, aplica el límite actual.",
+  "pagination.label": "Paginación",
+  "pagination.page": "Página",
+  "pagination.go": "Ir",
+  "text.showFull": "Ver completo",
+  "text.full": "Texto completo"
 }

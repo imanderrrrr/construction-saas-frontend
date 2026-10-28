@@ -1,3 +1,5 @@
+import { TextValue } from './tools/TextValue';
+import { RecordPagination } from './ui/record-pagination';
 import { actionName } from './tools/bits';
 import { warehouseDate } from '../lib/warehouseDate';
 import { useScreenState } from '../workspace/WorkspaceState';
@@ -79,23 +81,6 @@ function ActionBadge({ action }: { action: HistoryAction }) {
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full font-bt-mono text-[11px] font-semibold border whitespace-nowrap ${cfg[action] ?? 'bg-[#FAF7F0] text-[#8A8175] border-[#DBD0BB]'}`}>
       {actionName(t, action)}
     </span>
-  );
-}
-
-function Pagination({ current, total, onPage }: { current: number; total: number; onPage: (p: number) => void }) {
-  const { t } = useTranslation('common');
-  if (total <= 1) return null;
-  return (
-    <div className="flex items-center justify-center gap-1 py-6">
-      <button onClick={() => onPage(current - 1)} disabled={current === 1}
-        className="h-8 px-3 font-bt-mono text-xs font-medium text-[#8A8175] hover:text-amber-700 hover:bg-amber-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">{t('buttons.prev')}</button>
-      {Array.from({ length: total }, (_, i) => i + 1).map(p => (
-        <button key={p} onClick={() => onPage(p)}
-          className={`h-8 w-8 text-xs font-semibold transition-colors ${p === current ? 'bg-amber-500 text-white' : 'text-[#8A8175] hover:bg-amber-50 hover:text-amber-700'}`}>{p}</button>
-      ))}
-      <button onClick={() => onPage(current + 1)} disabled={current === total}
-        className="h-8 px-3 font-bt-mono text-xs font-medium text-[#8A8175] hover:text-amber-700 hover:bg-amber-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">{t('buttons.next')}</button>
-    </div>
   );
 }
 
@@ -189,7 +174,7 @@ export function ToolHistory() {
 
   // Render
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 min-w-0 w-full max-w-4xl [overflow-wrap:anywhere]">
 
       {/* Header */}
       <SectionHeader kicker={t('warehouse.panelLabel')} title={t('tools.history.title')} description={t('tools.history.fullSubtitle')} />
@@ -202,7 +187,7 @@ export function ToolHistory() {
         </div>
         <div className="flex flex-wrap items-end gap-3">
           {/* Tool */}
-          <div className="flex flex-col gap-1.5 min-w-[180px]">
+          <div className="flex flex-col gap-1.5 min-w-0 w-full sm:w-[220px]">
             <label className="font-bt-mono text-[11px] font-semibold text-[#8A8175] uppercase tracking-wide">{t('assignment.table.tool')}</label>
             <Select value={toolFilter} onValueChange={setToolFilter}>
               <SelectTrigger className="rounded-none h-9 border-[#DBD0BB] text-sm"><SelectValue placeholder={t('tools.history.allTools')} /></SelectTrigger>
@@ -218,7 +203,7 @@ export function ToolHistory() {
             <CatalogNote shown={toolOptions.items.length} total={toolOptions.total} truncated={toolOptions.truncated} />
           </div>
           {/* Action */}
-          <div className="flex flex-col gap-1.5 min-w-[155px]">
+          <div className="flex flex-col gap-1.5 min-w-0 w-full sm:w-[180px]">
             <label className="font-bt-mono text-[11px] font-semibold text-[#8A8175] uppercase tracking-wide">{t('tools.history.action')}</label>
             <Select value={actionFilter} onValueChange={setActionFilter}>
               <SelectTrigger className="rounded-none h-9 border-[#DBD0BB] text-sm"><SelectValue placeholder={t('tools.history.allActions')} /></SelectTrigger>
@@ -229,7 +214,7 @@ export function ToolHistory() {
             </Select>
           </div>
           {/* Worker */}
-          <div className="flex flex-col gap-1.5 min-w-[155px]">
+          <div className="flex flex-col gap-1.5 min-w-0 w-full sm:w-[180px]">
             <label className="font-bt-mono text-[11px] font-semibold text-[#8A8175] uppercase tracking-wide">{t('tools.history.worker')}</label>
             <Select value={workerFilter} onValueChange={setWorkerFilter}>
               <SelectTrigger className="rounded-none h-9 border-[#DBD0BB] text-sm"><SelectValue placeholder={t('tools.history.allWorkers')} /></SelectTrigger>
@@ -293,16 +278,16 @@ export function ToolHistory() {
               </div>
 
               {/* Content card */}
-              <div className="flex-1 pb-3">
+              <div className="flex-1 min-w-0 pb-3">
                 <div className="bg-white border border-[#DBD0BB] p-4 hover:border-amber-200 hover:shadow-sm transition-all">
 
                   {/* Top row: badge + tool + time */}
                   <div className="flex items-start justify-between gap-3 flex-wrap mb-2">
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex min-w-0 max-w-full items-center gap-2 flex-wrap">
                       <ActionBadge action={entry.action} />
                       <span className="font-bt-mono text-xs font-bold text-[#0A0A0A]">{entry.toolCode}</span>
                       <span className="text-xs text-[#8A8175]">—</span>
-                      <span className="font-bt-mono text-xs font-medium text-[#0A0A0A]">{entry.toolName}</span>
+                      <TextValue value={entry.toolName} className="w-full font-bt-mono text-xs font-medium text-[#0A0A0A]" />
                     </div>
                     <span className="text-[11px] text-[#8A8175] flex-shrink-0 whitespace-nowrap">
                       {fmtDate(entry.date)} · {entry.time}
@@ -314,7 +299,7 @@ export function ToolHistory() {
                     <div className="flex items-center gap-2 text-xs mb-1.5 flex-wrap">
                       <div className="w-5 h-5 bg-[#F97316]/10 rounded-full flex items-center justify-center flex-shrink-0">
                         <span className="text-[8px] font-bold text-[#F97316]">
-                          {entry.worker.split(' ').map(w => w[0]).join('')}
+                          {entry.worker.trim().split(/\s+/).slice(0, 2).map(w => Array.from(w)[0]).join('')}
                         </span>
                       </div>
                       <span className="font-medium text-[#0A0A0A]">{entry.worker}</span>
@@ -338,7 +323,7 @@ export function ToolHistory() {
         })}
       </div>
 
-      <Pagination current={currentPage} total={totalPages} onPage={p => { setCurrentPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />
+      <RecordPagination current={currentPage} total={totalPages} onPage={p => { setCurrentPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />
     </div>
   );
 }

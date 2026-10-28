@@ -62,7 +62,7 @@ export function CreateButton({ className, type = 'button', ...rest }: ButtonHTML
     <button
       type={type}
       className={cn(
-        'inline-flex items-center justify-center gap-2 bg-[#0A0A0A] text-[#F5F1E8] hover:bg-[#F97316] hover:text-[#0A0A0A] font-bt-mono text-[11.5px] font-semibold uppercase tracking-[0.09em] whitespace-nowrap px-4 py-3 transition-colors disabled:opacity-50 disabled:pointer-events-none',
+        'inline-flex items-center justify-center gap-2 bg-[#0A0A0A] text-[#F5F1E8] hover:bg-[#F97316] hover:text-[#0A0A0A] font-bt-mono text-[11.5px] font-semibold uppercase tracking-[0.09em] min-w-0 max-w-full whitespace-normal [overflow-wrap:anywhere] px-4 py-3 transition-colors disabled:opacity-50 disabled:pointer-events-none',
         FOCUS_RING,
         className,
       )}

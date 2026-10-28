@@ -25,9 +25,9 @@ function ToolCard({ tool }: { tool: AssignmentResponse }) {
       <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
         <div className="min-w-0 flex-1">
           <p className="text-[11px] font-mono text-[#71717A]">{tool.toolCode}</p>
-          <TextValue value={tool.toolName} className="text-sm font-semibold text-[#0A0A0A] mt-0.5 truncate" />
+          <TextValue value={tool.toolName} className="text-sm font-semibold text-[#0A0A0A] mt-0.5 " />
         </div>
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-emerald-50 text-emerald-700 border-emerald-200 whitespace-nowrap flex-shrink-0">
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-emerald-50 text-emerald-700 border-emerald-200 max-w-full whitespace-normal [overflow-wrap:anywhere]">
           {categoryName(t, tool.category)}
         </span>
       </div>
@@ -40,7 +40,7 @@ function ToolCard({ tool }: { tool: AssignmentResponse }) {
         </div>
         <div>
           <p className="text-[10px] font-semibold text-[#71717A] uppercase tracking-wide mb-0.5">{t('tools.project')}</p>
-          <p className="text-xs text-[#0A0A0A] font-medium truncate">{tool.project}</p>
+          <p className="text-xs text-[#0A0A0A] font-medium [overflow-wrap:anywhere]">{tool.project}</p>
         </div>
         <div>
           <p className="text-[10px] font-semibold text-[#71717A] uppercase tracking-wide mb-0.5">{t('tools.daysHeld')}</p>

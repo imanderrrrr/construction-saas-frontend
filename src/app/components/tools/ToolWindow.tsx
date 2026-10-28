@@ -1,3 +1,5 @@
+import { textPreview } from '../../../shared/textPolicy';
+import { TextValue } from './TextValue';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../ui/utils';
@@ -63,7 +65,7 @@ export function ToolWindow({ open, onOpenChange, tool, lang, keepers, onGoUsers,
       onOpenChange={onOpenChange}
       width={1152}
       kicker={t('tools:detail.kicker', { category: categoryName(t, tool.category).toLowerCase() })}
-      title={tool.name}
+      title={textPreview(tool.name)}
       bodyClassName="px-0 md:px-0 py-0"
       footer={
         <>
@@ -82,6 +84,7 @@ export function ToolWindow({ open, onOpenChange, tool, lang, keepers, onGoUsers,
         </>
       }
     >
+      {tool.name.length > 25 && <TextValue value={tool.name} className="px-5 pt-3 text-sm" />}
       <div className="flex flex-col lg:flex-row">
         {/* The history */}
         <div className="flex-1 min-w-0 px-5 py-5 md:px-[22px]">

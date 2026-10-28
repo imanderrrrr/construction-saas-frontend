@@ -189,3 +189,29 @@
     line-height: 1.5;
   }
 }
+/* Text from historical records and external services must not set a pane's
+   minimum width. Utilities may still opt into deliberate table/diagram widths. */
+@layer base {
+  body { overflow-wrap: anywhere; }
+  :where(main, section, article, aside, header, footer, nav, form, fieldset, div, li, details) {
+    min-width: 0;
+  }
+  :where(input, textarea, select) { max-width: 100%; }
+}
+
+/* Radix copies an item's rich markup into Value. Keep that selected preview
+   to one line even when the dropdown item itself wraps into several lines. */
+[data-slot="select-trigger"] > [data-slot="select-value"] {
+  display: block;
+  flex: 1 1 0%;
+  min-width: 0;
+  max-height: 1.5em;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: start;
+}
+[data-slot="select-trigger"] [data-slot="select-value"] :where(span, div) {
+  display: inline;
+  white-space: nowrap;
+}

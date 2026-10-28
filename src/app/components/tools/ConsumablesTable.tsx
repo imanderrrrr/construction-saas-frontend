@@ -105,7 +105,7 @@ function Row({ consumable, lang, flash, onAdjust }: { consumable: ConsumableResp
 
   const stockCell = (
     <div className="min-w-0">
-      <div className="flex items-baseline gap-1.5">
+      <div className="flex flex-wrap items-baseline gap-1.5">
         <span className={cn('font-bt-display font-extrabold text-[22px] leading-none tabular-nums', stockColor)}>{consumable.currentStock}</span>
         <Mono className="text-[9.5px] tracking-[0.06em] text-[#5A5346]">{consumable.unit}</Mono>
       </div>
@@ -119,7 +119,7 @@ function Row({ consumable, lang, flash, onAdjust }: { consumable: ConsumableResp
       tabIndex={0}
       data-testid={`consumable-row-${consumable.id}`}
       onClick={onAdjust}
-      onKeyDown={e => { if (e.key === 'Enter') onAdjust(); }}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onAdjust(); } }}
       className={cn(
         'border-b border-[#F0EBE1] border-l-[3px] cursor-pointer transition-colors bg-white hover:bg-[#FBF8F2] px-4 py-2.5 min-h-[56px]',
         flash && 'bt-row-flash',
@@ -128,24 +128,24 @@ function Row({ consumable, lang, flash, onAdjust }: { consumable: ConsumableResp
       style={{ borderLeftColor: LIGHT_EDGE[consumable.status] ?? '#CDBFA6' }}
     >
       <div className={cn(GRID, 'hidden xl:grid')}>
-        <Code className="text-[11px] truncate">{consumable.code}</Code>
+        <Code className="text-[11px] whitespace-normal [overflow-wrap:anywhere]">{consumable.code}</Code>
         <div className="min-w-0">
-          <div title={consumable.name} className="text-[13.5px] font-semibold text-[#0B0A09] truncate">{consumable.name}</div>
-          <Mono className="block text-[9px] tracking-[0.09em] text-[#A69C8D] mt-[2px] truncate">{consumable.unit}</Mono>
+          <div title={consumable.name} className="text-[13.5px] font-semibold text-[#0B0A09] whitespace-normal [overflow-wrap:anywhere]">{consumable.name}</div>
+          <Mono className="block text-[9px] tracking-[0.09em] text-[#A69C8D] mt-[2px] whitespace-normal [overflow-wrap:anywhere]">{consumable.unit}</Mono>
         </div>
         {stockCell}
         <div><LightChip light={consumable.status} /></div>
         {consumable.lastRestocked
-          ? <Mono className="text-[10px] tracking-[0.06em] text-[#5A5346] truncate">{stampDay(consumable.lastRestocked, lang)}</Mono>
+          ? <Mono className="text-[10px] tracking-[0.06em] text-[#5A5346] whitespace-normal [overflow-wrap:anywhere]">{stampDay(consumable.lastRestocked, lang)}</Mono>
           : <CellEmpty>—</CellEmpty>}
         <Mono className={cn('text-[12px] tabular-nums text-right', low ? 'text-[#C2410C] font-semibold' : 'text-[#0B0A09]')}>{consumable.minimumStock}</Mono>
       </div>
 
       <div className={cn(GRID_MD, 'hidden lg:grid xl:hidden')}>
-        <Code className="text-[11px] truncate">{consumable.code}</Code>
+        <Code className="text-[11px] whitespace-normal [overflow-wrap:anywhere]">{consumable.code}</Code>
         <div className="min-w-0">
-          <div title={consumable.name} className="text-[13.5px] font-semibold text-[#0B0A09] truncate">{consumable.name}</div>
-          <Mono className="block text-[9px] tracking-[0.09em] text-[#A69C8D] mt-[2px] truncate">
+          <div title={consumable.name} className="text-[13.5px] font-semibold text-[#0B0A09] whitespace-normal [overflow-wrap:anywhere]">{consumable.name}</div>
+          <Mono className="block text-[9px] tracking-[0.09em] text-[#A69C8D] mt-[2px] whitespace-normal [overflow-wrap:anywhere]">
             {consumable.lastRestocked ? stampDay(consumable.lastRestocked, lang) : consumable.unit}
           </Mono>
         </div>
@@ -161,7 +161,7 @@ function Row({ consumable, lang, flash, onAdjust }: { consumable: ConsumableResp
           <LightChip light={consumable.status} />
         </div>
         <div title={consumable.name} className="text-[14.5px] font-semibold text-[#0B0A09] mt-1 line-clamp-2 [overflow-wrap:anywhere]">{consumable.name}</div>
-        <div className="flex items-baseline gap-1.5 mt-1.5">
+        <div className="flex flex-wrap items-baseline gap-1.5 mt-1.5">
           <span className={cn('font-bt-display font-extrabold text-[22px] leading-none tabular-nums', stockColor)}>{consumable.currentStock}</span>
           <Mono className="text-[9.5px] tracking-[0.06em] text-[#5A5346]">{consumable.unit}</Mono>
         </div>
