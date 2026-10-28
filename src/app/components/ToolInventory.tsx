@@ -1,3 +1,4 @@
+import { RecordPagination } from './ui/record-pagination';
 import { changedFields, textTooLong } from '../../shared/textPolicy';
 import { useScreenState } from '../workspace/WorkspaceState';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
@@ -146,27 +147,8 @@ function HistActionBadge({ action }: { action: HistoryAction }) {
   );
 }
 
-function Pagination({ current, total, onPage }: { current: number; total: number; onPage: (p: number) => void }) {
-  const { t } = useTranslation('common');
-  if (total <= 1) return null;
-  return (
-    <div className="flex items-center justify-center gap-1 py-4 border-t border-[#D4D4D8]">
-      <button onClick={() => onPage(current - 1)} disabled={current === 1}
-        className="h-8 px-3 rounded-lg text-xs font-medium text-[#71717A] hover:text-amber-700 hover:bg-amber-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
-        {t('buttons.prev')}
-      </button>
-      {Array.from({ length: total }, (_, i) => i + 1).map(p => (
-        <button key={p} onClick={() => onPage(p)}
-          className={`h-8 w-8 rounded-lg text-xs font-semibold transition-colors ${
-            p === current ? 'bg-amber-500 text-white' : 'text-[#71717A] hover:bg-amber-50 hover:text-amber-700'
-          }`}>{p}</button>
-      ))}
-      <button onClick={() => onPage(current + 1)} disabled={current === total}
-        className="h-8 px-3 rounded-lg text-xs font-medium text-[#71717A] hover:text-amber-700 hover:bg-amber-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
-        {t('buttons.next')}
-      </button>
-    </div>
-  );
+function Pagination({ current, total, onPage }: { current: number; total: number; onPage: (p: number) => void; t?: (key: string) => string }) {
+  return <RecordPagination current={current} total={total} onPage={onPage} />;
 }
 
 // Add Tool Modal

@@ -76,8 +76,8 @@ export function StatCard({
         )}
       </div>
       <p className="text-[10px] sm:text-xs font-semibold text-[#71717A] uppercase tracking-wide mb-1 sm:mb-1.5">{title}</p>
-      <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#0A0A0A] mb-0.5 truncate">{value}</p>
-      <p className="text-[10px] sm:text-xs text-[#71717A] truncate">{subtitle}</p>
+      <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-[#0A0A0A] mb-0.5 [overflow-wrap:anywhere]">{value}</p>
+      <p className="text-[10px] sm:text-xs text-[#71717A] [overflow-wrap:anywhere]">{subtitle}</p>
     </div>
   );
 }

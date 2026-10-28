@@ -95,7 +95,7 @@ export function NotificationInbox({ role }: { role: CanonicalRole }) {
                     <p className={`text-sm ${n.isRead ? 'text-[#71717A]' : 'text-[#0A0A0A] font-medium'}`}>
                       {text.title}
                     </p>
-                    <p className="text-[11px] text-[#71717A] mt-0.5 line-clamp-2">{text.body}</p>
+                    <p className="text-[11px] text-[#71717A] mt-0.5 whitespace-pre-wrap [overflow-wrap:anywhere]">{text.body}</p>
                     <p className="text-[10px] text-[#71717A] mt-1">{whenLabel(n.createdAt, i18n.language, t('inbox.justNow'))}</p>
                   </div>
                   {!n.isRead && (

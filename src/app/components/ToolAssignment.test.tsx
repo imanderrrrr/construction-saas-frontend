@@ -136,6 +136,24 @@ describe('ToolAssignment — available tools beyond the first page', () => {
     expect(svc.assignTool).toHaveBeenCalledWith(expect.objectContaining({ toolCode: 'T-0230', workerId: 9, projectId: 5 }));
   });
 
+  it.each(['es', 'en'])('rejects manipulated notes above 50 UTF-16 units and counts them in %s', async lang => {
+    await act(async () => { await i18n.changeLanguage(lang); });
+    await openDialog();
+    click(option('T-0001'));
+    await chooseWorkerAndProject();
+    const notes = dialog().querySelector('textarea')!;
+    const submit = () => buttonByText(dialog(), i18n.t('inventory:assignment.assignTool'))!;
+    type(notes, '🧱'.repeat(25));
+    expect(submit().disabled).toBe(false);
+    expect(dialog().querySelector('#assignment-notes-limit')!.textContent).toContain('50 / 50');
+    type(notes, '🧱'.repeat(25) + 'X');
+    expect(submit().disabled).toBe(true);
+    expect(dialog().querySelector('#assignment-notes-limit')!.textContent).toContain('51 / 50');
+    click(submit());
+    expect(svc.assignTool).not.toHaveBeenCalled();
+    await act(async () => { await i18n.changeLanguage('es'); });
+  });
+
   it('says how many there are in all and loads more on demand', async () => {
     await openDialog();
     expect(shown()).toBe(i18n.t('inventory:assignment.dialog.toolsShown', { shown: 25, total: 230 }));

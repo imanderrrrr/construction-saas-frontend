@@ -1,3 +1,4 @@
+import { businessDate, businessToday, fmtDateShort, getBusinessTz } from '../../helpers/dateTime';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../ui/utils';
@@ -85,7 +86,7 @@ export function lightName(t: T, light: string): string {
   return key ? t(`tools:consumable.status.${key}`) : light;
 }
 
-const CHIP = 'inline-flex items-center font-bt-mono text-[9px] font-semibold uppercase tracking-[0.1em] whitespace-nowrap';
+const CHIP = 'inline-flex items-center font-bt-mono text-[9px] font-semibold uppercase tracking-[0.1em] max-w-full whitespace-normal [overflow-wrap:anywhere]';
 
 /**
  * The six state chips.
@@ -237,7 +238,7 @@ export function Figure({ value, text, label, note, tone = 'ink', pressed, onClic
 export function stampTime(iso: string | null | undefined, lang: string): string {
   if (!iso) return '';
   try {
-    return new Date(iso).toLocaleTimeString(lang.startsWith('es') ? 'es-GT' : 'en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+    return new Date(iso).toLocaleTimeString(lang.startsWith('es') ? 'es-GT' : 'en-US', { timeZone: getBusinessTz(), hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
   } catch {
     return '';
   }
@@ -247,9 +248,8 @@ export function stampTime(iso: string | null | undefined, lang: string): string 
 export function stampMoment(iso: string | null | undefined, lang: string, todayWord: string): string {
   if (!iso) return '';
   try {
-    const d = new Date(iso);
     const time = stampTime(iso, lang);
-    return d.toDateString() === new Date().toDateString()
+    return businessDate(iso) === businessToday()
       ? `${todayWord} · ${time}`
       : `${stampDay(iso, lang)} · ${time}`;
   } catch {
@@ -261,8 +261,7 @@ export function stampMoment(iso: string | null | undefined, lang: string, todayW
 export function stampDay(iso: string | null | undefined, lang: string): string {
   if (!iso) return '';
   try {
-    const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(iso) ? `${iso}T00:00:00` : iso);
-    return d.toLocaleDateString(lang.startsWith('es') ? 'es-GT' : 'en-US', { day: 'numeric', month: 'short' }).replace(/\./g, '');
+    return fmtDateShort(iso, lang.startsWith('es') ? 'es-GT' : 'en-US').replace(/\./g, '');
   } catch {
     return iso;
   }
@@ -273,10 +272,9 @@ export function daysSince(iso: string | null | undefined): number | null {
   if (!iso) return null;
   const then = new Date(iso);
   if (Number.isNaN(then.getTime())) return null;
-  const a = new Date(then.getFullYear(), then.getMonth(), then.getDate());
-  const now = new Date();
-  const b = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  return Math.max(0, Math.round((b.getTime() - a.getTime()) / 86_400_000));
+  const a = Date.parse(`${businessDate(iso)}T00:00:00Z`);
+  const b = Date.parse(`${businessToday()}T00:00:00Z`);
+  return Math.max(0, Math.round((b - a) / 86_400_000));
 }
 
 /**
@@ -350,7 +348,7 @@ export function WhoCan({ keepers, onGoUsers, className }: {
                   {initials(name)}
                 </span>
                 <span className="min-w-0">
-                  <span className="block text-[13px] font-semibold text-[#0B0A09] truncate">{name}</span>
+                  <span className="block text-[13px] font-semibold text-[#0B0A09] [overflow-wrap:anywhere]">{name}</span>
                   <Mono className="block text-[9px] tracking-[0.09em] text-[#8A8175]">{t('tools:whoCan.role')}</Mono>
                 </span>
               </li>

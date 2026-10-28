@@ -1,3 +1,4 @@
+import { textPreview } from '../../shared/textPolicy';
 import { TextValue } from './tools/TextValue';
 import { ApiError } from '../lib/api';
 import { warehouseDate } from '../lib/warehouseDate';
@@ -237,7 +238,7 @@ export function ConsumableDispatch() {
                     <tr key={d.id} className="border-t border-[#DBD0BB]/50 hover:bg-[#FAF7F0]/50 transition-colors">
                       <td className="px-4 py-3 text-sm text-[#0A0A0A] whitespace-nowrap">{fmtDate(d.date)}</td>
                       <td className="px-4 py-3">
-                        <TextValue value={d.consumableName} className="text-sm font-medium text-[#0A0A0A] truncate" />
+                        <TextValue value={d.consumableName} className="text-sm font-medium text-[#0A0A0A] " />
                         <p className="text-[11px] text-[#8A8175] font-bt-mono">{d.consumableCode}</p>
                       </td>
                       <td className="px-4 py-3 text-sm font-semibold text-[#0A0A0A] break-words">{d.quantity}<span className="block text-xs text-[#8A8175]">{money(d.totalCostCents / 100)}</span></td>
@@ -264,7 +265,7 @@ export function ConsumableDispatch() {
               {paged.map(d => (
                 <div key={d.id} className="p-4">
                   <div className="flex flex-col items-stretch gap-1 mb-1">
-                    <TextValue value={d.consumableName} className="text-sm font-medium text-[#0A0A0A] truncate" />
+                    <TextValue value={d.consumableName} className="text-sm font-medium text-[#0A0A0A] " />
                     <span className="text-sm font-semibold text-[#0A0A0A] break-words">{d.quantity} {d.unit} · {money(d.totalCostCents / 100)}</span>
                   </div>
                   <p className="text-[11px] font-bt-mono text-[#8A8175]">{d.consumableCode}</p>
@@ -286,12 +287,12 @@ export function ConsumableDispatch() {
 
       {/* Pagination */}
       {!loading && totalPages > 1 && (
-        <div className="flex items-center justify-between pt-2">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
           <p className="text-xs text-[#8A8175]">
             {t('dispatch.showing', { from: (safePage - 1) * ITEMS_PER_PAGE + 1, to: Math.min(safePage * ITEMS_PER_PAGE, totalRows), total: totalRows })}
           </p>
-          <div className="flex items-center gap-1">
-            <Button variant="outline" size="sm" disabled={safePage <= 1} onClick={() => setPage(p => p - 1)} className="h-8 w-8 p-0 border-[#DBD0BB]">
+          <div className="flex flex-wrap items-center gap-1">
+            <Button variant="outline" size="sm" aria-label={t('common:buttons.prev')} disabled={safePage <= 1} onClick={() => setPage(p => p - 1)} className="min-h-11 min-w-11 p-0 border-[#DBD0BB]">
               <ChevronLeft className="w-4 h-4" />
             </Button>
             {pageWindow(safePage, totalPages).map((p, i) => (p === 'gap' ? (
@@ -303,12 +304,12 @@ export function ConsumableDispatch() {
                 size="sm"
                 onClick={() => setPage(p)}
                 aria-current={safePage === p ? 'page' : undefined}
-                className={`h-8 w-8 p-0 ${safePage === p ? 'bg-[#0A0A0A] hover:bg-[#F97316] text-[#F5F1E8] hover:text-[#0A0A0A] border-amber-500' : 'border-[#DBD0BB]'}`}
+                className={`min-h-11 min-w-11 p-0 ${safePage === p ? 'bg-[#0A0A0A] hover:bg-[#F97316] text-[#F5F1E8] hover:text-[#0A0A0A] border-amber-500' : 'border-[#DBD0BB]'}`}
               >
                 {p}
               </Button>
             )))}
-            <Button variant="outline" size="sm" disabled={safePage >= totalPages} onClick={() => setPage(p => p + 1)} className="h-8 w-8 p-0 border-[#DBD0BB]">
+            <Button variant="outline" size="sm" aria-label={t('common:buttons.next')} disabled={safePage >= totalPages} onClick={() => setPage(p => p + 1)} className="min-h-11 min-w-11 p-0 border-[#DBD0BB]">
               <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
@@ -420,13 +421,15 @@ export function DispatchModal({
                 {consumables
                   .filter(c => c.currentStock > 0)
                   .map(c => (
-                    <SelectItem key={c.id} value={String(c.id)}>
-                      [{c.code}] {c.name} (stock: {c.currentStock} {c.unit})
+                    <SelectItem key={c.id} value={String(c.id)} textValue={`${c.code} ${c.name} ${c.unit}`}>
+                      [{c.code}] {textPreview(c.name)} (stock: {c.currentStock} {c.unit})
                     </SelectItem>
                   ))}
               </SelectContent>
             </Select>
           </div>
+
+          {selected && selected.name.length > 25 && <TextValue value={selected.name} className="text-xs text-[#8A8175]" />}
 
           {/* Quantity */}
           <div>

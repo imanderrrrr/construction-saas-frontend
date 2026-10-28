@@ -102,7 +102,7 @@ it.each(['es', 'en'])('preserves historical names and notes through partial upda
   click(buttonByText(document.body, i18n.t('tools:form.submit.edit'))!);
   await flush();
   expect(svc.updateTool).toHaveBeenCalledWith(10, { notes: 'Updated notes' });
-  const originalSupply = consumable({ id: 11, code: 'C-11', name: 'C'.repeat(200), notes: 'N'.repeat(500) });
+  const originalSupply = consumable({ id: 11, code: 'C-11', name: 'C'.repeat(200), notes: 'N'.repeat(500), category: ' ' + 'G'.repeat(40) + ' ', unit: ' ' });
   svc.updateConsumable.mockResolvedValue(originalSupply);
   await act(async () => { root.render(<ConsumableFormModal open warehouse consumable={originalSupply} onOpenChange={vi.fn()} onSaved={vi.fn()} />); });
   await flush();
@@ -110,4 +110,23 @@ it.each(['es', 'en'])('preserves historical names and notes through partial upda
   click(buttonByText(document.body, i18n.t('inventory:consumables.dialog.saveChanges'))!);
   await flush();
   expect(svc.updateConsumable).toHaveBeenCalledWith(11, { unitCostCents: 1234 });
+});
+
+it.each(['es', 'en'])('requires a changed category and accepts its exact 25-unit boundary in %s', async lang => {
+  await i18n.changeLanguage(lang);
+  const record = consumable({ id: 20, code: 'C-20', name: 'Valid' });
+  svc.createConsumable.mockResolvedValue(record);
+  await act(async () => { root.render(<ConsumableFormModal open warehouse onOpenChange={vi.fn()} onSaved={vi.fn()} />); });
+  await flush();
+  type(document.body.querySelector<HTMLInputElement>('#cs-name')!, 'Valid');
+  type(document.body.querySelector<HTMLInputElement>('#cs-unit')!, 'u');
+  const category = document.body.querySelector<HTMLInputElement>('#cs-category')!;
+  const submit = buttonByText(document.body, i18n.t('tools:form.submit.new'))!;
+  for (const invalid of ['   ', 'C'.repeat(26)]) {
+    type(category, invalid); click(submit); await flush();
+    expect(category.getAttribute('aria-invalid')).toBe('true');
+    expect(svc.createConsumable).not.toHaveBeenCalled();
+  }
+  type(category, 'C'.repeat(25)); click(submit); await flush();
+  expect(svc.createConsumable).toHaveBeenCalledWith(expect.objectContaining({ category: 'C'.repeat(25), unit: 'u' }));
 });

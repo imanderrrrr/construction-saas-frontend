@@ -1,3 +1,4 @@
+import { TextValue } from '../components/tools/TextValue';
 import { warehouseDate } from '../lib/warehouseDate';
 import { actionName } from '../components/tools/bits';
 import { AppShell } from '../components/AppShell';
@@ -158,7 +159,7 @@ function DashboardView({ username, onNavigate }: { username: string; onNavigate:
             {t('warehouse.viewAll')}
           </button>
         </div>
-        <div className="overflow-x-auto">
+        <div tabIndex={0} role="region" aria-label={t('warehouse.recentActivity')} className="overflow-x-auto focus-visible:outline-2">
           <table className="w-full">
             <thead>
               <tr className="bg-[#FAF7F0]">
@@ -172,12 +173,12 @@ function DashboardView({ username, onNavigate }: { username: string; onNavigate:
                 <tr key={r.id} className="border-t border-[#DBD0BB]/50 hover:bg-[#FAF7F0]/50 transition-colors">
                   <td className="px-4 py-3 text-sm text-[#0A0A0A] whitespace-nowrap">{fmtDate(r.date)}</td>
                   <td className="px-4 py-3">
-                    <p className="text-sm font-medium text-[#0A0A0A]">{r.tool}</p>
+                    <TextValue value={r.tool} className="text-sm font-medium text-[#0A0A0A]" />
                     <p className="text-[11px] text-[#8A8175] font-bt-mono">{r.code}</p>
                   </td>
                   <td className="px-4 py-3"><ActivityBadge action={r.actionId || r.action} /></td>
                   <td className="px-4 py-3 text-sm text-[#8A8175]">{r.worker || '—'}</td>
-                  <td className="px-4 py-3 text-sm text-[#8A8175]">{r.notes || '—'}</td>
+                  <td className="px-4 py-3 text-sm text-[#8A8175]"><TextValue value={r.notes || '—'} /></td>
                 </tr>
               ))}
               {recentActivity.length === 0 && (
@@ -207,7 +208,7 @@ function DashboardView({ username, onNavigate }: { username: string; onNavigate:
               <div className="flex items-start gap-3 min-w-0 flex-1">
                 <div className={`w-2 h-2 rounded-full flex-shrink-0 ${item.stock === 0 ? 'bg-red-500' : 'bg-amber-500'}`} />
                 <div className="min-w-0 flex-1">
-                  <p title={item.name} className="text-sm font-medium text-[#0A0A0A] truncate">{item.name}</p>
+                  <p title={item.name} className="text-sm font-medium text-[#0A0A0A] [overflow-wrap:anywhere]">{item.name}</p>
                   <p className="text-[11px] text-[#8A8175] font-bt-mono">{item.code}</p>
                 </div>
               </div>

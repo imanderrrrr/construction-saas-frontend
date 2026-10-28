@@ -146,7 +146,7 @@ function ToolRow({ tool, lang, flash, onOpen }: { tool: ToolResponse; lang: stri
       tabIndex={0}
       data-testid={`tool-row-${tool.id}`}
       onClick={onOpen}
-      onKeyDown={e => { if (e.key === 'Enter') onOpen(); }}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}
       className={cn(
         'border-b border-[#F0EBE1] border-l-[3px] cursor-pointer transition-colors px-4 py-2 min-h-[56px] md:min-h-[48px]',
         pending ? 'bg-[#FFFDFA]' : tool.status === 'Lost' ? 'bg-[#FBF8F2]' : 'bg-white',
@@ -158,36 +158,36 @@ function ToolRow({ tool, lang, flash, onOpen }: { tool: ToolResponse; lang: stri
     >
       {/* Desktop */}
       <div className={cn(GRID, 'hidden xl:grid')}>
-        <Code className="text-[11px] truncate">{tool.code}</Code>
+        <Code className="text-[11px] whitespace-normal [overflow-wrap:anywhere]">{tool.code}</Code>
         <div className="min-w-0">
-          <div title={tool.name} className="text-[13.5px] font-semibold text-[#0B0A09] truncate leading-[1.25]">{tool.name}</div>
-          {subline && <Mono className="block text-[9px] tracking-[0.09em] text-[#C2410C] mt-[2px] truncate">{subline}</Mono>}
+          <div title={tool.name} className="text-[13.5px] font-semibold text-[#0B0A09] whitespace-normal [overflow-wrap:anywhere] leading-[1.25]">{tool.name}</div>
+          {subline && <Mono className="block text-[9px] tracking-[0.09em] text-[#C2410C] mt-[2px] whitespace-normal [overflow-wrap:anywhere]">{subline}</Mono>}
         </div>
-        <Mono className="text-[9.5px] tracking-[0.06em] text-[#5A5346] truncate">{categoryName(t, tool.category)}</Mono>
+        <Mono className="text-[9.5px] tracking-[0.06em] text-[#5A5346] whitespace-normal [overflow-wrap:anywhere]">{categoryName(t, tool.category)}</Mono>
         <div><StatusChip status={tool.status} className="max-w-full whitespace-normal" /></div>
         {holder
-          ? <span className="text-[12.5px] text-[#0B0A09] truncate">{holder}</span>
+          ? <span className="text-[12.5px] text-[#0B0A09] whitespace-normal [overflow-wrap:anywhere]">{holder}</span>
           : <CellEmpty>{tool.status === 'Available' ? t('tools:row.inWarehouse') : t('tools:row.nobody')}</CellEmpty>}
         {tool.projectName
-          ? <span className="text-[12px] text-[#5A5346] truncate">{tool.projectName}</span>
+          ? <span className="text-[12px] text-[#5A5346] whitespace-normal [overflow-wrap:anywhere]">{tool.projectName}</span>
           : <CellEmpty>{t('tools:row.noProject')}</CellEmpty>}
-        <Mono className="text-[10px] tracking-[0.06em] text-[#5A5346] truncate">
+        <Mono className="text-[10px] tracking-[0.06em] text-[#5A5346] whitespace-normal [overflow-wrap:anywhere]">
           {stampMoment(tool.lastActivityAt ?? tool.lastActivity, lang, t('tools:row.todayWord'))}
         </Mono>
       </div>
 
       {/* Tablet: the category drops into the subline, the holder keeps the name */}
       <div className={cn(GRID_MD, 'hidden lg:grid xl:hidden')}>
-        <Code className="text-[11px] truncate">{tool.code}</Code>
+        <Code className="text-[11px] whitespace-normal [overflow-wrap:anywhere]">{tool.code}</Code>
         <div className="min-w-0">
-          <div title={tool.name} className="text-[13.5px] font-semibold text-[#0B0A09] truncate">{tool.name}</div>
-          <Mono className="block text-[9px] tracking-[0.09em] text-[#A69C8D] mt-[2px] truncate">
+          <div title={tool.name} className="text-[13.5px] font-semibold text-[#0B0A09] whitespace-normal [overflow-wrap:anywhere]">{tool.name}</div>
+          <Mono className="block text-[9px] tracking-[0.09em] text-[#A69C8D] mt-[2px] whitespace-normal [overflow-wrap:anywhere]">
             {[categoryName(t, tool.category), tool.projectName].filter(Boolean).join(' · ')}
           </Mono>
         </div>
         <div><StatusChip status={tool.status} short className="max-w-full whitespace-normal" /></div>
-        {holder ? <span className="text-[12.5px] text-[#0B0A09] truncate">{holder}</span> : <CellEmpty>{tool.status === 'Available' ? t('tools:row.inWarehouse') : t('tools:row.nobody')}</CellEmpty>}
-        <Mono className="text-[10px] tracking-[0.06em] text-[#5A5346] truncate">{stampDay(tool.lastActivityAt ?? tool.lastActivity, lang)}</Mono>
+        {holder ? <span className="text-[12.5px] text-[#0B0A09] whitespace-normal [overflow-wrap:anywhere]">{holder}</span> : <CellEmpty>{tool.status === 'Available' ? t('tools:row.inWarehouse') : t('tools:row.nobody')}</CellEmpty>}
+        <Mono className="text-[10px] tracking-[0.06em] text-[#5A5346] whitespace-normal [overflow-wrap:anywhere]">{stampDay(tool.lastActivityAt ?? tool.lastActivity, lang)}</Mono>
       </div>
 
       {/* Narrow content panes keep the name and custody together in a card. */}
@@ -200,11 +200,11 @@ function ToolRow({ tool, lang, flash, onOpen }: { tool: ToolResponse; lang: stri
         <Mono className="block text-[9px] tracking-[0.09em] text-[#A69C8D] mt-1">
           {subline ?? [categoryName(t, tool.category), stampDay(tool.lastActivityAt ?? tool.lastActivity, lang)].filter(Boolean).join(' · ')}
         </Mono>
-        <div className="flex items-center gap-2 mt-2">
-          <span className="text-[12px] text-[#0B0A09] truncate flex-1 min-w-0">
+        <div className="flex flex-wrap items-center gap-2 mt-2">
+          <span className="text-[12px] text-[#0B0A09] whitespace-normal [overflow-wrap:anywhere] flex-1 min-w-0">
             {holder ?? (tool.status === 'Available' ? t('tools:row.inWarehouse') : t('tools:row.nobody'))}
           </span>
-          {tool.projectName && <Mono className="text-[9px] tracking-[0.06em] text-[#A69C8D] truncate">{tool.projectName}</Mono>}
+          {tool.projectName && <Mono className="text-[9px] tracking-[0.06em] text-[#A69C8D] whitespace-normal [overflow-wrap:anywhere]">{tool.projectName}</Mono>}
         </div>
       </div>
     </div>

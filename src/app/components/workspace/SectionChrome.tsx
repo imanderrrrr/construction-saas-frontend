@@ -5,7 +5,7 @@ import { Bone, Mono } from '../projects/bt';
 export function SectionHeader({ kicker, title, description, action }: {
   kicker: string; title: string; description: string; action?: ReactNode;
 }) {
-  return <header className="flex flex-wrap items-end justify-between gap-4">
+  return <header className="flex flex-wrap items-end justify-between gap-4 [overflow-wrap:anywhere]">
     <div className="min-w-0">
       <Mono className="block text-[10px] tracking-[0.15em] text-[#8A8175]">{kicker}</Mono>
       <h2 className="font-bt-display font-extrabold uppercase text-4xl md:text-5xl leading-none text-[#0A0A0A] mt-2">{title}</h2>

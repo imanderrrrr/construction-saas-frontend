@@ -1,3 +1,4 @@
+import { RecordPagination } from './ui/record-pagination';
 import { changedFields, textTooLong } from '../../shared/textPolicy';
 import { useScreenState } from '../workspace/WorkspaceState';
 // ConsumableInventory.tsx — Consumable supplies inventory management
@@ -367,29 +368,11 @@ export function ConsumableInventory({ onNavigate }: { onNavigate?: (section: str
 
       {/* Pagination */}
       {!loading && totalPages > 1 && (
-        <div className="flex items-center justify-between pt-2">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
           <p className="text-xs text-[#71717A]">
             {t('consumables.showing', { from: (safePage - 1) * ITEMS_PER_PAGE + 1, to: Math.min(safePage * ITEMS_PER_PAGE, filtered.length), total: filtered.length })}
           </p>
-          <div className="flex items-center gap-1">
-            <Button variant="outline" size="sm" disabled={safePage <= 1} onClick={() => setPage(p => p - 1)} className="h-8 w-8 p-0 border-[#D4D4D8]">
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            {Array.from({ length: totalPages }, (_, i) => (
-              <Button
-                key={i + 1}
-                variant={safePage === i + 1 ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setPage(i + 1)}
-                className={`h-8 w-8 p-0 ${safePage === i + 1 ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-500' : 'border-[#D4D4D8]'}`}
-              >
-                {i + 1}
-              </Button>
-            ))}
-            <Button variant="outline" size="sm" disabled={safePage >= totalPages} onClick={() => setPage(p => p + 1)} className="h-8 w-8 p-0 border-[#D4D4D8]">
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
+          <RecordPagination current={safePage} total={totalPages} onPage={setPage} />
         </div>
       )}
 

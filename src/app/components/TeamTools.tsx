@@ -1,3 +1,4 @@
+import { RecordPagination } from './ui/record-pagination';
 import { TextValue } from './tools/TextValue';
 import { CustodyStatus } from './tools/CustodyStatus';
 import { categoryName } from './tools/bits';
@@ -29,20 +30,8 @@ function getDaysOutColor(days: number) {
   return 'text-emerald-600 font-semibold';
 }
 
-function Pagination({ current, total, onPage, t }: { current: number; total: number; onPage: (p: number) => void; t: (key: string) => string }) {
-  if (total <= 1) return null;
-  return (
-    <div className="flex items-center justify-center gap-1 py-4 border-t border-[#DBD0BB]">
-      <button onClick={() => onPage(current - 1)} disabled={current === 1}
-        className="h-8 px-3 font-bt-mono text-xs font-medium text-[#8A8175] hover:bg-[#F97316]/10 hover:text-[#F97316] disabled:opacity-30 disabled:cursor-not-allowed">{t('tools.prev')}</button>
-      {Array.from({ length: total }, (_, i) => i + 1).map(p => (
-        <button key={p} onClick={() => onPage(p)}
-          className={`h-8 w-8 text-xs font-semibold transition-colors ${p === current ? 'bg-[#F97316] text-white' : 'text-[#8A8175] hover:bg-[#F97316]/10 hover:text-[#F97316]'}`}>{p}</button>
-      ))}
-      <button onClick={() => onPage(current + 1)} disabled={current === total}
-        className="h-8 px-3 font-bt-mono text-xs font-medium text-[#8A8175] hover:bg-[#F97316]/10 hover:text-[#F97316] disabled:opacity-30 disabled:cursor-not-allowed">{t('tools.next')}</button>
-    </div>
-  );
+function Pagination({ current, total, onPage }: { current: number; total: number; onPage: (p: number) => void; t?: (key: string) => string }) {
+  return <RecordPagination current={current} total={total} onPage={onPage} />;
 }
 
 // Constants
@@ -188,7 +177,7 @@ export function TeamTools() {
                   {pageRows.map(tool => (
                     <TableRow key={tool.id} className="border-b border-[#DBD0BB]/50 hover:bg-[#FAF7F0]/50">
                       <TableCell className="py-3">
-                        <TextValue value={tool.toolName} className="text-sm font-semibold text-[#0A0A0A] truncate" />
+                        <TextValue value={tool.toolName} className="text-sm font-semibold text-[#0A0A0A] " />
                         <p className="text-[11px] font-bt-mono text-[#8A8175]">{tool.toolCode}</p>
                       </TableCell>
                       <TableCell className="py-3 text-sm text-[#8A8175]">{categoryName(t, tool.category)}</TableCell>
@@ -227,7 +216,7 @@ export function TeamTools() {
                 <div key={tool.id} className="p-4 space-y-1.5">
                   <div className="flex items-start justify-between gap-2 min-w-0">
                     <div className="min-w-0">
-                      <TextValue value={tool.toolName} className="text-sm font-semibold text-[#0A0A0A] truncate" />
+                      <TextValue value={tool.toolName} className="text-sm font-semibold text-[#0A0A0A] " />
                       <p className="text-[11px] font-bt-mono text-[#8A8175] break-words">{tool.toolCode} · {categoryName(t, tool.category)}</p>
                     </div>
                     <span className={`text-xs flex-shrink-0 ${getDaysOutColor(tool.daysOut)}`}>

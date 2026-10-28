@@ -1,3 +1,5 @@
+import { textPreview } from '../../shared/textPolicy';
+import { RecordPagination } from './ui/record-pagination';
 import { TextValue } from './tools/TextValue';
 import { actionName, categoryName, statusName } from './tools/bits';
 import { warehouseDate } from '../lib/warehouseDate';
@@ -101,21 +103,8 @@ function ActionBadge({ action }: { action: string }) {
   return <span data-testid="assignment-action" className="inline-flex px-2.5 py-0.5 rounded-full text-[11px] border bg-amber-50 text-amber-800">{actionName(t, action)}</span>;
 }
 
-function Pagination({ current, total, onPage }: { current: number; total: number; onPage: (p: number) => void }) {
-  const { t } = useTranslation('common');
-  if (total <= 1) return null;
-  return (
-    <div className="flex items-center justify-center gap-1 py-4 border-t border-[#DBD0BB]">
-      <button onClick={() => onPage(current - 1)} disabled={current === 1}
-        className="h-8 px-3 font-bt-mono text-xs font-medium text-[#8A8175] hover:text-amber-700 hover:bg-amber-50 disabled:opacity-30 disabled:cursor-not-allowed">{t('buttons.prev')}</button>
-      {Array.from({ length: total }, (_, i) => i + 1).map(p => (
-        <button key={p} onClick={() => onPage(p)}
-          className={`h-8 w-8 text-xs font-semibold transition-colors ${p === current ? 'bg-amber-500 text-white' : 'text-[#8A8175] hover:bg-amber-50 hover:text-amber-700'}`}>{p}</button>
-      ))}
-      <button onClick={() => onPage(current + 1)} disabled={current === total}
-        className="h-8 px-3 font-bt-mono text-xs font-medium text-[#8A8175] hover:text-amber-700 hover:bg-amber-50 disabled:opacity-30 disabled:cursor-not-allowed">{t('buttons.next')}</button>
-    </div>
-  );
+function Pagination({ current, total, onPage }: { current: number; total: number; onPage: (p: number) => void; t?: (key: string) => string }) {
+  return <RecordPagination current={current} total={total} onPage={onPage} />;
 }
 
 /** Rows of available tools fetched per request while searching. */
@@ -253,7 +242,7 @@ function AssignModal({ open, workers, onClose, onAssign }: {
 
   const selectedProject = workerProjects.find(p => String(p.id) === projectId);
   const selectedWorker  = workers.find(w => String(w.id) === workerId);
-  const valid           = selectedTool && workerId && projectId;
+  const valid           = selectedTool && workerId && projectId && notes.length <= FIELD_LIMITS.NOTE;
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
@@ -299,11 +288,15 @@ function AssignModal({ open, workers, onClose, onAssign }: {
             </div>
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-[#8A8175] uppercase tracking-wide">{t('assignment.dialog.notes')}</label>
-            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
+            <label htmlFor="assignment-notes" className="text-xs font-semibold text-[#8A8175] uppercase tracking-wide">{t('assignment.dialog.notes')}</label>
+            <textarea id="assignment-notes" aria-invalid={notes.length > FIELD_LIMITS.NOTE} aria-describedby="assignment-notes-limit" value={notes} onChange={e => setNotes(e.target.value)} rows={2}
               maxLength={FIELD_LIMITS.NOTE}
               placeholder={t('assignment.dialog.assignmentNotes')}
               className="w-full rounded-md border border-[#DBD0BB] bg-white px-3 py-2 text-sm placeholder:text-[#8A8175] focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none" />
+            <p id="assignment-notes-limit" className={notes.length > FIELD_LIMITS.NOTE ? 'text-xs text-red-700' : 'text-xs text-[#8A8175]'}>
+              {t('tools:name.limitHint', { count: notes.length, max: FIELD_LIMITS.NOTE })}
+              {notes.length > FIELD_LIMITS.NOTE && ` ${t('common:validation.maxLength', { max: FIELD_LIMITS.NOTE })}`}
+            </p>
           </div>
         </div>
         <DialogFooter className="gap-2">
@@ -335,7 +328,7 @@ function ReturnModal({ open, activeAssignments, onClose, onReturn }: {
 
   useEffect(() => { if (open) { setAssignId(''); setCondition(''); setNotes(''); } }, [open]);
 
-  const valid = assignId && condition;
+  const valid = assignId && condition && notes.length <= FIELD_LIMITS.NOTE;
   const selectedAssignment = activeAssignments.find(a => a.id === assignId);
 
   return (
@@ -353,10 +346,10 @@ function ReturnModal({ open, activeAssignments, onClose, onReturn }: {
                 <SelectTrigger className="rounded-none border-[#DBD0BB] text-sm"><SelectValue placeholder={t('assignment.dialog.selectAssignedTool')} /></SelectTrigger>
                 <SelectContent>
                   {activeAssignments.map(a => (
-                    <SelectItem key={a.id} value={a.id}>
-                      <span className="block truncate" title={`${a.toolCode} · ${a.toolName} · ${a.worker}`}>
+                    <SelectItem key={a.id} value={a.id} textValue={`${a.toolCode} ${a.toolName} · ${a.worker}`}>
+                      <span className="block whitespace-normal [overflow-wrap:anywhere]" title={`${a.toolCode} · ${a.toolName} · ${a.worker}`}>
                         <span className="font-bt-mono text-xs mr-1 text-[#8A8175]">{a.toolCode}</span>{' '}
-                        {a.toolName} · {a.worker}
+                        {textPreview(a.toolName)} · {a.worker}
                       </span>
                     </SelectItem>
                   ))}
@@ -373,11 +366,15 @@ function ReturnModal({ open, activeAssignments, onClose, onReturn }: {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-[#8A8175] uppercase tracking-wide">{t('assignment.dialog.notes')}</label>
-            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
+            <label htmlFor="return-notes" className="text-xs font-semibold text-[#8A8175] uppercase tracking-wide">{t('assignment.dialog.notes')}</label>
+            <textarea id="return-notes" aria-invalid={notes.length > FIELD_LIMITS.NOTE} aria-describedby="return-notes-limit" value={notes} onChange={e => setNotes(e.target.value)} rows={2}
               maxLength={FIELD_LIMITS.NOTE}
               placeholder={t('assignment.dialog.returnObservations')}
               className="w-full rounded-md border border-[#DBD0BB] bg-white px-3 py-2 text-sm placeholder:text-[#8A8175] focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none" />
+            <p id="return-notes-limit" className={notes.length > FIELD_LIMITS.NOTE ? 'text-xs text-red-700' : 'text-xs text-[#8A8175]'}>
+              {t('tools:name.limitHint', { count: notes.length, max: FIELD_LIMITS.NOTE })}
+              {notes.length > FIELD_LIMITS.NOTE && ` ${t('common:validation.maxLength', { max: FIELD_LIMITS.NOTE })}`}
+            </p>
           </div>
           {/* Photo evidence placeholder */}
           {/* TODO: Implement photo upload */}
@@ -557,7 +554,7 @@ export function ToolAssignment() {
                       <TableCell className="py-3">
                         <div className="flex flex-col items-start gap-2 min-w-0">
                           <div className="min-w-0 w-full">
-                            <TextValue value={a.toolName} className="text-sm font-semibold text-[#0A0A0A] truncate" />
+                            <TextValue value={a.toolName} className="text-sm font-semibold text-[#0A0A0A] " />
                             <p className="text-[11px] font-bt-mono text-[#8A8175]">{a.toolCode}</p>
                           </div>
                           {a.status !== 'ASSIGNED' && (
@@ -608,7 +605,7 @@ export function ToolAssignment() {
                 <div key={a.id} className="p-4 flex flex-col items-stretch gap-3">
                   <div>
                     <div className="min-w-0 flex flex-col items-start gap-2">
-                      <TextValue value={a.toolName} className="text-sm font-semibold text-[#0A0A0A] truncate" />
+                      <TextValue value={a.toolName} className="text-sm font-semibold text-[#0A0A0A] " />
                       {a.status !== 'ASSIGNED' && (
                         <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-semibold max-w-full whitespace-normal border bg-amber-50 text-amber-700 border-amber-200">
                           {statusName(t, a.status === 'PENDING_ACCEPTANCE' ? 'Pending Acceptance' : a.status === 'RETURN_PENDING' ? 'Return Pending' : 'Lost')}
