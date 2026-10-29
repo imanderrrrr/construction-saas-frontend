@@ -44,41 +44,43 @@ function fmtDate(iso: string): string {
   return warehouseDate(iso);
 }
 
+// Rows carry the action's enum name (actionId); the colours used to be keyed by
+// the old display names, so every badge fell back to grey (D10, audit 2026-10-28).
+type Tone = 'in' | 'out' | 'back' | 'neutral' | 'alert';
+const TONE: Record<string, Tone> = {
+  REGISTERED: 'in', RECOVERED: 'in',
+  ASSIGNED: 'out', ACCEPTANCE_PENDING: 'out', ACCEPTED: 'out',
+  RETURNED: 'back',
+  STATUS_CHANGED: 'neutral',
+  REPORTED: 'alert', REJECTED: 'alert', LOST: 'alert',
+};
+const DOT: Record<Tone, string> = { in: 'bg-emerald-500', out: 'bg-[#F97316]', back: 'bg-amber-500', neutral: 'bg-slate-400', alert: 'bg-red-500' };
+const LINE: Record<Tone, string> = { in: 'bg-emerald-200', out: 'bg-[#F97316]/30', back: 'bg-amber-200', neutral: 'bg-[#DBD0BB]', alert: 'bg-red-200' };
+const BADGE: Record<Tone, string> = {
+  in: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  out: 'bg-[#F97316]/10 text-[#F97316] border-[#F97316]/20',
+  back: 'bg-amber-50 text-amber-700 border-amber-200',
+  neutral: 'bg-slate-50 text-[#5A5346] border-slate-200',
+  alert: 'bg-red-50 text-red-600 border-red-200',
+};
+
 function getDotColor(action: HistoryAction): string {
-  const colors: Record<HistoryAction, string> = {
-    'Registered':     'bg-emerald-500',
-    'Assigned':       'bg-[#F97316]',
-    'Returned':       'bg-amber-500',
-    'Status Changed': 'bg-slate-400',
-    'Reported':       'bg-red-500',
-  };
-  return colors[action] ?? 'bg-[#8A8175]';
+  const tone = TONE[action];
+  return tone ? DOT[tone] : 'bg-[#8A8175]';
 }
 
 function getLineColor(action: HistoryAction): string {
-  const colors: Record<HistoryAction, string> = {
-    'Registered':     'bg-emerald-200',
-    'Assigned':       'bg-[#F97316]/30',
-    'Returned':       'bg-amber-200',
-    'Status Changed': 'bg-[#DBD0BB]',
-    'Reported':       'bg-red-200',
-  };
-  return colors[action] ?? 'bg-[#DBD0BB]';
+  const tone = TONE[action];
+  return tone ? LINE[tone] : 'bg-[#DBD0BB]';
 }
 
 // Sub-components
 
 function ActionBadge({ action }: { action: HistoryAction }) {
   const { t } = useTranslation('tools');
-  const cfg: Record<HistoryAction, string> = {
-    'Registered':     'bg-emerald-50 text-emerald-700 border-emerald-200',
-    'Assigned':       'bg-[#F97316]/10 text-[#F97316] border-[#F97316]/20',
-    'Returned':       'bg-amber-50 text-amber-700 border-amber-200',
-    'Status Changed': 'bg-slate-50 text-[#5A5346] border-slate-200',
-    'Reported':       'bg-red-50 text-red-600 border-red-200',
-  };
+  const tone = TONE[action];
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full font-bt-mono text-[11px] font-semibold border whitespace-nowrap ${cfg[action] ?? 'bg-[#FAF7F0] text-[#8A8175] border-[#DBD0BB]'}`}>
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full font-bt-mono text-[11px] font-semibold border whitespace-nowrap ${tone ? BADGE[tone] : 'bg-[#FAF7F0] text-[#8A8175] border-[#DBD0BB]'}`}>
       {actionName(t, action)}
     </span>
   );

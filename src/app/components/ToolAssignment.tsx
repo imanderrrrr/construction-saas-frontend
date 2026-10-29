@@ -3,6 +3,8 @@ import { RecordPagination } from './ui/record-pagination';
 import { TextValue } from './tools/TextValue';
 import { actionName, categoryName, statusName } from './tools/bits';
 import { warehouseDate } from '../lib/warehouseDate';
+import { ApiError } from '../lib/api';
+import { warehouseErrorText } from '../lib/warehouseErrorText';
 import { useScreenState } from '../workspace/WorkspaceState';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -217,9 +219,10 @@ function AssignModal({ open, workers, onClose, onAssign }: {
   open: boolean;
   workers: UserDTO[];
   onClose: () => void;
-  onAssign: (toolCode: string, toolName: string, workerId: number, workerName: string, projectId: number, projectName: string, notes: string) => void;
+  onAssign: (toolCode: string, toolName: string, workerId: number, workerName: string, projectId: number, projectName: string, notes: string) => Promise<void>;
 }) {
   const { t } = useTranslation('inventory');
+  const [sending,         setSending]         = useState(false);
   const [selectedTool,    setSelectedTool]    = useState<AvailableTool | null>(null);
   const [workerId,        setWorkerId]        = useState('');
   const [projectId,       setProjectId]       = useState('');
@@ -302,10 +305,13 @@ function AssignModal({ open, workers, onClose, onAssign }: {
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={onClose} className="rounded-none border-[#DBD0BB] text-[#8A8175]">{t('buttons.cancel', { ns: 'common' })}</Button>
           <Button
-            onClick={() => valid && selectedTool && selectedWorker && selectedProject &&
+            onClick={() => {
+              if (sending || !valid || !selectedTool || !selectedWorker || !selectedProject) return;
+              setSending(true);
               onAssign(selectedTool.code, selectedTool.name, selectedWorker.id, selectedWorker.fullName ?? selectedWorker.username, selectedProject.id, selectedProject.name, notes)
-            }
-            disabled={!valid}
+                .finally(() => setSending(false));
+            }}
+            disabled={!valid || sending}
             className="bg-[#0A0A0A] hover:bg-[#F97316] text-[#F5F1E8] hover:text-[#0A0A0A] disabled:opacity-50">
             {t('assignment.assignTool')}
           </Button>
@@ -319,9 +325,10 @@ function AssignModal({ open, workers, onClose, onAssign }: {
 
 function ReturnModal({ open, activeAssignments, onClose, onReturn }: {
   open: boolean; activeAssignments: Assignment[]; onClose: () => void;
-  onReturn: (assignmentId: string, condition: string, notes: string) => void;
+  onReturn: (assignmentId: string, condition: string, notes: string) => Promise<void>;
 }) {
   const { t } = useTranslation('inventory');
+  const [sending,    setSending]    = useState(false);
   const [assignId,   setAssignId]   = useState('');
   const [condition,  setCondition]  = useState('');
   const [notes,      setNotes]      = useState('');
@@ -388,8 +395,12 @@ function ReturnModal({ open, activeAssignments, onClose, onReturn }: {
         </div>
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={onClose} className="rounded-none border-[#DBD0BB] text-[#8A8175]">{t('buttons.cancel', { ns: 'common' })}</Button>
-          <Button onClick={() => valid && onReturn(assignId, condition, notes)}
-            disabled={!valid || activeAssignments.length === 0}
+          <Button onClick={() => {
+              if (sending || !valid) return;
+              setSending(true);
+              onReturn(assignId, condition, notes).finally(() => setSending(false));
+            }}
+            disabled={!valid || sending || activeAssignments.length === 0}
             className="bg-[#0A0A0A] hover:bg-[#F97316] text-[#F5F1E8] hover:text-[#0A0A0A] disabled:opacity-50">
             {t('assignment.dialog.confirmReturn')}
           </Button>
@@ -454,8 +465,17 @@ export function ToolAssignment() {
   const assignedToday = summaryData.assignedToday;
   const returnsToday  = summaryData.returnedToday;
 
+  // A refusal says the server's own reason (D4, audit 2026-10-28). A 404/409
+  // means the tool moved on the server meanwhile — another user received or
+  // assigned it — so the stale rows are reloaded once; any other refusal leaves
+  // the list as it is. The current log page is reloaded, not the first one.
+  function refused(err: unknown, fallback: string) {
+    toast.error(warehouseErrorText(err, fallback));
+    if (err instanceof ApiError && (err.status === 404 || err.status === 409)) loadAllData(logPage);
+  }
+
   function handleAssign(toolCode: string, toolName: string, workerId: number, workerName: string, projectId: number, projectName: string, notes: string) {
-    apiAssignTool({
+    return apiAssignTool({
       toolCode,
       workerId,
       projectId,
@@ -463,26 +483,22 @@ export function ToolAssignment() {
     }).then(() => {
       setShowAssign(false);
       toast.success(t('inventory:toast.toolAssigned', 'Assigned {{code}} {{name}} to {{worker}} — {{project}}', { code: toolCode, name: toolName, worker: workerName, project: projectName }));
-      loadAllData();
-    }).catch(() => {
-      toast.error(t('inventory:toast.assignError', 'Failed to assign tool. Please try again.'));
-    });
+      loadAllData(logPage);
+    }).catch(err => refused(err, t('inventory:toast.assignError', 'Failed to assign tool. Please try again.')));
   }
 
   function handleReturn(assignmentId: string, condition: string, notes: string) {
     const assignment = activeAssignments.find(a => a.id === assignmentId);
-    if (!assignment) return;
+    if (!assignment) return Promise.resolve();
 
-    apiReturnTool(Number(assignmentId), {
+    return apiReturnTool(Number(assignmentId), {
       condition,
       notes: notes || undefined,
     }).then(() => {
       setShowReturn(false);
       toast.success(t('inventory:toast.toolReturned', 'Returned {{code}} {{name}} — condition: {{condition}}', { code: assignment.toolCode, name: assignment.toolName, condition: conditionName(t, condition) }));
-      loadAllData();
-    }).catch(() => {
-      toast.error(t('inventory:toast.returnError', 'Failed to return tool. Please try again.'));
-    });
+      loadAllData(logPage);
+    }).catch(err => refused(err, t('inventory:toast.returnError', 'Failed to return tool. Please try again.')));
   }
 
   // Render

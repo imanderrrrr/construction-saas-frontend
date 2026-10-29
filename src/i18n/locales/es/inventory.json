@@ -59,7 +59,6 @@
   "tools.dialog.reason": "Razón del cambio (opcional)",
   "tools.dialog.cannotChangeAssigned": "Esta herramienta está actualmente <strong>Asignada</strong> y no se puede cambiar manualmente. Usa la función Devolver Herramienta en Asignaciones.",
   "tools.dialog.moreCharsRequired": "{{count}} caracteres más requeridos",
-
   "consumables.kpi.totalItems": "Total artículos",
   "consumables.kpi.inStock": "En Stock",
   "consumables.kpi.lowStock": "Stock Bajo",
@@ -126,7 +125,6 @@
   "consumables.dialog.dispatchHistoryError": "No pudimos cargar el historial de despacho.",
   "consumables.dialog.requestedBy": "Solicitado por",
   "consumables.dialog.close": "Cerrar",
-
   "dispatch.kpi.totalDispatches": "Total despachos",
   "dispatch.kpi.unitsDispatched": "Unidades despachadas",
   "dispatch.kpi.activeProjects": "Proyectos activos",
@@ -165,7 +163,6 @@
   "dispatch.dialog.notes": "Notas",
   "dispatch.dialog.notesPlaceholder": "Notas opcionales…",
   "dispatch.dialog.submit": "Despachar",
-
   "assignment.title": "Asignaciones de Herramientas",
   "assignment.subtitle": "Asignar y devolver herramientas a trabajadores",
   "assignment.assignTool": "Asignar Herramienta",
@@ -242,7 +239,6 @@
   "assignment.dialog.photoEvidence": "Evidencia fotográfica",
   "assignment.dialog.comingSoon": "Próximamente",
   "assignment.dialog.selectCondition": "Seleccionar condición...",
-
   "warehouse.panelLabel": "Panel de Bodega",
   "warehouse.sidebar.version": "v1.0.0 · Fase 5",
   "warehouse.welcome": "¡Bienvenido, {{username}}!",
@@ -295,7 +291,6 @@
   "warehouse.quickAccess.consumableStock.subtitle": "Gestionar insumos, niveles de stock y alertas",
   "warehouse.quickAccess.dispatchSupply.title": "Despachar Insumos",
   "warehouse.quickAccess.dispatchSupply.subtitle": "Despachar consumibles a proyectos activos",
-
   "toast.toolRegistered": "Herramienta registrada — {{code}} {{name}}",
   "toast.registerError": "No se pudo registrar la herramienta",
   "toast.toolUpdated": "Herramienta actualizada — {{code}}",
@@ -325,5 +320,15 @@
   "warehouse.kpi.reviewDamagedLost": "En revisión, dañadas o perdidas",
   "warehouse.custodyBreakdown": "Sin aceptar: {{pending}} · Pendientes de recepción: {{returns}} · En revisión: {{review}} · Dañadas: {{damaged}} · Perdidas: {{lost}}",
   "dispatch.dialog.wholeQuantity": "Usa una cantidad entera de la unidad indicada.",
-  "dispatch.dialog.notesLimit": "{{count}} / {{max}} caracteres como máximo."
+  "dispatch.dialog.notesLimit": "{{count}} / {{max}} caracteres como máximo.",
+  "consumables.intent.pending": "Resultado pendiente: {{quantity}} unidades. Consulta y confirma este movimiento antes de registrar otro. Sus datos y su referencia se conservan al cerrar o recargar.",
+  "consumables.intent.confirmed": "Movimiento confirmado: {{quantity}} unidades. Para otra entrega física, inicia un movimiento nuevo.",
+  "consumables.intent.refused": "Movimiento rechazado. No se aplicó. Puedes corregir los datos e iniciar otro.",
+  "consumables.intent.stockUnknown": "Existencias sin confirmar. Reintenta la consulta antes de registrar otro movimiento.",
+  "consumables.intent.reconcile": "Consultar y confirmar movimiento",
+  "consumables.intent.newRestock": "Nueva recepción física",
+  "consumables.intent.newDispatch": "Nuevo despacho",
+  "consumables.intent.sessionChanged": "La sesión cambió. Abre de nuevo el formulario.",
+  "consumables.intent.corrupt": "No se pudo leer el movimiento pendiente. Conserva este navegador y solicita conciliación.",
+  "consumables.intent.lockUnavailable": "Este navegador no permite proteger el movimiento. Usa un navegador actualizado."
 }
