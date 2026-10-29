@@ -19,7 +19,7 @@ const es: LegalVersion = {
         </a>
       ),
     },
-    { label: 'Versión', value: '2.3' },
+    { label: 'Versión', value: '2.4' },
   ],
   sections: [
     {
@@ -426,7 +426,7 @@ const en: LegalVersion = {
         </a>
       ),
     },
-    { label: 'Version', value: '2.3' },
+    { label: 'Version', value: '2.4' },
   ],
   sections: [
     {
