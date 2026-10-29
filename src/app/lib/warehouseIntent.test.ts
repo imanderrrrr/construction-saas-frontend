@@ -93,7 +93,9 @@ describe('durable warehouse journal', () => {
   });
   it('sends nothing if durable storage fails', async () => {
     const scope = warehouseScope(); const send = vi.fn();
-    const spy = vi.spyOn(localStorage, 'setItem').mockImplementation(() => { throw new Error('quota'); });
+    // On the object's own prototype: jsdom stores an own `setItem` assignment as an item instead of
+    // replacing the method, and Node's native storage (Node 22+) is not jsdom's `Storage`.
+    const spy = vi.spyOn(Object.getPrototypeOf(localStorage) as Storage, 'setItem').mockImplementation(() => { throw new Error('quota'); });
     await expect(sendIntent(scope, 'restock:7', { quantity: 5 }, send)).rejects.toThrow('quota');
     spy.mockRestore(); expect(send).not.toHaveBeenCalled();
   });

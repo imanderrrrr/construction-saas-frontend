@@ -89,6 +89,8 @@ test.describe('Shared administrator design in web roles', () => {
     const updates: Record<string, unknown>[] = [];
     const restocks: Record<string, unknown>[] = [];
     await page.route('**/api/v1/warehouse/consumables/search?*', route => json(paged([supply]))(route));
+    // The window reads the live stock before it allows a restock.
+    await page.route('**/api/v1/warehouse/consumables?*', route => json([supply])(route));
     await page.route('**/api/v1/warehouse/consumables/2/dispatches', json([{ id: 1, project: 'Escuela Central', requestedBy: 'Ana López', date: '2026-10-01', quantity: 5, unit: 'sacos', notes: 'Colado de columnas' }]));
     await page.route('**/api/v1/warehouse/consumables/2', route => {
       const update = route.request().postDataJSON();
