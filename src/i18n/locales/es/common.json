@@ -189,6 +189,7 @@
   "intro.skip": "Saltar",
   "dialog.description": "Detalles del formulario",
   "validation.maxLength": "Admite hasta {{max}} caracteres.",
+  "validation.minLength": "Escribe al menos {{min}} caracteres.",
   "validation.textPolicy": "Nombres: 25 caracteres. Descripciones y notas: 50.",
   "validation.historicalValue": "Valor histórico. Puedes conservarlo; si lo cambias, aplica el límite actual.",
   "pagination.label": "Paginación",

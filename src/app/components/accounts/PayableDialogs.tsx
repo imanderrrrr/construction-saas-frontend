@@ -10,6 +10,7 @@ import { CATEGORY_KEY_MAP, PaymentMethodField, resolveMethod, splitMethod, type 
 import { fmtMoney } from '../invoices/bits';
 import { ApiError } from '../../lib/api';
 import { FIELD_LIMITS } from '../../../shared/fieldLimits';
+import { textTooLong } from '../../../shared/textPolicy';
 import { businessToday } from '../../helpers/dateTime';
 import { BudgetLineItemSelector } from '../budgets/wbs/BudgetLineItemSelector';
 import {
@@ -453,7 +454,10 @@ export function CreateBillDialog({ open, vendors, projects, suggestedNumber, onC
               <FieldLabel htmlFor="ap-new-vendor">{t('finance:payable.create.vendor')}</FieldLabel>
               <MonoSelect id="ap-new-vendor" value={vendor} onChange={e => setVendor(e.target.value)} className="w-full h-10 normal-case">
                 <option value="">{t('finance:payable.create.vendorPlaceholder')}</option>
-                {vendors.map(v => <option key={v} value={v}>{v}</option>)}
+                {/* CreatePayableRequest.vendor takes at most 25. A vendor saved before that
+                    (a subcontractor's full name, up to 200) is typed again under "Other". */}
+                {vendors.filter(v => v.length <= FIELD_LIMITS.SHORT_NAME)
+                  .map(v => <option key={v} value={v}>{v}</option>)}
                 <option value="Other">{t('finance:payable.create.vendorOther')}</option>
               </MonoSelect>
               {vendor === 'Other' && (
@@ -659,6 +663,14 @@ export function EditBillInfoDialog({ bill, vendors, onClose, onSaved }: {
       if (inv && inv !== (bill.invoiceNumber ?? '')) payload.invoiceNumber = inv;
     }
     if (Object.keys(payload).length === 0) { onClose(); return; }
+    // Unchanged historical text stays out of the payload above; what does go
+    // must fit UpdatePayableInfoRequest (vendor 25, description and notes 50).
+    const tooLong = ([
+      [payload.vendor, FIELD_LIMITS.SHORT_NAME],
+      [payload.description, FIELD_LIMITS.NOTE],
+      [payload.notes, FIELD_LIMITS.EXTENDED_NOTE],
+    ] as const).find(([value, max]) => value != null && textTooLong(value, max));
+    if (tooLong) { toast.error(t('common:validation.maxLength', { max: tooLong[1] })); return; }
 
     setBusy(true);
     try {
@@ -970,7 +982,10 @@ export function EditPaymentDialog({ subject, onClose, onSaved }: {
     if (!date) { toast.error(t('finance:payable.validation.checkFields')); return; }
     setBusy(true);
     try {
-      const updated = await updatePayablePayment(subject.bill.id, subject.payment.id, { method: resolved, date });
+      // The server keeps an omitted method. Resending an unchanged historical
+      // "Other" text over 25 would refuse an edit of the date alone.
+      const updated = await updatePayablePayment(subject.bill.id, subject.payment.id,
+        resolved === subject.payment.method ? { date } : { method: resolved, date });
       toast.success(t('finance:payable.editPayment.done'));
       onSaved(updated);
       onClose();

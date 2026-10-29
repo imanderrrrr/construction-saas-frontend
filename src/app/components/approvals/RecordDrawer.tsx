@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, Check, Loader2, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 import {
   approveEvent, approveRecord, correctEvent, correctRecord, editEventTime,
   getTimeRecord, rejectRecord, resolveTransitDispute, type TimeRecordResponse,
@@ -16,12 +17,23 @@ import {
   statusPillClass, uploadLagOf,
 } from './shared';
 
+/** ReviewRequest.comment: 10 to 50 characters, or the server answers 400. */
+const MIN_REVIEW_COMMENT = 10;
+
+function reviewCommentProblem(raw: string): { key: string; params: Record<string, number> } | null {
+  const text = raw.trim();
+  if (text.length < MIN_REVIEW_COMMENT) return { key: 'common:validation.minLength', params: { min: MIN_REVIEW_COMMENT } };
+  if (text.length > FIELD_LIMITS.LONG_TEXT) return { key: 'common:validation.maxLength', params: { max: FIELD_LIMITS.LONG_TEXT } };
+  return null;
+}
+
 /**
  * One day, opened. The vertical timeline is the heart: every punch with its
  * time, its distance to the jobsite and its own review actions — because the
  * question an admin actually asks is "does this day make sense?", not "what
  * rows are in the table".
  */
+
 export function RecordDrawer({ recordId, onClose, onChanged, mode = 'admin' }: {
   recordId: number;
   onClose: () => void;
@@ -215,7 +227,10 @@ export function RecordDrawer({ recordId, onClose, onChanged, mode = 'admin' }: {
                         </button>
                         <button onClick={() => {
                           const c = window.prompt(t('admin:apr.d.observePrompt'));
-                          if (c) run(`ev-obs-${e.id}`, () => correctEvent(record.id, e.id, c));
+                          if (c === null) return;
+                          const problem = reviewCommentProblem(c);
+                          if (problem) { toast.error(t(problem.key, problem.params)); return; }
+                          run(`ev-obs-${e.id}`, () => correctEvent(record.id, e.id, c.trim()));
                         }}
                           className="border border-[#DBD0BB] bg-[#FAF7F0] px-2.5 py-1.5 font-bt-mono text-[9.5px] uppercase tracking-[0.05em] font-semibold text-[#0A0A0A] hover:border-[#F97316] hover:text-[#C2410C]">
                           {t('admin:apr.observe')}
@@ -252,6 +267,10 @@ export function RecordDrawer({ recordId, onClose, onChanged, mode = 'admin' }: {
                           // Dismissing the reason aborts the edit. This path rewrites
                           // a paid timestamp — cancel has to mean cancel.
                           if (reason === null) return;
+                          if (reason.trim().length > FIELD_LIMITS.LONG_TEXT) {
+                            toast.error(t('common:validation.maxLength', { max: FIELD_LIMITS.LONG_TEXT }));
+                            return;
+                          }
                           run(`ev-time-${e.id}`, () => editEventTime(
                             record.id, e.id, correctedISO,
                             reason.trim() || t('admin:apr.d.fixDefaultReason')));
@@ -353,8 +372,14 @@ export function RecordDrawer({ recordId, onClose, onChanged, mode = 'admin' }: {
                 {t(action === 'observe' ? 'admin:apr.d.observeTitle' : 'admin:apr.d.rejectTitle')}
               </Mono>
               <textarea value={comment} onChange={e => setComment(e.target.value)} autoFocus
+                maxLength={FIELD_LIMITS.LONG_TEXT}
                 placeholder={t('admin:apr.d.commentPh')}
                 className="w-full h-16 resize-none border border-[#CDBFA6] bg-[#FAF7F0] px-3 py-2.5 text-[13px] text-[#0A0A0A] outline-none focus:border-[#F97316]" />
+              {comment.trim() && comment.trim().length < MIN_REVIEW_COMMENT && (
+                <Mono className="block text-[10px] normal-case tracking-[0.04em] text-[#8A8175] mt-1">
+                  {t('common:validation.minLength', { min: MIN_REVIEW_COMMENT })}
+                </Mono>
+              )}
               <div className="flex gap-2 mt-2.5 justify-end">
                 <button onClick={() => { setAction(null); setComment(''); }}
                   className="px-3 py-2 font-bt-mono text-[10.5px] uppercase tracking-[0.06em] text-[#8A8175] hover:text-[#C2410C]">
@@ -364,7 +389,7 @@ export function RecordDrawer({ recordId, onClose, onChanged, mode = 'admin' }: {
                   onClick={() => run('resolve',
                     () => (action === 'observe' ? correctRecord(record.id, comment) : rejectRecord(record.id, comment)),
                     true)}
-                  disabled={!comment.trim() || busy === 'resolve'}
+                  disabled={comment.trim().length < MIN_REVIEW_COMMENT || busy === 'resolve'}
                   className="bg-[#0A0A0A] hover:bg-[#F97316] text-[#F5F1E8] hover:text-[#0A0A0A] px-4 py-2 font-bt-mono text-[10.5px] uppercase tracking-[0.06em] font-semibold disabled:opacity-40">
                   {busy === 'resolve' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : t(action === 'observe' ? 'admin:apr.observe' : 'admin:apr.reject')}
                 </button>

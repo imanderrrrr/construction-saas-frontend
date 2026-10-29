@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, ArrowRight, Check, CreditCard, Download, FileSpreadsheet, Loader2, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 import {
   confirmPayment, previewPayment, type PayrollPaymentPreview, getAdminHoursReport,
   type AdminHoursReportResponse, type WorkerHoursSummary,
@@ -518,7 +519,9 @@ function ConfirmPaymentDialog({ worker, from, to, lang, projectId, blockers, onC
 
               <div className="mt-4">
                 <Mono className="block text-[10px] tracking-[0.08em] text-[#5A5346] mb-2">{t('admin:pay.d.notes')}</Mono>
+                {/* ConfirmPaymentRequest.notes takes at most 50. */}
                 <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder={t('admin:pay.d.notesPh')}
+                  maxLength={FIELD_LIMITS.NOTE}
                   className="w-full h-14 resize-none border border-[#CDBFA6] bg-[#FAF7F0] px-3 py-2.5 text-[13px] text-[#0A0A0A] outline-none focus:border-[#F97316]" />
               </div>
 

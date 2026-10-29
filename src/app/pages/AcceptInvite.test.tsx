@@ -88,6 +88,16 @@ async function submit(container: HTMLElement) {
 }
 
 describe('suggestUsernames', () => {
+  // AcceptInvitationRequest.username takes at most 30: a 30-character name that
+  // is taken must not come back as a 31-character suggestion.
+  it('never suggests more than the 30 characters the server takes', () => {
+    const taken = 'a'.repeat(24) + '.lopez';
+    expect(taken.length).toBe(30);
+    const out = suggestUsernames(taken, 'Ana López');
+    expect(out.length).toBeGreaterThan(0);
+    for (const s of out) expect(s.length).toBeLessThanOrEqual(30);
+  });
+
   it('offers three alternatives built from the username and the name', () => {
     expect(suggestUsernames('otto.ramirez', 'Otto Ramírez')).toEqual(['otto.ramirez2', 'o.ramirez', 'otto.r']);
   });

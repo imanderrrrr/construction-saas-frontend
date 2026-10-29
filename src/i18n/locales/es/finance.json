@@ -695,6 +695,7 @@
   "invoice.picker.missingClient": "cliente",
   "invoice.picker.missingCostCode": "código de costo",
   "invoice.picker.notBillable": "No facturable: le falta {{missing}}",
+  "invoice.picker.nameTooLong": "Nombre de más de {{max}} caracteres: acórtalo en Clientes",
   "invoice.window.kicker": "Se numera al guardar",
   "invoice.window.title": "Emitir documento",
   "invoice.window.numberedOnSave": "El sistema le pone el número al guardar · una secuencia por empresa y por año",

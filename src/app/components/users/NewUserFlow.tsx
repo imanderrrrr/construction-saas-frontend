@@ -7,6 +7,7 @@ import { getStoredTenantSlug } from '../../lib/api';
 import { loadInvoiceIssuer } from '../../services/invoiceBranding';
 import { businessToday, fmtDate } from '../../helpers/dateTime';
 import { GRID_INK, Mono, isFieldRole, randomPassword, randomPin } from './shared';
+import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 
 /**
  * Guided user creation. Three steps — identity+role, access, credential — and
@@ -57,7 +58,9 @@ export function NewUserFlow({ existingUsernames, onClose, onCreated }: {
     if (touchedUsername) return;
     const slug = fullName.trim().toLowerCase()
       .normalize('NFD').replace(/[̀-ͯ]/g, '')
-      .replace(/[^a-z0-9\s.]/g, '').trim().replace(/\s+/g, '.');
+      .replace(/[^a-z0-9\s.]/g, '').trim().replace(/\s+/g, '.')
+      // CreateUserRequest.username takes at most 30; a cut never ends on a dot.
+      .slice(0, FIELD_LIMITS.USERNAME).replace(/\.+$/, '');
     setUsername(slug);
   }, [fullName, touchedUsername]);
 
@@ -186,12 +189,13 @@ export function NewUserFlow({ existingUsernames, onClose, onCreated }: {
                 <div>
                   <Mono className="block text-[10px] text-[#5A5346] mb-2">{t('admin:usr.new.fullName')}</Mono>
                   <input value={fullName} onChange={e => setFullName(e.target.value)} autoFocus
+                    maxLength={FIELD_LIMITS.PERSON_NAME}
                     placeholder={t('admin:usr.new.fullNamePh')}
                     className="w-full border border-[#DBD0BB] bg-white px-3.5 py-3 text-sm text-[#0A0A0A] outline-none focus:border-[#F97316]" />
                 </div>
                 <div>
                   <Mono className="block text-[10px] text-[#5A5346] mb-2">{t('admin:usr.new.username')}</Mono>
-                  <input value={username}
+                  <input value={username} maxLength={FIELD_LIMITS.USERNAME}
                     onChange={e => { setTouchedUsername(true); setUsername(e.target.value.toLowerCase().replace(/\s+/g, '.')); }}
                     placeholder="marta.lopez"
                     className={`w-full border bg-white px-3.5 py-3 font-bt-mono text-[13.5px] text-[#0A0A0A] outline-none ${usernameTaken ? 'border-[#EA580C]' : 'border-[#DBD0BB] focus:border-[#F97316]'}`} />
