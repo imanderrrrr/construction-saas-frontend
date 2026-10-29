@@ -38,7 +38,7 @@ export function FieldError({ children }: { children: ReactNode }) {
 
 /** The section's input look: 40 px, sand border, orange on focus. */
 export const INPUT =
-  'w-full h-10 border border-[#DBD0BB] bg-white px-3 text-sm text-[#0A0A0A] outline-none placeholder:text-[#A69C8D] focus:border-[#F97316] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-[#F97316] focus-visible:outline-offset-2 disabled:bg-[#F3EEE4] disabled:text-[#8A8175]';
+  'w-full min-w-0 max-w-full h-10 border border-[#DBD0BB] bg-white px-3 text-sm text-[#0A0A0A] outline-none placeholder:text-[#A69C8D] focus:border-[#F97316] focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-[#F97316] focus-visible:outline-offset-2 disabled:bg-[#F3EEE4] disabled:text-[#8A8175]';
 export const INPUT_ERROR = 'border-[#F97316]';
 export const INPUT_MONO = 'font-bt-mono text-[12.5px] tracking-[0.04em]';
 
@@ -62,7 +62,7 @@ export function CreateButton({ className, type = 'button', ...rest }: ButtonHTML
     <button
       type={type}
       className={cn(
-        'inline-flex items-center justify-center gap-2 bg-[#0A0A0A] text-[#F5F1E8] hover:bg-[#F97316] hover:text-[#0A0A0A] font-bt-mono text-[11.5px] font-semibold uppercase tracking-[0.09em] whitespace-nowrap px-4 py-3 transition-colors disabled:opacity-50 disabled:pointer-events-none',
+        'inline-flex items-center justify-center gap-2 bg-[#0A0A0A] text-[#F5F1E8] hover:bg-[#F97316] hover:text-[#0A0A0A] font-bt-mono text-[11.5px] font-semibold uppercase tracking-[0.09em] min-w-0 max-w-full whitespace-normal [overflow-wrap:anywhere] px-4 py-3 transition-colors disabled:opacity-50 disabled:pointer-events-none',
         FOCUS_RING,
         className,
       )}

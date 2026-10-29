@@ -1,3 +1,4 @@
+import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 import { useScreenState, useProjectFilter, useWorkspace } from '../../workspace/WorkspaceState';
 // BuildTrack — Internal RFI view ("Consultas de obra", Procore-style).
 // Shared by the admin project ficha (Consultas tab) and the supervisor
@@ -697,7 +698,7 @@ function RfiThread({ rfi, canReply, fmtDate, onPosted, onOpenPhoto }: {
           <Mono className="block text-[10px] font-semibold tracking-[0.12em] text-[#0A0A0A]">{t('internal.responses.reply')}</Mono>
           <textarea
             aria-label={t('internal.responses.placeholder')}
-            maxLength={2000}
+            maxLength={FIELD_LIMITS.NOTE}
             rows={2}
             value={body}
             onChange={(e) => setBody(e.target.value)}
@@ -785,8 +786,8 @@ function RfiDrawer(props:
         props.onDone(created);
       } else {
         const updated = await updateRfiDraft(props.rfi.id, {
-          subject: subject.trim(),
-          question: question.trim(),
+          ...(subject !== props.rfi.subject ? { subject: subject.trim() } : {}),
+          ...(question !== props.rfi.question ? { question: question.trim() } : {}),
           dueDate: dueDate || undefined,
         });
         if (kind === 'saveSend') {
@@ -849,7 +850,7 @@ function RfiDrawer(props:
           <input
             id={`rfi-subject-${idSuffix}`}
             type="text"
-            maxLength={200}
+            maxLength={FIELD_LIMITS.SHORT_NAME}
             value={subject}
             onChange={(e) => { setSubject(e.target.value); setSubjectError(''); }}
             placeholder={t('internal.form.subjectPlaceholder')}
@@ -862,7 +863,7 @@ function RfiDrawer(props:
           <FieldLabel htmlFor={`rfi-question-${idSuffix}`} required>{t('internal.form.questionLabel')}</FieldLabel>
           <textarea
             id={`rfi-question-${idSuffix}`}
-            maxLength={10000}
+            maxLength={FIELD_LIMITS.NOTE}
             rows={5}
             value={question}
             onChange={(e) => { setQuestion(e.target.value); setQuestionError(''); }}

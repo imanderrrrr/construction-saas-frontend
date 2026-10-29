@@ -1,3 +1,5 @@
+import { RecordPagination } from './ui/record-pagination';
+import { changedFields, textTooLong } from '../../shared/textPolicy';
 import { useScreenState } from '../workspace/WorkspaceState';
 // ConsumableInventory.tsx — Consumable supplies inventory management
 
@@ -169,14 +171,14 @@ export function ConsumableInventory({ onNavigate }: { onNavigate?: (section: str
   };
 
   const handleEditConsumable = (updated: ConsumableItem) => {
-    updateConsumable(Number(updated.id), {
+    updateConsumable(Number(updated.id), changedFields({
       name:         updated.name,
       category:     updated.category,
       unit:         updated.unit,
       unitCostCents: updated.unitCostCents,
       minimumStock: updated.minimumStock,
-      notes:        updated.notes || undefined,
-    })
+      notes:        updated.notes ?? '',
+    }, { name: editItem?.name, category: editItem?.category, unit: editItem?.unit, unitCostCents: editItem?.unitCostCents, minimumStock: editItem?.minimumStock, notes: editItem?.notes ?? '' }))
       .then(res => {
         setEditItem(null);
         toast.success(t('inventory:toast.consumableUpdated', 'Updated {{code}} — {{name}}', { code: res.code, name: res.name }));
@@ -366,29 +368,11 @@ export function ConsumableInventory({ onNavigate }: { onNavigate?: (section: str
 
       {/* Pagination */}
       {!loading && totalPages > 1 && (
-        <div className="flex items-center justify-between pt-2">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
           <p className="text-xs text-[#71717A]">
             {t('consumables.showing', { from: (safePage - 1) * ITEMS_PER_PAGE + 1, to: Math.min(safePage * ITEMS_PER_PAGE, filtered.length), total: filtered.length })}
           </p>
-          <div className="flex items-center gap-1">
-            <Button variant="outline" size="sm" disabled={safePage <= 1} onClick={() => setPage(p => p - 1)} className="h-8 w-8 p-0 border-[#D4D4D8]">
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            {Array.from({ length: totalPages }, (_, i) => (
-              <Button
-                key={i + 1}
-                variant={safePage === i + 1 ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setPage(i + 1)}
-                className={`h-8 w-8 p-0 ${safePage === i + 1 ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-500' : 'border-[#D4D4D8]'}`}
-              >
-                {i + 1}
-              </Button>
-            ))}
-            <Button variant="outline" size="sm" disabled={safePage >= totalPages} onClick={() => setPage(p => p + 1)} className="h-8 w-8 p-0 border-[#D4D4D8]">
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
+          <RecordPagination current={safePage} total={totalPages} onPage={setPage} />
         </div>
       )}
 
@@ -428,7 +412,7 @@ function AddConsumableModal({ open, onClose, onAdd }: {
   const [minStock, setMinStock] = useState('');
   const [notes, setNotes] = useState('');
 
-  const canSubmit = moneyInputCents(unitCost) != null && name.trim() && category && unit && Number(stock) >= 0 && Number(minStock) >= 0;
+  const canSubmit = moneyInputCents(unitCost) != null && name.trim() && name.trim().length <= FIELD_LIMITS.WAREHOUSE_NAME && category && unit && Number(stock) >= 0 && Number(minStock) >= 0;
 
   const handleSubmit = () => {
     if (!canSubmit) return;
@@ -454,7 +438,7 @@ function AddConsumableModal({ open, onClose, onAdd }: {
         <div className="space-y-4 py-2">
           <div>
             <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide">{t('consumables.dialog.name')} *</label>
-            <Input value={name} onChange={e => setName(e.target.value)} maxLength={FIELD_LIMITS.SHORT_NAME} className="mt-1 h-9 border-[#D4D4D8] text-sm" placeholder={t('consumables.dialog.namePlaceholder')} />
+            <Input value={name} onChange={e => setName(e.target.value)} maxLength={FIELD_LIMITS.WAREHOUSE_NAME} className="mt-1 h-9 border-[#D4D4D8] text-sm" placeholder={t('consumables.dialog.namePlaceholder')} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -523,11 +507,11 @@ function EditConsumableModal({ item, onClose, onSave }: {
   const [unitCost, setUnitCost] = useState((item.unitCostCents / 100).toFixed(2));
   const [notes, setNotes] = useState(item.notes ?? '');
 
-  const canSubmit = moneyInputCents(unitCost) != null && name.trim() && category && unit && Number(minStock) >= 0;
+  const canSubmit = moneyInputCents(unitCost) != null && name.trim() && !textTooLong(name, FIELD_LIMITS.WAREHOUSE_NAME, item.name) && !textTooLong(notes, FIELD_LIMITS.NOTE, item.notes ?? '') && category && unit && Number(minStock) >= 0;
 
   const handleSubmit = () => {
     if (!canSubmit) return;
-    onSave({ ...item, name: name.trim(), category, unit, minimumStock: Number(minStock), unitCostCents: moneyInputCents(unitCost)!, notes: notes.trim() || undefined });
+    onSave({ ...item, name: name === item.name ? name : name.trim(), category, unit, minimumStock: Number(minStock), unitCostCents: moneyInputCents(unitCost)!, notes: notes === (item.notes ?? '') ? notes : notes.trim() });
   };
 
   return (
@@ -544,7 +528,7 @@ function EditConsumableModal({ item, onClose, onSave }: {
           </div>
           <div>
             <label className="text-[11px] font-semibold text-[#71717A] uppercase tracking-wide">{t('consumables.dialog.name')} *</label>
-            <Input value={name} onChange={e => setName(e.target.value)} maxLength={FIELD_LIMITS.SHORT_NAME} className="mt-1 h-9 border-[#D4D4D8] text-sm" />
+            <Input value={name} onChange={e => setName(e.target.value)} maxLength={FIELD_LIMITS.WAREHOUSE_NAME} className="mt-1 h-9 border-[#D4D4D8] text-sm" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

@@ -37,7 +37,7 @@ export async function updateInvoiceBranding(
   payload: UpdateInvoiceBrandingPayload,
 ): Promise<InvoiceBranding> {
   return api<InvoiceBranding>(ENDPOINT, {
-    method: 'PUT',
+    method: 'PATCH',
     body: JSON.stringify(payload),
   });
 }

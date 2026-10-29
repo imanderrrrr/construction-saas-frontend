@@ -1,3 +1,5 @@
+import { FIELD_LIMITS } from '../../shared/fieldLimits';
+import { changedFields, textTooLong } from '../../shared/textPolicy';
 import { TimezoneSwitcher } from './TimezoneSwitcher';
 // Admin screen: the tenant's invoice template — the letterhead printed on
 // every invoice and change order the app generates, and (via
@@ -47,7 +49,7 @@ import type { InvoiceIssuerPdf, InvoicePdfData } from '../helpers/exportInvoiceP
 /** Mirrors of the backend caps (InvoiceBrandingService / UpdateInvoiceBrandingRequest). */
 const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 const ALLOWED_LOGO_TYPES = ['image/png', 'image/jpeg'];
-const LIMITS = { companyName: 150, contactName: 150, address: 300, email: 150, phone: 50 } as const;
+const LIMITS = { companyName: FIELD_LIMITS.COMPANY_NAME, contactName: FIELD_LIMITS.PERSON_NAME, address: 300, email: 150, phone: 50 } as const;
 
 interface FormState {
   companyName: string;
@@ -242,19 +244,14 @@ export function InvoiceBrandingSettings() {
     // Belt and braces: the button is not rendered while the load failed, and
     // this refuses to run even if something else called it.
     if (loadState !== 'ready') return;
+    if ((Object.keys(LIMITS) as (keyof FormState)[]).some(k => textTooLong(form[k], LIMITS[k], saved[k]))) { setSaveError(t('common:validation.maxLength', { max: FIELD_LIMITS.SHORT_NAME })); return; }
     setSaving(true);
     setSaveError(null);
     try {
       if (pendingLogo) await uploadInvoiceLogo(pendingLogo.file);
-      // The PUT replaces every text column (InvoiceBrandingService.update
-      // assigns all five unconditionally), so the whole form travels — an
-      // omitted field is a cleared field, not an untouched one.
+      const fields = changedFields(form, saved);
       const result = await updateInvoiceBranding({
-        companyName: form.companyName.trim() || null,
-        contactName: form.contactName.trim() || null,
-        address: form.address.trim() || null,
-        email: form.email.trim() || null,
-        phone: form.phone.trim() || null,
+        ...Object.fromEntries(Object.entries(fields).map(([key, value]) => [key, value.trim()])),
         ...(logoRemoved ? { removeLogo: true } : {}),
       });
       invalidateInvoiceIssuer();

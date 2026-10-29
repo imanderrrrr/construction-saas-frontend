@@ -1,3 +1,5 @@
+import { RecordPagination } from './ui/record-pagination';
+import { changedFields, textTooLong } from '../../shared/textPolicy';
 import { useScreenState } from '../workspace/WorkspaceState';
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -145,27 +147,8 @@ function HistActionBadge({ action }: { action: HistoryAction }) {
   );
 }
 
-function Pagination({ current, total, onPage }: { current: number; total: number; onPage: (p: number) => void }) {
-  const { t } = useTranslation('common');
-  if (total <= 1) return null;
-  return (
-    <div className="flex items-center justify-center gap-1 py-4 border-t border-[#D4D4D8]">
-      <button onClick={() => onPage(current - 1)} disabled={current === 1}
-        className="h-8 px-3 rounded-lg text-xs font-medium text-[#71717A] hover:text-amber-700 hover:bg-amber-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
-        {t('buttons.prev')}
-      </button>
-      {Array.from({ length: total }, (_, i) => i + 1).map(p => (
-        <button key={p} onClick={() => onPage(p)}
-          className={`h-8 w-8 rounded-lg text-xs font-semibold transition-colors ${
-            p === current ? 'bg-amber-500 text-white' : 'text-[#71717A] hover:bg-amber-50 hover:text-amber-700'
-          }`}>{p}</button>
-      ))}
-      <button onClick={() => onPage(current + 1)} disabled={current === total}
-        className="h-8 px-3 rounded-lg text-xs font-medium text-[#71717A] hover:text-amber-700 hover:bg-amber-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
-        {t('buttons.next')}
-      </button>
-    </div>
-  );
+function Pagination({ current, total, onPage }: { current: number; total: number; onPage: (p: number) => void; t?: (key: string) => string }) {
+  return <RecordPagination current={current} total={total} onPage={onPage} />;
 }
 
 // Add Tool Modal
@@ -184,7 +167,7 @@ function AddToolModal({ open, onClose, onAdd }: {
     if (open) { setCode(''); setName(''); setCategory(''); setNotes(''); }
   }, [open]);
 
-  const valid = code.trim().length > 0 && name.trim().length > 0;
+  const valid = code.trim().length > 0 && name.trim().length > 0 && name.trim().length <= FIELD_LIMITS.WAREHOUSE_NAME;
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
@@ -210,7 +193,7 @@ function AddToolModal({ open, onClose, onAdd }: {
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-[#71717A] uppercase tracking-wide">{t('tools.table.toolName')} *</label>
             <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Bosch Laser Level 5"
-              maxLength={FIELD_LIMITS.SHORT_NAME}
+              maxLength={FIELD_LIMITS.WAREHOUSE_NAME}
               className="border-[#D4D4D8] text-sm" />
           </div>
           <div className="space-y-1.5">
@@ -261,7 +244,7 @@ function EditToolModal({ open, tool, onClose, onSave }: {
           </div>
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-[#71717A] uppercase tracking-wide">{t('tools.table.toolName')} *</label>
-            <Input value={name} onChange={e => setName(e.target.value)} maxLength={FIELD_LIMITS.SHORT_NAME} className="border-[#D4D4D8] text-sm" />
+            <Input value={name} onChange={e => setName(e.target.value)} maxLength={FIELD_LIMITS.WAREHOUSE_NAME} className="border-[#D4D4D8] text-sm" />
           </div>
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-[#71717A] uppercase tracking-wide">{t('labels.category', { ns: 'common' })}</label>
@@ -279,8 +262,8 @@ function EditToolModal({ open, tool, onClose, onSave }: {
         </div>
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={onClose} className="border-[#D4D4D8] text-[#71717A]">{t('buttons.cancel', { ns: 'common' })}</Button>
-          <Button onClick={() => name.trim() && onSave(tool.id, name.trim(), category, notes.trim())}
-            disabled={!name.trim()} className="bg-amber-500 hover:bg-amber-600 text-white disabled:opacity-50">
+          <Button onClick={() => name.trim() && !textTooLong(name, FIELD_LIMITS.WAREHOUSE_NAME, tool.name) && !textTooLong(notes, FIELD_LIMITS.NOTE, tool.notes ?? '') && onSave(tool.id, name === tool.name ? name : name.trim(), category, notes === (tool.notes ?? '') ? notes : notes.trim())}
+            disabled={!name.trim() || textTooLong(name, FIELD_LIMITS.WAREHOUSE_NAME, tool.name) || textTooLong(notes, FIELD_LIMITS.NOTE, tool.notes ?? '')} className="bg-amber-500 hover:bg-amber-600 text-white disabled:opacity-50">
             {t('buttons.save', { ns: 'common' })}
           </Button>
         </DialogFooter>
@@ -467,7 +450,7 @@ export function ToolInventory({ onNavigate }: ToolInventoryProps) {
   }
 
   function handleEditTool(id: string, name: string, category: string, notes: string) {
-    updateTool(Number(id), { name, category, notes: notes || undefined })
+    updateTool(Number(id), changedFields({ name, category, notes }, { name: editingTool?.name, category: editingTool?.category, notes: editingTool?.notes ?? '' }))
       .then(res => {
         setEditingTool(null);
         toast.success(t('inventory:toast.toolUpdated', 'Tool updated — {{code}}', { code: res.code }));

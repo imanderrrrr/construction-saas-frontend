@@ -1,3 +1,10 @@
+import { textPreview } from '../../shared/textPolicy';
+import { RecordPagination } from './ui/record-pagination';
+import { TextValue } from './tools/TextValue';
+import { actionName, categoryName, statusName } from './tools/bits';
+import { warehouseDate } from '../lib/warehouseDate';
+import { ApiError } from '../lib/api';
+import { warehouseErrorText } from '../lib/warehouseErrorText';
 import { useScreenState } from '../workspace/WorkspaceState';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -51,7 +58,7 @@ interface LogEntry {
   date: string;
   toolCode: string;
   toolName: string;
-  action: 'Assigned' | 'Returned';
+  action: string;
   worker: string;
   project: string;
   condition: string;
@@ -71,14 +78,18 @@ const CONDITION_KEYS: Record<string, string> = {
   'Damaged': 'assignment.conditions.damaged',
 };
 
+function conditionName(t: (key: string) => string, condition: string): string {
+  return CONDITION_KEYS[condition] ? t(CONDITION_KEYS[condition]) : condition;
+}
+
 // Helpers
 
 function fmtDate(iso: string): string {
-  return new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return warehouseDate(iso);
 }
 
 function fmtDateShort(iso: string): string {
-  return new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return warehouseDate(iso, true);
 }
 
 function getDaysOutColor(days: number): string {
@@ -89,30 +100,13 @@ function getDaysOutColor(days: number): string {
 
 // Sub-components
 
-function ActionBadge({ action }: { action: 'Assigned' | 'Returned' }) {
-  const { t } = useTranslation('inventory');
-  return action === 'Assigned' ? (
-    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full font-bt-mono text-[11px] font-semibold border bg-[#F97316]/10 text-[#F97316] border-[#F97316]/20">{t('assignment.action.assigned')}</span>
-  ) : (
-    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full font-bt-mono text-[11px] font-semibold border bg-amber-50 text-amber-700 border-amber-200">{t('assignment.action.returned')}</span>
-  );
+function ActionBadge({ action }: { action: string }) {
+  const { t } = useTranslation('tools');
+  return <span data-testid="assignment-action" className="inline-flex px-2.5 py-0.5 rounded-full text-[11px] border bg-amber-50 text-amber-800">{actionName(t, action)}</span>;
 }
 
-function Pagination({ current, total, onPage }: { current: number; total: number; onPage: (p: number) => void }) {
-  const { t } = useTranslation('common');
-  if (total <= 1) return null;
-  return (
-    <div className="flex items-center justify-center gap-1 py-4 border-t border-[#DBD0BB]">
-      <button onClick={() => onPage(current - 1)} disabled={current === 1}
-        className="h-8 px-3 font-bt-mono text-xs font-medium text-[#8A8175] hover:text-amber-700 hover:bg-amber-50 disabled:opacity-30 disabled:cursor-not-allowed">{t('buttons.prev')}</button>
-      {Array.from({ length: total }, (_, i) => i + 1).map(p => (
-        <button key={p} onClick={() => onPage(p)}
-          className={`h-8 w-8 text-xs font-semibold transition-colors ${p === current ? 'bg-amber-500 text-white' : 'text-[#8A8175] hover:bg-amber-50 hover:text-amber-700'}`}>{p}</button>
-      ))}
-      <button onClick={() => onPage(current + 1)} disabled={current === total}
-        className="h-8 px-3 font-bt-mono text-xs font-medium text-[#8A8175] hover:text-amber-700 hover:bg-amber-50 disabled:opacity-30 disabled:cursor-not-allowed">{t('buttons.next')}</button>
-    </div>
-  );
+function Pagination({ current, total, onPage }: { current: number; total: number; onPage: (p: number) => void; t?: (key: string) => string }) {
+  return <RecordPagination current={current} total={total} onPage={onPage} />;
 }
 
 /** Rows of available tools fetched per request while searching. */
@@ -225,9 +219,10 @@ function AssignModal({ open, workers, onClose, onAssign }: {
   open: boolean;
   workers: UserDTO[];
   onClose: () => void;
-  onAssign: (toolCode: string, toolName: string, workerId: number, workerName: string, projectId: number, projectName: string, notes: string) => void;
+  onAssign: (toolCode: string, toolName: string, workerId: number, workerName: string, projectId: number, projectName: string, notes: string) => Promise<void>;
 }) {
   const { t } = useTranslation('inventory');
+  const [sending,         setSending]         = useState(false);
   const [selectedTool,    setSelectedTool]    = useState<AvailableTool | null>(null);
   const [workerId,        setWorkerId]        = useState('');
   const [projectId,       setProjectId]       = useState('');
@@ -250,11 +245,11 @@ function AssignModal({ open, workers, onClose, onAssign }: {
 
   const selectedProject = workerProjects.find(p => String(p.id) === projectId);
   const selectedWorker  = workers.find(w => String(w.id) === workerId);
-  const valid           = selectedTool && workerId && projectId;
+  const valid           = selectedTool && workerId && projectId && notes.length <= FIELD_LIMITS.NOTE;
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent className="rounded-none sm:max-w-lg">
+      <DialogContent className="rounded-none sm:max-w-lg min-w-0 [&>*]:min-w-0">
         <DialogHeader><DialogTitle className="font-bt-display uppercase text-2xl">{t('assignment.dialog.assign')}</DialogTitle></DialogHeader>
 
         <div className="space-y-4 py-2">
@@ -296,20 +291,27 @@ function AssignModal({ open, workers, onClose, onAssign }: {
             </div>
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-[#8A8175] uppercase tracking-wide">{t('assignment.dialog.notes')}</label>
-            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
-              maxLength={FIELD_LIMITS.LONG_TEXT}
+            <label htmlFor="assignment-notes" className="text-xs font-semibold text-[#8A8175] uppercase tracking-wide">{t('assignment.dialog.notes')}</label>
+            <textarea id="assignment-notes" aria-invalid={notes.length > FIELD_LIMITS.NOTE} aria-describedby="assignment-notes-limit" value={notes} onChange={e => setNotes(e.target.value)} rows={2}
+              maxLength={FIELD_LIMITS.NOTE}
               placeholder={t('assignment.dialog.assignmentNotes')}
               className="w-full rounded-md border border-[#DBD0BB] bg-white px-3 py-2 text-sm placeholder:text-[#8A8175] focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none" />
+            <p id="assignment-notes-limit" className={notes.length > FIELD_LIMITS.NOTE ? 'text-xs text-red-700' : 'text-xs text-[#8A8175]'}>
+              {t('tools:name.limitHint', { count: notes.length, max: FIELD_LIMITS.NOTE })}
+              {notes.length > FIELD_LIMITS.NOTE && ` ${t('common:validation.maxLength', { max: FIELD_LIMITS.NOTE })}`}
+            </p>
           </div>
         </div>
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={onClose} className="rounded-none border-[#DBD0BB] text-[#8A8175]">{t('buttons.cancel', { ns: 'common' })}</Button>
           <Button
-            onClick={() => valid && selectedTool && selectedWorker && selectedProject &&
+            onClick={() => {
+              if (sending || !valid || !selectedTool || !selectedWorker || !selectedProject) return;
+              setSending(true);
               onAssign(selectedTool.code, selectedTool.name, selectedWorker.id, selectedWorker.fullName ?? selectedWorker.username, selectedProject.id, selectedProject.name, notes)
-            }
-            disabled={!valid}
+                .finally(() => setSending(false));
+            }}
+            disabled={!valid || sending}
             className="bg-[#0A0A0A] hover:bg-[#F97316] text-[#F5F1E8] hover:text-[#0A0A0A] disabled:opacity-50">
             {t('assignment.assignTool')}
           </Button>
@@ -323,20 +325,22 @@ function AssignModal({ open, workers, onClose, onAssign }: {
 
 function ReturnModal({ open, activeAssignments, onClose, onReturn }: {
   open: boolean; activeAssignments: Assignment[]; onClose: () => void;
-  onReturn: (assignmentId: string, condition: string, notes: string) => void;
+  onReturn: (assignmentId: string, condition: string, notes: string) => Promise<void>;
 }) {
   const { t } = useTranslation('inventory');
+  const [sending,    setSending]    = useState(false);
   const [assignId,   setAssignId]   = useState('');
   const [condition,  setCondition]  = useState('');
   const [notes,      setNotes]      = useState('');
 
   useEffect(() => { if (open) { setAssignId(''); setCondition(''); setNotes(''); } }, [open]);
 
-  const valid = assignId && condition;
+  const valid = assignId && condition && notes.length <= FIELD_LIMITS.NOTE;
+  const selectedAssignment = activeAssignments.find(a => a.id === assignId);
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent className="rounded-none sm:max-w-lg">
+      <DialogContent className="rounded-none sm:max-w-lg min-w-0 [&>*]:min-w-0">
         <DialogHeader><DialogTitle className="font-bt-display uppercase text-2xl">{t('assignment.dialog.return')}</DialogTitle></DialogHeader>
 
         <div className="space-y-4 py-2">
@@ -349,15 +353,17 @@ function ReturnModal({ open, activeAssignments, onClose, onReturn }: {
                 <SelectTrigger className="rounded-none border-[#DBD0BB] text-sm"><SelectValue placeholder={t('assignment.dialog.selectAssignedTool')} /></SelectTrigger>
                 <SelectContent>
                   {activeAssignments.map(a => (
-                    <SelectItem key={a.id} value={a.id}>
-                      <span className="font-bt-mono text-xs mr-1 text-[#8A8175]">{a.toolCode}</span>
-                      {a.toolName}
-                      <span className="text-[#8A8175] ml-1">({t('assignment.dialog.assignedTo', { worker: a.worker })})</span>
+                    <SelectItem key={a.id} value={a.id} textValue={`${a.toolCode} ${a.toolName} · ${a.worker}`}>
+                      <span className="block whitespace-normal [overflow-wrap:anywhere]" title={`${a.toolCode} · ${a.toolName} · ${a.worker}`}>
+                        <span className="font-bt-mono text-xs mr-1 text-[#8A8175]">{a.toolCode}</span>{' '}
+                        {textPreview(a.toolName)} · {a.worker}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             )}
+            {selectedAssignment && selectedAssignment.toolName.length > 25 && <TextValue value={selectedAssignment.toolName} className="text-xs text-[#8A8175]" />}
           </div>
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-[#8A8175] uppercase tracking-wide">{t('assignment.dialog.conditionOnReturn')} *</label>
@@ -367,11 +373,15 @@ function ReturnModal({ open, activeAssignments, onClose, onReturn }: {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-[#8A8175] uppercase tracking-wide">{t('assignment.dialog.notes')}</label>
-            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
-              maxLength={FIELD_LIMITS.LONG_TEXT}
+            <label htmlFor="return-notes" className="text-xs font-semibold text-[#8A8175] uppercase tracking-wide">{t('assignment.dialog.notes')}</label>
+            <textarea id="return-notes" aria-invalid={notes.length > FIELD_LIMITS.NOTE} aria-describedby="return-notes-limit" value={notes} onChange={e => setNotes(e.target.value)} rows={2}
+              maxLength={FIELD_LIMITS.NOTE}
               placeholder={t('assignment.dialog.returnObservations')}
               className="w-full rounded-md border border-[#DBD0BB] bg-white px-3 py-2 text-sm placeholder:text-[#8A8175] focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none" />
+            <p id="return-notes-limit" className={notes.length > FIELD_LIMITS.NOTE ? 'text-xs text-red-700' : 'text-xs text-[#8A8175]'}>
+              {t('tools:name.limitHint', { count: notes.length, max: FIELD_LIMITS.NOTE })}
+              {notes.length > FIELD_LIMITS.NOTE && ` ${t('common:validation.maxLength', { max: FIELD_LIMITS.NOTE })}`}
+            </p>
           </div>
           {/* Photo evidence placeholder */}
           {/* TODO: Implement photo upload */}
@@ -385,8 +395,12 @@ function ReturnModal({ open, activeAssignments, onClose, onReturn }: {
         </div>
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={onClose} className="rounded-none border-[#DBD0BB] text-[#8A8175]">{t('buttons.cancel', { ns: 'common' })}</Button>
-          <Button onClick={() => valid && onReturn(assignId, condition, notes)}
-            disabled={!valid || activeAssignments.length === 0}
+          <Button onClick={() => {
+              if (sending || !valid) return;
+              setSending(true);
+              onReturn(assignId, condition, notes).finally(() => setSending(false));
+            }}
+            disabled={!valid || sending || activeAssignments.length === 0}
             className="bg-[#0A0A0A] hover:bg-[#F97316] text-[#F5F1E8] hover:text-[#0A0A0A] disabled:opacity-50">
             {t('assignment.dialog.confirmReturn')}
           </Button>
@@ -426,7 +440,7 @@ export function ToolAssignment() {
       listActiveUsers('WORKER'),
     ]).then(([active, log, summary, userList]) => {
       setActiveAssignments(active.map(a => ({ ...a, id: String(a.id) })));
-      setAssignmentLog(log.content.map(l => ({ ...l, id: String(l.id), action: l.action as 'Assigned' | 'Returned' })));
+      setAssignmentLog(log.content.map(l => ({ ...l, id: String(l.id), action: l.actionId || l.action })));
       setLogTotalPages(Math.max(1, log.totalPages));
       setSummaryData(summary);
       setWorkers(userList);
@@ -438,7 +452,7 @@ export function ToolAssignment() {
   // Refetch log when page changes
   useEffect(() => {
     getAssignmentLog({ page: logPage - 1, size: ITEMS_PER_PAGE }).then(log => {
-      setAssignmentLog(log.content.map(l => ({ ...l, id: String(l.id), action: l.action as 'Assigned' | 'Returned' })));
+      setAssignmentLog(log.content.map(l => ({ ...l, id: String(l.id), action: l.actionId || l.action })));
       setLogTotalPages(Math.max(1, log.totalPages));
     }).catch(err => toast.error(err?.message));
   }, [logPage]);
@@ -451,38 +465,40 @@ export function ToolAssignment() {
   const assignedToday = summaryData.assignedToday;
   const returnsToday  = summaryData.returnedToday;
 
+  // A refusal says the server's own reason (D4, audit 2026-10-28). A 404/409
+  // means the tool moved on the server meanwhile — another user received or
+  // assigned it — so the stale rows are reloaded once; any other refusal leaves
+  // the list as it is. The current log page is reloaded, not the first one.
+  function refused(err: unknown, fallback: string) {
+    toast.error(warehouseErrorText(err, fallback));
+    if (err instanceof ApiError && (err.status === 404 || err.status === 409)) loadAllData(logPage);
+  }
+
   function handleAssign(toolCode: string, toolName: string, workerId: number, workerName: string, projectId: number, projectName: string, notes: string) {
-    apiAssignTool({
+    return apiAssignTool({
       toolCode,
-      toolName,
       workerId,
-      worker: workerName,
       projectId,
-      project: projectName,
       notes: notes || undefined,
     }).then(() => {
       setShowAssign(false);
       toast.success(t('inventory:toast.toolAssigned', 'Assigned {{code}} {{name}} to {{worker}} — {{project}}', { code: toolCode, name: toolName, worker: workerName, project: projectName }));
-      loadAllData();
-    }).catch(() => {
-      toast.error(t('inventory:toast.assignError', 'Failed to assign tool. Please try again.'));
-    });
+      loadAllData(logPage);
+    }).catch(err => refused(err, t('inventory:toast.assignError', 'Failed to assign tool. Please try again.')));
   }
 
   function handleReturn(assignmentId: string, condition: string, notes: string) {
     const assignment = activeAssignments.find(a => a.id === assignmentId);
-    if (!assignment) return;
+    if (!assignment) return Promise.resolve();
 
-    apiReturnTool(Number(assignmentId), {
+    return apiReturnTool(Number(assignmentId), {
       condition,
       notes: notes || undefined,
     }).then(() => {
       setShowReturn(false);
-      toast.success(t('inventory:toast.toolReturned', 'Returned {{code}} {{name}} — condition: {{condition}}', { code: assignment.toolCode, name: assignment.toolName, condition }));
-      loadAllData();
-    }).catch(() => {
-      toast.error(t('inventory:toast.returnError', 'Failed to return tool. Please try again.'));
-    });
+      toast.success(t('inventory:toast.toolReturned', 'Returned {{code}} {{name}} — condition: {{condition}}', { code: assignment.toolCode, name: assignment.toolName, condition: conditionName(t, condition) }));
+      loadAllData(logPage);
+    }).catch(err => refused(err, t('inventory:toast.returnError', 'Failed to return tool. Please try again.')));
   }
 
   // Render
@@ -498,7 +514,7 @@ export function ToolAssignment() {
     <div className="space-y-6 max-w-6xl">
 
       {/* Header */}
-      <SectionHeader kicker={t('warehouse.panelLabel')} title={t('assignment.title')} description={t('assignment.subtitle')} action={<div className="flex items-center gap-2">
+      <SectionHeader kicker={t('warehouse.panelLabel')} title={t('assignment.title')} description={t('assignment.subtitle')} action={<div className="flex flex-wrap items-center gap-2">
           <Button onClick={() => setShowReturn(true)}
             variant="outline" className="border-amber-500 text-amber-600 hover:bg-amber-50 gap-2 h-9 text-xs">
             <ArrowLeft className="w-4 h-4" />{t('assignment.returnTool')}
@@ -539,8 +555,8 @@ export function ToolAssignment() {
         {/* Active Assignments tab */}
         {activeTab === 'active' && (
           <>
-            <div className="hidden md:block overflow-x-auto">
-              <Table>
+            <div className="hidden xl:block overflow-x-auto">
+              <Table className="table-fixed min-w-[760px] [&_td]:whitespace-normal [&_td]:[overflow-wrap:anywhere]">
                 <TableHeader>
                   <TableRow className="bg-[#FAF7F0] hover:bg-[#FAF7F0]">
                     {[t('assignment.table.tool'), t('assignment.table.category'), t('assignment.table.worker'), t('assignment.table.assignedDate'), t('assignment.table.project'), t('assignment.table.daysOut'), t('assignment.table.actions')].map(h => (
@@ -552,19 +568,19 @@ export function ToolAssignment() {
                   {activePageRows.map(a => (
                     <TableRow key={a.id} className="border-b border-[#DBD0BB]/50 hover:bg-[#FAF7F0]/50">
                       <TableCell className="py-3">
-                        <div className="flex items-center gap-2">
-                          <div>
-                            <p className="text-sm font-semibold text-[#0A0A0A]">{a.toolName}</p>
+                        <div className="flex flex-col items-start gap-2 min-w-0">
+                          <div className="min-w-0 w-full">
+                            <TextValue value={a.toolName} className="text-sm font-semibold text-[#0A0A0A] " />
                             <p className="text-[11px] font-bt-mono text-[#8A8175]">{a.toolCode}</p>
                           </div>
-                          {a.status === 'PENDING_ACCEPTANCE' && (
+                          {a.status !== 'ASSIGNED' && (
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-amber-50 text-amber-700 border-amber-200">
-                              {t('assignment.pendingAcceptance')}
+                              {statusName(t, a.status === 'PENDING_ACCEPTANCE' ? 'Pending Acceptance' : a.status === 'RETURN_PENDING' ? 'Return Pending' : 'Lost')}
                             </span>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="py-3 text-sm text-[#8A8175]">{a.category}</TableCell>
+                      <TableCell className="py-3 text-sm text-[#8A8175]">{categoryName(t, a.category)}</TableCell>
                       <TableCell className="py-3">
                         <div className="flex items-center gap-2">
                           <div className="w-6 h-6 bg-[#F97316]/10 rounded-full flex items-center justify-center flex-shrink-0">
@@ -600,24 +616,24 @@ export function ToolAssignment() {
               </Table>
             </div>
             {/* Mobile */}
-            <div className="md:hidden divide-y divide-[#DBD0BB]">
+            <div className="xl:hidden divide-y divide-[#DBD0BB]">
               {activePageRows.map(a => (
-                <div key={a.id} className="p-4 flex items-start justify-between gap-3">
+                <div key={a.id} className="p-4 flex flex-col items-stretch gap-3">
                   <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-[#0A0A0A]">{a.toolName}</p>
-                      {a.status === 'PENDING_ACCEPTANCE' && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-semibold border bg-amber-50 text-amber-700 border-amber-200">
-                          {t('assignment.pendingAcceptance')}
+                    <div className="min-w-0 flex flex-col items-start gap-2">
+                      <TextValue value={a.toolName} className="text-sm font-semibold text-[#0A0A0A] " />
+                      {a.status !== 'ASSIGNED' && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-semibold max-w-full whitespace-normal border bg-amber-50 text-amber-700 border-amber-200">
+                          {statusName(t, a.status === 'PENDING_ACCEPTANCE' ? 'Pending Acceptance' : a.status === 'RETURN_PENDING' ? 'Return Pending' : 'Lost')}
                         </span>
                       )}
                     </div>
                     <p className="text-[11px] font-bt-mono text-[#8A8175]">{a.toolCode}</p>
-                    <p className="text-xs text-[#8A8175] mt-1">{a.worker} · {a.project}</p>
+                    <p className="text-xs text-[#8A8175] mt-1 break-words [overflow-wrap:anywhere]">{a.worker} · {a.project}</p>
                     <p className={`text-xs mt-0.5 ${getDaysOutColor(a.daysOut)}`}>{a.daysOut === 0 ? t('assignment.today') : t('assignment.daysOutLong', { days: a.daysOut })}</p>
                   </div>
                   <Button onClick={() => setShowReturn(true)} variant="outline" size="sm"
-                    className="border-amber-500 text-amber-600 hover:bg-amber-50 gap-1 h-7 text-xs px-2 flex-shrink-0">
+                    className="border-amber-500 text-amber-600 hover:bg-amber-50 gap-1 h-7 text-xs px-2 flex-shrink-0 self-start">
                     <RotateCcw className="w-3 h-3" />{t('assignment.return')}
                   </Button>
                 </div>
@@ -630,8 +646,8 @@ export function ToolAssignment() {
         {/* Assignment Log tab */}
         {activeTab === 'log' && (
           <>
-            <div className="hidden md:block overflow-x-auto">
-              <Table>
+            <div className="hidden xl:block overflow-x-auto">
+              <Table className="table-fixed min-w-[760px] [&_td]:whitespace-normal [&_td]:[overflow-wrap:anywhere]">
                 <TableHeader>
                   <TableRow className="bg-[#FAF7F0] hover:bg-[#FAF7F0]">
                     {[t('assignment.log.date'), t('assignment.log.tool'), t('assignment.log.action'), t('assignment.log.worker'), t('assignment.log.project'), t('assignment.log.condition'), t('assignment.log.notes')].map(h => (
@@ -653,7 +669,7 @@ export function ToolAssignment() {
                       <TableCell className="py-3">
                         {l.condition ? (
                           <span className={`font-bt-mono text-xs font-medium ${l.condition === 'Good' || l.condition === 'Minor wear' ? 'text-emerald-600' : 'text-red-600'}`}>
-                            {l.condition}
+                            {conditionName(t, l.condition)}
                           </span>
                         ) : <span className="text-[#DBD0BB]">—</span>}
                       </TableCell>
@@ -664,7 +680,7 @@ export function ToolAssignment() {
               </Table>
             </div>
             {/* Mobile */}
-            <div className="md:hidden divide-y divide-[#DBD0BB]">
+            <div className="xl:hidden divide-y divide-[#DBD0BB]">
               {logPageRows.map(l => (
                 <div key={l.id} className="p-4 space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -673,7 +689,7 @@ export function ToolAssignment() {
                   </div>
                   <p className="text-sm font-medium text-[#0A0A0A]">{l.toolName} <span className="font-bt-mono text-[#8A8175] text-xs">({l.toolCode})</span></p>
                   <p className="text-xs text-[#8A8175]">{l.worker} · {l.project}</p>
-                  {l.condition && <p className="text-xs text-[#8A8175]">{t('assignment.conditionLabel', { condition: l.condition })}</p>}
+                  {l.condition && <p className="text-xs text-[#8A8175]">{t('assignment.conditionLabel', { condition: conditionName(t, l.condition) })}</p>}
                 </div>
               ))}
             </div>

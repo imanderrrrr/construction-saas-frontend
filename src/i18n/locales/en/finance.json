@@ -695,6 +695,7 @@
   "invoice.picker.missingClient": "a client",
   "invoice.picker.missingCostCode": "a cost code",
   "invoice.picker.notBillable": "Not billable: missing {{missing}}",
+  "invoice.picker.nameTooLong": "Name over {{max}} characters: shorten it in Clients",
   "invoice.window.kicker": "Numbered when you save",
   "invoice.window.title": "Issue document",
   "invoice.window.numberedOnSave": "The system assigns the number on save · one sequence per company and year",

@@ -6,14 +6,12 @@
   "status.inReview": "En revisión",
   "status.damaged": "Dañada",
   "status.lost": "Perdida",
-
   "category.powerTools": "Eléctricas",
   "category.handTools": "Manuales",
   "category.measurement": "Medición",
   "category.safetyEquipment": "Seguridad",
   "category.heavyMachinery": "Maquinaria pesada",
   "category.enumNote": "Son estas cinco y no hay más: la lista es un enum del backend, así que añadir una categoría es un cambio de programa, no de configuración.",
-
   "action.registered": "Registrada",
   "action.registered.detail": "Registrada en el inventario",
   "action.assigned": "Asignada",
@@ -24,21 +22,17 @@
   "action.accepted": "Aceptada",
   "action.rejected": "Rechazada",
   "action.unknown": "Movimiento",
-
   "consumable.status.inStock": "En stock",
   "consumable.status.lowStock": "Stock bajo",
   "consumable.status.outOfStock": "Agotado",
-
   "kicker": "Herramientas · inventario de la empresa",
   "title": "Herramientas",
   "warehouseDoes": "Asignar, devolver y despachar se hacen en Bodega · con la persona delante",
   "warehouseDoes.consumables": "Despachar descuenta del stock y se hace en Bodega · aquí se da de alta y se fija el mínimo",
-
   "tab.returnable": "Retornables",
   "tab.consumable": "Consumibles",
-
   "kpi.total": "Herramientas · total",
-  "kpi.total.note": "Suma de los seis estados",
+  "kpi.total.note": "Suma de los siete estados",
   "kpi.available": "Disponibles",
   "kpi.assigned": "Asignadas",
   "kpi.pendingAcceptance": "Pendientes de aceptación",
@@ -54,10 +48,9 @@
   "kpi.consumables.lowStock.note": "En el mínimo o por debajo",
   "kpi.consumables.outOfStock": "Agotados",
   "kpi.consumables.outOfStock.note": "Stock en cero · no se despacha",
-
   "search.placeholder": "Busca por código o nombre…",
   "filter.category": "Categoría · todas",
-  "filter.status": "Estado · los seis",
+  "filter.status": "Estado · los siete",
   "filter.worker": "Obrero · todos",
   "filter.workerOn": "Obrero · {{name}}",
   "filter.workerNote": "Filtro de obrero puesto · es el de «se va de la empresa: qué tiene»",
@@ -68,7 +61,6 @@
   "filter.clear_other": "Quitar los {{count}} filtros",
   "filter.conditions_one": "la condición puesta",
   "filter.conditions_other": "las {{count}} condiciones",
-
   "table.code": "Código",
   "table.tool": "Herramienta",
   "table.category": "Categoría",
@@ -81,7 +73,6 @@
   "table.light": "Semáforo",
   "table.lastDispatch": "Último despacho",
   "table.minimum": "Mínimo",
-
   "row.inWarehouse": "En bodega",
   "row.nobody": "Nadie",
   "row.noProject": "Sin obra",
@@ -91,7 +82,6 @@
   "row.unsignedToday": "Salió hoy · {{time}}",
   "row.todayWord": "Hoy",
   "row.lastHolder": "{{name}} · último",
-
   "empty.none.word": "El inventario está vacío",
   "empty.none.lead": "Registra la primera herramienta: el código es tuyo y no se repite.",
   "empty.none.body": "Aquí va lo que se presta y vuelve —taladros, niveles, arneses—. Lo que se gasta y se repone va en Consumibles.",
@@ -112,13 +102,11 @@
   "forbidden.lead": "El inventario lo ven quien administra la cuenta y quien lleva la bodega.",
   "forbidden.body": "Si supervisas una obra, ves las herramientas de tu equipo desde tu panel. No hay nada que reintentar.",
   "retry": "Reintentar",
-
   "page.range": "{{start}}–{{end}} de {{total}}",
   "page.rangeFiltered": "{{start}}–{{end}} de {{total}} · con los filtros puestos",
   "page.number": "Página {{current}} de {{total}}",
   "page.size": "Por página",
   "page.consumablesOrder": "Ordenados por semáforo: primero lo agotado",
-
   "detail.kicker": "Herramientas · ficha · {{category}}",
   "detail.history_one": "Historia completa · 1 movimiento",
   "detail.history_other": "Historia completa · {{count}} movimientos",
@@ -140,13 +128,11 @@
   "detail.notes": "Notas",
   "detail.since_one": "Salió de bodega el {{date}} · lleva 1 día sin firmar",
   "detail.since_other": "Salió de bodega el {{date}} · lleva {{count}} días sin firmar",
-
   "action.register": "Registrar herramienta",
   "action.edit": "Editar",
   "action.fixStatus": "Corregir estado",
   "action.registerConsumable": "Registrar consumible",
   "action.adjustMinimum": "Ajustar el stock mínimo",
-
   "form.kicker.new": "Herramientas · nueva",
   "form.kicker.edit": "Herramientas · editar",
   "form.title.new": "Registrar herramienta",
@@ -159,6 +145,8 @@
   "form.code.takenBody": "{{code}} ya está en el inventario: es {{name}}. El código es único por empresa, así que si de verdad son dos máquinas, dale una letra: {{code}}-B.",
   "form.name": "Nombre",
   "form.name.hint": "Marca y modelo · es lo que se busca",
+  "name.limitHint": "{{count}} / {{max}} caracteres",
+  "name.tooLong": "El nombre admite hasta {{max}} caracteres. Acórtalo para guardar.",
   "form.category": "Categoría",
   "form.category.hintEdit": "Cambiarla no toca el historial",
   "form.notes": "Notas",
@@ -173,7 +161,6 @@
   "form.err.name": "Escribe cómo se llama la herramienta.",
   "form.err.category": "Elige una categoría.",
   "form.err.server": "No se pudo guardar. Inténtalo otra vez.",
-
   "fixStatus.kicker": "{{code}} · {{name}}",
   "fixStatus.title": "Corregir el estado",
   "fixStatus.now": "Ahora",
@@ -199,7 +186,6 @@
   "whoCan.role": "Bodega · devoluciones",
   "whoCan.none": "Esta empresa no tiene usuario de bodega. Créalo en Usuarios: sin él nadie puede devolver ni despachar.",
   "whoCan.goUsers": "Abrir Usuarios",
-
   "consumable.kicker": "Consumibles · nuevo",
   "consumable.title": "Registrar consumible",
   "consumable.code.auto": "Auto",
@@ -217,7 +203,6 @@
   "consumable.err.name": "Escribe cómo se llama el insumo.",
   "consumable.err.unit": "Di cómo se cuenta: saco, caja, rollo…",
   "consumable.err.negative": "Escribe un número igual o mayor que cero.",
-
   "minimum.title": "Ajustar el stock mínimo",
   "minimum.stockToday": "Stock hoy",
   "minimum.current": "Mínimo actual",
@@ -226,8 +211,13 @@
   "minimum.effect": "Lo que pasa al guardar",
   "minimum.effect.line": "Con {{minimum}} de mínimo y {{stock}} en bodega, este insumo pasa a {{light}}. Nada se despacha ni se descuenta: solo cambia cuándo avisa.",
   "minimum.submit": "Guardar mínimo",
-
   "readOnly": "Para asignar o devolver, habla con Bodega",
   "action.assignReturn": "Asignaciones y devoluciones",
-  "action.dispatch": "Despachar materiales"
+  "action.dispatch": "Despachar materiales",
+  "status.returnPending": "Pendiente de recepción",
+  "action.lost": "Pérdida declarada",
+  "action.recovered": "Recuperada en bodega",
+  "table.lastRestocked": "Última reposición",
+  "fixStatus.lossCustody": "Declarar una pérdida conserva responsable y proyecto. No registra una devolución. La recuperación requiere recepción física en Asignaciones.",
+  "consumable.err.category": "Escribe una categoría."
 }

@@ -164,6 +164,7 @@
   "tools.filters.reset": "Reset",
   "tools.filters.apply": "Apply",
   "tools.filters.showing": "{{filtered}} of {{total}} tools",
+  "tools.table.status": "Status",
   "tools.table.tool": "Tool",
   "tools.table.category": "Category",
   "tools.table.worker": "Worker",

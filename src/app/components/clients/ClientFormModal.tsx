@@ -1,3 +1,4 @@
+import { textTooLong } from '../../../shared/textPolicy';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
@@ -37,7 +38,7 @@ type Field = 'name' | 'contact' | 'rfc' | 'phone' | 'email';
 type Values = Record<Field, string>;
 const OPTIONAL: readonly Exclude<Field, 'name'>[] = ['contact', 'rfc', 'phone', 'email'];
 const EMPTY: Values = { name: '', contact: '', rfc: '', phone: '', email: '' };
-const LIMITS: Record<Field, number> = { name: 200, contact: 200, rfc: 20, phone: FIELD_LIMITS.PHONE, email: FIELD_LIMITS.CLIENT_EMAIL };
+const LIMITS: Record<Field, number> = { name: FIELD_LIMITS.SHORT_NAME, contact: FIELD_LIMITS.PERSON_NAME, rfc: 20, phone: FIELD_LIMITS.PHONE, email: FIELD_LIMITS.CLIENT_EMAIL };
 
 function fromClient(c: ClientResponse): Values {
   return { name: c.name, contact: c.contact ?? '', rfc: c.rfc ?? '', phone: c.phone ?? '', email: c.email ?? '' };
@@ -106,6 +107,7 @@ export function ClientFormModal({ open, onOpenChange, client = null, origin = 's
       name: values.name.trim(), contact: values.contact.trim(), rfc: values.rfc.trim(), phone: values.phone.trim(), email: values.email.trim(),
     };
     const next: Partial<Record<Field, string>> = {};
+    for (const f of ['name', 'contact'] as const) if (textTooLong(values[f], LIMITS[f], client?.[f] ?? '')) next[f] = t('common:validation.maxLength', { max: LIMITS[f] });
     if (!v.name) next.name = t('admin:clients.form.nameRequired');
     if (v.phone && !PHONE_RE.test(v.phone)) next.phone = t('admin:clients.form.phoneInvalid');
     if (v.email && !EMAIL_RE.test(v.email)) next.email = t('admin:clients.form.emailInvalid');
@@ -119,8 +121,8 @@ export function ClientFormModal({ open, onOpenChange, client = null, origin = 's
         // A PATCH of what moved; an emptied field travels as "" — the
         // backend's "clear it" convention.
         const payload: UpdateClientPayload = {};
-        if (v.name !== client.name) payload.name = v.name;
-        for (const f of OPTIONAL) if (v[f] !== (client[f] ?? '')) payload[f] = v[f];
+        if (values.name !== client.name) payload.name = v.name;
+        for (const f of OPTIONAL) if (values[f] !== (client[f] ?? '')) payload[f] = v[f];
         saved = Object.keys(payload).length > 0 ? await updateClient(client.id, payload) : client;
       } else {
         saved = await createClient({

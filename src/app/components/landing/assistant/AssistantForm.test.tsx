@@ -95,13 +95,13 @@ describe('AssistantForm', () => {
     expect(submitButton().disabled).toBe(false);
   });
 
-  it('the fields have maxLength 80, 60 and 150 and autocomplete name, organization and email', async () => {
+  it('names share the 25-character policy while email retains 150 and autocomplete metadata', async () => {
     await render();
 
     const name = field('assistant.form.name.label');
     const company = field('assistant.form.company.label');
     const contact = field('assistant.form.contact.label');
-    expect([name.maxLength, company.maxLength, contact.maxLength]).toEqual([80, 60, 150]);
+    expect([name.maxLength, company.maxLength, contact.maxLength]).toEqual([25, 25, 150]);
     expect([name.autocomplete, company.autocomplete, contact.autocomplete]).toEqual(['name', 'organization', 'email']);
     for (const input of [name, company, contact]) expect(input.className.split(/\s+/)).toContain('max-sm:text-base');
   });

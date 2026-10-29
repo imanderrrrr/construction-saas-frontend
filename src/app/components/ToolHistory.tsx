@@ -1,3 +1,7 @@
+import { TextValue } from './tools/TextValue';
+import { RecordPagination } from './ui/record-pagination';
+import { actionName } from './tools/bits';
+import { warehouseDate } from '../lib/warehouseDate';
 import { useScreenState } from '../workspace/WorkspaceState';
 import { SectionHeader } from './workspace/SectionChrome';
 import React, { useState, useEffect } from 'react';
@@ -17,7 +21,7 @@ import { CatalogNote } from './workspace/CatalogNote';
 
 // Types
 
-type HistoryAction = 'Registered' | 'Assigned' | 'Returned' | 'Status Changed' | 'Reported';
+type HistoryAction = string;
 
 interface HistoryEntry {
   id: string;
@@ -31,79 +35,54 @@ interface HistoryEntry {
   notes: string;
 }
 
-const ACTIONS: HistoryAction[] = ['Registered', 'Assigned', 'Returned', 'Status Changed', 'Reported'];
+const ACTIONS: HistoryAction[] = ['REGISTERED', 'ACCEPTANCE_PENDING', 'ACCEPTED', 'REJECTED', 'RETURNED', 'LOST', 'RECOVERED', 'STATUS_CHANGED', 'REPORTED'];
 const ITEMS_PER_PAGE = 10;
 
 // Helpers
 
 function fmtDate(iso: string): string {
-  return new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return warehouseDate(iso);
 }
 
+// Rows carry the action's enum name (actionId); the colours used to be keyed by
+// the old display names, so every badge fell back to grey (D10, audit 2026-10-28).
+type Tone = 'in' | 'out' | 'back' | 'neutral' | 'alert';
+const TONE: Record<string, Tone> = {
+  REGISTERED: 'in', RECOVERED: 'in',
+  ASSIGNED: 'out', ACCEPTANCE_PENDING: 'out', ACCEPTED: 'out',
+  RETURNED: 'back',
+  STATUS_CHANGED: 'neutral',
+  REPORTED: 'alert', REJECTED: 'alert', LOST: 'alert',
+};
+const DOT: Record<Tone, string> = { in: 'bg-emerald-500', out: 'bg-[#F97316]', back: 'bg-amber-500', neutral: 'bg-slate-400', alert: 'bg-red-500' };
+const LINE: Record<Tone, string> = { in: 'bg-emerald-200', out: 'bg-[#F97316]/30', back: 'bg-amber-200', neutral: 'bg-[#DBD0BB]', alert: 'bg-red-200' };
+const BADGE: Record<Tone, string> = {
+  in: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  out: 'bg-[#F97316]/10 text-[#F97316] border-[#F97316]/20',
+  back: 'bg-amber-50 text-amber-700 border-amber-200',
+  neutral: 'bg-slate-50 text-[#5A5346] border-slate-200',
+  alert: 'bg-red-50 text-red-600 border-red-200',
+};
+
 function getDotColor(action: HistoryAction): string {
-  const colors: Record<HistoryAction, string> = {
-    'Registered':     'bg-emerald-500',
-    'Assigned':       'bg-[#F97316]',
-    'Returned':       'bg-amber-500',
-    'Status Changed': 'bg-slate-400',
-    'Reported':       'bg-red-500',
-  };
-  return colors[action] ?? 'bg-[#8A8175]';
+  const tone = TONE[action];
+  return tone ? DOT[tone] : 'bg-[#8A8175]';
 }
 
 function getLineColor(action: HistoryAction): string {
-  const colors: Record<HistoryAction, string> = {
-    'Registered':     'bg-emerald-200',
-    'Assigned':       'bg-[#F97316]/30',
-    'Returned':       'bg-amber-200',
-    'Status Changed': 'bg-[#DBD0BB]',
-    'Reported':       'bg-red-200',
-  };
-  return colors[action] ?? 'bg-[#DBD0BB]';
+  const tone = TONE[action];
+  return tone ? LINE[tone] : 'bg-[#DBD0BB]';
 }
 
 // Sub-components
 
-const ACTION_KEYS: Record<HistoryAction, string> = {
-  'Registered': 'tools.history.actions.registered',
-  'Assigned': 'tools.history.actions.assigned',
-  'Returned': 'tools.history.actions.returned',
-  'Status Changed': 'tools.history.actions.statusChanged',
-  'Reported': 'tools.history.actions.reported',
-};
-
 function ActionBadge({ action }: { action: HistoryAction }) {
-  const { t } = useTranslation('inventory');
-  const cfg: Record<HistoryAction, string> = {
-    'Registered':     'bg-emerald-50 text-emerald-700 border-emerald-200',
-    'Assigned':       'bg-[#F97316]/10 text-[#F97316] border-[#F97316]/20',
-    'Returned':       'bg-amber-50 text-amber-700 border-amber-200',
-    'Status Changed': 'bg-slate-50 text-[#5A5346] border-slate-200',
-    'Reported':       'bg-red-50 text-red-600 border-red-200',
-  };
+  const { t } = useTranslation('tools');
+  const tone = TONE[action];
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full font-bt-mono text-[11px] font-semibold border whitespace-nowrap ${cfg[action] ?? 'bg-[#FAF7F0] text-[#8A8175] border-[#DBD0BB]'}`}>
-      {/* The row's action is cast from the server string (see the mapper): an
-          unmapped one would hand `t` an undefined key and leave the badge blank. */}
-      {ACTION_KEYS[action] ? t(ACTION_KEYS[action]) : action}
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full font-bt-mono text-[11px] font-semibold border whitespace-nowrap ${tone ? BADGE[tone] : 'bg-[#FAF7F0] text-[#8A8175] border-[#DBD0BB]'}`}>
+      {actionName(t, action)}
     </span>
-  );
-}
-
-function Pagination({ current, total, onPage }: { current: number; total: number; onPage: (p: number) => void }) {
-  const { t } = useTranslation('common');
-  if (total <= 1) return null;
-  return (
-    <div className="flex items-center justify-center gap-1 py-6">
-      <button onClick={() => onPage(current - 1)} disabled={current === 1}
-        className="h-8 px-3 font-bt-mono text-xs font-medium text-[#8A8175] hover:text-amber-700 hover:bg-amber-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">{t('buttons.prev')}</button>
-      {Array.from({ length: total }, (_, i) => i + 1).map(p => (
-        <button key={p} onClick={() => onPage(p)}
-          className={`h-8 w-8 text-xs font-semibold transition-colors ${p === current ? 'bg-amber-500 text-white' : 'text-[#8A8175] hover:bg-amber-50 hover:text-amber-700'}`}>{p}</button>
-      ))}
-      <button onClick={() => onPage(current + 1)} disabled={current === total}
-        className="h-8 px-3 font-bt-mono text-xs font-medium text-[#8A8175] hover:text-amber-700 hover:bg-amber-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">{t('buttons.next')}</button>
-    </div>
   );
 }
 
@@ -131,7 +110,7 @@ export function ToolHistory() {
   const [totalElements, setTotalElements] = useState(0);
   const [loading, setLoading] = useState(true);
   const [toolOptions, setToolOptions] = useState<Catalog<{ code: string; name: string }>>(NO_OPTIONS);
-  const [workers, setWorkers] = useState<Catalog<{ username: string; label: string }>>(NO_OPTIONS);
+  const [workers, setWorkers] = useState<Catalog<{ id: string; label: string }>>(NO_OPTIONS);
 
   // The filter options are whole catalogs (AUD-055). They used to be the first
   // 100 tools, and the "Person" list was whoever HOLDS one of those 100 today —
@@ -139,14 +118,14 @@ export function ToolHistory() {
   // could not be filtered, and the value sent was the display name while the
   // server matches the username, which made the filter silently match nobody
   // and return everything. Every tool, whatever its state now, and every
-  // worker, active or not: both still have a history. The value is the username.
+  // person, active or not (including a worker whose role changed): both still have a history. The value is the stable user id.
   useEffect(() => {
     let cancelled = false;
     toolCatalog()
       .then(c => { if (!cancelled) setToolOptions({ ...c, items: c.items.map(tool => ({ code: tool.code, name: tool.name })) }); })
       .catch(err => toast.error(err?.message));
-    userCatalog({ role: 'WORKER' })
-      .then(c => { if (!cancelled) setWorkers({ ...c, items: c.items.map(u => ({ username: u.username, label: u.fullName ?? u.username })) }); })
+    userCatalog()
+      .then(c => { if (!cancelled) setWorkers({ ...c, items: c.items.map(u => ({ id: String(u.id), label: u.fullName ?? u.username })) }); })
       .catch(err => toast.error(err?.message));
     return () => { cancelled = true; };
   }, []);
@@ -159,7 +138,7 @@ export function ToolHistory() {
     const params: any = { page: currentPage - 1, size: ITEMS_PER_PAGE };
     if (appliedTool !== 'all') params.toolCode = appliedTool;
     if (appliedAction !== 'all') params.action = appliedAction;
-    if (appliedWorker !== 'all') params.worker = appliedWorker;
+    if (appliedWorker !== 'all') params.workerId = Number(appliedWorker);
     if (appliedFrom) params.dateFrom = appliedFrom;
     if (appliedTo) params.dateTo = appliedTo;
     getGlobalToolHistory(params)
@@ -167,7 +146,7 @@ export function ToolHistory() {
         if (cancelled) return;
         setEntries(res.content.map(e => ({
           id: String(e.id), date: e.date, time: e.time,
-          action: (e.action ?? 'Registered') as HistoryAction,
+          action: e.actionId || e.action || 'REGISTERED',
           toolCode: e.toolCode ?? '', toolName: e.toolName ?? '',
           worker: e.worker ?? '', project: e.project ?? '',
           notes: e.notes ?? '',
@@ -197,7 +176,7 @@ export function ToolHistory() {
 
   // Render
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 min-w-0 w-full max-w-4xl [overflow-wrap:anywhere]">
 
       {/* Header */}
       <SectionHeader kicker={t('warehouse.panelLabel')} title={t('tools.history.title')} description={t('tools.history.fullSubtitle')} />
@@ -210,7 +189,7 @@ export function ToolHistory() {
         </div>
         <div className="flex flex-wrap items-end gap-3">
           {/* Tool */}
-          <div className="flex flex-col gap-1.5 min-w-[180px]">
+          <div className="flex flex-col gap-1.5 min-w-0 w-full sm:w-[220px]">
             <label className="font-bt-mono text-[11px] font-semibold text-[#8A8175] uppercase tracking-wide">{t('assignment.table.tool')}</label>
             <Select value={toolFilter} onValueChange={setToolFilter}>
               <SelectTrigger className="rounded-none h-9 border-[#DBD0BB] text-sm"><SelectValue placeholder={t('tools.history.allTools')} /></SelectTrigger>
@@ -226,24 +205,24 @@ export function ToolHistory() {
             <CatalogNote shown={toolOptions.items.length} total={toolOptions.total} truncated={toolOptions.truncated} />
           </div>
           {/* Action */}
-          <div className="flex flex-col gap-1.5 min-w-[155px]">
+          <div className="flex flex-col gap-1.5 min-w-0 w-full sm:w-[180px]">
             <label className="font-bt-mono text-[11px] font-semibold text-[#8A8175] uppercase tracking-wide">{t('tools.history.action')}</label>
             <Select value={actionFilter} onValueChange={setActionFilter}>
               <SelectTrigger className="rounded-none h-9 border-[#DBD0BB] text-sm"><SelectValue placeholder={t('tools.history.allActions')} /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t('tools.history.allActions')}</SelectItem>
-                {ACTIONS.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+                {ACTIONS.map(a => <SelectItem key={a} value={a}>{actionName(t, a)}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           {/* Worker */}
-          <div className="flex flex-col gap-1.5 min-w-[155px]">
+          <div className="flex flex-col gap-1.5 min-w-0 w-full sm:w-[180px]">
             <label className="font-bt-mono text-[11px] font-semibold text-[#8A8175] uppercase tracking-wide">{t('tools.history.worker')}</label>
             <Select value={workerFilter} onValueChange={setWorkerFilter}>
               <SelectTrigger className="rounded-none h-9 border-[#DBD0BB] text-sm"><SelectValue placeholder={t('tools.history.allWorkers')} /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">{t('tools.history.allWorkers')}</SelectItem>
-                {workers.items.map(w => <SelectItem key={w.username} value={w.username}>{w.label}</SelectItem>)}
+                {workers.items.map(w => <SelectItem key={w.id} value={w.id}>{w.label}</SelectItem>)}
               </SelectContent>
             </Select>
             <CatalogNote shown={workers.items.length} total={workers.total} truncated={workers.truncated} />
@@ -301,16 +280,16 @@ export function ToolHistory() {
               </div>
 
               {/* Content card */}
-              <div className="flex-1 pb-3">
+              <div className="flex-1 min-w-0 pb-3">
                 <div className="bg-white border border-[#DBD0BB] p-4 hover:border-amber-200 hover:shadow-sm transition-all">
 
                   {/* Top row: badge + tool + time */}
                   <div className="flex items-start justify-between gap-3 flex-wrap mb-2">
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex min-w-0 max-w-full items-center gap-2 flex-wrap">
                       <ActionBadge action={entry.action} />
                       <span className="font-bt-mono text-xs font-bold text-[#0A0A0A]">{entry.toolCode}</span>
                       <span className="text-xs text-[#8A8175]">—</span>
-                      <span className="font-bt-mono text-xs font-medium text-[#0A0A0A]">{entry.toolName}</span>
+                      <TextValue value={entry.toolName} className="w-full font-bt-mono text-xs font-medium text-[#0A0A0A]" />
                     </div>
                     <span className="text-[11px] text-[#8A8175] flex-shrink-0 whitespace-nowrap">
                       {fmtDate(entry.date)} · {entry.time}
@@ -322,7 +301,7 @@ export function ToolHistory() {
                     <div className="flex items-center gap-2 text-xs mb-1.5 flex-wrap">
                       <div className="w-5 h-5 bg-[#F97316]/10 rounded-full flex items-center justify-center flex-shrink-0">
                         <span className="text-[8px] font-bold text-[#F97316]">
-                          {entry.worker.split(' ').map(w => w[0]).join('')}
+                          {entry.worker.trim().split(/\s+/).slice(0, 2).map(w => Array.from(w)[0]).join('')}
                         </span>
                       </div>
                       <span className="font-medium text-[#0A0A0A]">{entry.worker}</span>
@@ -346,7 +325,7 @@ export function ToolHistory() {
         })}
       </div>
 
-      <Pagination current={currentPage} total={totalPages} onPage={p => { setCurrentPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />
+      <RecordPagination current={currentPage} total={totalPages} onPage={p => { setCurrentPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />
     </div>
   );
 }

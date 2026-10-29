@@ -164,6 +164,7 @@
   "tools.filters.reset": "Restablecer",
   "tools.filters.apply": "Aplicar",
   "tools.filters.showing": "{{filtered}} de {{total}} herramientas",
+  "tools.table.status": "Estado",
   "tools.table.tool": "Herramienta",
   "tools.table.category": "Categoría",
   "tools.table.worker": "Trabajador",

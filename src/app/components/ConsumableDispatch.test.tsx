@@ -1,9 +1,10 @@
+import '../lib/warehouseIntent.testing';
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const apiMock = vi.hoisted(() => vi.fn());
-vi.mock('../lib/api', () => ({ api: (...args: unknown[]) => apiMock(...args) }));
+vi.mock('../lib/api', async original => ({ ...(await original<typeof import('../lib/api')>()), api: (...args: unknown[]) => apiMock(...args) }));
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
   initReactI18next: { type: '3rdParty', init: () => {} },

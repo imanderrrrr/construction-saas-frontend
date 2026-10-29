@@ -1,3 +1,4 @@
+import { textTooLong } from '../../../shared/textPolicy';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useTourScopeWhileMounted } from '../../lib/tourScope';
 import { useTranslation } from 'react-i18next';
@@ -172,6 +173,7 @@ export function ProjectWindow({ onClose, onSaved, editProject, initialClient = n
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     let bad = false;
+    if (textTooLong(form.name, FIELD_LIMITS.SHORT_NAME, editProject?.name)) { setNameError(t('common:validation.maxLength', { max: FIELD_LIMITS.SHORT_NAME })); bad = true; }
     if (!form.name.trim()) { setNameError(t('admin:projectForm.projectNameRequired')); bad = true; }
     if (!isEdit && !dollarsToCents(form.contractAmount)) { setContractError(t('admin:projectForm.contractAmountRequired')); bad = true; }
     if (bad) return;
@@ -185,7 +187,7 @@ export function ProjectWindow({ onClose, onSaved, editProject, initialClient = n
       const budgetCents = dollarsToCents(form.costBudget);
       if (isEdit && editProject) {
         const payload: UpdateProjectPayload = {};
-        if (form.name.trim() !== editProject.name) payload.name = form.name.trim();
+        if (form.name !== editProject.name) payload.name = form.name.trim();
         if (form.clientId !== (editProject.clientId ?? null)) {
           if (form.clientId == null) payload.clearClient = true; else payload.clientId = form.clientId;
         }

@@ -1,3 +1,4 @@
+import { resetBusinessTz, setBusinessTz } from '../../helpers/dateTime';
 // The shared catalogue and the two rules that are ours, not the API's.
 //
 // The names of the six states, the five categories, the eight history actions
@@ -11,7 +12,7 @@ import i18n from '../../../i18n';
 import es from '../../../i18n/locales/es/tools.json';
 import en from '../../../i18n/locales/en/tools.json';
 import {
-  actionName, categoryName, CATEGORIES, daysSince, isOut, lightName, pathsFrom, STATUSES, statusName,
+  stampTime, stampMoment, stampDay, actionName, categoryName, CATEGORIES, daysSince, isOut, lightName, pathsFrom, STATUSES, statusName,
 } from './bits';
 
 const t = i18n.getFixedT('es', ['tools', 'common']);
@@ -73,9 +74,9 @@ describe('pathsFrom', () => {
     }
   });
 
-  it('offers nothing at all while the tool is out', () => {
-    expect(pathsFrom('Assigned')).toEqual([]);
-    expect(pathsFrom('Pending Acceptance')).toEqual([]);
+  it('offers only a loss incident while the tool is out', () => {
+    expect(pathsFrom('Assigned')).toEqual(['Lost']);
+    expect(pathsFrom('Pending Acceptance')).toEqual(['Lost']);
   });
 
   it('offers the three legal paths from each status that has them', () => {
@@ -96,56 +97,33 @@ describe('isOut', () => {
   });
 });
 
-// daysSince counts CALENDAR days: it truncates both ends to local midnight and
-// subtracts, which is what the sheet asks of it ("hace 2 días", never 1.8). So
-// "an hour ago" legitimately belongs to yesterday while the clock is between
-// 00:00 and 01:00, and "in an hour" to tomorrow between 23:00 and midnight.
-// Read off the real clock these assertions were therefore a coin flip on the
-// hour, and CI — which runs in UTC — lost the toss at 00:27 with `expected 1 to
-// be +0`. Pin the clock.
-//
-// The pin is in LOCAL terms (`new Date(y, m, d, h)`, not an ISO instant as in
-// helpers/dateTime.test.ts) because the function reads getFullYear/getMonth/
-// getDate: what decides the day is the wall clock, not UTC's. Pinning an
-// instant would only move the coin flip to whoever runs the suite in another
-// timezone.
-describe('daysSince', () => {
-  function freezeAtLocal(hour: number, minute = 0) {
+describe('business calendar and time labels', () => {
+  afterEach(() => { vi.useRealTimers(); resetBusinessTz(); });
+  function freeze(iso: string) {
+    setBusinessTz('America/Panama');
     vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date(2026, 8, 15, hour, minute)); // 15 sep 2026, local
+    vi.setSystemTime(new Date(iso));
   }
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it('is null with no date, so the row can print the date alone', () => {
+  it('returns no duration for absent or invalid instants', () => {
     expect(daysSince(null)).toBeNull();
     expect(daysSince(undefined)).toBeNull();
+    expect(daysSince('invalid')).toBeNull();
   });
-
-  it('counts whole days and never goes negative on a clock skew', () => {
-    freezeAtLocal(12);
-    const now = Date.now();
-    expect(daysSince(new Date(now - 2 * 86_400_000).toISOString())).toBe(2);
-    expect(daysSince(new Date(now - 3600_000).toISOString())).toBe(0);
-    expect(daysSince(new Date(now + 3600_000).toISOString())).toBe(0);
+  it('uses tenant midnight even when the browser day differs', () => {
+    freeze('2026-09-16T05:30:00Z'); // Panama 00:30, Guatemala 23:30 yesterday
+    expect(daysSince('2026-09-16T04:30:00Z')).toBe(1);
+    expect(daysSince('2026-09-16T05:29:00Z')).toBe(0);
+    expect(daysSince('2026-09-17T06:00:00Z')).toBe(0);
+    expect(daysSince('2026-09-14T05:30:00Z')).toBe(2);
   });
-
-  // The two edges of the day, spelled out so nobody reads them as the old flake
-  // coming back: at 00:30 an hour ago really is yesterday, and that 1 is the
-  // answer the row wants to print.
-  it('puts an hour ago on yesterday when the day has just started', () => {
-    freezeAtLocal(0, 30);
-    expect(daysSince(new Date(Date.now() - 3600_000).toISOString())).toBe(1);
-    expect(daysSince(new Date(Date.now() - 60_000).toISOString())).toBe(0);
-  });
-
-  // The other edge is the only one that actually exercises the clamp: at noon a
-  // date an hour ahead is still today and subtracts to 0 on its own.
-  it('clamps to zero when an hour from now already falls on tomorrow', () => {
-    freezeAtLocal(23, 30);
-    expect(daysSince(new Date(Date.now() + 3600_000).toISOString())).toBe(0);
+  it.each(['es', 'en'])('formats the same business instant in %s', lang => {
+    freeze('2026-10-28T05:30:00Z');
+    expect(stampTime('2026-10-28T03:19:20Z', lang)).toBe('22:19');
+    expect(stampTime('2026-10-28T05:00:00Z', lang)).toBe('00:00');
+    expect(stampMoment('2026-10-28T05:29:00Z', lang, 'TODAY')).toBe('TODAY · 00:29');
+    expect(stampMoment('2026-10-28T04:59:00Z', lang, 'TODAY')).not.toContain('TODAY');
+    expect(stampDay('2026-10-28T04:59:00Z', lang)).toContain('27');
+    expect(stampDay('2026-10-28', lang)).toContain('28');
   });
 });
 

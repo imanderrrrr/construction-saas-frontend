@@ -33,7 +33,7 @@ describe('WBS API role and request contracts', () => {
     ]);
   });
   it('carries optional attribution through warehouse, AP payment and invoice approval', async () => {
-    await dispatchConsumable({ consumableCode: 'DIESEL', quantity: 5, projectId: 7, budgetLineItemId: 9 });
+    await dispatchConsumable({ requestKey: 'test-intent', consumableCode: 'DIESEL', quantity: 5, projectId: 7, budgetLineItemId: 9 });
     await createPayable({ vendor: 'Vendor', category: 'Materials', projectId: 7, amount: 10.01, receivedDate: '2026-10-07', dueDate: '2026-10-08', budgetLineItemId: 9 });
     await recordPayablePayment(1, { amount: 10.01, date: '2026-10-07', method: 'Cash', budgetLineItemId: 9 });
     await reviewInvoice(1, { action: 'APPROVE', budgetLineItemId: 9 });
@@ -41,7 +41,7 @@ describe('WBS API role and request contracts', () => {
     expect(JSON.parse(api.mock.calls[1][1].body).amountCents).toBe(1001);
   });
   it('keeps legacy origin requests free of an attribution when omitted', async () => {
-    await dispatchConsumable({ consumableCode: 'DIESEL', quantity: 5, projectId: 7 });
+    await dispatchConsumable({ requestKey: 'test-intent', consumableCode: 'DIESEL', quantity: 5, projectId: 7 });
     expect(JSON.parse(api.mock.calls[0][1].body)).not.toHaveProperty('budgetLineItemId');
   });
   it('includes expense attribution in the multipart JSON data', async () => {

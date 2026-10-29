@@ -1,3 +1,4 @@
+import { beginWarehouseSession } from '../lib/warehouseSession';
 import { resetBusinessTz, setBusinessTz } from '../helpers/dateTime';
 // OFJR Construction — Auth Service (real API)
 // Canonical roles: ADMIN | SUPERVISOR | WORKER | FINANCE | WAREHOUSE
@@ -77,11 +78,13 @@ export class AuthService {
     const headers: Record<string, string> = {};
     const trimmed = tenantSlug?.trim();
     if (trimmed) headers['X-Tenant-Slug'] = trimmed.toLowerCase();
-    return api<LoginResponse>('/api/v1/auth/login', {
+    const response = await api<LoginResponse>('/api/v1/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
       headers,
     });
+    beginWarehouseSession(trimmed || 'default', response.username);
+    return response;
   }
 
   /**

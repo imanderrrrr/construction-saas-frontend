@@ -1,3 +1,4 @@
+import '../lib/warehouseIntent.testing';
 // AUD-049 — the older warehouse inventory screen restocks with a quantity and
 // an intention key too; it never writes `currentStock + quantity` computed
 // from its own (possibly stale) list.

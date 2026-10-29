@@ -229,6 +229,7 @@ export function ToolsSection({ onNavigate, mode = 'admin', view }: {
         state={summaryState} value={toolSummary?.pendingAcceptance} label={t('tools:kpi.pendingAcceptance')} note={t('tools:kpi.pendingAcceptance.note')} tone="orange"
         pressed={status === 'Pending Acceptance'} onClick={() => { setStatus(s => (s === 'Pending Acceptance' ? '' : 'Pending Acceptance')); setToolsPage(0); }}
       />
+      <Figure state={summaryState} value={toolSummary?.returnPending ?? 0} label={t('tools:status.returnPending')} tone="red" />
       <Figure
         state={summaryState} value={toolSummary?.inReview} label={t('tools:kpi.inReview')}
         pressed={status === 'In Review'} onClick={() => { setStatus(s => (s === 'In Review' ? '' : 'In Review')); setToolsPage(0); }}
@@ -294,7 +295,7 @@ export function ToolsSection({ onNavigate, mode = 'admin', view }: {
           </div>
 
           <div className="flex items-center justify-between gap-4 flex-wrap mt-3">
-            <div role="tablist" className="flex">
+            <div role="tablist" className="flex flex-wrap max-w-full">
               {(['returnable', 'consumable'] as Tab[]).map(key => {
                 const active = tab === key;
                 const count = key === 'returnable' ? toolSummary?.total : consumableSummary?.total;
@@ -304,9 +305,9 @@ export function ToolsSection({ onNavigate, mode = 'admin', view }: {
                     type="button"
                     role="tab"
                     aria-selected={active}
-                    onClick={() => { setTab(key); setSearch(''); setDebouncedSearch(''); }}
+                    onClick={() => { setSearch(''); setDebouncedSearch(''); setTab(key); }}
                     className={cn(
-                      'inline-flex items-center gap-2 px-4 py-2.5 font-bt-mono text-[10.5px] font-semibold uppercase tracking-[0.12em] whitespace-nowrap',
+                      'inline-flex min-w-0 max-w-full flex-wrap items-center justify-center gap-2 px-3 py-2.5 font-bt-mono text-[10.5px] font-semibold uppercase tracking-[0.12em]',
                       'border -ml-px first:ml-0 transition-colors',
                       active ? 'bg-[#0B0A09] text-[#F5F1E8] border-[#0B0A09]' : 'bg-white border-[#DBD0BB] text-[#5A5346] hover:text-[#0B0A09]',
                       FOCUS_RING,
@@ -465,14 +466,14 @@ export function ToolsSection({ onNavigate, mode = 'admin', view }: {
               </div>
               <div className="flex items-center gap-1.5">
                 <button type="button" onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0} aria-label={t('common:buttons.prev')}
-                  className={cn('w-[30px] h-[30px] border border-[#DBD0BB] bg-[#FAF7F0] flex items-center justify-center text-[#0B0A09] hover:border-[#F97316] hover:text-[#C2410C] disabled:text-[#B4A992] disabled:hover:border-[#DBD0BB]', FOCUS_RING)}>
+                  className={cn('min-w-11 min-h-11 border border-[#DBD0BB] bg-[#FAF7F0] flex items-center justify-center text-[#0B0A09] hover:border-[#F97316] hover:text-[#C2410C] disabled:text-[#B4A992] disabled:hover:border-[#DBD0BB]', FOCUS_RING)}>
                   <ChevronLeft className="w-3 h-3" strokeWidth={2.4} />
                 </button>
-                <Mono className="text-[11px] tracking-[0.06em] text-[#0B0A09] min-w-[104px] text-center">
+                <Mono className="text-[11px] tracking-[0.06em] text-[#0B0A09] min-w-0 text-center [overflow-wrap:anywhere]">
                   {t('tools:page.number', { current: page + 1, total: Math.max(pages, 1) })}
                 </Mono>
                 <button type="button" onClick={() => setPage(Math.min(pages - 1, page + 1))} disabled={page >= pages - 1} aria-label={t('common:buttons.next')}
-                  className={cn('w-[30px] h-[30px] border border-[#DBD0BB] bg-[#FAF7F0] flex items-center justify-center text-[#0B0A09] hover:border-[#F97316] hover:text-[#C2410C] disabled:text-[#B4A992] disabled:hover:border-[#DBD0BB]', FOCUS_RING)}>
+                  className={cn('min-w-11 min-h-11 border border-[#DBD0BB] bg-[#FAF7F0] flex items-center justify-center text-[#0B0A09] hover:border-[#F97316] hover:text-[#C2410C] disabled:text-[#B4A992] disabled:hover:border-[#DBD0BB]', FOCUS_RING)}>
                   <ChevronRight className="w-3 h-3" strokeWidth={2.4} />
                 </button>
               </div>
@@ -523,7 +524,7 @@ export function ToolsSection({ onNavigate, mode = 'admin', view }: {
       {warehouseConsumable && <ConsumableWarehouseWindow
         key={warehouseConsumable.id}
         consumable={warehouseConsumable}
-        onClose={() => setWarehouseConsumable(null)}
+        onClose={() => { setWarehouseConsumable(null); setReloadNonce(n => n + 1); fetchSummaries(); }}
         onSaved={saved => {
           setWarehouseConsumable(saved);
           setConsumables(prev => prev.map(c => c.id === saved.id ? saved : c));

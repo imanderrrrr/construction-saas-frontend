@@ -138,8 +138,14 @@ export function InvoiceWindow({ onClose, onCreated, onOpenBranding }: {
 
   const fetchClients = useCallback(async (query: string): Promise<PickerOption[]> => {
     const page = await listClients(query || undefined, undefined, 0, 20);
-    return page.content.map(c => ({ id: String(c.id), label: c.name, sub: c.contact ?? c.email ?? null }));
-  }, []);
+    // CreateReceivableRequest.client takes at most 25: a client saved before
+    // that limit is shown, but cannot be chosen until its name is shortened.
+    return page.content.map(c => ({
+      id: String(c.id), label: c.name, sub: c.contact ?? c.email ?? null,
+      blocked: c.name.length > FIELD_LIMITS.SHORT_NAME
+        ? t('finance:invoice.picker.nameTooLong', { max: FIELD_LIMITS.SHORT_NAME }) : null,
+    }));
+  }, [t]);
 
   const projectCache = useRef(new Map<string, ProjectResponse>());
   const fetchProjects = useCallback(async (query: string): Promise<PickerOption[]> => {

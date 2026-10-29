@@ -1,3 +1,4 @@
+import { FIELD_LIMITS } from '../../../shared/fieldLimits';
 // BuildTrack — Client-portal RFI section ("Consultas de obra"): the building
 // owner reads the constructora's formal questions and ANSWERS them (text +
 // photos). Rendered inside the public ClientView page; auth is the portal
@@ -488,7 +489,7 @@ function RespondForm({ session, rfi, onSent, onCancel, onGone }: {
         </label>
         <textarea
           id={`rfi-answer-${rfi.id}`}
-          maxLength={2000}
+          maxLength={FIELD_LIMITS.NOTE}
           rows={3}
           value={body}
           onChange={(e) => setBody(e.target.value)}

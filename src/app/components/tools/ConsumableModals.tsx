@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '../ui/utils';
 import { moneyInputCents } from '../../lib/moneyInput';
 import { FIELD_LIMITS } from '../../../shared/fieldLimits';
+import { changedFields, textTooLong } from '../../../shared/textPolicy';
 import { createConsumable, updateConsumable, type ConsumableResponse } from '../../services/warehouse';
 import { BtModal } from '../bt/windows';
 import { PrimaryButton, SecondaryButton } from '../onboarding/chrome';
@@ -41,7 +42,7 @@ export function ConsumableFormModal({ open, onOpenChange, onSaved, consumable = 
   const [stock, setStock] = useState('0');
   const [unitCost, setUnitCost] = useState('0.00');
   const [minimum, setMinimum] = useState('0');
-  const [errors, setErrors] = useState<{ name?: string; unit?: string; numbers?: string; server?: string }>({});
+  const [errors, setErrors] = useState<{ name?: string; category?: string; unit?: string; numbers?: string; server?: string }>({});
   const [saving, setSaving] = useState(false);
   const [category, setCategory] = useState('General');
   const [notes, setNotes] = useState('');
@@ -61,9 +62,13 @@ export function ConsumableFormModal({ open, onOpenChange, onSaved, consumable = 
   const submit = async () => {
     const next: typeof errors = {};
     if (!name.trim()) next.name = t('tools:consumable.err.name');
-    if (!unit.trim()) next.unit = t('tools:consumable.err.unit');
+    else if (textTooLong(name, FIELD_LIMITS.WAREHOUSE_NAME, consumable?.name)) next.name = t('tools:name.tooLong', { max: FIELD_LIMITS.WAREHOUSE_NAME });
+    if (textTooLong(notes, FIELD_LIMITS.NOTE, consumable?.notes ?? '')) next.server = t('common:validation.maxLength', { max: FIELD_LIMITS.NOTE });
+    if (!category.trim() && category !== consumable?.category) next.category = t('tools:consumable.err.category');
+    else if (textTooLong(category, FIELD_LIMITS.SHORT_NAME, consumable?.category)) next.category = t('common:validation.maxLength', { max: FIELD_LIMITS.SHORT_NAME });
+    if (!unit.trim() && unit !== consumable?.unit) next.unit = t('tools:consumable.err.unit');
     if (moneyInputCents(unitCost) == null) next.numbers = t('inventory:consumables.dialog.invalidCost');
-    if (stockNumber < 0 || minimumNumber < 0) next.numbers = t('tools:consumable.err.negative');
+    if (!Number.isSafeInteger(stockNumber) || !Number.isSafeInteger(minimumNumber) || stockNumber < 0 || minimumNumber < 0) next.numbers = t('tools:consumable.err.negative');
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
@@ -71,15 +76,15 @@ export function ConsumableFormModal({ open, onOpenChange, onSaved, consumable = 
     try {
       // The code is the server's: CS-00x, never typed.
       const details = {
-        name: name.trim(),
-        category: category.trim() || 'General',
-        unit: unit.trim(),
+        name: name === consumable?.name ? name : name.trim(),
+        category: category === consumable?.category ? category : category.trim(),
+        unit: unit === consumable?.unit ? unit : unit.trim(),
         minimumStock: minimumNumber,
         unitCostCents: moneyInputCents(unitCost)!,
-        ...(warehouse ? { notes: notes.trim() } : {}),
+        ...(warehouse ? { notes: notes === (consumable?.notes ?? '') ? notes : notes.trim() } : {}),
       };
       const saved = consumable
-        ? await updateConsumable(consumable.id, details)
+        ? await updateConsumable(consumable.id, changedFields(details, { name: consumable.name, category: consumable.category, unit: consumable.unit, minimumStock: consumable.minimumStock, unitCostCents: consumable.unitCostCents ?? 0, notes: consumable.notes ?? '' }))
         : await createConsumable({ ...details, currentStock: stockNumber });
       onSaved(saved);
       onOpenChange(false);
@@ -122,23 +127,31 @@ export function ConsumableFormModal({ open, onOpenChange, onSaved, consumable = 
         </div>
         <div>
           <FieldLabel htmlFor="cs-name" required>{t('tools:consumable.name')}</FieldLabel>
-          <input id="cs-name" value={name} onChange={e => setName(e.target.value)} maxLength={FIELD_LIMITS.SHORT_NAME} className={cn(INPUT, 'bg-[#FAF7F0]', errors.name && INPUT_ERROR)} />
-          {errors.name && <FieldError>{errors.name}</FieldError>}
+          <input id="cs-name" value={name} onChange={e => setName(e.target.value)} maxLength={FIELD_LIMITS.WAREHOUSE_NAME} aria-invalid={!!errors.name} aria-describedby="cs-name-hint" className={cn(INPUT, 'bg-[#FAF7F0]', errors.name && INPUT_ERROR)} />
+          <div id="cs-name-hint">
+            {errors.name && <FieldError>{errors.name}</FieldError>}
+            <FieldHint>{t('tools:name.limitHint', { count: name.length, max: FIELD_LIMITS.WAREHOUSE_NAME })}</FieldHint>
+            {name === consumable?.name && name.length > FIELD_LIMITS.WAREHOUSE_NAME && <FieldHint>{t('common:validation.historicalValue')}</FieldHint>}
+          </div>
         </div>
       </div>
 
       {(warehouse || consumable) && <div className="mt-[14px]">
-        <FieldLabel htmlFor="cs-category">{t('inventory:consumables.dialog.category')}</FieldLabel>
-        <input id="cs-category" value={category} onChange={e => setCategory(e.target.value)} maxLength={FIELD_LIMITS.ENUM_TOKEN} className={INPUT} />
+        <FieldLabel htmlFor="cs-category" required>{t('inventory:consumables.dialog.category')}</FieldLabel>
+        <input id="cs-category" value={category} onChange={e => setCategory(e.target.value)} maxLength={FIELD_LIMITS.SHORT_NAME} aria-invalid={!!errors.category} aria-describedby="cs-category-hint" className={cn(INPUT, errors.category && INPUT_ERROR)} />
+        <div id="cs-category-hint">{errors.category && <FieldError>{errors.category}</FieldError>}
+        <FieldHint>{t('tools:name.limitHint', { count: category.length, max: FIELD_LIMITS.SHORT_NAME })}</FieldHint>
+        {category === consumable?.category && category.length > FIELD_LIMITS.SHORT_NAME && <FieldHint>{t('common:validation.historicalValue')}</FieldHint>}</div>
       </div>}
       {warehouse && <div className="mt-[14px]">
         <FieldLabel htmlFor="cs-notes">{t('inventory:consumables.dialog.notes')}</FieldLabel>
         <textarea id="cs-notes" value={notes} onChange={e => setNotes(e.target.value)} maxLength={FIELD_LIMITS.NOTE} className={cn(INPUT, 'h-20 py-2')} />
+        <FieldHint>{t('tools:name.limitHint', { count: notes.length, max: FIELD_LIMITS.NOTE })}</FieldHint>
       </div>}
 
       <div className="mt-[14px]">
         <FieldLabel htmlFor="cs-unit" required>{t('tools:consumable.unit')}</FieldLabel>
-        <input id="cs-unit" value={unit} onChange={e => setUnit(e.target.value)} maxLength={FIELD_LIMITS.ENUM_TOKEN} className={cn(INPUT, 'bg-[#FAF7F0]', errors.unit && INPUT_ERROR)} />
+        <input id="cs-unit" disabled={consumable != null} value={unit} onChange={e => setUnit(e.target.value)} maxLength={FIELD_LIMITS.CODE} className={cn(INPUT, 'bg-[#FAF7F0]', errors.unit && INPUT_ERROR)} />
         {errors.unit ? <FieldError>{errors.unit}</FieldError> : <FieldHint>{t('tools:consumable.unit.hint')}</FieldHint>}
       </div>
 

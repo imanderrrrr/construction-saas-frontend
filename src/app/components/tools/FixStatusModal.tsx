@@ -53,7 +53,8 @@ export function FixStatusModal({ open, onOpenChange, tool, lang, keepers, onGoUs
 
   if (!tool) return null;
 
-  const blocked = isOut(tool.status);
+  const blocked = tool.status === 'Lost' && tool.assignedToId != null;
+  const inCustody = isOut(tool.status);
   const options = pathsFrom(tool.status);
   const since = daysSince(tool.lastActivityAt);
 
@@ -94,6 +95,7 @@ export function FixStatusModal({ open, onOpenChange, tool, lang, keepers, onGoUs
         )
       }
     >
+      {inCustody && <PaperNote tone="red" className="mb-4">{t('tools:fixStatus.lossCustody')}</PaperNote>}
       <div className="flex items-center justify-between gap-3 bg-[#FBF8F2] border border-[#EDE7DB] px-3.5 h-[42px]">
         <Mono className="text-[9.5px] font-semibold tracking-[0.12em] text-[#5A5346]">{t('tools:fixStatus.now')}</Mono>
         <div className="flex items-center gap-2.5">

@@ -1,3 +1,4 @@
+import { RecordPagination } from './ui/record-pagination';
 import { useScreenState } from '../workspace/WorkspaceState';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
@@ -157,40 +158,8 @@ function ReceiptThumb({ onPreview }: { onPreview: () => void }) {
   );
 }
 
-function Pagination({
-  currentPage, totalPages, onPageChange,
-}: { currentPage: number; totalPages: number; onPageChange: (p: number) => void }) {
-  const { t } = useTranslation('expenses');
-  if (totalPages <= 1) return null;
-  return (
-    <div className="flex items-center justify-center gap-1 py-4 border-t border-[#D4D4D8]">
-      <button
-        onClick={() => onPageChange(currentPage - 1)}
-        disabled={currentPage === 1}
-        className="h-8 px-3 rounded-lg text-xs font-medium text-[#71717A] hover:text-[#0A0A0A] hover:bg-[#FAFAFA] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-      >
-        {t('my.prev')}
-      </button>
-      {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-        <button
-          key={p}
-          onClick={() => onPageChange(p)}
-          className={`h-8 w-8 rounded-lg text-xs font-semibold transition-colors ${
-            p === currentPage ? 'bg-[#F97316] text-white' : 'text-[#71717A] hover:text-[#0A0A0A] hover:bg-[#FAFAFA]'
-          }`}
-        >
-          {p}
-        </button>
-      ))}
-      <button
-        onClick={() => onPageChange(currentPage + 1)}
-        disabled={currentPage === totalPages}
-        className="h-8 px-3 rounded-lg text-xs font-medium text-[#71717A] hover:text-[#0A0A0A] hover:bg-[#FAFAFA] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-      >
-        {t('my.next')}
-      </button>
-    </div>
-  );
+function Pagination({ currentPage, totalPages, onPageChange }: { currentPage: number; totalPages: number; onPageChange: (p: number) => void }) {
+  return <RecordPagination current={currentPage} total={totalPages} onPage={onPageChange} />;
 }
 
 // Expanded detail panel

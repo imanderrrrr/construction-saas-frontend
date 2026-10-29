@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../ui/utils';
+import { ApiError } from '../../lib/api';
 import { FIELD_LIMITS } from '../../../shared/fieldLimits';
+import { changedFields, textTooLong } from '../../../shared/textPolicy';
 import { createTool, getAdminTools, updateTool, type ToolResponse } from '../../services/warehouse';
 import { BtModal } from '../bt/windows';
 import { FOCUS_RING, PrimaryButton, SecondaryButton } from '../onboarding/chrome';
@@ -89,6 +91,8 @@ export function ToolFormModal({ open, onOpenChange, tool, onSaved }: {
     const value = code.trim().toUpperCase();
     if (!editing && !value) next.code = t('tools:form.err.code');
     if (!name.trim()) next.name = t('tools:form.err.name');
+    else if (textTooLong(name, FIELD_LIMITS.WAREHOUSE_NAME, tool?.name)) next.name = t('tools:name.tooLong', { max: FIELD_LIMITS.WAREHOUSE_NAME });
+    if (textTooLong(notes, MAX_NOTES, tool?.notes ?? '')) next.server = t('common:validation.maxLength', { max: MAX_NOTES });
     if (!category) next.category = t('tools:form.err.category');
     setErrors(next);
     if (Object.keys(next).length > 0) return;
@@ -96,14 +100,15 @@ export function ToolFormModal({ open, onOpenChange, tool, onSaved }: {
     setSaving(true);
     try {
       const saved = editing
-        ? await updateTool(tool.id, { name: name.trim(), category, notes: notes.trim() || undefined })
+        ? await updateTool(tool.id, changedFields({ name: name === tool.name ? name : name.trim(), category, notes: notes === (tool.notes ?? '') ? notes : notes.trim() }, { name: tool.name, category: tool.category, notes: tool.notes ?? '' }))
         : await createTool({ code: value, name: name.trim(), category, notes: notes.trim() || undefined });
       onSaved(saved, editing ? 'edit' : 'create');
       onOpenChange(false);
     } catch (err) {
-      // A duplicate code is the one failure the server alone can decide.
-      const message = err instanceof Error ? err.message : '';
-      if (/code/i.test(message) && /exist/i.test(message)) setErrors({ code: t('tools:form.code.taken') });
+      // A duplicate code is the one failure the server alone can decide: its
+      // per-company unique index answers 409 TOOL_CODE_EXISTS, also when the
+      // check on blur missed it or another tab registered it meanwhile.
+      if (err instanceof ApiError && err.code === 'TOOL_CODE_EXISTS') setErrors({ code: t('tools:form.code.taken') });
       else setErrors({ server: t('tools:form.err.server') });
     } finally {
       setSaving(false);
@@ -173,10 +178,16 @@ export function ToolFormModal({ open, onOpenChange, tool, onSaved }: {
             id="tool-name"
             value={name}
             onChange={e => setName(e.target.value)}
-            maxLength={FIELD_LIMITS.SHORT_NAME}
+            maxLength={FIELD_LIMITS.WAREHOUSE_NAME}
+            aria-invalid={!!errors.name}
+            aria-describedby="tool-name-hint"
             className={cn(INPUT, fieldBg, errors.name && INPUT_ERROR)}
           />
-          {errors.name ? <FieldError>{errors.name}</FieldError> : <FieldHint>{t('tools:form.name.hint')}</FieldHint>}
+          <div id="tool-name-hint">
+            {errors.name ? <FieldError>{errors.name}</FieldError> : <FieldHint>{t('tools:form.name.hint')}</FieldHint>}
+            <FieldHint>{t('tools:name.limitHint', { count: name.length, max: FIELD_LIMITS.WAREHOUSE_NAME })}</FieldHint>
+            {name === tool?.name && name.length > FIELD_LIMITS.WAREHOUSE_NAME && <FieldHint>{t('common:validation.historicalValue')}</FieldHint>}
+          </div>
         </div>
       </div>
 

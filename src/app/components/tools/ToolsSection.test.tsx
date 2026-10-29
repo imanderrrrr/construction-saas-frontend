@@ -9,11 +9,13 @@
 import React, { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createMemoryRouter, RouterProvider, useLocation } from 'react-router';
 
 const svc = vi.hoisted(() => ({
   getAdminTools: vi.fn(), getAdminToolSummary: vi.fn(),
   searchConsumables: vi.fn(), getConsumableSummary: vi.fn(),
   getToolHistory: vi.fn(),
+  listTools: vi.fn(), getToolSummary: vi.fn(),
 }));
 vi.mock('../../services/warehouse', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../services/warehouse')>()),
@@ -29,6 +31,7 @@ vi.mock('../../services/users', async (importOriginal) => ({
 import i18n from '../../../i18n';
 import { ApiError } from '../../lib/api';
 import { ToolsSection } from './ToolsSection';
+import { WorkspaceStateProvider, useSectionNavigation } from '../../workspace/WorkspaceState';
 import {
   buttonByText, click, CONSUMABLE_SUMMARY, consumable, flush, page, select, SUMMARY, tool, type,
 } from './testing';
@@ -61,6 +64,8 @@ describe('ToolsSection', () => {
     vi.clearAllMocks();
     svc.getAdminTools.mockResolvedValue(page(TOOLS, 214));
     svc.getAdminToolSummary.mockResolvedValue(SUMMARY);
+    svc.listTools.mockResolvedValue(page(TOOLS, 214));
+    svc.getToolSummary.mockResolvedValue(SUMMARY);
     svc.searchConsumables.mockResolvedValue(page([consumable({ id: 5, code: 'CS-003', name: 'Tornillo 2"', currentStock: 8, minimumStock: 10, status: 'Low Stock' })], 62));
     svc.getConsumableSummary.mockResolvedValue(CONSUMABLE_SUMMARY);
     svc.getToolHistory.mockResolvedValue([]);
@@ -85,7 +90,7 @@ describe('ToolsSection', () => {
   it('takes the seven figures from the summary, not from the page it loaded', async () => {
     await mount();
     const values = figures(container).map(f => f.querySelector('.tabular-nums')!.textContent);
-    expect(values).toEqual(['214', '96', '74', '14', '18', '8', '4']);
+    expect(values).toEqual(['214', '96', '74', '14', '0', '18', '8', '4']);
     // Three rows on screen, and the strip still says 214.
     expect(container.querySelectorAll('[data-testid^="tool-row-"]').length).toBe(3);
   });
@@ -170,6 +175,27 @@ describe('ToolsSection', () => {
     const values = Array.from(container.querySelector('[data-testid="consumables-figures"]')!.children)
       .map(f => f.querySelector('.tabular-nums')!.textContent);
     expect(values).toEqual(['62', '41', '15', '6']);
+  });
+
+  it('opens consumables from a filtered warehouse inventory without the filter restoring the old route', async () => {
+    function WarehouseInventory() {
+      const [section, onNavigate] = useSectionNavigation<'tool-inventory' | 'consumables'>('WAREHOUSE', 'tool-inventory');
+      const location = useLocation();
+      return <>
+        <output data-testid="route">{location.pathname}</output>
+        <ToolsSection mode="warehouse" view={section === 'consumables' ? 'consumable' : 'returnable'} onNavigate={onNavigate} />
+      </>;
+    }
+    const router = createMemoryRouter([{ path: '*', element:
+      <WorkspaceStateProvider role="WAREHOUSE"><WarehouseInventory /></WorkspaceStateProvider>,
+    }], { initialEntries: ['/warehouse/inventory?q=PT-014'] });
+    await act(async () => { root.render(<RouterProvider router={router} />); });
+    await flush();
+    click(buttonByText(container, new RegExp(i18n.t('tools:tab.consumable'))));
+    await flush();
+    expect(container.querySelector('[data-testid="route"]')?.textContent).toBe('/warehouse/materiales');
+    expect(container.querySelector('[data-testid="consumables-table"]')).toBeTruthy();
+    expect(svc.searchConsumables).toHaveBeenCalled();
   });
 
   it('names the warehouse user instead of linking to a panel the admin cannot open', async () => {

@@ -408,13 +408,13 @@ export function NewExpense({ onSubmitSuccess }: NewExpenseProps) {
           <Field label={t('new.notes.label')}>
             <Textarea
               value={comment}
-              onChange={e => setComment(e.target.value.slice(0, 500))}
+              onChange={e => setComment(e.target.value.slice(0, FIELD_LIMITS.NOTE))}
               maxLength={FIELD_LIMITS.NOTE}
               placeholder={t('new.notes.placeholder')}
               className="resize-none text-sm border-[#D4D4D8] placeholder:text-[#71717A] min-h-[88px] focus:ring-2 focus:ring-[#F97316]/25 focus:border-[#F97316]"
               rows={3}
             />
-            <p className="text-xs text-[#71717A] text-right">{comment.length}/500</p>
+            <p className="text-xs text-[#71717A] text-right">{comment.length}/{FIELD_LIMITS.NOTE}</p>
           </Field>
 
           {/* Footer */}

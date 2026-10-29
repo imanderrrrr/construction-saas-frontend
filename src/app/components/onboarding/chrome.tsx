@@ -48,7 +48,7 @@ export function InkBar({ grid = 26, className, children }: {
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement>;
 
 const MONO_BUTTON =
-  'inline-flex items-center justify-center gap-2 font-bt-mono font-semibold uppercase tracking-[0.1em] whitespace-nowrap transition-colors disabled:opacity-50 disabled:pointer-events-none';
+  'inline-flex items-center justify-center gap-2 font-bt-mono font-semibold uppercase tracking-[0.1em] min-w-0 max-w-full whitespace-normal [overflow-wrap:anywhere] transition-colors disabled:opacity-50 disabled:pointer-events-none';
 
 /** Orange, white text. The one action the window wants. */
 export function PrimaryButton({ className, type = 'button', ...rest }: ButtonProps) {
@@ -99,7 +99,7 @@ export function TertiaryButton({ className, type = 'button', ...rest }: ButtonPr
     <button
       type={type}
       className={cn(
-        'font-bt-mono text-[9.5px] font-medium uppercase tracking-[0.1em] whitespace-nowrap flex-shrink-0 text-[#8A8175] hover:text-[#C2410C] transition-colors',
+        'font-bt-mono text-[9.5px] font-medium uppercase tracking-[0.1em] min-w-0 max-w-full whitespace-normal [overflow-wrap:anywhere] flex-shrink-0 text-[#8A8175] hover:text-[#C2410C] transition-colors',
         FOCUS_RING,
         className,
       )}

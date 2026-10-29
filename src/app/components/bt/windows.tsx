@@ -60,10 +60,10 @@ export function BtModal({
           <div
             ref={panelRef}
             tabIndex={-1}
-            className={cn('bt-window-in bg-white flex flex-col w-full md:w-[var(--bt-w)] md:max-w-full max-h-full md:max-h-[calc(100vh-48px)] outline-none', WINDOW_SHADOW)}
+            className={cn('bt-window-in bg-white flex flex-col min-w-0 [overflow-wrap:anywhere] w-full md:w-[var(--bt-w)] md:max-w-full max-h-full md:max-h-[calc(100vh-48px)] outline-none', WINDOW_SHADOW)}
             style={{ '--bt-w': `${width}px` } as CSSProperties}
           >
-            <div className="flex items-start justify-between gap-4 px-5 pt-5 md:px-[22px] md:pt-[22px]">
+            <div tabIndex={typeof title === 'string' && title.length > 50 ? 0 : undefined} className="shrink-0 max-h-[40dvh] overflow-y-auto flex items-start justify-between gap-4 px-5 pt-5 md:px-[22px] md:pt-[22px]">
               <div className="min-w-0">
                 {kicker && (
                   <Mono className={cn('block text-[10px] font-semibold tracking-[0.14em]', kickerTone === 'red' ? 'text-[#B3402A]' : 'text-[#C2410C]')}>{kicker}</Mono>
@@ -77,7 +77,7 @@ export function BtModal({
               </div>
               <CloseButton onClick={close} disabled={closeDisabled} aria-label={t('common:buttons.close')} className="flex-shrink-0" />
             </div>
-            <div className={cn('flex-1 min-h-0 overflow-y-auto px-5 md:px-[22px] py-4', bodyClassName)}>{children}</div>
+            <div className={cn('flex-1 min-h-0 min-w-0 [&>*]:min-w-0 overflow-y-auto px-5 md:px-[22px] py-4', bodyClassName)}>{children}</div>
             {footer && <div className={FOOTER}>{footer}</div>}
           </div>
         </DialogPrimitive.Content>
@@ -119,7 +119,7 @@ export function BtDrawer({
             className="bt-drawer-in bg-white flex flex-col h-full w-full md:w-[var(--bt-w)] md:max-w-full md:border-l-[3px] md:border-l-[#CDBFA6] shadow-[-24px_0_48px_-30px_rgba(11,10,9,0.6)] outline-none"
             style={{ '--bt-w': `${width}px` } as CSSProperties}
           >
-            <InkBar grid={24} className="flex-shrink-0 px-5 py-4 md:px-[22px] md:py-[18px]">
+            <InkBar grid={24} className="flex-shrink-0 max-h-[40dvh] overflow-y-auto px-5 py-4 md:px-[22px] md:py-[18px]">
               <div className="relative flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   {kicker && <Mono className="block text-[10px] font-semibold tracking-[0.14em] text-[#F97316] truncate">{kicker}</Mono>}
@@ -130,7 +130,7 @@ export function BtDrawer({
                 <CloseButton onDark onClick={close} disabled={closeDisabled} aria-label={t('common:buttons.close')} className="w-8 h-8 flex-shrink-0" />
               </div>
             </InkBar>
-            <div className="flex-1 min-h-0 overflow-y-auto px-5 md:px-[22px] py-5">{children}</div>
+            <div className="flex-1 min-h-0 min-w-0 [&>*]:min-w-0 overflow-y-auto px-5 md:px-[22px] py-5">{children}</div>
             {footer && <div className={FOOTER}>{footer}</div>}
           </div>
         </DialogPrimitive.Content>

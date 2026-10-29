@@ -37,6 +37,7 @@ export function listWarehouseProjects(params?: {
 // Dashboard
 
 export interface DashboardActivityEntry {
+  actionId?: string;
   id: number;
   date: string;
   code: string;
@@ -56,6 +57,11 @@ export interface LowStockAlertEntry {
 }
 
 export interface DashboardKpis {
+  pendingAcceptance?: number;
+  returnPending?: number;
+  inReview?: number;
+  damaged?: number;
+  lost?: number;
   totalTools: number;
   availableTools: number;
   assignedTools: number;
@@ -73,6 +79,7 @@ export interface DashboardResponse {
 // Tools
 
 export interface ToolHistoryEntry {
+  actionId?: string;
   id: number;
   date: string;
   time: string;
@@ -114,6 +121,7 @@ export interface ToolResponse {
  * figure to explain it, and the total stopped matching what was underneath.
  */
 export interface ToolSummary {
+  returnPending?: number;
   total: number;
   available: number;
   assigned: number;
@@ -151,6 +159,7 @@ export interface AssignmentResponse {
 }
 
 export interface AssignmentLogEntry {
+  actionId?: string;
   id: number;
   date: string;
   toolCode: string;
@@ -274,6 +283,7 @@ export async function getGlobalToolHistory(params?: {
   toolCode?: string;
   action?: string;
   worker?: string;
+  workerId?: number;
   dateFrom?: string;
   dateTo?: string;
   page?: number;
@@ -283,6 +293,7 @@ export async function getGlobalToolHistory(params?: {
   if (params?.toolCode) q.set('toolCode', params.toolCode);
   if (params?.action) q.set('action', params.action);
   if (params?.worker) q.set('worker', params.worker);
+  if (params?.workerId != null) q.set('workerId', String(params.workerId));
   if (params?.dateFrom) q.set('dateFrom', params.dateFrom);
   if (params?.dateTo) q.set('dateTo', params.dateTo);
   q.set('page', String(params?.page ?? 0));
@@ -451,6 +462,7 @@ export async function getAllDispatches(params?: {
 }
 
 export async function dispatchConsumable(payload: {
+  requestKey: string;
   budgetLineItemId?: number | null;
   consumableCode: string;
   consumableName?: string;
