@@ -483,12 +483,19 @@ export async function dispatchConsumable(payload: {
 
 // ── Worker / Supervisor / Admin views ────────────────
 
+/**
+ * Tells the server this view shows RETURN_PENDING and LOST (custody after a
+ * rejection or a loss). Without it the server leaves them out of the worker's
+ * list, because the 2.2.0 app in the stores filed them under «Asignadas».
+ */
+const CUSTODY_STATES = { headers: { 'X-Client-Capabilities': 'TOOL_CUSTODY_STATES' } };
+
 export async function getWorkerTools(): Promise<AssignmentResponse[]> {
-  return api<AssignmentResponse[]>('/api/v1/worker/tools');
+  return api<AssignmentResponse[]>('/api/v1/worker/tools', CUSTODY_STATES);
 }
 
 export async function getWorkerToolSummary(): Promise<ToolSummary> {
-  return api<ToolSummary>('/api/v1/worker/tools/summary');
+  return api<ToolSummary>('/api/v1/worker/tools/summary', CUSTODY_STATES);
 }
 
 export async function getSupervisorTools(): Promise<AssignmentResponse[]> {
