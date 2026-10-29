@@ -34,6 +34,7 @@ type Failure =
   | null;
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9._-]+$/;
+const USERNAME_MAX = FIELD_LIMITS.USERNAME;
 
 /**
  * Three alternatives for a taken username, built on the client from what
@@ -45,7 +46,8 @@ export function suggestUsernames(username: string, fullName: string): string[] {
   const clean = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9._-]/g, '');
   const base = clean(username) || 'usuario';
   const parts = fullName.trim().split(/\s+/).map(clean).filter(Boolean);
-  const out: string[] = [`${base}2`];
+  // AcceptInvitationRequest.username takes at most 30.
+  const out: string[] = [`${base.slice(0, USERNAME_MAX - 1)}2`];
   if (parts.length >= 2) {
     const first = parts[0];
     const last = parts[parts.length - 1];
@@ -53,7 +55,9 @@ export function suggestUsernames(username: string, fullName: string): string[] {
   } else if (parts.length === 1) {
     out.push(`${parts[0]}.1`, `${parts[0]}${new Date().getFullYear() % 100}`);
   }
-  return [...new Set(out)].filter(s => s !== username && USERNAME_PATTERN.test(s)).slice(0, 3);
+  return [...new Set(out)]
+    .filter(s => s !== username && s.length <= USERNAME_MAX && USERNAME_PATTERN.test(s))
+    .slice(0, 3);
 }
 
 export function AcceptInvite() {

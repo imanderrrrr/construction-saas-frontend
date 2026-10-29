@@ -145,6 +145,21 @@ describe('InvoiceWindow', () => {
     expect(bodega.textContent).toContain('invoice.picker.notBillable');
   });
 
+  // Second warehouse audit (2026-10-28): CreateReceivableRequest.client takes
+  // at most 25. A client saved before that limit is offered, but not chosen.
+  it('never offers a client whose saved name the server would refuse, and says why', async () => {
+    const long = 'Constructora Hernández y Asociados';
+    listClients.mockResolvedValue({ content: [{ id: 4, name: long, contact: null, email: null }], totalElements: 1 });
+    await mount();
+    const input = container.querySelector<HTMLInputElement>('[data-testid="invoice-client"]')!;
+    await act(async () => { input.focus(); });
+    await flush(350);
+    await flush();
+    const option = Array.from(container.querySelectorAll('button')).find(b => b.textContent?.startsWith(long))!;
+    expect(option.disabled).toBe(true);
+    expect(option.textContent).toContain('invoice.picker.nameTooLong');
+  });
+
   it('keeps a quantity of 0 at 0 and refuses to issue', async () => {
     await mount();
     await pick('invoice-client', 'Grupo Marisol');

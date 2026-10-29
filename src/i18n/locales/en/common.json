@@ -189,6 +189,7 @@
   "intro.skip": "Skip",
   "dialog.description": "Form details",
   "validation.maxLength": "Use at most {{max}} characters.",
+  "validation.minLength": "Write at least {{min}} characters.",
   "validation.textPolicy": "Names: 25 characters. Descriptions and notes: 50.",
   "validation.historicalValue": "Historical value. You can keep it; changes must meet the current limit.",
   "pagination.label": "Pagination",

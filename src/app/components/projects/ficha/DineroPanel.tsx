@@ -9,6 +9,7 @@ import {
   listChangeOrders, createChangeOrder, updateChangeOrder, deleteChangeOrder, type ChangeOrderEntry,
 } from '../../../services/projects';
 import { FIELD_LIMITS } from '../../../../shared/fieldLimits';
+import { changeOrderEdit } from './changeOrderEdit';
 import type { Project } from '../types';
 import { fmtUSD } from '../helpers';
 import { Bone, CreateButton, FieldLabel, INPUT, INPUT_MONO, Mono, PaperNote, stampDate, stampDay } from '../bt';
@@ -103,7 +104,14 @@ export function DineroPanel({ project, closed, incomplete, lang }: {
     setCoSaving(true);
     try {
       if (editingCoId != null) {
-        await updateChangeOrder(project.id, editingCoId, { description: coDesc.trim(), amountCents: signedCents, number });
+        const original = changeOrders.find(co => co.id === editingCoId);
+        const edit = changeOrderEdit({ description: original?.description ?? '' },
+          { description: coDesc, amountCents: signedCents, number });
+        if ('tooLong' in edit) {
+          toast.error(t('common:validation.maxLength', { max: edit.tooLong }));
+          return;
+        }
+        await updateChangeOrder(project.id, editingCoId, edit.payload);
         toast.success(t('admin:changeOrders.updated'));
       } else {
         await createChangeOrder(project.id, { description: coDesc.trim(), amountCents: signedCents, number });
