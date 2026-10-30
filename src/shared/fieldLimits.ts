@@ -1,4 +1,5 @@
-/** Admission limits: names/titles 25, descriptions/notes/reasons 50.
+/** Admission limits: names/titles 25, descriptions/notes/reasons 50
+ * (the site log's daily notes: 200, SITE_LOG_NOTES).
  * Mirrors backend FieldLimits. Historical storage and auth/lookup stay wider.
  * Contact formats, references and technical tokens retain their own bounds.
  */
@@ -34,7 +35,8 @@ export const FIELD_LIMITS = {
   NOTE: 50,
   EXTENDED_NOTE: 50,
   LONG_TEXT: 50,
-  EXTENDED_TEXT: 50,
+  /** «Notas del día» of the site log: the one note the 25/50 policy leaves at 200. */
+  SITE_LOG_NOTES: 200,
   RFI_QUESTION: 50,
 
   // ── Technical ─────────────────────────────────────────────────
