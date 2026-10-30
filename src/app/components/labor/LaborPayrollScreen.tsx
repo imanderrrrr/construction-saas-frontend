@@ -1,7 +1,8 @@
 import { ApiError } from '../../lib/api';
 import { useScreenState, useProjectFilter } from '../../workspace/WorkspaceState';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useTourScopeWhileMounted } from '../../lib/tourScope';
 import { AlertTriangle, ArrowRight, Check, CreditCard, Download, FileSpreadsheet, Loader2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { FIELD_LIMITS } from '../../../shared/fieldLimits';
@@ -17,6 +18,22 @@ import {
 } from './shared';
 
 /**
+ * In finance mode, a stop of the finance tour (`labor-payroll-finanzas`)
+ * around a block that keeps the admin's own stop inside. Written out
+ * literally: the registry guardian (onboarding/sectionTourSteps.test.ts)
+ * greps for the attribute and cannot follow a template.
+ */
+function PayrollFinanceStop({ finance, stop, children }: {
+  finance: boolean; stop: 'kpis' | 'filters' | 'list' | 'export'; children: ReactNode;
+}) {
+  if (!finance) return <>{children}</>;
+  if (stop === 'kpis') return <div data-tour="sec.labor-payroll-finanzas.kpis">{children}</div>;
+  if (stop === 'filters') return <div data-tour="sec.labor-payroll-finanzas.filters">{children}</div>;
+  if (stop === 'list') return <div data-tour="sec.labor-payroll-finanzas.list">{children}</div>;
+  return <div data-tour="sec.labor-payroll-finanzas.export">{children}</div>;
+}
+
+/**
  * Nómina — "¿a quién le debo pagar, cuánto, y ya le pagué?".
  *
  * The most operational of the three: it's used on pay day, list in hand. Paid
@@ -26,6 +43,10 @@ import {
 export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate: (section: string) => void; mode?: 'admin' | 'finance' }) {
   const { t, i18n } = useTranslation(['admin', 'common']);
   const lang = i18n.language;
+  const finance = mode === 'finance';
+  // Finance tours this screen under its own key (lib/tourScope): its copy
+  // speaks of confirming payments, not of setting rates in Usuarios.
+  useTourScopeWhileMounted(finance ? 'labor-payroll-finanzas' : null, t('admin:pay.title'));
 
   const [range, setRange] = useScreenState<LaborRange>('periodo', 'week', 'replace', LABOR_RANGES);
   const [q, setQ] = useScreenState('q', '');
@@ -126,6 +147,7 @@ export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate:
           amount: money(totalOwed), count: unpaid.length, range: fmtRange(from, to, lang),
         })}
         right={
+          <PayrollFinanceStop finance={finance} stop="export">
           <div className="flex items-center gap-2">
             <button onClick={() => exportCsv(visible, from, to, isPaid)}
               className="inline-flex items-center gap-2 border border-[#DBD0BB] bg-[#FAF7F0] px-4 py-3 font-bt-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-[#0A0A0A] hover:border-[#F97316] hover:text-[#C2410C]">
@@ -144,6 +166,7 @@ export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate:
               {t('admin:pay.exportPayments')}
             </button>}
           </div>
+          </PayrollFinanceStop>
         }
       />
 
@@ -153,6 +176,7 @@ export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate:
       </div>}
 
       {/* Indicators */}
+      <PayrollFinanceStop finance={finance} stop="kpis">
       <div className="grid grid-cols-1 sm:grid-cols-3 bg-white border border-[#E4E4E7]" data-tour="sec.labor-payroll.kpis">
         <div className="p-4 md:px-5 sm:border-r border-[#EDE7DB]">
           <div className="flex items-baseline">
@@ -176,7 +200,9 @@ export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate:
           <Mono className="block text-[10.5px] text-[#5A5346] mt-1.5">{t('admin:pay.ind.paid')}</Mono>
         </div>
       </div>
+      </PayrollFinanceStop>
 
+      <PayrollFinanceStop finance={finance} stop="filters">
       <LaborFilters
         tourAnchor="sec.labor-payroll.filters"
         q={q} onQ={setQ} range={range} onRange={setRange}
@@ -192,8 +218,10 @@ export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate:
           </select>
         }
       />
+      </PayrollFinanceStop>
 
       {/* List */}
+      <PayrollFinanceStop finance={finance} stop="list">
       <div className="bg-white border border-[#E4E4E7] min-h-[320px]" data-tour="sec.labor-payroll.list">
         {loading ? <LaborSkeleton /> : error ? (
           <div className="py-16 text-center">
@@ -241,6 +269,7 @@ export function LaborPayrollScreen({ onNavigate, mode = 'admin' }: { onNavigate:
           </>
         )}
       </div>
+      </PayrollFinanceStop>
 
       {paying && (
         <ConfirmPaymentDialog
