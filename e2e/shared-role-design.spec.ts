@@ -20,9 +20,8 @@ async function warehouseData(page: Page) {
 
 test.describe('Shared administrator design in web roles', () => {
   for (const screen of [
-    { path: '/finance/receivables', title: 'Collect', marker: 'sec.accounts-receivable.rows' },
+    { path: '/finance/receivables', title: 'Billing', marker: 'sec.accounts-receivable.rows' },
     { path: '/finance/payables', title: 'Pay', marker: 'sec.accounts-payable.lanes' },
-    { path: '/finance/invoices', title: 'Invoices & Change Orders', marker: 'sec.invoices.list' },
   ]) {
     test(`Finance opens the shared screen at ${screen.path}`, async ({ page, context }) => {
       await setSession(context, 'FINANCE');
@@ -38,6 +37,18 @@ test.describe('Shared administrator design in web roles', () => {
       await page.screenshot({ path: test.info().outputPath(`${screen.path.split('/').pop()}-es.png`), fullPage: true });
     });
   }
+
+  // Invoices joined Billing (2026-10-12): the old address opens Billing with
+  // the issue window up, instead of a section that no longer exists.
+  test('Finance: the old /finance/invoices opens Billing with the issue window', async ({ page, context }) => {
+    await setSession(context, 'FINANCE');
+    await installHermeticBase(page, { role: 'FINANCE', username: 'tester' });
+    await page.route('**/api/v1/finance/receivables?*', json(paged([])));
+    await page.route('**/api/v1/finance/payables?*', json(paged([])));
+    await page.goto('/finance/invoices');
+    await expect(page).toHaveURL(/\/finance\/receivables$/);
+    await expect(page.locator('[data-tour="sec.invoices-emitir.type"]')).toBeVisible();
+  });
 
   test('Warehouse uses the shared inventory and keeps its counter actions', async ({ page, context }) => {
     await setSession(context, 'WAREHOUSE');

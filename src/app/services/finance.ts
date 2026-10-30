@@ -424,6 +424,11 @@ export interface Receivable {
 
 const RECEIVABLES = '/api/v1/finance/receivables';
 
+/**
+ * The Cobros header, as the server counts it over the whole company. The
+ * collected and pending figures arrived with the Cobros summary (2026-10): an
+ * older server leaves them out, and the screen takes those from its rows.
+ */
 export interface ReceivableSummary {
   issuedThisMonth: number;
   issuedThisMonthCount: number;
@@ -431,8 +436,9 @@ export interface ReceivableSummary {
   overdue: number;
   overdueCount: number;
   collectedThisMonth?: number;
-  pending: number;
-  pendingCount: number;
+  collectedThisMonthCount?: number;
+  pending?: number;
+  pendingCount?: number;
   month: string;
   asOf: string;
 }

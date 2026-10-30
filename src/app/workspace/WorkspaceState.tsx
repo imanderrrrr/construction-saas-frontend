@@ -23,8 +23,7 @@ function storedParams(key: string, section: string): string {
 export function WorkspaceStateProvider({ role, children }: { role: WorkspaceRole; children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const section = resolveSection(role, sectionForPath(role, location.pathname)
-    ?? (role === 'FINANCE' && location.pathname === '/finance/invoices' ? 'invoices' : 'dashboard'));
+  const section = resolveSection(role, sectionForPath(role, location.pathname) ?? 'dashboard');
   const storage = workspaceStorageKey(role, AuthService.getUsername() ?? 'anon', 'screens');
   const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
   // Setters in the same click can update several filters. Each sees the latest
