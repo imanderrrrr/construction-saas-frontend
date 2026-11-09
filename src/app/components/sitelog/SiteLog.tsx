@@ -664,7 +664,7 @@ export function SiteLog({ projects, canEdit: roleCanEdit }: SiteLogProps) {
                 className="w-full min-h-[120px] rounded-lg border border-[#D4D4D8] bg-white p-3 text-sm text-[#0A0A0A] focus:outline-none focus:ring-2 focus:ring-[#F97316]/25 focus:border-[#F97316] transition-colors placeholder:text-[#71717A] resize-y"
                 value={draft.notes}
                 placeholder={t('siteLog:notes.placeholder')}
-                maxLength={FIELD_LIMITS.EXTENDED_TEXT}
+                maxLength={FIELD_LIMITS.SITE_LOG_NOTES}
                 onChange={(e) => patchDraft({ notes: e.target.value })}
               />
             ) : (
